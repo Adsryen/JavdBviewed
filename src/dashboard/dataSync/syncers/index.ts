@@ -9,6 +9,8 @@ import { wantSyncManager } from './wantSync';
 import { actorSyncManager } from './actorSync';
 import { allSyncManager } from './allSync';
 import { listsSyncManager } from './listsSync';
+import { seriesSyncManager } from './seriesSync';
+import { labelsSyncManager } from './labelsSync';
 import type { SyncProgress, SyncResult } from '../types';
 import type { SyncType, SyncMode } from '../../config/syncConfig';
 
@@ -46,6 +48,10 @@ export class SyncManagerFactory {
                 return allSyncManager;
             case 'lists':
                 return listsSyncManager;
+            case 'series':
+                return seriesSyncManager;
+            case 'labels':
+                return labelsSyncManager;
             default:
                 throw new Error(`不支持的同步类型: ${type}`);
         }
@@ -68,7 +74,9 @@ export class SyncManagerFactory {
             wantSyncManager.isSyncing() ||
             actorSyncManager.isSyncing() ||
             allSyncManager.isSyncing() ||
-            listsSyncManager.isSyncing()
+            listsSyncManager.isSyncing() ||
+            seriesSyncManager.isSyncing() ||
+            labelsSyncManager.isSyncing()
         );
     }
 
@@ -90,6 +98,8 @@ export class SyncManagerFactory {
         actorSyncManager.cancel();
         allSyncManager.cancel();
         listsSyncManager.cancel();
+        seriesSyncManager.cancel();
+        labelsSyncManager.cancel();
         log.verbose('取消所有同步');
     }
 
@@ -108,6 +118,10 @@ export class SyncManagerFactory {
                 return '全部';
             case 'lists':
                 return '清单';
+            case 'series':
+                return '系列';
+            case 'labels':
+                return '番号';
             default:
                 return type;
         }
@@ -143,5 +157,7 @@ export {
     wantSyncManager,
     actorSyncManager,
     allSyncManager,
-    listsSyncManager
+    listsSyncManager,
+    seriesSyncManager,
+    labelsSyncManager
 };

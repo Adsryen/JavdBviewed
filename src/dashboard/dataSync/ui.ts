@@ -167,6 +167,32 @@ export class SyncUI {
 
 
 
+        // 系列 / 番号收藏同步 - 单按钮 + 跳转收藏中心
+        if (option.type === 'series' || option.type === 'labels') {
+            const navLabel = option.type === 'series' ? '查看系列收藏 →' : '查看番号收藏 →';
+            return `
+                <div class="sync-option-card">
+                    <div class="sync-option-header">
+                        <i class="${option.icon} sync-option-icon"></i>
+                        <h5>${option.title}</h5>
+                    </div>
+                    <p class="sync-option-description">${option.description}，只同步收藏关系，不爬取视频</p>
+                    <div class="sync-option-actions">
+                        <button id="${option.id}" class="sync-option-btn sync-btn sync-btn-secondary" ${disabledAttr}
+                                title="${option.title}" data-sync-type="${option.type}">
+                            <i class="${option.icon}"></i>
+                            <span class="btn-text">${option.title}</span>
+                        </button>
+                        ${comingSoonLabel}
+                    </div>
+                    <div class="sync-option-stats">
+                        <span class="stat-item">${option.description}</span>
+                        <a class="stat-nav-link" href="#tab-lists">${navLabel}</a>
+                    </div>
+                </div>
+            `;
+        }
+
         // 其他类型的同步选项，使用卡片样式
         return `
             <div class="sync-option-card">

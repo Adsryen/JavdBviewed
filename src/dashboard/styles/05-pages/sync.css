@@ -479,6 +479,21 @@
     background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
+.sync-option-stats .stat-nav-link {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+
+.sync-option-stats .stat-nav-link:hover {
+    opacity: 0.75;
+    text-decoration: underline;
+}
+
 /* 现代化按钮样式 */
 .sync-btn {
     position: relative;
