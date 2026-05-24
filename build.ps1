@@ -61,6 +61,48 @@ function Show-Success {
     Write-Host "Process finished." -ForegroundColor Green
 }
 
+function Clear-NodeModules {
+    $nodeModulesPath = Join-Path (Get-Location).Path "node_modules"
+    if (-not (Test-Path $nodeModulesPath)) {
+        return
+    }
+
+    Write-Host "Removing existing node_modules for this platform..." -ForegroundColor Gray
+
+    try {
+        Get-ChildItem -LiteralPath $nodeModulesPath -Force -Recurse -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                try {
+                    $_.Attributes = 'Normal'
+                } catch {}
+            }
+        Remove-Item -LiteralPath $nodeModulesPath -Recurse -Force -ErrorAction Stop
+        return
+    } catch {
+        Write-Host "PowerShell removal failed, trying cmd rmdir fallback..." -ForegroundColor Yellow
+    }
+
+    & cmd.exe /c "rmdir /s /q `"$nodeModulesPath`""
+    if ($LASTEXITCODE -ne 0 -or (Test-Path $nodeModulesPath)) {
+        throw "Failed to remove node_modules. Close editors, terminals, and sync tools that may be locking files, then retry."
+    }
+}
+
+function Install-Dependencies {
+    Write-Host "Running pnpm install..." -ForegroundColor Gray
+    & pnpm install
+    if ($LASTEXITCODE -eq 0) {
+        return
+    }
+
+    Write-Host "pnpm install failed. Removing node_modules and retrying once..." -ForegroundColor Yellow
+    Clear-NodeModules
+    & pnpm install
+    if ($LASTEXITCODE -ne 0) {
+        throw "pnpm install failed"
+    }
+}
+
 
 # Main loop
 while ($true) {
@@ -139,11 +181,7 @@ if (-not $releaseOnly) {
         $env:NO_COLOR = '1'
         $env:FORCE_COLOR = '0'
         
-        Write-Host "Running pnpm install..." -ForegroundColor Gray
-        & pnpm install
-        if ($LASTEXITCODE -ne 0) {
-            throw "pnpm install failed"
-        }
+        Install-Dependencies
 
         Write-Host "Running pnpm run build..." -ForegroundColor Gray
         & pnpm run build
