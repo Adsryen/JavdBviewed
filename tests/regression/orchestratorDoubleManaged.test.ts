@@ -1,5 +1,3 @@
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('content orchestrator managed tasks', () => {
@@ -76,8 +74,7 @@ describe('content orchestrator managed tasks', () => {
       configurable: true,
     });
 
-    const orchestratorUrl = pathToFileURL(path.resolve('src/content/initOrchestrator.ts')).href;
-    const { initOrchestrator } = await import(orchestratorUrl);
+    const { initOrchestrator } = await import('../../src/content/initOrchestrator.ts');
 
     await initOrchestrator.add('idle', async () => {}, { label: 'contentFilter:initialize' });
 
