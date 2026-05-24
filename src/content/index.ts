@@ -20,6 +20,7 @@ import { listEnhancementManager } from './enhancements/listEnhancement';
 import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { actorQuickActionsManager } from './enhancements/actorQuickActions';
 import { embyEnhancementManager } from './embyEnhancement';
+import { activatePreviewVideoPreload, releasePreviewVideoMedia } from './previewVideoPreload';
 import { initOrchestrator } from './initOrchestrator';
 import type { InitPhase } from './initOrchestrator';
 import { initInsightsCollector } from './insightsCollector';
@@ -56,6 +57,7 @@ function isCurrentPageMatchedByEmby(settings: any): boolean {
 
 // 预览音量的模块级状态（避免 ReferenceError: currentVolume is not defined）
 let currentVolume: number = 0.2;
+let previewVideoWatcherTimer: number | null = null;
 
 // 安装统一控制台代理（仅影响扩展自身，默认DEBUG，上海时区，显示来源+颜色）
 installConsoleProxy({
@@ -1001,6 +1003,7 @@ async function initVolumeControl() {
                 setTimeout(() => handleVideos(), 500);
                 setTimeout(() => handleVideos(), 1000);
                 setTimeout(() => handleVideos(), 2000);
+                startPreviewVideoWatcher();
             }
         });
 
@@ -1028,6 +1031,42 @@ function handleVideos() {
     });
 }
 
+function startPreviewVideoWatcher(): void {
+    if (previewVideoWatcherTimer !== null) {
+        return;
+    }
+
+    previewVideoWatcherTimer = window.setInterval(() => {
+        const previewVideos = Array.from(document.querySelectorAll('video')).filter(video => isPreviewVideo(video as HTMLVideoElement)) as HTMLVideoElement[];
+        const fancyboxOpen = document.querySelector('.fancybox-is-open') !== null;
+
+        if (previewVideos.length === 0 || !fancyboxOpen) {
+            releasePreviewVideos(previewVideos);
+            stopPreviewVideoWatcher();
+            return;
+        }
+
+        previewVideos.forEach(video => {
+            if (getComputedStyle(video).display !== 'none') {
+                activatePreviewVideoPreload(video);
+            }
+        });
+    }, 500);
+}
+
+function stopPreviewVideoWatcher(): void {
+    if (previewVideoWatcherTimer === null) {
+        return;
+    }
+
+    window.clearInterval(previewVideoWatcherTimer);
+    previewVideoWatcherTimer = null;
+}
+
+function releasePreviewVideos(videos: HTMLVideoElement[]): void {
+    videos.forEach(video => releasePreviewVideoMedia(video));
+}
+
 function isPreviewVideo(video: HTMLVideoElement): boolean {
     return video.id === 'preview-video' ||
            video.className.includes('fancybox-video');
@@ -1037,6 +1076,7 @@ function applyVolume(video: HTMLVideoElement) {
     log(`🔧 Applying volume ${Math.round(currentVolume * 100)}% to: ${video.id}`);
 
     try {
+        activatePreviewVideoPreload(video);
         log(`  Before: muted=${video.muted}, volume=${video.volume}`);
 
         // 直接设置，就像手动测试一样
@@ -1058,6 +1098,7 @@ function applyVolumeToAllVideos() {
     videos.forEach(video => {
         const v = video as HTMLVideoElement;
         if (isPreviewVideo(v)) {
+            activatePreviewVideoPreload(v);
             applyVolume(v);
         }
     });
@@ -1148,6 +1189,7 @@ if (typeof window !== 'undefined') {
 // 页面卸载时清理资源
 window.addEventListener('beforeunload', () => {
     try {
+        stopPreviewVideoWatcher();
         // 清理视频详情页的状态监听器
         cleanupVideoDetailObservers();
 

@@ -5,6 +5,20 @@ import { showToast } from '../toast';
 import { actorManager } from '../../services/actorManager';
 import { newWorksManager } from '../../services/newWorks';
 import { processVisibleItems } from '../itemProcessor';
+import { activatePreviewVideoPreload, releasePreviewVideoMedia } from '../previewVideoPreload';
+import {
+  createPreviewCacheEntry,
+  getPreviewSourceType,
+  isHlsPreviewUrl,
+  isKnownBadVbgflPreviewUrl,
+  isVbgflMusumeCode,
+  isVbgflPacoCode,
+  isVbgflPondoCode,
+  normalizePreviewUrl,
+  parsePreviewCacheEntry,
+  serializePreviewCacheEntry,
+  type PreviewSourceName,
+} from '../previewSourceRules';
 
 export interface ListEnhancementConfig {
   enabled: boolean;
@@ -50,6 +64,13 @@ export interface ListEnhancementConfig {
 interface VideoPreviewSource {
   url: string;
   type: string;
+  source?: PreviewSourceName;
+}
+
+interface VideoPreviewOptions {
+  cacheKey: string;
+  code: string;
+  onCacheError?: () => void;
 }
 
 class ListEnhancementManager {
@@ -1323,6 +1344,7 @@ class ListEnhancementManager {
     const existingVideo = coverElement.querySelector('video');
     if (existingVideo) {
       existingVideo.style.opacity = '1';
+      activatePreviewVideoPreload(existingVideo);
       existingVideo.play().catch(() => {});
       this.currentPlayingVideo = existingVideo;
       return;
@@ -1344,11 +1366,9 @@ class ListEnhancementManager {
     const video = coverElement.querySelector('video');
     if (!video) return;
 
-    // 立即暂停视频
-    video.pause();
-    
     // 淡出效果
     video.style.opacity = '0';
+    releasePreviewVideoMedia(video);
     
     // 清除当前播放视频的引用
     if (this.currentPlayingVideo === video) {
@@ -1371,49 +1391,56 @@ class ListEnhancementManager {
       return;
     }
 
-    // 检查localStorage缓存
     const cacheKey = `video_preview_${videoInfo.code}`;
-    let cachedUrl = null;
+    let cachedEntry = null as ReturnType<typeof parsePreviewCacheEntry> | null;
     try {
-      cachedUrl = localStorage.getItem(cacheKey);
+      cachedEntry = parsePreviewCacheEntry(localStorage.getItem(cacheKey));
     } catch (e) {
       log(`Failed to read from localStorage:`, e);
     }
 
-    if (cachedUrl) {
-      log(`Using cached video URL for ${videoInfo.code}: ${cachedUrl}`);
-      const video = this.createVideoElement([{ url: cachedUrl, type: 'video/mp4' }]);
+    if (cachedEntry?.url && isKnownBadVbgflPreviewUrl(videoInfo.code, cachedEntry.url)) {
+      log(`Removing stale invalid preview URL cache for ${videoInfo.code}: ${cachedEntry.url}`);
+      try {
+        localStorage.removeItem(cacheKey);
+      } catch (e) {
+        log(`Failed to remove invalid preview cache:`, e);
+      }
+      cachedEntry = null;
+    }
+
+    if (cachedEntry?.url) {
+      log(`Using cached video URL for ${videoInfo.code}: ${cachedEntry.url}`);
+      const video = this.createVideoElement([{ url: cachedEntry.url, type: cachedEntry.type, source: cachedEntry.source }], {
+        cacheKey,
+        code: videoInfo.code,
+        onCacheError: () => this.loadVideoPreviewFromSources(coverElement, videoInfo, cacheKey),
+      });
       coverElement.appendChild(video);
-      video.load();
+      activatePreviewVideoPreload(video);
       return;
     }
 
+    await this.loadVideoPreviewFromSources(coverElement, videoInfo, cacheKey);
+  }
+
+  private async loadVideoPreviewFromSources(coverElement: HTMLElement, videoInfo: { code: string; title: string; url: string }, cacheKey: string): Promise<void> {
     try {
-      // 获取视频预览源
       const videoSources = await this.fetchVideoPreview(videoInfo);
-      
-      // 再次检查是否还在悬停状态
+
       if (!coverElement.classList.contains('x-holding')) {
         return;
       }
-      
+
       if (videoSources.length === 0) {
         log(`No preview sources found for ${videoInfo.code}`);
         return;
       }
 
-      // 缓存URL到localStorage
-      try {
-        localStorage.setItem(cacheKey, videoSources[0].url);
-      } catch (e) {
-        log(`Failed to cache video URL:`, e);
-      }
-
-      // 创建视频元素
-      const video = this.createVideoElement(videoSources);
+      const video = this.createVideoElement(videoSources, { cacheKey, code: videoInfo.code });
       coverElement.appendChild(video);
       this.currentPlayingVideo = video;
-      video.load();
+      activatePreviewVideoPreload(video);
 
     } catch (error) {
       log(`Failed to load video preview for ${videoInfo.code}:`, error);
@@ -1440,36 +1467,42 @@ class ListEnhancementManager {
       }
 
       // 依据首选来源确定顺序
-      const autoOrder = ['javdb', 'vbgfl', 'javspyl', 'avpreview'] as const;
+      const autoOrder = ['javdb', 'javspyl', 'avpreview', 'vbgfl'] as const;
       const preferred = this.config.preferredPreviewSource || 'auto';
       const order = preferred === 'auto' ? autoOrder : ([preferred, ...autoOrder.filter(x => x !== preferred)] as const);
+      log(`Preview source order for ${videoInfo.code}: ${order.join(' -> ')}`);
       
       const fetchMethods = order.map((key) => {
         switch (key) {
           case 'javspyl':
-            return { name: 'JavSpyl', method: () => this.fetchFromJavSpyl(videoInfo.code) };
+            return { name: 'JavSpyl', source: 'javspyl' as const, method: () => this.fetchFromJavSpyl(videoInfo.code) };
           case 'avpreview':
-            return { name: 'AVPreview', method: () => this.fetchFromAVPreview(videoInfo.code) };
+            return { name: 'AVPreview', source: 'avpreview' as const, method: () => this.fetchFromAVPreview(videoInfo.code) };
           case 'vbgfl':
-            return { name: 'VBGFL', method: () => this.fetchFromVBGFL(videoInfo.code) };
+            return { name: 'VBGFL', source: 'vbgfl' as const, method: () => this.fetchFromVBGFL(videoInfo.code) };
           case 'javdb':
           default:
-            return { name: 'JavDB', method: () => this.fetchFromJavDB(videoInfo.url) };
+            return { name: 'JavDB', source: 'javdb' as const, method: () => this.fetchFromJavDB(videoInfo.url) };
         }
       });
 
-      for (const { name, method } of fetchMethods) {
+      for (const { name, source, method } of fetchMethods) {
         try {
           log(`Trying ${name} for ${videoInfo.code}...`);
           const url = await method();
 
           if (url) {
-            log(`${name} returned URL: ${url}`);
+            const normalizedUrl = normalizePreviewUrl(url);
+            if (source === 'javdb' && isHlsPreviewUrl(normalizedUrl)) {
+              log(`${name} returned HLS preview on list page, continuing to MP4 sources: ${normalizedUrl}`);
+              continue;
+            }
+            log(`${name} returned URL: ${normalizedUrl}`);
             sources.push({
-              url: url,
-              type: 'video/mp4'
+              url: normalizedUrl,
+              type: getPreviewSourceType(normalizedUrl),
+              source,
             });
-            break; // 找到可用的源就停止
           } else {
             log(`${name} returned no URL for ${videoInfo.code}`);
           }
@@ -1526,8 +1559,8 @@ class ListEnhancementManager {
         urls.push(`https://smovie.caribbeancom.com/sample/movies/${normalizedCode}/480p.mp4`);
       }
 
-      // 1Pondo (格式: 123456_789)
-      if (code.includes('_') || code.includes('-')) {
+      // 1Pondo (格式: 123456_789 或 123456-789)
+      if (isVbgflPondoCode(code)) {
         const pondo = code.replace('-', '_').toLowerCase();
         urls.push(`https://smovie.1pondo.tv/sample/movies/${pondo}/1080p.mp4`);
         urls.push(`https://smovie.1pondo.tv/sample/movies/${pondo}/720p.mp4`);
@@ -1540,13 +1573,13 @@ class ListEnhancementManager {
       }
 
       // 10musume
-      if (code.includes('-') && /^\d{6}_\d{2}$/.test(code.replace('-', '_'))) {
+      if (isVbgflMusumeCode(code)) {
         const musume = code.replace('-', '_').toLowerCase();
         urls.push(`https://smovie.10musume.com/sample/movies/${musume}/720p.mp4`);
       }
 
       // Pacopacomama
-      if (code.includes('-') && /^\d{6}_\d{3}$/.test(code.replace('-', '_'))) {
+      if (isVbgflPacoCode(code)) {
         const paco = code.replace('-', '_').toLowerCase();
         urls.push(`https://fms.pacopacomama.com/hls/sample/pacopacomama.com/${paco}/720p.mp4`);
       }
@@ -1623,7 +1656,7 @@ class ListEnhancementManager {
     return null;
   }
 
-  private createVideoElement(sources: VideoPreviewSource[]): HTMLVideoElement {
+  private createVideoElement(sources: VideoPreviewSource[], options?: VideoPreviewOptions): HTMLVideoElement {
     const video = document.createElement('video');
 
     // 基础属性
@@ -1632,7 +1665,7 @@ class ListEnhancementManager {
     video.loop = true;
     video.playsInline = true;
     video.controls = true; // 启用控制条
-    video.preload = 'metadata';
+    video.preload = 'auto';
     video.volume = 0.5; // 默认音量，会被音量控制系统覆盖
     video.disablePictureInPicture = true;
     video.disableRemotePlayback = true;
@@ -1665,17 +1698,39 @@ class ListEnhancementManager {
       video.appendChild(sourceElement);
     });
 
+    const persistPreviewCache = () => {
+      if (!options || !sources[0]) return;
+      try {
+        const currentUrl = normalizePreviewUrl(video.currentSrc || sources[0].url);
+        const cacheSource = sources.find(source => normalizePreviewUrl(source.url) === currentUrl) || sources[0];
+        const entry = createPreviewCacheEntry(currentUrl, cacheSource.source || 'cache');
+        localStorage.setItem(options.cacheKey, serializePreviewCacheEntry(entry));
+      } catch (e) {
+        log(`Failed to cache verified preview URL for ${options.code}:`, e);
+      }
+    };
+
+    const retryPreview = () => {
+      if (!options) return;
+      try {
+        localStorage.removeItem(options.cacheKey);
+      } catch {}
+      options.onCacheError?.();
+    };
+
     // 事件监听器
     video.addEventListener('loadeddata', () => {
       log(`Video loaded successfully: ${sources[0]?.url}`);
-      // 从0秒开始播放
+      persistPreviewCache();
     });
 
     video.addEventListener('canplay', () => {
       log(`Video can play: ${sources[0]?.url}`);
+      persistPreviewCache();
       // 检查视频是否还在DOM中
       if (video.parentElement) {
         video.style.opacity = '1';
+        activatePreviewVideoPreload(video);
         video.play().catch(err => {
           log(`Video play failed: ${err.message}`);
         });
@@ -1685,6 +1740,7 @@ class ListEnhancementManager {
     video.addEventListener('error', (e) => {
       const target = e.target as HTMLVideoElement;
       log(`Video error for ${sources[0]?.url}:`, target.error?.message || 'Unknown error');
+      retryPreview();
       // 如果视频加载失败，移除元素
       if (video.parentNode) {
         video.remove();
