@@ -28,6 +28,25 @@ err() { printf "%b%s%b\n" "$RED" "$1" "$NC"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+clear_node_modules() {
+  local node_modules="$root_dir/node_modules"
+  if [[ -d "$node_modules" ]]; then
+    info "Removing existing node_modules for this platform"
+    rm -rf "$node_modules"
+  fi
+}
+
+install_dependencies() {
+  info "Installing dependencies (pnpm install)"
+  if pnpm install --frozen-lockfile || pnpm install; then
+    return 0
+  fi
+
+  warn "pnpm install failed. Removing node_modules and retrying once..."
+  clear_node_modules
+  pnpm install --frozen-lockfile || pnpm install
+}
+
 read_version() {
   # Priority: version.json -> src/manifest.json -> package.json
   local v=""
@@ -92,8 +111,7 @@ quick_build() {
   if ! have node; then err "Node.js 未安装"; exit 1; fi
   if ! have pnpm; then err "pnpm 未安装 (建议: npm i -g pnpm)"; exit 1; fi
 
-  info "Installing dependencies (pnpm install)"
-  pnpm install --frozen-lockfile || pnpm install
+  install_dependencies
 
   info "Building via Vite"
   # Use local dev dep vite
@@ -127,8 +145,7 @@ git_dirty() {
 install_and_build() {
   if ! have node; then err "需要 Node.js"; exit 1; fi
   if ! have pnpm; then err "需要 pnpm (npm i -g pnpm)"; exit 1; fi
-  info "Installing dependencies (pnpm install)"
-  pnpm install --frozen-lockfile || pnpm install
+  install_dependencies
   info "Building via Vite"
   pnpm vite build
 }
