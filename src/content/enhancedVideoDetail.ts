@@ -15,6 +15,22 @@ import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementDone } from './enhancementLoadingIndicator';
 import { isDarkTheme } from './utils';
 import { addTaskUrlsV2 } from '../services/drive115Router';
+import {
+  createPreviewCacheEntry,
+  getPreviewSourceType,
+  isKnownBadVbgflPreviewUrl,
+  isVbgflPondoCode,
+  normalizePreviewUrl,
+  parsePreviewCacheEntry,
+  serializePreviewCacheEntry,
+  type PreviewSourceName,
+} from './previewSourceRules';
+import { activatePreviewVideoPreload, releasePreviewVideoMedia } from './previewVideoPreload';
+import {
+  attachNativeJavdbPreview,
+  isAttachedNativeJavdbPreview,
+  restoreNativeJavdbPreview,
+} from './nativeJavdbPreview';
 
 export interface EnhancementOptions {
   enableCoverImage: boolean;
@@ -2340,8 +2356,7 @@ export class VideoDetailEnhancer {
 
     // 暂停之前正在播放的视频
     if (this.currentPlayingVideo && this.currentPlayingVideo.parentElement) {
-      this.currentPlayingVideo.pause();
-      this.currentPlayingVideo.style.opacity = '0';
+      this.releasePreviewVideo(this.currentPlayingVideo);
     }
 
     // 如果已有视频，直接显示
@@ -2372,12 +2387,37 @@ export class VideoDetailEnhancer {
     const video = coverElement.querySelector('video');
     if (!video) return;
 
-    video.pause();
+    this.releasePreviewVideo(video);
+  }
+
+  private releasePreviewVideo(video: HTMLVideoElement): void {
+    if (isAttachedNativeJavdbPreview(video)) {
+      restoreNativeJavdbPreview(video);
+      if (this.currentPlayingVideo === video) {
+        this.currentPlayingVideo = null;
+      }
+      return;
+    }
+
+    try {
+      video.pause();
+    } catch {}
+
     video.style.opacity = '0';
-    
+
+    try {
+      releasePreviewVideoMedia(video);
+    } catch (error) {
+      log('Failed to release preview video resources:', error);
+    }
+
     if (this.currentPlayingVideo === video) {
       this.currentPlayingVideo = null;
     }
+
+    try {
+      video.remove();
+    } catch {}
   }
 
   /**
@@ -2396,24 +2436,48 @@ export class VideoDetailEnhancer {
       return;
     }
 
+    const nativePreview = this.attachNativePreviewIfAvailable(coverElement);
+    if (nativePreview) {
+      this.currentPlayingVideo = nativePreview;
+      return;
+    }
+
     // 检查localStorage缓存
     const cacheKey = `video_preview_${videoCode}`;
-    let cachedUrl = null;
+    let cachedEntry = null as ReturnType<typeof parsePreviewCacheEntry> | null;
     try {
-      cachedUrl = localStorage.getItem(cacheKey);
+      cachedEntry = parsePreviewCacheEntry(localStorage.getItem(cacheKey));
     } catch (e) {
       log(`Failed to read from localStorage:`, e);
     }
 
-    if (cachedUrl) {
-      log(`Using cached video URL for ${videoCode}: ${cachedUrl}`);
-      const video = this.createVideoElement([{ url: cachedUrl, type: 'video/mp4' }]);
+    if (cachedEntry?.url && isKnownBadVbgflPreviewUrl(videoCode, cachedEntry.url)) {
+      log(`Removing stale invalid preview URL cache for ${videoCode}: ${cachedEntry.url}`);
+      try {
+        localStorage.removeItem(cacheKey);
+      } catch (e) {
+        log(`Failed to remove invalid preview cache:`, e);
+      }
+      cachedEntry = null;
+    }
+
+    if (cachedEntry?.url) {
+      log(`Using cached video URL for ${videoCode}: ${cachedEntry.url}`);
+      const video = this.createVideoElement([{ url: cachedEntry.url, type: cachedEntry.type, source: cachedEntry.source }], {
+        cacheKey,
+        code: videoCode,
+        onCacheError: () => this.loadVideoPreviewFromSources(coverElement, videoCode, cacheKey),
+      });
       coverElement.appendChild(video);
       this.currentPlayingVideo = video;
-      video.load();
+      activatePreviewVideoPreload(video);
       return;
     }
 
+    await this.loadVideoPreviewFromSources(coverElement, videoCode, cacheKey);
+  }
+
+  private async loadVideoPreviewFromSources(coverElement: HTMLElement, videoCode: string, cacheKey: string): Promise<void> {
     try {
       const videoSources = await this.fetchVideoPreview(videoCode);
       
@@ -2426,17 +2490,13 @@ export class VideoDetailEnhancer {
         return;
       }
 
-      // 缓存URL
-      try {
-        localStorage.setItem(cacheKey, videoSources[0].url);
-      } catch (e) {
-        log(`Failed to cache video URL:`, e);
-      }
-
-      const video = this.createVideoElement(videoSources);
+      const video = this.createVideoElement(videoSources, {
+        cacheKey,
+        code: videoCode,
+      });
       coverElement.appendChild(video);
       this.currentPlayingVideo = video;
-      video.load();
+      activatePreviewVideoPreload(video);
 
     } catch (error) {
       log(`Failed to load video preview for ${videoCode}:`, error);
@@ -2446,8 +2506,8 @@ export class VideoDetailEnhancer {
   /**
    * 获取视频预览源
    */
-  private async fetchVideoPreview(videoCode: string): Promise<Array<{ url: string; type: string }>> {
-    const sources: Array<{ url: string; type: string }> = [];
+  private async fetchVideoPreview(videoCode: string): Promise<Array<VideoPreviewSource>> {
+    const sources: VideoPreviewSource[] = [];
 
     try {
       log(`Fetching video preview for code: ${videoCode}`);
@@ -2456,32 +2516,36 @@ export class VideoDetailEnhancer {
       const settings = STATE.settings;
       const preferredSource = settings?.listEnhancement?.preferredPreviewSource || 'auto';
       
-      const autoOrder = ['javdb', 'vbgfl', 'javspyl', 'avpreview'] as const;
-      const order = preferredSource === 'auto' ? autoOrder : ([preferredSource, ...autoOrder.filter(x => x !== preferredSource)] as const);
+      const autoOrder = ['javspyl', 'avpreview', 'vbgfl'] as const;
+      const order = preferredSource === 'auto'
+        ? autoOrder
+        : (preferredSource === 'javdb'
+          ? autoOrder
+          : ([preferredSource, ...autoOrder.filter(x => x !== preferredSource)] as const));
+      log(`Preview source order for ${videoCode}: ${order.join(' -> ')}`);
       
       const fetchMethods = order.map((key) => {
         switch (key) {
           case 'javspyl':
-            return { name: 'JavSpyl', method: () => this.fetchFromJavSpyl(videoCode) };
+            return { name: 'JavSpyl', source: 'javspyl' as const, method: () => this.fetchFromJavSpyl(videoCode) };
           case 'avpreview':
-            return { name: 'AVPreview', method: () => this.fetchFromAVPreview(videoCode) };
+            return { name: 'AVPreview', source: 'avpreview' as const, method: () => this.fetchFromAVPreview(videoCode) };
           case 'vbgfl':
-            return { name: 'VBGFL', method: () => this.fetchFromVBGFL(videoCode) };
-          case 'javdb':
+            return { name: 'VBGFL', source: 'vbgfl' as const, method: () => this.fetchFromVBGFL(videoCode) };
           default:
-            return { name: 'JavDB', method: () => this.fetchFromJavDB(window.location.href) };
+            return { name: 'JavSpyl', source: 'javspyl' as const, method: () => this.fetchFromJavSpyl(videoCode) };
         }
       });
 
-      for (const { name, method } of fetchMethods) {
+      for (const { name, source, method } of fetchMethods) {
         try {
           log(`Trying ${name} for ${videoCode}...`);
           const url = await method();
 
           if (url) {
-            log(`${name} returned URL: ${url}`);
-            sources.push({ url, type: 'video/mp4' });
-            break;
+            const normalizedUrl = normalizePreviewUrl(url);
+            log(`${name} returned URL: ${normalizedUrl}`);
+            sources.push({ url: normalizedUrl, type: getPreviewSourceType(normalizedUrl), source });
           }
         } catch (error) {
           log(`${name} failed for ${videoCode}:`, error);
@@ -2493,6 +2557,16 @@ export class VideoDetailEnhancer {
     }
 
     return sources;
+  }
+
+  private attachNativePreviewIfAvailable(coverElement: HTMLElement): HTMLVideoElement | null {
+    const settings = STATE.settings;
+    const volume = Number(settings?.listEnhancement?.previewVolume ?? 0.2);
+    const video = attachNativeJavdbPreview(coverElement, volume);
+    if (video) {
+      log('Using native JavDB preview video on detail page');
+    }
+    return video;
   }
 
   /**
@@ -2515,7 +2589,7 @@ export class VideoDetailEnhancer {
       }
 
       // 1Pondo
-      if (code.includes('_') || code.includes('-')) {
+      if (isVbgflPondoCode(code)) {
         const pondo = code.replace('-', '_').toLowerCase();
         urls.push(`https://smovie.1pondo.tv/sample/movies/${pondo}/1080p.mp4`);
       }
@@ -2574,28 +2648,9 @@ export class VideoDetailEnhancer {
   }
 
   /**
-   * 从JavDB获取视频
-   */
-  private async fetchFromJavDB(detailUrl: string): Promise<string | null> {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'FETCH_JAVDB_PREVIEW',
-        url: detailUrl
-      });
-
-      if (response?.success && response?.videoUrl) {
-        return response.videoUrl;
-      }
-    } catch (error) {
-      log(`JavDB fetch error:`, error);
-    }
-    return null;
-  }
-
-  /**
    * 创建视频元素
    */
-  private createVideoElement(sources: Array<{ url: string; type: string }>): HTMLVideoElement {
+  private createVideoElement(sources: VideoPreviewSource[], options?: VideoPreviewOptions): HTMLVideoElement {
     const video = document.createElement('video');
 
     // 从设置中获取音量配置
@@ -2607,7 +2662,7 @@ export class VideoDetailEnhancer {
     video.loop = true;
     video.playsInline = true;
     video.controls = true;
-    video.preload = 'metadata';
+    video.preload = 'auto';
     video.volume = Math.max(0, Math.min(1, volume)); // 确保音量在 0-1 范围内
     video.disablePictureInPicture = true;
     video.disableRemotePlayback = true;
@@ -2635,12 +2690,33 @@ export class VideoDetailEnhancer {
       video.appendChild(sourceElement);
     });
 
+    const persistPreviewCache = () => {
+      if (!options || !sources[0]) return;
+      try {
+        const currentUrl = normalizePreviewUrl(video.currentSrc || sources[0].url);
+        const source = sources.find(candidate => normalizePreviewUrl(candidate.url) === currentUrl) || sources[0];
+        localStorage.setItem(options.cacheKey, serializePreviewCacheEntry(createPreviewCacheEntry(currentUrl, source.source || 'cache')));
+      } catch (e) {
+        log(`Failed to cache verified preview URL for ${options.code}:`, e);
+      }
+    };
+
+    const retryPreview = () => {
+      if (!options) return;
+      try {
+        localStorage.removeItem(options.cacheKey);
+      } catch {}
+      options.onCacheError?.();
+    };
+
     video.addEventListener('loadeddata', () => {
       log(`Video loaded successfully: ${sources[0]?.url}`);
+      persistPreviewCache();
     });
 
     video.addEventListener('canplay', () => {
       log(`Video canplay event triggered, parentElement: ${!!video.parentElement}`);
+      persistPreviewCache();
       if (video.parentElement) {
         video.style.opacity = '1';
         video.play().catch(err => {
@@ -2648,10 +2724,10 @@ export class VideoDetailEnhancer {
         });
       }
     });
-    
-    // 🆕 添加 loadedmetadata 事件，更早触发播放
+
     video.addEventListener('loadedmetadata', () => {
       log(`Video metadata loaded: ${sources[0]?.url}`);
+      persistPreviewCache();
       if (video.parentElement && video.readyState >= 2) {
         video.style.opacity = '1';
         video.play().catch(err => {
@@ -2662,6 +2738,7 @@ export class VideoDetailEnhancer {
 
     video.addEventListener('error', () => {
       log(`Video error for ${sources[0]?.url}`);
+      retryPreview();
       if (video.parentNode) {
         video.remove();
       }
@@ -2673,3 +2750,14 @@ export class VideoDetailEnhancer {
 
 // 导出增强器实例
 export const videoDetailEnhancer = new VideoDetailEnhancer();
+interface VideoPreviewSource {
+  url: string;
+  type: string;
+  source?: PreviewSourceName;
+}
+
+interface VideoPreviewOptions {
+  cacheKey: string;
+  code: string;
+  onCacheError?: () => void;
+}
