@@ -57,6 +57,7 @@
                                     <input type="checkbox" id="veEnableActorNameMarks">
                                     <input type="checkbox" id="veEnableRelatedLists">
                                     <input type="checkbox" id="veEnableOnlineAvailability">
+                                    <input type="checkbox" id="veShowOnlineAvailabilityFailures">
                                     <!-- 新增：影片页增强 - 本地同步类子项（隐藏 checkbox 作为状态源） -->
                                     <input type="checkbox" id="veEnableWantSync">
                                     <input type="checkbox" id="veAutoMarkWatchedAfter115">
@@ -307,9 +308,27 @@
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>功能：</strong>在影片详情页检测 FANZA、Jable、MISSAV、Supjav、JavBus 等站点是否有在线资源。<br>
+                                            <strong>功能：</strong>在影片详情页检测 FANZA、Jable、MISSAV、Supjav、JavBus、123AV、NETFLAV 等站点是否有在线资源。<br>
                                             <strong>说明：</strong>命中后会在页面顶部显示可点击站点标签，并标记字幕/无码信息。
                                         </p>
+                                        <div class="sub-settings" id="onlineAvailabilityConfig" style="display: none;">
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">显示失败站点</h6>
+                                                            <span class="enhancement-feature-status available">可选</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veShowOnlineAvailabilityFailures"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    开启后，检测失败或未命中的站点会以红色标签显示；默认只显示命中的可看站点。
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                     <!-- 在线可看性检测 结束 -->
 

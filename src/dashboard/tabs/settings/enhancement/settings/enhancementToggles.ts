@@ -74,6 +74,7 @@ export function toggleConfigSections(host: EnhancementTogglesHost): void {
   }
 
   setConfigEnabled(document.getElementById('actorRemarksConfig') as HTMLElement | null, host.veEnableActorRemarks?.checked === true);
+  setConfigEnabled(document.getElementById('onlineAvailabilityConfig') as HTMLElement | null, host.veEnableOnlineAvailability?.checked === true);
   setConfigEnabled(document.getElementById('autoMarkWatchedConfig') as HTMLElement | null, host.veAutoMarkWatchedAfter115?.checked === true);
   setConfigEnabled(document.getElementById('clickEnhancementConfig') as HTMLElement | null, host.enableClickEnhancement?.checked === true);
   setConfigEnabled(document.getElementById('listVideoPreviewConfig') as HTMLElement | null, host.enableListVideoPreview?.checked === true);

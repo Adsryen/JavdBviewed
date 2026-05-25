@@ -459,6 +459,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableVideoFavoriteRating: true, // 默认启用
         enableRelatedLists: true,
         enableOnlineAvailability: false,
+        showOnlineAvailabilityFailures: false,
     },
 
     // 新增：内容过滤默认配置

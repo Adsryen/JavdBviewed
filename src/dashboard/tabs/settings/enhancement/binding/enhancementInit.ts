@@ -52,6 +52,7 @@ export function initializeElements(host: EnhancementInitHost): void {
     ['veEnableActorNameMarks', 'veEnableActorNameMarks'],
     ['veEnableRelatedLists', 'veEnableRelatedLists'],
     ['veEnableOnlineAvailability', 'veEnableOnlineAvailability'],
+    ['veShowOnlineAvailabilityFailures', 'veShowOnlineAvailabilityFailures'],
     ['veActorRemarksMode', 'veActorRemarksMode'],
     ['veActorRemarksTTL', 'veActorRemarksTTL'],
     ['veActorRemarksTaskTimeout', 'veActorRemarksTaskTimeout'],
