@@ -4,6 +4,7 @@
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from './config';
 import type { ExtensionSettings } from '../types';
 import { log } from './logController';
+import { dedupeSearchEngines, migrateSearchEngineTemplateIcon } from './searchEngines';
 
 // --- Large object chunked storage helpers ---
 // 说明：当单个键（如 'viewed'）对象过大时，写入 chrome.storage.local 可能触发
@@ -246,6 +247,25 @@ function normalizeSettingsForSave<T extends Partial<ExtensionSettings>>(settings
   } as T;
 }
 
+export function mergeSearchEngineTemplates(searchEngines: any[] | undefined | null): any[] {
+  const defaultEngines = Array.isArray((DEFAULT_SETTINGS as any).searchEngines)
+    ? (DEFAULT_SETTINGS as any).searchEngines
+    : [];
+  const userEngines = Array.isArray(searchEngines) ? searchEngines : [];
+  const merged: any[] = [];
+
+  defaultEngines.forEach((engine: any) => {
+    merged.push(migrateSearchEngineTemplateIcon({ ...engine }));
+  });
+
+  userEngines.forEach((engine) => {
+    if (!engine || typeof engine !== 'object') return;
+    merged.push(migrateSearchEngineTemplateIcon(engine));
+  });
+
+  return dedupeSearchEngines(merged).engines;
+}
+
 export async function getSettings(): Promise<ExtensionSettings> {
   const storedSettings = await getValue<Partial<ExtensionSettings>>(STORAGE_KEYS.SETTINGS, {});
   const { drive115: migratedDrive115, changed: drive115Migrated } = migrateLegacyDrive115Settings((storedSettings as any).drive115);
@@ -369,6 +389,7 @@ export async function getSettings(): Promise<ExtensionSettings> {
       },
     },
   };
+  mergedSettings.searchEngines = mergeSearchEngineTemplates((storedSettings as any).searchEngines);
 
   log.storage('Merged settings privacy config', mergedSettings.privacy);
   return mergedSettings;
