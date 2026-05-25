@@ -150,6 +150,7 @@ export class AnchorOptimizationManager {
    * 创建优化后的按钮组
    */
   private createOptimizedButtons(): void {
+    this.injectOptimizedButtonStyles();
     this.optimizedButtons = document.createElement('div');
     this.optimizedButtons.className = 'optimized-anchor-buttons';
     this.optimizedButtons.style.cssText = this.getButtonContainerStyles();
@@ -302,6 +303,7 @@ export class AnchorOptimizationManager {
    * 创建单个按钮
    */
   private createButton(config: AnchorButton): HTMLElement | null {
+    this.injectOptimizedButtonStyles();
     const button = document.createElement('a');
     button.className = 'optimized-anchor-btn';
     button.setAttribute('data-target', config.target);
@@ -313,14 +315,10 @@ export class AnchorOptimizationManager {
       justify-content: center;
       min-width: 80px;
       height: 40px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid #ddd;
       border-radius: 20px;
-      color: #333;
       text-decoration: none;
       font-size: 12px;
       font-weight: 500;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       transition: all 0.3s ease;
       cursor: pointer;
       padding: 0 12px;
@@ -332,26 +330,13 @@ export class AnchorOptimizationManager {
     if (config.icon) {
       const icon = document.createElement('span');
       icon.textContent = config.icon;
-      icon.style.fontSize = '14px';
+      icon.className = 'optimized-anchor-btn-icon';
       button.appendChild(icon);
     }
 
     const label = document.createElement('span');
     label.textContent = config.label;
     button.appendChild(label);
-
-    // 添加悬停效果
-    button.addEventListener('mouseenter', () => {
-      button.style.background = 'rgba(255, 255, 255, 1)';
-      button.style.transform = 'scale(1.05)';
-      button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-    });
-
-    button.addEventListener('mouseleave', () => {
-      button.style.background = 'rgba(255, 255, 255, 0.95)';
-      button.style.transform = 'scale(1)';
-      button.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-    });
 
     // 添加点击事件
     button.addEventListener('click', (e) => {
@@ -360,6 +345,64 @@ export class AnchorOptimizationManager {
     });
 
     return button;
+  }
+
+  private injectOptimizedButtonStyles(): void {
+    const styleId = 'optimized-anchor-button-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .optimized-anchor-buttons {
+        --jdb-anchor-btn-bg: rgba(255, 255, 255, 0.94);
+        --jdb-anchor-btn-bg-hover: rgba(255, 255, 255, 0.99);
+        --jdb-anchor-btn-border: rgba(15, 23, 42, 0.14);
+        --jdb-anchor-btn-text: #1f2937;
+        --jdb-anchor-btn-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+        --jdb-anchor-btn-shadow-hover: 0 10px 24px rgba(15, 23, 42, 0.18);
+      }
+
+      html[data-theme="dark"] .optimized-anchor-buttons {
+        --jdb-anchor-btn-bg: rgba(31, 41, 55, 0.92);
+        --jdb-anchor-btn-bg-hover: rgba(55, 65, 81, 0.96);
+        --jdb-anchor-btn-border: rgba(148, 163, 184, 0.24);
+        --jdb-anchor-btn-text: #e5e7eb;
+        --jdb-anchor-btn-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+        --jdb-anchor-btn-shadow-hover: 0 12px 30px rgba(0, 0, 0, 0.42);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) .optimized-anchor-buttons {
+          --jdb-anchor-btn-bg: rgba(31, 41, 55, 0.92);
+          --jdb-anchor-btn-bg-hover: rgba(55, 65, 81, 0.96);
+          --jdb-anchor-btn-border: rgba(148, 163, 184, 0.24);
+          --jdb-anchor-btn-text: #e5e7eb;
+          --jdb-anchor-btn-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+          --jdb-anchor-btn-shadow-hover: 0 12px 30px rgba(0, 0, 0, 0.42);
+        }
+      }
+
+      .optimized-anchor-btn {
+        background: var(--jdb-anchor-btn-bg) !important;
+        border: 1px solid var(--jdb-anchor-btn-border) !important;
+        color: var(--jdb-anchor-btn-text) !important;
+        box-shadow: var(--jdb-anchor-btn-shadow) !important;
+        transform: scale(1);
+      }
+
+      .optimized-anchor-btn:hover {
+        background: var(--jdb-anchor-btn-bg-hover) !important;
+        box-shadow: var(--jdb-anchor-btn-shadow-hover) !important;
+        color: var(--jdb-anchor-btn-text) !important;
+        transform: scale(1.05);
+      }
+
+      .optimized-anchor-btn-icon {
+        font-size: 14px;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   /**
