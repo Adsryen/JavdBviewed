@@ -1144,6 +1144,8 @@
     top: 4px;
     right: 4px;
     z-index: 2;
+    grid-template-columns: repeat(6, 14px);
+    grid-auto-rows: 14px;
     background: rgba(255, 255, 255, 0.95);
     padding: 3px 5px;
     border-radius: 6px;
@@ -1595,9 +1597,12 @@
 }
 
 .video-search-icons {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(6, 16px);
+    grid-auto-rows: 16px;
     align-items: center;
-    gap: 8px;
+    justify-content: end;
+    gap: 6px;
 }
 
 .video-search-icons a {
@@ -1605,6 +1610,13 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+}
+
+#videoList.card-view .video-search-icons a {
+    width: 14px;
+    height: 14px;
 }
 
 .video-search-icons img {

@@ -12,6 +12,7 @@ import {
     matchesLabelRecord,
     matchesSeriesRecord,
 } from '../../utils/listRecordHelpers';
+import { buildSearchEngineUrl, resolveSearchEngineIcon } from '../../utils/searchEngines';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）
 let RECORDS_TAB_INITIALIZED = false;
@@ -1143,16 +1144,14 @@ export function initRecordsTab(): void {
                                 return;
                             }
 
-                            const searchUrl = engine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id));
+                            const searchUrl = buildSearchEngineUrl(engine.urlTemplate, record.id);
                             const icon = document.createElement('a');
                             icon.href = searchUrl;
                             icon.target = '_blank';
                             icon.title = `Search on ${engine.name}`;
 
                             const img = document.createElement('img');
-                            img.src = engine.icon && engine.icon.startsWith('assets/')
-                                ? chrome.runtime.getURL(engine.icon)
-                                : (engine.icon || chrome.runtime.getURL('assets/alternate-search.png'));
+                            img.src = resolveSearchEngineIcon(engine);
                             img.alt = String(engine.name || '');
                             img.onerror = () => { // Fallback icon
                                 img.src = chrome.runtime.getURL('assets/alternate-search.png');
