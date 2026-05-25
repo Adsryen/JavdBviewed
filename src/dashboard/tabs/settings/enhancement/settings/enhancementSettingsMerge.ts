@@ -24,6 +24,7 @@ type EnhancementSaveHost = {
   popularityMinRatingCount?: HTMLInputElement;
   veEnableRelatedLists?: HTMLInputElement;
   veEnableOnlineAvailability?: HTMLInputElement;
+  veShowOnlineAvailabilityFailures?: HTMLInputElement;
   getPreferredPreviewSource?: () => 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl';
 };
 
@@ -52,6 +53,7 @@ export function mergeEnhancementSettingsForSave(
       ...existingVideoEnhancement,
       enableRelatedLists: host.veEnableRelatedLists?.checked ?? existingVideoEnhancement.enableRelatedLists ?? true,
       enableOnlineAvailability: host.veEnableOnlineAvailability?.checked ?? existingVideoEnhancement.enableOnlineAvailability ?? false,
+      showOnlineAvailabilityFailures: host.veShowOnlineAvailabilityFailures?.checked ?? existingVideoEnhancement.showOnlineAvailabilityFailures ?? false,
     },
     listEnhancement: {
       ...existingListEnhancement,

@@ -31,6 +31,7 @@ export interface OnlineAvailabilityResult {
 export interface OnlineAvailabilityConfig {
   enabled: boolean;
   autoCheck: boolean;
+  showUnavailable: boolean;
   timeoutMs: number;
   sites: OnlineAvailabilitySite[];
 }
@@ -74,6 +75,17 @@ export const DEFAULT_ONLINE_AVAILABILITY_SITES: OnlineAvailabilitySite[] = [
     },
   },
   {
+    key: '123av',
+    name: '123AV',
+    url: 'https://123av.com/zh/search?keyword={{code}}',
+    fetchType: 'parser',
+    enabled: true,
+    domQuery: {
+      linkQuery: '.detail>a[href*="v/"]',
+      titleQuery: '.detail>a[href*="v/"]',
+    },
+  },
+  {
     key: 'supjav',
     name: 'Supjav',
     url: 'https://supjav.com/zh/?s={{code}}',
@@ -82,6 +94,50 @@ export const DEFAULT_ONLINE_AVAILABILITY_SITES: OnlineAvailabilitySite[] = [
     domQuery: {
       linkQuery: '.posts.clearfix>.post>a.img[title]',
       titleQuery: 'h3>a[rel="bookmark"][itemprop="url"]',
+    },
+  },
+  {
+    key: 'netflav',
+    name: 'NETFLAV',
+    url: 'https://netflav5.com/search?type=title&keyword={{code}}',
+    fetchType: 'parser',
+    enabled: true,
+    domQuery: {
+      linkQuery: '.grid_0_cell>a[href^="/video?"]',
+      titleQuery: '.grid_0_cell>a[href^="/video?"] .grid_0_title',
+    },
+  },
+  {
+    key: 'avgle',
+    name: 'Avgle',
+    url: 'https://avgle.com/search/videos?search_query={{code}}&search_type=videos',
+    fetchType: 'parser',
+    enabled: true,
+    domQuery: {
+      linkQuery: '.container>.row .row .well>a[href]',
+      titleQuery: '.container>.row .row .well .video-title',
+    },
+  },
+  {
+    key: 'javhhh',
+    name: 'JAVHHH',
+    url: 'https://javhhh.com/v/?wd={{code}}',
+    fetchType: 'parser',
+    enabled: true,
+    domQuery: {
+      linkQuery: '.typelist>.i-container>a[href]',
+      titleQuery: '.typelist>.i-container>a[href]',
+    },
+  },
+  {
+    key: 'javguru',
+    name: 'Jav.Guru',
+    url: 'https://jav.guru/?s={{code}}',
+    fetchType: 'parser',
+    enabled: true,
+    domQuery: {
+      linkQuery: '.imgg>a[href]',
+      titleQuery: '.inside-article>.grid1 a[title]',
     },
   },
   {
@@ -97,6 +153,7 @@ export const DEFAULT_ONLINE_AVAILABILITY_SITES: OnlineAvailabilitySite[] = [
 const DEFAULT_CONFIG: OnlineAvailabilityConfig = {
   enabled: true,
   autoCheck: true,
+  showUnavailable: false,
   timeoutMs: 8000,
   sites: DEFAULT_ONLINE_AVAILABILITY_SITES,
 };
@@ -202,6 +259,7 @@ export class OnlineAvailabilityManager {
     `;
 
     target.parent.insertBefore(panel, target.before);
+    placeExternalSearchBelowOnlineAvailability(panel);
   }
 
   private renderResults(results: OnlineAvailabilityResult[], totalCount = results.length): void {
@@ -215,14 +273,8 @@ export class OnlineAvailabilityManager {
     panel.appendChild(value);
 
     const shown = results.filter(result => result.available);
-    if (shown.length === 0) {
-      const empty = document.createElement('span');
-      empty.textContent = results.length < totalCount ? '检测中...' : '暂无命中';
-      empty.className = 'is-size-7 has-text-grey';
-      value.appendChild(empty);
-      log(`Online availability checked: ${shown.length}/${results.length}/${totalCount} sites available`);
-      return;
-    }
+    const unavailable = this.config.showUnavailable ? results.filter(result => !result.available) : [];
+    const pendingCount = Math.max(0, totalCount - results.length);
 
     shown.forEach(result => {
       const link = document.createElement('a');
@@ -234,16 +286,41 @@ export class OnlineAvailabilityManager {
       value.appendChild(link);
     });
 
+    unavailable.forEach(result => {
+      const tag = document.createElement('span');
+      tag.className = 'tag is-danger is-light is-small jdb-online-unavailable';
+      tag.title = result.error || result.url;
+      tag.textContent = `${result.siteName} 失败`;
+      value.appendChild(tag);
+    });
+
+    if (pendingCount > 0) {
+      const pending = document.createElement('span');
+      pending.className = 'tag is-light is-small jdb-online-checking';
+      pending.textContent = `检测中 ${pendingCount}`;
+      value.appendChild(pending);
+    }
+
+    if (shown.length === 0 && unavailable.length === 0 && pendingCount === 0) {
+      const empty = document.createElement('span');
+      empty.textContent = '暂无命中';
+      empty.className = 'is-size-7 has-text-grey';
+      value.appendChild(empty);
+    }
+
     log(`Online availability checked: ${shown.length}/${results.length}/${totalCount} sites available`);
   }
 }
 
-export function findOnlineAvailabilityInsertionTarget(): OnlineAvailabilityInsertionTarget | null {
-  const enhancePanel = document.getElementById('jdb-video-enhance-panel');
-  if (enhancePanel?.parentElement) {
-    return { parent: enhancePanel.parentElement, before: enhancePanel };
-  }
+function placeExternalSearchBelowOnlineAvailability(onlinePanel: HTMLElement): void {
+  const searchPanel = document.getElementById('jdb-external-search-panel');
+  if (!searchPanel || !onlinePanel.parentElement) return;
+  if (searchPanel === onlinePanel.nextElementSibling) return;
 
+  onlinePanel.parentElement.insertBefore(searchPanel, onlinePanel.nextSibling);
+}
+
+export function findOnlineAvailabilityInsertionTarget(): OnlineAvailabilityInsertionTarget | null {
   const moviePanel = document.querySelector('.movie-panel-info');
   const directReviewButtons = moviePanel
     ? Array.from(moviePanel.children).find(child => child.classList.contains('review-buttons'))
@@ -335,7 +412,14 @@ function findParserMatch(site: OnlineAvailabilitySite, doc: Document, videoId: s
     const title = Array.from(doc.querySelectorAll<HTMLElement>(titleQuery))
       .find(item => normalizeCode(item.textContent || item.getAttribute('title') || '').includes(normalizedCode));
     if (title) {
-      return { url: requestUrl, text: title.textContent || title.getAttribute('title') || '' };
+      const anchor = title.matches('a[href]')
+        ? title as HTMLAnchorElement
+        : title.closest<HTMLAnchorElement>('a[href]');
+      const href = anchor?.getAttribute('href');
+      return {
+        url: href ? new URL(href, requestUrl).toString() : requestUrl,
+        text: title.textContent || title.getAttribute('title') || '',
+      };
     }
   }
 

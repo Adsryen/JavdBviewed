@@ -43,6 +43,7 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.veEnableActorNameMarks?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableRelatedLists?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableOnlineAvailability?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.veShowOnlineAvailabilityFailures?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veActorRemarksMode?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veActorRemarksTTL?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veActorRemarksTaskTimeout?.addEventListener('change', host.handleSettingChange.bind(host));

@@ -23,6 +23,15 @@ describe('online availability helpers', () => {
     );
   });
 
+  it('includes the expanded online site adapter set', () => {
+    const siteKeys = DEFAULT_ONLINE_AVAILABILITY_SITES.map(site => site.key);
+
+    expect(siteKeys).toEqual(expect.arrayContaining(['123av', 'netflav', 'javguru']));
+    expect(buildOnlineAvailabilityUrl(DEFAULT_ONLINE_AVAILABILITY_SITES.find(site => site.key === '123av')!, 'SSIS-795')).toBe(
+      'https://123av.com/zh/search?keyword=ssis-795',
+    );
+  });
+
   it('marks direct detail pages available when the response is successful', () => {
     const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'jable')!;
     const doc = new DOMParser().parseFromString('<div class="info-header">SSIS-795</div>', 'text/html');
@@ -77,6 +86,21 @@ describe('online availability helpers', () => {
     expect(result.url).toBe('https://supjav.com/ssis-795/');
   });
 
+  it('returns the matched parser result link when the title selector is the matching anchor', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'javguru')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="inside-article">
+        <div class="grid1"><a title="SSIS-795 Chinese Subtitle" href="https://jav.guru/ssis-795/">SSIS-795</a></div>
+      </div>
+      <div class="imgg"><a href="https://jav.guru/ssis-795/">cover</a></div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://jav.guru/?s=SSIS-795', 200);
+
+    expect(result.available).toBe(true);
+    expect(result.url).toBe('https://jav.guru/ssis-795/');
+  });
+
   it('places the panel after review buttons when enhancement panel is absent', () => {
     document.body.innerHTML = `
       <nav class="panel movie-panel-info">
@@ -92,18 +116,28 @@ describe('online availability helpers', () => {
     expect(target?.before).toBe(document.querySelector('.review-buttons')?.nextSibling);
   });
 
-  it('places the panel before the video enhancement panel when it already exists', () => {
+  it('keeps detail external search directly below online availability when online availability loads later', async () => {
     document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-795</strong></h2>
       <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">SSIS-795</div>
+        <div id="jdb-external-search-panel" class="panel-block">外部搜索</div>
         <div class="review-buttons"></div>
-        <div id="jdb-video-enhance-panel"></div>
       </nav>
     `;
 
-    const target = findOnlineAvailabilityInsertionTarget();
+    const manager = new OnlineAvailabilityManager();
+    manager.updateConfig({
+      enabled: true,
+      autoCheck: false,
+    });
 
-    expect(target?.parent).toBe(document.querySelector('.movie-panel-info'));
-    expect(target?.before).toBe(document.getElementById('jdb-video-enhance-panel'));
+    await manager.initialize();
+
+    const onlinePanel = document.getElementById('jdb-online-availability-panel');
+    const searchPanel = document.getElementById('jdb-external-search-panel');
+
+    expect(onlinePanel?.nextElementSibling).toBe(searchPanel);
   });
 
   it('renders a final empty state when a site request never settles', async () => {
@@ -121,6 +155,7 @@ describe('online availability helpers', () => {
       enabled: true,
       autoCheck: true,
       timeoutMs: 50,
+      showUnavailable: false,
       sites: [{
         key: 'stuck',
         name: 'Stuck',
@@ -139,6 +174,110 @@ describe('online availability helpers', () => {
     expect(completed).toHaveBeenCalled();
     expect(document.querySelector('#jdb-online-availability-panel')?.textContent).toContain('暂无命中');
     expect(document.querySelector('.jdb-online-status')).toBeNull();
+  });
+
+  it('renders unavailable site tags when a checked site fails', async () => {
+    vi.spyOn(defaultHttpClient, 'getDocument').mockImplementation(async url => {
+      if (String(url).includes('ok.test')) {
+        return new DOMParser().parseFromString('<div class="info-header">SSIS-795</div>', 'text/html');
+      }
+      throw new Error('HTTP 404');
+    });
+    document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-795</strong></h2>
+      <nav class="panel movie-panel-info">
+        <div class="review-buttons"></div>
+      </nav>
+    `;
+
+    const manager = new OnlineAvailabilityManager();
+    manager.updateConfig({
+      enabled: true,
+      autoCheck: true,
+      timeoutMs: 50,
+      showUnavailable: true,
+      sites: [
+        {
+          key: 'ok',
+          name: 'OK',
+          url: 'https://ok.test/{{code}}',
+          fetchType: 'get',
+          enabled: true,
+          domQuery: { subQuery: '.info-header' },
+        },
+        {
+          key: 'missing',
+          name: 'Missing',
+          url: 'https://missing.test/{{code}}',
+          fetchType: 'get',
+          enabled: true,
+        },
+      ],
+    });
+
+    await manager.initialize();
+
+    expect(document.querySelector('#jdb-online-availability-panel a')?.textContent).toBe('OK');
+    expect(document.querySelector('.jdb-online-unavailable')?.textContent).toBe('Missing 失败');
+  });
+
+  it('hides unavailable tags by default', async () => {
+    vi.spyOn(defaultHttpClient, 'getDocument').mockRejectedValue(new Error('HTTP 404'));
+    document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-795</strong></h2>
+      <nav class="panel movie-panel-info">
+        <div class="review-buttons"></div>
+      </nav>
+    `;
+
+    const manager = new OnlineAvailabilityManager();
+    manager.updateConfig({
+      enabled: true,
+      autoCheck: true,
+      timeoutMs: 50,
+      sites: [{
+        key: 'missing',
+        name: 'Missing',
+        url: 'https://missing.test/{{code}}',
+        fetchType: 'get',
+        enabled: true,
+      }],
+    });
+
+    await manager.initialize();
+
+    expect(document.querySelector('.jdb-online-unavailable')).toBeNull();
+    expect(document.querySelector('#jdb-online-availability-panel')?.textContent).toContain('暂无命中');
+  });
+
+  it('renders unavailable tags when every checked site fails', async () => {
+    vi.spyOn(defaultHttpClient, 'getDocument').mockRejectedValue(new Error('HTTP 404'));
+    document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-795</strong></h2>
+      <nav class="panel movie-panel-info">
+        <div class="review-buttons"></div>
+      </nav>
+    `;
+
+    const manager = new OnlineAvailabilityManager();
+    manager.updateConfig({
+      enabled: true,
+      autoCheck: true,
+      timeoutMs: 50,
+      showUnavailable: true,
+      sites: [{
+        key: 'missing',
+        name: 'Missing',
+        url: 'https://missing.test/{{code}}',
+        fetchType: 'get',
+        enabled: true,
+      }],
+    });
+
+    await manager.initialize();
+
+    expect(document.querySelector('.jdb-online-unavailable')?.textContent).toBe('Missing 失败');
+    expect(document.querySelector('#jdb-online-availability-panel')?.textContent).not.toContain('暂无命中');
   });
 
   it('falls back to the Jable chinese-subtitle detail path before rendering results', async () => {

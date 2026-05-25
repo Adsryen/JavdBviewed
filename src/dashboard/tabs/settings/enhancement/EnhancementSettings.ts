@@ -68,6 +68,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableActorNameMarks!: HTMLInputElement;
     private veEnableRelatedLists!: HTMLInputElement;
     private veEnableOnlineAvailability!: HTMLInputElement;
+    private veShowOnlineAvailabilityFailures!: HTMLInputElement;
     private veActorRemarksMode!: HTMLSelectElement;
     private veActorRemarksTTL!: HTMLInputElement;
     private veActorRemarksTaskTimeout!: HTMLInputElement;
@@ -429,6 +430,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableTranslation: true,
                 showLoadingIndicator: true,
                 enableRelatedLists: true,
+                enableOnlineAvailability: false,
+                showOnlineAvailabilityFailures: false,
             } as any;
         } else if (section === 'actor') {
             s.actorEnhancement = {
@@ -770,6 +773,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorNameMarks: this.veEnableActorNameMarks?.checked !== false,
                     enableRelatedLists: this.veEnableRelatedLists?.checked !== false,
                     enableOnlineAvailability: this.veEnableOnlineAvailability?.checked === true,
+                    showOnlineAvailabilityFailures: this.veShowOnlineAvailabilityFailures?.checked === true,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
                     actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '10', 10) || 10,

@@ -92,6 +92,7 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.veEnableActorNameMarks) host.veEnableActorNameMarks.checked = (ve as any).enableActorNameMarks !== false;
   if (host.veEnableRelatedLists) host.veEnableRelatedLists.checked = (ve as any).enableRelatedLists !== false;
   if (host.veEnableOnlineAvailability) host.veEnableOnlineAvailability.checked = (ve as any).enableOnlineAvailability === true;
+  if (host.veShowOnlineAvailabilityFailures) host.veShowOnlineAvailabilityFailures.checked = (ve as any).showOnlineAvailabilityFailures === true;
   if (host.translateCurrentTitleChk) host.translateCurrentTitleChk.checked = settings?.translation?.targets ? settings.translation.targets.currentTitle !== false : true;
   if (host.veActorRemarksMode) host.veActorRemarksMode.value = ((ve as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
   if (host.veActorRemarksTTL) host.veActorRemarksTTL.value = String((ve as any).actorRemarksTTLDays ?? 0);

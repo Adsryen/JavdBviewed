@@ -36,6 +36,7 @@ export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<Extens
     videoEnhancement: {
       enableRelatedLists: host.veEnableRelatedLists?.checked !== false,
       enableOnlineAvailability: host.veEnableOnlineAvailability?.checked === true,
+      showOnlineAvailabilityFailures: host.veShowOnlineAvailabilityFailures?.checked === true,
     } as any,
     contentFilter: {
       keywordRules: host.currentFilterRules,
@@ -117,6 +118,7 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.veEnableActorNameMarks && typeof ve.enableActorNameMarks === 'boolean') host.veEnableActorNameMarks.checked = ve.enableActorNameMarks;
       if (host.veEnableRelatedLists && typeof ve.enableRelatedLists === 'boolean') host.veEnableRelatedLists.checked = ve.enableRelatedLists;
       if (host.veEnableOnlineAvailability && typeof ve.enableOnlineAvailability === 'boolean') host.veEnableOnlineAvailability.checked = ve.enableOnlineAvailability;
+      if (host.veShowOnlineAvailabilityFailures && typeof ve.showOnlineAvailabilityFailures === 'boolean') host.veShowOnlineAvailabilityFailures.checked = ve.showOnlineAvailabilityFailures;
       if (host.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') host.veActorRemarksMode.value = ve.actorRemarksMode === 'inline' ? 'inline' : 'panel';
       if (host.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') host.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);
       if (host.veActorRemarksTaskTimeout && typeof ve.actorRemarksTaskTimeoutSeconds !== 'undefined') host.veActorRemarksTaskTimeout.value = String(ve.actorRemarksTaskTimeoutSeconds ?? 10);

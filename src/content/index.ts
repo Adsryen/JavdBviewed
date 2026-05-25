@@ -615,6 +615,7 @@ async function initialize(): Promise<void> {
             onlineAvailabilityManager.updateConfig({
                 enabled: true,
                 autoCheck: true,
+                showUnavailable: (settings as any)?.videoEnhancement?.showOnlineAvailabilityFailures === true,
                 timeoutMs: Number((settings as any)?.videoEnhancement?.onlineAvailabilityTimeoutMs || 8000),
             } as any);
             await onlineAvailabilityManager.initialize();
