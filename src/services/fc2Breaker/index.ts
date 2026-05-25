@@ -1,11 +1,15 @@
 // src/services/fc2Breaker/index.ts
 // FC2拦截破解功能 - 基于JAV-JHS的实现
 
-import { log } from '../../content/state';
+import { log, STATE } from '../../content/state';
+import { getJavdbTheme, type JavdbTheme } from '../../content/utils';
 import { bgFetchJSON } from '../../utils/net';
 import { ReviewBreakerService } from '../reviewBreaker';
 import { dbViewedPut } from '../../content/dbClient';
 import type { VideoRecord } from '../../types';
+import { MagnetSearchManager, type MagnetExternalSearchResult, type MagnetResult } from '../../content/magnetSearch';
+import { appendMagnetResults, getResultSources } from '../../content/magnetResultMerge';
+import { buildMagnetSourceTagView, countUniqueResultsBySource, type MagnetSourceKey, type MagnetSourceSearchState } from '../../content/magnetSourceTagState';
 
 export interface FC2VideoInfo {
   movieId: string;
@@ -325,57 +329,50 @@ export class FC2BreakerService {
     }
   }
 
+  private static applyFC2ModalTheme(root: HTMLElement): JavdbTheme {
+    const theme = getJavdbTheme();
+    root.dataset.jdbTheme = theme;
+    return theme;
+  }
+
+  private static bindFC2ModalTheme(root: HTMLElement): void {
+    this.applyFC2ModalTheme(root);
+
+    const existingObserver = (root as any).__jdbFc2ThemeObserver as MutationObserver | undefined;
+    existingObserver?.disconnect();
+
+    const observer = new MutationObserver(() => {
+      this.applyFC2ModalTheme(root);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    (root as any).__jdbFc2ThemeObserver = observer;
+
+    const originalRemove = root.remove.bind(root);
+    root.remove = () => {
+      observer.disconnect();
+      originalRemove();
+    };
+  }
+
   /**
    * 创建加载提示弹窗
    */
   private static createLoadingModal(carNum: string): HTMLElement {
+    this.ensureFC2ModalStyles();
+
     const modal = document.createElement('div');
     modal.className = 'fc2-loading-modal';
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 10000;
-    `;
+    this.bindFC2ModalTheme(modal);
 
     const content = document.createElement('div');
-    content.style.cssText = `
-      background: var(--bg-secondary, white);
-      border-radius: 12px;
-      padding: 40px;
-      text-align: center;
-      color: var(--text-primary, #333);
-    `;
+    content.className = 'fc2-loading-content';
 
     const spinner = document.createElement('div');
-    spinner.style.cssText = `
-      width: 40px;
-      height: 40px;
-      border: 4px solid var(--bg-tertiary, #f0f0f0);
-      border-top-color: var(--primary, #007bff);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 16px;
-    `;
+    spinner.className = 'fc2-loading-spinner';
 
     const text = document.createElement('div');
+    text.className = 'fc2-loading-text';
     text.textContent = `正在加载 ${carNum} 的信息...`;
-    text.style.cssText = `font-size: 16px;`;
-
-    // 添加旋转动画
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
 
     content.appendChild(spinner);
     content.appendChild(text);
@@ -388,36 +385,19 @@ export class FC2BreakerService {
    * 创建错误提示弹窗
    */
   private static createErrorModal(errorMsg: string): HTMLElement {
+    this.ensureFC2ModalStyles();
+
     const modal = document.createElement('div');
     modal.className = 'fc2-error-modal';
-    modal.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: var(--bg-secondary, white);
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      z-index: 10001;
-      max-width: 400px;
-    `;
+    this.bindFC2ModalTheme(modal);
 
     const title = document.createElement('div');
+    title.className = 'fc2-error-title';
     title.textContent = '❌ 加载失败';
-    title.style.cssText = `
-      font-size: 18px;
-      font-weight: bold;
-      color: var(--danger, #dc3545);
-      margin-bottom: 12px;
-    `;
 
     const message = document.createElement('div');
+    message.className = 'fc2-error-message';
     message.textContent = errorMsg;
-    message.style.cssText = `
-      color: var(--text-primary, #333);
-      line-height: 1.5;
-    `;
 
     modal.appendChild(title);
     modal.appendChild(message);
@@ -428,19 +408,832 @@ export class FC2BreakerService {
     return modal;
   }
 
+  private static ensureFC2ModalStyles(): void {
+    if (document.getElementById('fc2-breaker-modal-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'fc2-breaker-modal-styles';
+    style.textContent = `
+      .fc2-preview-modal,
+      .fc2-loading-modal,
+      .fc2-error-modal {
+        --fc2-overlay-bg: rgba(10, 12, 16, 0.76);
+        --fc2-modal-bg: #ffffff;
+        --fc2-modal-border: rgba(15, 23, 42, 0.10);
+        --fc2-modal-shadow: 0 18px 50px rgba(15, 23, 42, 0.20);
+        --fc2-modal-text: #1f2937;
+        --fc2-modal-muted: #64748b;
+        --fc2-modal-danger: #dc2626;
+        --fc2-modal-spinner-track: #e5e7eb;
+        --fc2-modal-accent: #3273dc;
+        --fc2-magnet-panel-bg: #f7fafc;
+        --fc2-magnet-card-bg: #ffffff;
+        --fc2-magnet-card-border: rgba(15, 23, 42, 0.10);
+        --fc2-magnet-card-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        --fc2-magnet-title: #0f73a8;
+        --fc2-magnet-text: #1f2937;
+        --fc2-magnet-muted: #64748b;
+        --fc2-magnet-surface: #eef2f7;
+        --fc2-magnet-button-bg: #e1f5fe;
+        --fc2-magnet-button-hover: #c8ecfb;
+        --fc2-magnet-button-text: #0277bd;
+        --fc2-magnet-success-bg: #dcfce7;
+        --fc2-magnet-success-text: #166534;
+        --fc2-magnet-warning-bg: #fef3c7;
+        --fc2-magnet-warning-text: #92400e;
+        --fc2-magnet-danger-bg: #fee2e2;
+        --fc2-magnet-danger-text: #991b1b;
+      }
+
+      .fc2-preview-modal[data-jdb-theme="dark"],
+      .fc2-loading-modal[data-jdb-theme="dark"],
+      .fc2-error-modal[data-jdb-theme="dark"] {
+        --fc2-overlay-bg: rgba(0, 0, 0, 0.82);
+        --fc2-modal-bg: #1f2937;
+        --fc2-modal-border: rgba(148, 163, 184, 0.22);
+        --fc2-modal-shadow: 0 20px 54px rgba(0, 0, 0, 0.42);
+        --fc2-modal-text: #e5e7eb;
+        --fc2-modal-muted: #9ca3af;
+        --fc2-modal-danger: #fca5a5;
+        --fc2-modal-spinner-track: rgba(148, 163, 184, 0.24);
+        --fc2-modal-accent: #7dd3fc;
+        --fc2-magnet-panel-bg: #111827;
+        --fc2-magnet-card-bg: #1f2937;
+        --fc2-magnet-card-border: rgba(148, 163, 184, 0.22);
+        --fc2-magnet-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+        --fc2-magnet-title: #7dd3fc;
+        --fc2-magnet-text: #e5e7eb;
+        --fc2-magnet-muted: #9ca3af;
+        --fc2-magnet-surface: rgba(148, 163, 184, 0.12);
+        --fc2-magnet-button-bg: rgba(14, 165, 233, 0.18);
+        --fc2-magnet-button-hover: rgba(14, 165, 233, 0.28);
+        --fc2-magnet-button-text: #bae6fd;
+        --fc2-magnet-success-bg: rgba(34, 197, 94, 0.18);
+        --fc2-magnet-success-text: #bbf7d0;
+        --fc2-magnet-warning-bg: rgba(245, 158, 11, 0.18);
+        --fc2-magnet-warning-text: #fde68a;
+        --fc2-magnet-danger-bg: rgba(239, 68, 68, 0.18);
+        --fc2-magnet-danger-text: #fecaca;
+      }
+
+      .fc2-preview-modal,
+      .fc2-loading-modal {
+        position: fixed;
+        inset: 0;
+        background: var(--fc2-overlay-bg);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+      }
+
+      .fc2-preview-modal {
+        padding: 20px;
+        cursor: default;
+      }
+
+      .fc2-preview-modal .box,
+      .fc2-loading-content,
+      .fc2-error-modal {
+        border: 1px solid var(--fc2-modal-border);
+        color: var(--fc2-modal-text);
+        background: var(--fc2-modal-bg);
+        box-shadow: var(--fc2-modal-shadow);
+      }
+
+      .fc2-preview-modal .title,
+      .fc2-preview-modal .content,
+      .fc2-preview-modal .is-size-6 {
+        color: var(--fc2-modal-text);
+      }
+
+      .fc2-preview-modal .has-text-grey,
+      .fc2-preview-modal .has-text-grey-light {
+        color: var(--fc2-modal-muted) !important;
+      }
+
+      .fc2-loading-content {
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+      }
+
+      .fc2-loading-spinner {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 16px;
+        border: 4px solid var(--fc2-modal-spinner-track);
+        border-top-color: var(--fc2-modal-accent);
+        border-radius: 50%;
+        animation: fc2-spin 1s linear infinite;
+      }
+
+      .fc2-loading-text {
+        color: var(--fc2-modal-text);
+        font-size: 16px;
+      }
+
+      .fc2-error-modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        z-index: 10001;
+        max-width: 400px;
+        padding: 24px;
+        border-radius: 12px;
+        transform: translate(-50%, -50%);
+      }
+
+      .fc2-error-title {
+        margin-bottom: 12px;
+        color: var(--fc2-modal-danger);
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .fc2-error-message {
+        color: var(--fc2-modal-text);
+        line-height: 1.5;
+      }
+
+      @keyframes fc2-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .fc2-magnet-section {
+        margin-bottom: 18px;
+      }
+
+      .fc2-magnet-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .fc2-magnet-toolbar .title {
+        margin-bottom: 0 !important;
+      }
+
+      .fc2-magnet-source-search {
+        height: 28px;
+        border-color: transparent;
+        border-radius: 8px;
+        color: var(--fc2-magnet-button-text);
+        background: var(--fc2-magnet-button-bg);
+        font-weight: 700;
+      }
+
+      .fc2-magnet-source-search:hover {
+        background: var(--fc2-magnet-button-hover);
+      }
+
+      .fc2-magnet-statusbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        margin-bottom: 8px;
+        padding: 7px 9px;
+        border: 1px solid var(--fc2-magnet-card-border);
+        border-radius: 10px;
+        color: var(--fc2-magnet-muted);
+        background: var(--fc2-magnet-card-bg);
+        box-shadow: var(--fc2-magnet-card-shadow);
+      }
+
+      .fc2-magnet-status {
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .fc2-magnet-source-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .fc2-magnet-source-tags .tag {
+        height: 22px;
+        margin: 0 !important;
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 0;
+        font-size: 10.5px;
+        font-weight: 800;
+        line-height: 22px;
+      }
+
+      .fc2-magnet-source-tags .tag.is-light {
+        color: var(--fc2-magnet-muted);
+        background: var(--fc2-magnet-surface);
+      }
+
+      .fc2-magnet-source-tags .tag.is-success {
+        color: var(--fc2-magnet-success-text);
+        background: var(--fc2-magnet-success-bg);
+      }
+
+      .fc2-magnet-source-tags .tag.is-warning {
+        color: var(--fc2-magnet-warning-text);
+        background: var(--fc2-magnet-warning-bg);
+      }
+
+      .fc2-magnet-source-tags .tag.is-danger {
+        color: var(--fc2-magnet-danger-text);
+        background: var(--fc2-magnet-danger-bg);
+      }
+
+      .fc2-magnet-list {
+        max-height: 460px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 10px;
+        border-radius: 12px;
+        background: var(--fc2-magnet-panel-bg);
+        scroll-behavior: smooth;
+      }
+
+      .fc2-magnet-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        margin-bottom: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--fc2-magnet-card-border);
+        border-radius: 10px;
+        color: var(--fc2-magnet-text);
+        background: var(--fc2-magnet-card-bg);
+        box-shadow: var(--fc2-magnet-card-shadow);
+      }
+
+      .fc2-magnet-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .fc2-magnet-main {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .fc2-magnet-link {
+        display: block;
+        min-width: 0;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .fc2-magnet-title {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--fc2-magnet-title);
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.25;
+      }
+
+      .fc2-magnet-link:hover .fc2-magnet-title {
+        text-decoration: underline;
+      }
+
+      .fc2-magnet-meta {
+        display: block;
+        margin-top: 2px;
+        color: var(--fc2-magnet-muted);
+        font-size: 12px;
+        line-height: 1.2;
+      }
+
+      .fc2-magnet-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        margin: 4px 0 0 !important;
+      }
+
+      .fc2-magnet-tags .tag {
+        height: 18px;
+        margin: 0 !important;
+        border-radius: 999px;
+        font-size: 10.5px;
+        line-height: 18px;
+      }
+
+      .fc2-magnet-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+
+      .fc2-magnet-actions .button {
+        height: 26px;
+        margin: 0 !important;
+        border-radius: 8px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .fc2-magnet-actions .button.is-info {
+        border-color: transparent;
+        color: var(--fc2-magnet-button-text);
+        background: var(--fc2-magnet-button-bg);
+      }
+
+      .fc2-magnet-actions .button.is-info:hover {
+        background: var(--fc2-magnet-button-hover);
+      }
+
+      .fc2-magnet-actions .button.is-success {
+        border-color: transparent;
+        color: var(--fc2-magnet-success-text);
+        background: var(--fc2-magnet-success-bg);
+      }
+
+      .fc2-magnet-actions .button.is-warning {
+        border-color: transparent;
+        color: var(--fc2-magnet-warning-text);
+        background: var(--fc2-magnet-warning-bg);
+      }
+
+      .fc2-magnet-date {
+        flex: 0 0 auto;
+      }
+
+      .fc2-magnet-date .time {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 22px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        color: var(--fc2-magnet-muted);
+        background: var(--fc2-magnet-surface);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .fc2-magnet-empty {
+        padding: 12px;
+        border: 1px dashed var(--fc2-magnet-card-border);
+        border-radius: 10px;
+        color: var(--fc2-magnet-muted);
+        background: var(--fc2-magnet-card-bg);
+        font-size: 12px;
+      }
+
+      @media (max-width: 768px) {
+        .fc2-magnet-toolbar,
+        .fc2-magnet-row {
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+
+        .fc2-magnet-actions {
+          flex: 1 1 100%;
+          flex-wrap: wrap;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  private static createFC2MagnetSection(videoInfo: FC2VideoInfo, url?: string): HTMLElement {
+    const section = document.createElement('div');
+    section.className = 'fc2-magnet-section';
+
+    const nativeResults = this.convertFC2MagnetsToResults(videoInfo.magnets || []);
+    let currentResults = this.mergeAndSortMagnetResults(nativeResults);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'fc2-magnet-toolbar';
+
+    const title = document.createElement('h3');
+    title.className = 'title is-6';
+    title.textContent = `磁力链接 (${currentResults.length})`;
+
+    const searchButton = document.createElement('button');
+    searchButton.type = 'button';
+    searchButton.className = 'button is-small fc2-magnet-source-search';
+    searchButton.textContent = '多源搜索';
+
+    toolbar.appendChild(title);
+    toolbar.appendChild(searchButton);
+
+    const statusbar = document.createElement('div');
+    statusbar.className = 'fc2-magnet-statusbar';
+
+    const statusText = document.createElement('span');
+    statusText.className = 'fc2-magnet-status';
+
+    const sourceTags = document.createElement('div');
+    sourceTags.className = 'fc2-magnet-source-tags';
+    const enabledSources = this.getEnabledMagnetSourceKeys();
+    enabledSources.forEach((sourceKey) => {
+      sourceTags.appendChild(this.createFC2SourceTag(sourceKey, 'idle', 0));
+    });
+
+    statusbar.appendChild(statusText);
+    statusbar.appendChild(sourceTags);
+
+    const list = document.createElement('div');
+    list.className = 'fc2-magnet-list';
+
+    const render = (results: MagnetResult[], status: string, sourceStateResult?: MagnetExternalSearchResult) => {
+      currentResults = this.mergeAndSortMagnetResults(results);
+      title.textContent = `磁力链接 (${currentResults.length})`;
+      statusText.textContent = status;
+      this.renderFC2SourceTags(sourceTags, enabledSources, currentResults, sourceStateResult);
+      this.renderFC2MagnetList(list, currentResults, videoInfo, url);
+    };
+
+    render(currentResults, `JavDB ${nativeResults.length} 条`);
+
+    searchButton.addEventListener('click', async () => {
+      const originalText = searchButton.textContent || '多源搜索';
+      searchButton.disabled = true;
+      searchButton.classList.add('is-loading');
+      searchButton.textContent = '搜索中...';
+      statusText.textContent = `正在搜索 ${videoInfo.carNum} 的多源磁力...`;
+      this.renderFC2SourceTags(sourceTags, enabledSources, currentResults, undefined, 'searching');
+
+      try {
+        const manager = new MagnetSearchManager({
+          enabled: true,
+          showInlineResults: false,
+          showFloatingButton: false,
+          autoSearch: false,
+          blockMojContent: false,
+          sources: this.getFC2MagnetSearchSourcesConfig(),
+          maxResults: this.getFC2MagnetMaxResults(),
+          timeout: this.getFC2MagnetTimeout(),
+        });
+        const externalResult = await manager.searchExternalSources(videoInfo.carNum);
+        const combinedResults = [...nativeResults, ...externalResult.uniqueResults];
+        const mergedResults = this.mergeAndSortMagnetResults(combinedResults);
+        const discoveredCount = nativeResults.length + externalResult.discoveredCount;
+        const duplicateCount = Math.max(0, discoveredCount - mergedResults.length);
+
+        render(
+          mergedResults,
+          `发现 ${discoveredCount} 条，去重 ${duplicateCount} 条，显示 ${mergedResults.length} 条`,
+          externalResult,
+        );
+
+        const { showToast } = await import('../../content/toast');
+        showToast(`FC2 磁力搜索完成：发现 ${discoveredCount} 条，去重 ${duplicateCount} 条，显示 ${mergedResults.length} 条`, 'success');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        statusText.textContent = `多源搜索失败：${message}`;
+        const { showToast } = await import('../../content/toast');
+        showToast(`FC2 多源搜索失败：${message}`, 'error');
+      } finally {
+        searchButton.disabled = false;
+        searchButton.classList.remove('is-loading');
+        searchButton.textContent = originalText;
+      }
+    });
+
+    section.appendChild(toolbar);
+    section.appendChild(statusbar);
+    section.appendChild(list);
+
+    return section;
+  }
+
+  private static convertFC2MagnetsToResults(magnets: FC2MagnetInfo[]): MagnetResult[] {
+    return magnets
+      .filter((magnet) => magnet.hash)
+      .map((magnet) => {
+        const size = Number.isFinite(magnet.size) ? `${(magnet.size / 1024).toFixed(2)} GB` : '';
+        return {
+          name: magnet.name || magnet.hash,
+          magnet: `magnet:?xt=urn:btih:${magnet.hash}`,
+          size,
+          sizeBytes: Number.isFinite(magnet.size) ? magnet.size * 1024 * 1024 : 0,
+          date: magnet.created_at || '',
+          source: 'JavDB',
+          sources: ['JavDB'],
+          quality: magnet.hd ? '高清' : undefined,
+          hasSubtitle: !!magnet.cnsub,
+          seeders: 0,
+          leechers: 0,
+        };
+      });
+  }
+
+  private static mergeAndSortMagnetResults(results: MagnetResult[]): MagnetResult[] {
+    const uniqueResults: MagnetResult[] = [];
+    appendMagnetResults(uniqueResults, results);
+    return uniqueResults.sort((a, b) => {
+      if (a.hasSubtitle !== b.hasSubtitle) return a.hasSubtitle ? -1 : 1;
+      const aCracked = this.isCrackedMagnetName(a.name);
+      const bCracked = this.isCrackedMagnetName(b.name);
+      if (aCracked !== bCracked) return aCracked ? -1 : 1;
+      if (a.sizeBytes !== b.sizeBytes) return b.sizeBytes - a.sizeBytes;
+      const aTime = a.date ? new Date(a.date).getTime() : 0;
+      const bTime = b.date ? new Date(b.date).getTime() : 0;
+      return bTime - aTime;
+    });
+  }
+
+  private static renderFC2MagnetList(container: HTMLElement, results: MagnetResult[], videoInfo: FC2VideoInfo, url?: string): void {
+    container.innerHTML = '';
+
+    if (results.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'fc2-magnet-empty';
+      empty.textContent = '暂无磁力链接，可尝试多源搜索。';
+      container.appendChild(empty);
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    results.forEach((result) => {
+      fragment.appendChild(this.createFC2MagnetRow(result, videoInfo, url));
+    });
+    container.appendChild(fragment);
+  }
+
+  private static createFC2MagnetRow(result: MagnetResult, videoInfo: FC2VideoInfo, url?: string): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'fc2-magnet-row privacy-protected';
+    row.setAttribute('data-privacy-protected', 'true');
+    row.setAttribute('data-source', result.source);
+
+    const main = document.createElement('div');
+    main.className = 'fc2-magnet-main';
+
+    const link = document.createElement('a');
+    link.className = 'fc2-magnet-link';
+    link.href = result.magnet;
+    link.title = '右键点击并选择「复制链接地址」';
+
+    const title = document.createElement('span');
+    title.className = 'fc2-magnet-title privacy-protected';
+    title.setAttribute('data-privacy-protected', 'true');
+    title.textContent = result.name;
+    title.title = result.name;
+
+    const meta = document.createElement('span');
+    meta.className = 'fc2-magnet-meta';
+    const sourceText = getResultSources(result).join(' / ');
+    const metaParts = [
+      result.size || '',
+      sourceText ? `来源 ${sourceText}` : '',
+      typeof result.seeders === 'number' && result.seeders > 0 ? `做种 ${result.seeders}` : '',
+    ].filter(Boolean);
+    meta.textContent = metaParts.join(' · ') || '磁力链接';
+
+    const tags = document.createElement('div');
+    tags.className = 'fc2-magnet-tags';
+    getResultSources(result).forEach((source) => {
+      const tag = document.createElement('span');
+      tag.className = `tag ${source === 'JavDB' ? 'is-info' : 'is-danger'} is-small`;
+      tag.textContent = source;
+      tags.appendChild(tag);
+    });
+
+    if (result.quality) {
+      const tag = document.createElement('span');
+      tag.className = 'tag is-primary is-small is-light';
+      tag.textContent = result.quality;
+      tags.appendChild(tag);
+    }
+
+    if (result.hasSubtitle) {
+      const tag = document.createElement('span');
+      tag.className = 'tag is-warning is-small is-light';
+      tag.textContent = '字幕';
+      tags.appendChild(tag);
+    }
+
+    if (this.isCrackedMagnetName(result.name)) {
+      const tag = document.createElement('span');
+      tag.className = 'tag is-success is-small is-light';
+      tag.textContent = '破解';
+      tags.appendChild(tag);
+    }
+
+    link.appendChild(title);
+    link.appendChild(meta);
+    link.appendChild(tags);
+    main.appendChild(link);
+
+    const actions = document.createElement('div');
+    actions.className = 'fc2-magnet-actions';
+
+    const copyButton = document.createElement('button');
+    copyButton.type = 'button';
+    copyButton.className = 'button is-info is-small';
+    copyButton.textContent = '复制';
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(result.magnet);
+        copyButton.textContent = '已复制';
+        copyButton.className = 'button is-success is-small';
+        setTimeout(() => {
+          copyButton.textContent = '复制';
+          copyButton.className = 'button is-info is-small';
+        }, 2000);
+      } catch {
+        copyButton.textContent = '复制失败';
+        copyButton.className = 'button is-danger is-small';
+        setTimeout(() => {
+          copyButton.textContent = '复制';
+          copyButton.className = 'button is-info is-small';
+        }, 2000);
+      }
+    });
+
+    const openButton = document.createElement('a');
+    openButton.className = 'button is-success is-small';
+    openButton.href = result.magnet;
+    openButton.textContent = '打开';
+
+    const push115Button = document.createElement('button');
+    push115Button.type = 'button';
+    push115Button.className = 'button is-warning is-small';
+    push115Button.textContent = '推送115';
+    push115Button.title = '推送到115网盘离线下载';
+    push115Button.addEventListener('click', () => {
+      this.pushFC2MagnetTo115(push115Button, result, videoInfo, url);
+    });
+
+    actions.appendChild(copyButton);
+    actions.appendChild(openButton);
+    actions.appendChild(push115Button);
+
+    const date = document.createElement('div');
+    date.className = 'fc2-magnet-date';
+    const time = document.createElement('span');
+    time.className = 'time';
+    time.textContent = result.date || 'Unknown';
+    date.appendChild(time);
+
+    row.appendChild(main);
+    row.appendChild(actions);
+    row.appendChild(date);
+
+    return row;
+  }
+
+  private static async pushFC2MagnetTo115(button: HTMLButtonElement, result: MagnetResult, videoInfo: FC2VideoInfo, url?: string): Promise<void> {
+    const originalText = button.textContent || '推送115';
+    button.disabled = true;
+    button.classList.add('is-loading');
+
+    try {
+      const { isDrive115Enabled, addTaskUrlsV2 } = await import('../../services/drive115Router');
+      const { showToast } = await import('../../content/toast');
+      const { getSettings } = await import('../../utils/storage');
+
+      if (!(await isDrive115Enabled())) {
+        showToast('115网盘功能未启用，请先在设置中启用', 'error');
+        return;
+      }
+
+      const pushResult = await addTaskUrlsV2({
+        urls: result.magnet,
+        wp_path_id: '',
+        context: {
+          source: 'fc2',
+          videoId: videoInfo.carNum,
+          magnetName: result.name,
+          pageUrl: url,
+          wpPathId: '',
+        },
+      });
+
+      if (!pushResult.success) {
+        throw new Error(pushResult.message || '推送失败');
+      }
+
+      button.classList.remove('is-loading');
+      button.textContent = '已推送';
+      button.className = 'button is-success is-small';
+      showToast(`${result.name} 推送到115网盘成功`, 'success');
+
+      try {
+        const settings = await getSettings();
+        const autoMark = settings?.videoEnhancement?.autoMarkWatchedAfter115 !== false;
+        if (autoMark && url) {
+          await FC2BreakerService.markAsViewed(videoInfo.carNum, videoInfo, url);
+          log(`[FC2Breaker] Auto-marked ${videoInfo.carNum} as viewed after 115 push`);
+        }
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        showToast(`已推送到115。自动标记已看：${errMsg || '已关闭'}`, 'info');
+      }
+
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.className = 'button is-warning is-small';
+        button.disabled = false;
+      }, 3000);
+    } catch (error) {
+      const { showToast } = await import('../../content/toast');
+      const errorMsg = error instanceof Error ? error.message : '未知错误';
+      button.classList.remove('is-loading');
+      button.textContent = '推送失败';
+      button.className = 'button is-danger is-small';
+      showToast(`推送失败: ${errorMsg}`, 'error');
+
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.className = 'button is-warning is-small';
+        button.disabled = false;
+      }, 3000);
+    }
+  }
+
+  private static renderFC2SourceTags(
+    container: HTMLElement,
+    enabledSources: MagnetSourceKey[],
+    results: MagnetResult[],
+    searchResult?: MagnetExternalSearchResult,
+    overrideState?: MagnetSourceSearchState,
+  ): void {
+    container.innerHTML = '';
+    const counts = countUniqueResultsBySource(results);
+
+    enabledSources.forEach((sourceKey) => {
+      const state = overrideState || searchResult?.sourceStates[sourceKey]?.status || 'idle';
+      const resultCount = searchResult?.sourceStates[sourceKey]?.resultCount;
+      container.appendChild(this.createFC2SourceTag(sourceKey, state, counts[sourceKey] || 0, resultCount));
+    });
+  }
+
+  private static createFC2SourceTag(sourceKey: MagnetSourceKey, state: MagnetSourceSearchState, currentUniqueCount: number, latestResultCount?: number): HTMLElement {
+    const view = buildMagnetSourceTagView(sourceKey, state, currentUniqueCount, latestResultCount);
+    const tag = document.createElement('span');
+    tag.className = `tag ${view.className}`;
+    tag.textContent = view.text;
+    tag.title = view.title;
+    return tag;
+  }
+
+  private static getEnabledMagnetSourceKeys(): MagnetSourceKey[] {
+    const sources = this.getFC2MagnetSearchSourcesConfig();
+    return [
+      ['sukebei', sources.sukebei],
+      ['btdig', sources.btdig],
+      ['btsow', sources.btsow],
+      ['torrentz2', sources.torrentz2],
+      ['javbus', sources.javbus],
+    ].filter(([, enabled]) => enabled).map(([key]) => key as MagnetSourceKey);
+  }
+
+  private static getFC2MagnetSearchSourcesConfig() {
+    const sources = (STATE.settings as any)?.magnetSearch?.sources || {};
+    return {
+      sukebei: sources.sukebei !== false,
+      btdig: sources.btdig !== false,
+      btsow: sources.btsow !== false,
+      torrentz2: sources.torrentz2 === true,
+      javbus: sources.javbus === true,
+      custom: [],
+    };
+  }
+
+  private static getFC2MagnetTimeout(): number {
+    return Number((STATE.settings as any)?.magnetSearch?.timeoutMs || 8000);
+  }
+
+  private static getFC2MagnetMaxResults(): number {
+    return Number((STATE.settings as any)?.magnetSearch?.maxResults || 20);
+  }
+
+  private static isCrackedMagnetName(name: string): boolean {
+    return /破解|crack|uncensored|无码|無碼|leaked/i.test(name || '');
+  }
+
   /**
    * 创建FC2视频预览弹窗（使用JavDB原生Bulma样式）
    */
   static createFC2PreviewModal(videoInfo: FC2VideoInfo, url?: string): HTMLElement {
+    this.ensureFC2ModalStyles();
+
     const modal = document.createElement('div');
     modal.className = 'fc2-preview-modal';
+    this.bindFC2ModalTheme(modal);
     modal.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: var(--fc2-overlay-bg);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -682,200 +1475,7 @@ export class FC2BreakerService {
       content.appendChild(imagesSection);
     }
 
-    // 磁链信息（使用Bulma的message和columns）
-    if (videoInfo.magnets && videoInfo.magnets.length > 0) {
-      const magnetsSection = document.createElement('div');
-      magnetsSection.style.cssText = `margin-bottom: 20px;`;
-      
-      const magnetsTitle = document.createElement('h3');
-      magnetsTitle.className = 'title is-6';
-      magnetsTitle.textContent = `磁力链接 (${videoInfo.magnets.length})`;
-      
-      const messageBox = document.createElement('div');
-      messageBox.className = 'message is-info';
-      
-      const messageBody = document.createElement('div');
-      messageBody.className = 'message-body';
-      messageBody.style.cssText = `padding: 0;`;
-      
-      videoInfo.magnets.forEach((magnet, index) => {
-        const item = document.createElement('div');
-        item.className = 'columns is-mobile is-vcentered';
-        item.style.cssText = `
-          padding: 12px;
-          border-bottom: 1px solid rgba(0,0,0,0.05);
-          ${index % 2 === 0 ? 'background: rgba(0,0,0,0.02);' : ''}
-        `;
-        
-        const infoCol = document.createElement('div');
-        infoCol.className = 'column';
-        
-        const magnetName = document.createElement('div');
-        magnetName.style.cssText = `font-weight: 500; margin-bottom: 4px; word-break: break-all;`;
-        magnetName.textContent = magnet.name;
-        
-        const magnetMeta = document.createElement('div');
-        magnetMeta.className = 'is-size-7 has-text-grey';
-        magnetMeta.textContent = `${(magnet.size / 1024).toFixed(2)}GB · ${magnet.files_count}個文件`;
-        
-        const magnetTags = document.createElement('div');
-        magnetTags.className = 'tags';
-        magnetTags.style.cssText = `margin-top: 4px; margin-bottom: 0;`;
-        
-        if (magnet.hd) {
-          const hdTag = document.createElement('span');
-          hdTag.className = 'tag is-primary is-small is-light';
-          hdTag.textContent = '高清';
-          magnetTags.appendChild(hdTag);
-        }
-        
-        if (magnet.cnsub) {
-          const subTag = document.createElement('span');
-          subTag.className = 'tag is-warning is-small is-light';
-          subTag.textContent = '字幕';
-          magnetTags.appendChild(subTag);
-        }
-        
-        const dateTag = document.createElement('span');
-        dateTag.className = 'tag is-light is-small';
-        dateTag.textContent = magnet.created_at;
-        magnetTags.appendChild(dateTag);
-        
-        infoCol.appendChild(magnetName);
-        infoCol.appendChild(magnetMeta);
-        infoCol.appendChild(magnetTags);
-        
-        const buttonsCol = document.createElement('div');
-        buttonsCol.className = 'column is-narrow';
-        
-        const buttons = document.createElement('div');
-        buttons.className = 'buttons';
-        buttons.style.cssText = `margin-bottom: 0;`;
-        
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'button is-info is-small';
-        copyBtn.textContent = '复制';
-        copyBtn.onclick = () => {
-          const magnetLink = `magnet:?xt=urn:btih:${magnet.hash}`;
-          navigator.clipboard.writeText(magnetLink).then(() => {
-            copyBtn.textContent = '已复制!';
-            copyBtn.className = 'button is-success is-small';
-            setTimeout(() => {
-              copyBtn.textContent = '复制';
-              copyBtn.className = 'button is-info is-small';
-            }, 2000);
-          });
-        };
-        
-        const openBtn = document.createElement('a');
-        openBtn.href = `magnet:?xt=urn:btih:${magnet.hash}`;
-        openBtn.className = 'button is-success is-small';
-        openBtn.textContent = '打开';
-        
-        // 115离线下载按钮
-        const push115Btn = document.createElement('button');
-        push115Btn.className = 'button is-warning is-small';
-        push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-cloud-download-alt"></i></span><span>推送115</span>';
-        push115Btn.title = '推送到115网盘离线下载';
-        push115Btn.onclick = async () => {
-          const magnetLink = `magnet:?xt=urn:btih:${magnet.hash}`;
-          const originalHTML = push115Btn.innerHTML;
-          push115Btn.disabled = true;
-          push115Btn.classList.add('is-loading');
-          
-          try {
-            // 动态导入115功能和toast
-            const { isDrive115Enabled, addTaskUrlsV2 } = await import('../../services/drive115Router');
-            const { showToast } = await import('../../content/toast');
-            const { getSettings } = await import('../../utils/storage');
-            
-            // 检查115功能是否启用
-            if (!(await isDrive115Enabled())) {
-              showToast('115网盘功能未启用，请先在设置中启用', 'error');
-              push115Btn.classList.remove('is-loading');
-              push115Btn.disabled = false;
-              return;
-            }
-            
-            // 推送到115
-            const result = await addTaskUrlsV2({ 
-              urls: magnetLink,
-              wp_path_id: '',
-              context: {
-                source: 'fc2',
-                videoId: videoInfo.carNum,
-                magnetName: magnet.name,
-                pageUrl: url,
-                wpPathId: ''
-              }
-            });
-            
-            if (result.success) {
-              // 成功状态
-              push115Btn.classList.remove('is-loading');
-              push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-check"></i></span><span>已推送</span>';
-              push115Btn.className = 'button is-success is-small';
-              showToast(`${magnet.name} 推送到115网盘成功`, 'success');
-              
-              // 推送成功后自动标记为已看（受设置控制）
-              try {
-                const settings = await getSettings();
-                const autoMark = settings?.videoEnhancement?.autoMarkWatchedAfter115 !== false;
-                if (autoMark && url) {
-                  await FC2BreakerService.markAsViewed(videoInfo.carNum, videoInfo, url);
-                  log(`[FC2Breaker] Auto-marked ${videoInfo.carNum} as viewed after 115 push`);
-                  // 不显示额外的toast，因为已经有推送成功的提示了
-                }
-              } catch (error) {
-                console.warn('[FC2Breaker] 自动标记已看失败:', error);
-                const errMsg = error instanceof Error ? error.message : String(error);
-                showToast(`已推送到115。自动标记已看：${errMsg || '已关闭'}`, 'info');
-              }
-              
-              // 3秒后恢复原状态
-              setTimeout(() => {
-                push115Btn.innerHTML = originalHTML;
-                push115Btn.className = 'button is-warning is-small';
-                push115Btn.disabled = false;
-              }, 3000);
-            } else {
-              throw new Error(result.message || '推送失败');
-            }
-          } catch (error) {
-            console.error('[FC2Breaker] 推送到115网盘失败:', error);
-            const { showToast } = await import('../../content/toast');
-            const errorMsg = error instanceof Error ? error.message : '未知错误';
-            
-            // 错误状态
-            push115Btn.classList.remove('is-loading');
-            push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-times"></i></span><span>推送失败</span>';
-            push115Btn.className = 'button is-danger is-small';
-            showToast(`推送失败: ${errorMsg}`, 'error');
-            
-            // 3秒后恢复原状态
-            setTimeout(() => {
-              push115Btn.innerHTML = originalHTML;
-              push115Btn.className = 'button is-warning is-small';
-              push115Btn.disabled = false;
-            }, 3000);
-          }
-        };
-        
-        buttons.appendChild(copyBtn);
-        buttons.appendChild(openBtn);
-        buttons.appendChild(push115Btn);
-        buttonsCol.appendChild(buttons);
-        
-        item.appendChild(infoCol);
-        item.appendChild(buttonsCol);
-        messageBody.appendChild(item);
-      });
-      
-      messageBox.appendChild(messageBody);
-      magnetsSection.appendChild(magnetsTitle);
-      magnetsSection.appendChild(messageBox);
-      content.appendChild(magnetsSection);
-    }
+    content.appendChild(this.createFC2MagnetSection(videoInfo, url));
 
     // 评论区（使用Bulma的message组件）
     if (videoInfo.reviews && videoInfo.reviews.length > 0) {
