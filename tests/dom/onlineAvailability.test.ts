@@ -1,0 +1,178 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defaultHttpClient } from '../../src/services/dataAggregator/httpClient';
+import {
+  buildOnlineAvailabilityUrl,
+  DEFAULT_ONLINE_AVAILABILITY_SITES,
+  findOnlineAvailabilityInsertionTarget,
+  OnlineAvailabilityManager,
+  parseOnlineAvailabilityDocument,
+} from '../../src/content/onlineAvailability';
+
+describe('online availability helpers', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    document.body.innerHTML = '';
+  });
+
+  it('builds site urls with optional code formatting', () => {
+    const fanza = DEFAULT_ONLINE_AVAILABILITY_SITES.find(site => site.key === 'fanza')!;
+
+    expect(buildOnlineAvailabilityUrl(fanza, 'SSIS-795')).toBe(
+      'https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=SSIS00795/',
+    );
+  });
+
+  it('marks direct detail pages available when the response is successful', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'jable')!;
+    const doc = new DOMParser().parseFromString('<div class="info-header">SSIS-795</div>', 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://jable.tv/videos/ssis-795/', 200);
+
+    expect(result).toEqual({
+      siteKey: 'jable',
+      siteName: 'Jable',
+      available: true,
+      url: 'https://jable.tv/videos/ssis-795/',
+      tags: [],
+    });
+  });
+
+  it('marks direct detail pages unavailable when the response status is an error', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'jable')!;
+    const doc = new DOMParser().parseFromString('<html><title>404 Not Found</title></html>', 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://jable.tv/videos/jur-730/', 404);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('marks FANZA unavailable for age-check or empty shell pages without the requested cid', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'fanza')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>年齢認証 - FANZA</title>
+      <script src="/_next/static/chunks/app/not-found.js"></script>
+      <a href="/age_check/=/declared=yes/">はい</a>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=JUR00730/', 200);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('checks parser pages by matching the result title or link against the code', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'supjav')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="posts clearfix">
+        <div class="post"><a class="img" title="ABCD-123" href="/abcd-123"></a></div>
+        <div class="post"><a class="img" title="SSIS-795 Chinese Subtitle" href="https://supjav.com/ssis-795/"></a></div>
+      </div>
+      <h3><a rel="bookmark" itemprop="url">SSIS-795 Chinese Subtitle</a></h3>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://supjav.com/zh/?s=SSIS-795', 200);
+
+    expect(result.available).toBe(true);
+    expect(result.tags).toContain('字幕');
+    expect(result.url).toBe('https://supjav.com/ssis-795/');
+  });
+
+  it('places the panel after review buttons when enhancement panel is absent', () => {
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block">番号</div>
+        <div class="review-buttons"></div>
+        <div class="panel-block">stats</div>
+      </nav>
+    `;
+
+    const target = findOnlineAvailabilityInsertionTarget();
+
+    expect(target?.parent).toBe(document.querySelector('.movie-panel-info'));
+    expect(target?.before).toBe(document.querySelector('.review-buttons')?.nextSibling);
+  });
+
+  it('places the panel before the video enhancement panel when it already exists', () => {
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="review-buttons"></div>
+        <div id="jdb-video-enhance-panel"></div>
+      </nav>
+    `;
+
+    const target = findOnlineAvailabilityInsertionTarget();
+
+    expect(target?.parent).toBe(document.querySelector('.movie-panel-info'));
+    expect(target?.before).toBe(document.getElementById('jdb-video-enhance-panel'));
+  });
+
+  it('renders a final empty state when a site request never settles', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(defaultHttpClient, 'getDocument').mockImplementation(() => new Promise<Document>(() => {}));
+    document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-795</strong></h2>
+      <nav class="panel movie-panel-info">
+        <div class="review-buttons"></div>
+      </nav>
+    `;
+
+    const manager = new OnlineAvailabilityManager();
+    manager.updateConfig({
+      enabled: true,
+      autoCheck: true,
+      timeoutMs: 50,
+      sites: [{
+        key: 'stuck',
+        name: 'Stuck',
+        url: 'https://example.test/{{code}}',
+        fetchType: 'get',
+        enabled: true,
+      }],
+    });
+
+    const completed = vi.fn();
+    void manager.initialize().then(completed);
+
+    await vi.advanceTimersByTimeAsync(51);
+    await Promise.resolve();
+
+    expect(completed).toHaveBeenCalled();
+    expect(document.querySelector('#jdb-online-availability-panel')?.textContent).toContain('暂无命中');
+    expect(document.querySelector('.jdb-online-status')).toBeNull();
+  });
+
+  it('falls back to the Jable chinese-subtitle detail path before rendering results', async () => {
+    vi.spyOn(defaultHttpClient, 'getDocument').mockImplementation(async url => {
+      if (String(url).endsWith('/ssis-795/')) {
+        throw new Error('HTTP 404');
+      }
+      return new DOMParser().parseFromString('<div class="info-header">SSIS-795</div>', 'text/html');
+    });
+    document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-795</strong></h2>
+      <nav class="panel movie-panel-info">
+        <div class="review-buttons"></div>
+      </nav>
+    `;
+
+    const manager = new OnlineAvailabilityManager();
+    manager.updateConfig({
+      enabled: true,
+      autoCheck: true,
+      timeoutMs: 50,
+      sites: [{
+        key: 'jable',
+        name: 'Jable',
+        url: 'https://jable.tv/videos/{{code}}/',
+        fetchType: 'get',
+        enabled: true,
+        domQuery: { subQuery: '.info-header', leakQuery: '.info-header' },
+      }],
+    });
+
+    await manager.initialize();
+
+    expect(defaultHttpClient.getDocument).toHaveBeenCalledWith('https://jable.tv/videos/ssis-795-c/', expect.any(Object));
+    expect(document.querySelector('#jdb-online-availability-panel a')?.getAttribute('href')).toBe('https://jable.tv/videos/ssis-795-c/');
+  });
+});

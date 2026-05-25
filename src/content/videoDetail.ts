@@ -391,6 +391,7 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     const enableTranslation = settings?.dataEnhancement?.enableTranslation;
     const enableCurrentTitleTranslation = enableTranslation && (settings?.translation?.targets ? settings.translation.targets.currentTitle !== false : true);
     const enableActorNameMarks = (settings as any)?.videoEnhancement?.enableActorNameMarks !== false;
+    const enableRelatedLists = enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableRelatedLists !== false;
     const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(settings as any);
 
     log('[VideoDetailBlueprints] gates', {
@@ -401,6 +402,7 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
         translationTargets: settings?.translation?.targets,
         enableActorNameMarks,
         enableActorRemarks: (settings as any)?.videoEnhancement?.enableActorRemarks === true,
+        enableRelatedLists,
     });
 
     blueprints.push({ phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' });
@@ -427,6 +429,10 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableReviewBreaker === true) {
         blueprints.push({ phase: 'idle', label: 'videoEnhancement:runReviewBreaker', dependsOn: ['videoStatus:initialSync'] });
+    }
+
+    if (enableRelatedLists) {
+        blueprints.push({ phase: 'idle', label: 'videoEnhancement:runRelatedLists', dependsOn: ['videoEnhancement:initCore'] });
     }
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
@@ -651,6 +657,8 @@ export async function handleVideoDetailPage(): Promise<void> {
                 enableActorNameMarks: (STATE.settings as any)?.videoEnhancement?.enableActorNameMarks !== false,
                 enableActorRemarks: (STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true,
                 enableReviewBreaker: (STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true,
+                enableRelatedLists: (STATE.settings as any)?.videoEnhancement?.enabled === true
+                    && (STATE.settings as any)?.videoEnhancement?.enableRelatedLists !== false,
                 enableVideoFavoriteRating: (STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true,
             });
 
@@ -725,6 +733,17 @@ export async function handleVideoDetailPage(): Promise<void> {
                     idle: true,
                     idleTimeout: 5000,
                     dependsOn: ['videoStatus:initialSync'],
+                });
+            }
+
+            if ((STATE.settings as any)?.videoEnhancement?.enabled === true && (STATE.settings as any)?.videoEnhancement?.enableRelatedLists !== false) {
+                initOrchestrator.add('idle', async () => {
+                    await videoDetailEnhancer.runRelatedLists();
+                }, {
+                    label: 'videoEnhancement:runRelatedLists',
+                    idle: true,
+                    idleTimeout: 5000,
+                    dependsOn: ['videoEnhancement:initCore'],
                 });
             }
 
@@ -1277,8 +1296,11 @@ export async function injectVideoEnhancementPanel(): Promise<void> {
         panel.appendChild(l2);
         panel.appendChild(l3);
 
-        // 插入在 review-buttons 下方
-        if (reviewButtons && reviewButtons.parentElement) {
+        // 插入在 review-buttons 下方；在线可看面板存在时排在它下方
+        const onlineAvailabilityPanel = document.getElementById('jdb-online-availability-panel');
+        if (onlineAvailabilityPanel && onlineAvailabilityPanel.parentElement) {
+            onlineAvailabilityPanel.parentElement.insertBefore(panel, onlineAvailabilityPanel.nextSibling);
+        } else if (reviewButtons && reviewButtons.parentElement) {
             reviewButtons.parentElement.insertBefore(panel, reviewButtons.nextSibling);
         } else if (container) {
             container.appendChild(panel);

@@ -34,6 +34,8 @@ import { installTaskVisibilityReporter } from './taskVisibilityReporter';
 import { getActiveManagedTaskIds } from './taskRuntime';
 import { installTaskHeartbeatReporter } from './taskHeartbeat';
 import { showEnhancementLoading } from './enhancementLoadingIndicator';
+import { onlineAvailabilityManager } from './onlineAvailability';
+import { destroySuperRankingNav, initializeSuperRankingNav, isSuperRankingSupportedHost } from './superRankingNav';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
@@ -386,6 +388,9 @@ async function initialize(): Promise<void> {
     if (settings.userExperience.enableKeyboardShortcuts) {
         preregisterBlueprints.push({ phase: 'high', label: 'ux:shortcuts:init', priority: 8 });
     }
+    if (isSuperRankingSupportedHost() && (settings.userExperience as any).enableSuperRanking !== false) {
+        preregisterBlueprints.push({ phase: 'critical', label: 'superRankingNav:init', priority: 9, visibilityPolicy: 'background_allowed' });
+    }
     preregisterBlueprints.push({ phase: 'high', label: 'ui:remove-unwanted', priority: 3, visibilityPolicy: (isVideoPage || isActorPage) ? 'background_allowed' : 'foreground_first' });
     if (settings.userExperience.enableMagnetSearch && isVideoPage) {
         preregisterBlueprints.push({ phase: 'idle', label: 'ux:magnet:autoSearch' });
@@ -563,6 +568,10 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('high', () => keyboardShortcutsManager.initialize(), { label: 'ux:shortcuts:init', delayMs: 0, priority: 8 });
     }
 
+    if (isSuperRankingSupportedHost() && (settings.userExperience as any).enableSuperRanking !== false) {
+        initOrchestrator.add('critical', () => initializeSuperRankingNav(), { label: 'superRankingNav:init', priority: 9, visibilityPolicy: 'background_allowed' });
+    }
+
     initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 200, priority: 3, visibilityPolicy: (isVideoPage || isActorPage) ? 'background_allowed' : 'foreground_first' });
 
     if (settings.userExperience.enableMagnetSearch && isVideoPage) {
@@ -583,6 +592,7 @@ async function initialize(): Promise<void> {
                         btdig: sources.btdig !== false,
                         btsow: sources.btsow !== false,
                         torrentz2: sources.torrentz2 || false,
+                        javbus: sources.javbus === true,
                         custom: [],
                     },
                     maxResults: 15,
@@ -603,6 +613,17 @@ async function initialize(): Promise<void> {
             customButtons: [],
         });
         initOrchestrator.add('deferred', () => anchorOptimizationManager.initialize(), { label: 'anchorOptimization:init', idle: true, delayMs: 1000 });
+    }
+
+    if (isVideoPage && (settings as any)?.videoEnhancement?.enableOnlineAvailability === true) {
+        initOrchestrator.add('idle', async () => {
+            onlineAvailabilityManager.updateConfig({
+                enabled: true,
+                autoCheck: true,
+                timeoutMs: Number((settings as any)?.videoEnhancement?.onlineAvailabilityTimeoutMs || 8000),
+            } as any);
+            await onlineAvailabilityManager.initialize();
+        }, { label: 'onlineAvailability:check', idle: true, idleTimeout: 8000, delayMs: 1800 });
     }
 
     // 初始化列表增强功能（列表/演员页常用）
@@ -859,6 +880,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         Promise.resolve((message && message.settings) || null).then(async (incomingSettings) => {
             const settings = incomingSettings || await getSettings();
             STATE.settings = settings;
+            try {
+                if (isSuperRankingSupportedHost() && (settings.userExperience as any)?.enableSuperRanking !== false) {
+                    initializeSuperRankingNav();
+                } else {
+                    destroySuperRankingNav();
+                }
+            } catch (e) {
+                log('Failed to refresh super ranking navigation after settings update:', e as any);
+            }
             log('Updated display settings:', settings.display);
             log('Updated translation targets:', (STATE.settings as any)?.translation?.targets);
             processVisibleItems();
@@ -1253,7 +1283,7 @@ document.addEventListener('visibilitychange', () => {
         try {
             // 降档：仅保留 SUK + BTD，减少结果与超时
             magnetSearchManager.updateConfig({
-                sources: { sukebei: true, btdig: true, btsow: false, torrentz2: false, custom: [] },
+                sources: { sukebei: true, btdig: true, btsow: false, torrentz2: false, javbus: false, custom: [] },
                 maxResults: 8,
                 timeout: 5000,
             });
@@ -1278,6 +1308,7 @@ document.addEventListener('visibilitychange', () => {
                     btdig: sources.btdig !== false,
                     btsow: sources.btsow !== false,
                     torrentz2: sources.torrentz2 || false,
+                    javbus: sources.javbus === true,
                     custom: [],
                 },
                 maxResults: (magnetSearchConfig.maxResults ?? 15),
