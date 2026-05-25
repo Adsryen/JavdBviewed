@@ -40,6 +40,7 @@
                                     <input type="checkbox" id="enableActorEnhancement">
                                     <input type="checkbox" id="enableVideoEnhancement">
                                     <input type="checkbox" id="enablePasswordHelper">
+                                    <input type="checkbox" id="enableSuperRanking">
                                     <input type="checkbox" id="enableVideoFavoriteRating">
                                     <input type="checkbox" id="enableActorQuickActions">
                                     <input type="checkbox" id="enableListDisplayControl">
@@ -54,6 +55,8 @@
                                     <input type="checkbox" id="veEnableReviewPush115">
                                     <input type="checkbox" id="veEnableActorRemarks">
                                     <input type="checkbox" id="veEnableActorNameMarks">
+                                    <input type="checkbox" id="veEnableRelatedLists">
+                                    <input type="checkbox" id="veEnableOnlineAvailability">
                                     <!-- 新增：影片页增强 - 本地同步类子项（隐藏 checkbox 作为状态源） -->
                                     <input type="checkbox" id="veEnableWantSync">
                                     <input type="checkbox" id="veAutoMarkWatchedAfter115">
@@ -289,6 +292,46 @@
                                         </p>
                                     </div>
                                     <!-- 影片页收藏与评分 结束 -->
+
+                                    <!-- 在线可看性检测 -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">📺 在线可看性检测</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableOnlineAvailability"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>功能：</strong>在影片详情页检测 FANZA、Jable、MISSAV、Supjav、JavBus 等站点是否有在线资源。<br>
+                                            <strong>说明：</strong>命中后会在页面顶部显示可点击站点标签，并标记字幕/无码信息。
+                                        </p>
+                                    </div>
+                                    <!-- 在线可看性检测 结束 -->
+
+                                    <!-- 相关清单解锁 -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🔓 相关清单解锁</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableRelatedLists"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>功能：</strong>在影片详情页解锁“相关清单”标签内容，显示清单名称、影片数、收藏数、浏览数和创建时间。<br>
+                                            <strong>说明：</strong>点击“相关清单”标签后自动加载，底部支持继续加载更多清单。
+                                        </p>
+                                    </div>
+                                    <!-- 相关清单解锁 结束 -->
 
                                     <!-- 演员标记增强 -->
                                     <div class="form-group" data-subtab="video">
@@ -1052,6 +1095,11 @@
                                                     <span class="checkmark"></span>
                                                     Torrentz2 (TZ2)
                                                 </label>
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="magnetSourceJavbus">
+                                                    <span class="checkmark"></span>
+                                                    JAVBUS (JVB)
+                                                </label>
                                             </div>
 
                                             <div class="form-group" style="margin-top: 10px;">
@@ -1118,6 +1166,24 @@
                                             <strong>效果：</strong>当滚动到页面底部时自动加载下一页列表，实现连续浏览。<br>
                                             <strong>提示：</strong>如遇到站点限速或触发反爬，请适当停顿或关闭此项。<br>
                                             <strong>适用：</strong>支持分页的影片列表页与演员页。
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group" data-subtab="other">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🏆 超级排行榜</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableSuperRanking"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>把 JavDB 顶部“排行榜”改为“超级排行榜”，热播和 TOP250 使用免 VIP 的增强页面渲染，其他分类保留 JavDB 原生入口。<br>
+                                            <strong>适用：</strong>JavDB 全站任意路由的顶部导航栏，支持鼠标悬停和移动端点击展开。
                                         </p>
                                     </div>
 

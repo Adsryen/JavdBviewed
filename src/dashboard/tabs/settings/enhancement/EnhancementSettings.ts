@@ -50,6 +50,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enableActorEnhancement!: HTMLInputElement;
     private enableVideoEnhancement!: HTMLInputElement;
     private enablePasswordHelper!: HTMLInputElement;
+    private enableSuperRanking!: HTMLInputElement;
 
     // 密码助手配置元素
     private passwordShowMethod!: HTMLSelectElement;
@@ -65,6 +66,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableReviewPush115!: HTMLInputElement;
     private veEnableActorRemarks!: HTMLInputElement;
     private veEnableActorNameMarks!: HTMLInputElement;
+    private veEnableRelatedLists!: HTMLInputElement;
+    private veEnableOnlineAvailability!: HTMLInputElement;
     private veActorRemarksMode!: HTMLSelectElement;
     private veActorRemarksTTL!: HTMLInputElement;
     private veActorRemarksTaskTimeout!: HTMLInputElement;
@@ -80,6 +83,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private magnetSourceBtdig!: HTMLInputElement;
     private magnetSourceBtsow!: HTMLInputElement;
     private magnetSourceTorrentz2!: HTMLInputElement;
+    private magnetSourceJavbus!: HTMLInputElement;
     private magnetBlockMojContent!: HTMLInputElement;
     private magnetAutoSearch!: HTMLInputElement;
     // 磁力搜索并发与限流配置
@@ -424,6 +428,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableCoverImage: true,
                 enableTranslation: true,
                 showLoadingIndicator: true,
+                enableRelatedLists: true,
             } as any;
         } else if (section === 'actor') {
             s.actorEnhancement = {
@@ -724,6 +729,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         btdig: this.magnetSourceBtdig?.checked !== false,
                         btsow: this.magnetSourceBtsow?.checked !== false,
                         torrentz2: this.magnetSourceTorrentz2?.checked === true,
+                        javbus: this.magnetSourceJavbus?.checked === true,
                         custom: [],
                     },
                     blockMojContent: this.magnetBlockMojContent?.checked !== false,
@@ -762,6 +768,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 新增：演员备注
                     enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                     enableActorNameMarks: this.veEnableActorNameMarks?.checked !== false,
+                    enableRelatedLists: this.veEnableRelatedLists?.checked !== false,
+                    enableOnlineAvailability: this.veEnableOnlineAvailability?.checked === true,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
                     actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '10', 10) || 10,
@@ -796,6 +804,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorEnhancement: this.enableActorEnhancement.checked,
                     showEnhancedTooltips: false, // 开发中，强制禁用
                     enablePasswordHelper: this.enablePasswordHelper?.checked === true,
+                    enableSuperRanking: this.enableSuperRanking?.checked !== false,
                 },
                 passwordHelper: {
                     showMethod: parseInt(this.passwordShowMethod?.value || '0', 10),

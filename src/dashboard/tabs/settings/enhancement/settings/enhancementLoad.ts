@@ -17,6 +17,7 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (userExperience.enableListEnhancement !== undefined) host.enableListEnhancement.checked = userExperience.enableListEnhancement;
   if (userExperience.enableActorEnhancement !== undefined) host.enableActorEnhancement.checked = userExperience.enableActorEnhancement;
   if (userExperience.enablePasswordHelper !== undefined) host.enablePasswordHelper.checked = userExperience.enablePasswordHelper;
+  if (host.enableSuperRanking) host.enableSuperRanking.checked = userExperience.enableSuperRanking !== false;
 
   const passwordHelper = (settings as any).passwordHelper || { showMethod: 0, waitTime: 300 };
   if (host.passwordShowMethod) host.passwordShowMethod.value = String(passwordHelper.showMethod || 0);
@@ -28,6 +29,7 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   host.magnetSourceBtdig.checked = msSources.btdig !== false;
   host.magnetSourceBtsow.checked = msSources.btsow !== false;
   host.magnetSourceTorrentz2.checked = !!msSources.torrentz2;
+  if (host.magnetSourceJavbus) host.magnetSourceJavbus.checked = !!msSources.javbus;
   if (host.magnetBlockMojContent) host.magnetBlockMojContent.checked = magnetSearch.blockMojContent !== false;
   if (host.magnetAutoSearch) host.magnetAutoSearch.checked = magnetSearch.autoSearch === true;
 
@@ -88,6 +90,8 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.veAutoMarkWatchedStars) host.veAutoMarkWatchedStars.value = String((ve as any).autoMarkWatchedStars ?? 4);
   if (host.veEnableActorRemarks) host.veEnableActorRemarks.checked = (ve as any).enableActorRemarks === true;
   if (host.veEnableActorNameMarks) host.veEnableActorNameMarks.checked = (ve as any).enableActorNameMarks !== false;
+  if (host.veEnableRelatedLists) host.veEnableRelatedLists.checked = (ve as any).enableRelatedLists !== false;
+  if (host.veEnableOnlineAvailability) host.veEnableOnlineAvailability.checked = (ve as any).enableOnlineAvailability === true;
   if (host.translateCurrentTitleChk) host.translateCurrentTitleChk.checked = settings?.translation?.targets ? settings.translation.targets.currentTitle !== false : true;
   if (host.veActorRemarksMode) host.veActorRemarksMode.value = ((ve as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
   if (host.veActorRemarksTTL) host.veActorRemarksTTL.value = String((ve as any).actorRemarksTTLDays ?? 0);

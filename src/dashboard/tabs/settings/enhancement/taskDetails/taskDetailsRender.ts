@@ -163,6 +163,7 @@ export function renderTaskDetailsTable(controller: TaskDetailsController): void 
                 'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
                 'privacy:init': '隐私保护初始化 (privacy:init)',
                 'ui:remove-unwanted': '移除不需要的按钮 (ui:remove-unwanted)',
+                'superRankingNav:init': '超级排行榜导航初始化 (superRankingNav:init)',
                 'magnetSearch:init': '磁力搜索初始化 (magnetSearch:init)',
                 'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
                 'listEnhancement:init': '列表增强初始化 (listEnhancement:init)',
@@ -185,10 +186,12 @@ export function renderTaskDetailsTable(controller: TaskDetailsController): void 
                 'videoEnhancement:runCover': '视频增强-封面处理 (videoEnhancement:runCover)',
                 'videoEnhancement:runTitle': '视频增强-标题处理 (videoEnhancement:runTitle)',
                 'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
+                'videoEnhancement:runRelatedLists': '视频增强-相关清单解锁 (videoEnhancement:runRelatedLists)',
                 'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
                 'videoEnhancement:panel': '视频增强-面板注入 (videoEnhancement:panel)',
                 'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
                 'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
+                'onlineAvailability:check': '在线可看性检测 (onlineAvailability:check)',
                 'actorQuickActions:init': '演员快捷操作初始化 (actorQuickActions:init)',
             };
             return taskNameMap[label] || `${label}`;

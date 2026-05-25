@@ -256,11 +256,13 @@ export function buildTaskDetailPageSummaries(tasks: any[], deps: {
     'videoEnhancement:runTitle',
     'videoEnhancement:runFC2Breaker',
     'videoEnhancement:runReviewBreaker',
+    'videoEnhancement:runRelatedLists',
     'videoEnhancement:finish',
     'actorRemarks:run',
     'videoFavoriteRating:init',
     'actorMarks:page',
     'videoEnhancement:panel',
+    'onlineAvailability:check',
   ]);
 
   const pageGroups = new Map<string, any[]>();

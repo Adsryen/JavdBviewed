@@ -20,7 +20,22 @@ export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<Extens
       enableListEnhancement: host.enableListEnhancement.checked,
       enableActorEnhancement: host.enableActorEnhancement.checked,
       enablePasswordHelper: host.enablePasswordHelper.checked,
+      enableSuperRanking: host.enableSuperRanking?.checked !== false,
       enableKeyboardShortcuts: host.enableKeyboardShortcuts?.checked !== false,
+    } as any,
+    magnetSearch: {
+      sources: {
+        sukebei: host.magnetSourceSukebei?.checked !== false,
+        btdig: host.magnetSourceBtdig?.checked !== false,
+        btsow: host.magnetSourceBtsow?.checked !== false,
+        torrentz2: host.magnetSourceTorrentz2?.checked === true,
+        javbus: host.magnetSourceJavbus?.checked === true,
+        custom: [],
+      },
+    } as any,
+    videoEnhancement: {
+      enableRelatedLists: host.veEnableRelatedLists?.checked !== false,
+      enableOnlineAvailability: host.veEnableOnlineAvailability?.checked === true,
     } as any,
     contentFilter: {
       keywordRules: host.currentFilterRules,
@@ -49,6 +64,7 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.enableListEnhancement && typeof ux.enableListEnhancement === 'boolean') host.enableListEnhancement.checked = ux.enableListEnhancement;
       if (host.enableActorEnhancement && typeof ux.enableActorEnhancement === 'boolean') host.enableActorEnhancement.checked = ux.enableActorEnhancement;
       if (host.enablePasswordHelper && typeof ux.enablePasswordHelper === 'boolean') host.enablePasswordHelper.checked = ux.enablePasswordHelper;
+      if (host.enableSuperRanking) host.enableSuperRanking.checked = ux.enableSuperRanking !== false;
     }
 
     if (settings.listEnhancement) {
@@ -99,6 +115,8 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.veAutoMarkWatchedStars && typeof ve.autoMarkWatchedStars !== 'undefined') host.veAutoMarkWatchedStars.value = String(ve.autoMarkWatchedStars ?? 4);
       if (host.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') host.veEnableActorRemarks.checked = ve.enableActorRemarks;
       if (host.veEnableActorNameMarks && typeof ve.enableActorNameMarks === 'boolean') host.veEnableActorNameMarks.checked = ve.enableActorNameMarks;
+      if (host.veEnableRelatedLists && typeof ve.enableRelatedLists === 'boolean') host.veEnableRelatedLists.checked = ve.enableRelatedLists;
+      if (host.veEnableOnlineAvailability && typeof ve.enableOnlineAvailability === 'boolean') host.veEnableOnlineAvailability.checked = ve.enableOnlineAvailability;
       if (host.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') host.veActorRemarksMode.value = ve.actorRemarksMode === 'inline' ? 'inline' : 'panel';
       if (host.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') host.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);
       if (host.veActorRemarksTaskTimeout && typeof ve.actorRemarksTaskTimeoutSeconds !== 'undefined') host.veActorRemarksTaskTimeout.value = String(ve.actorRemarksTaskTimeoutSeconds ?? 10);

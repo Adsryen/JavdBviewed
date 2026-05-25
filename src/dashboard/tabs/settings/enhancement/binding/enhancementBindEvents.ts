@@ -5,6 +5,7 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.magnetSourceBtdig?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetSourceBtsow?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetSourceTorrentz2?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.magnetSourceJavbus?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetPageMaxConcurrentRequests?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetBgGlobalMaxConcurrent?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetBgPerHostMaxConcurrent?.addEventListener('change', host.handleSettingChange.bind(host));
@@ -30,6 +31,7 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.popularityMinRating?.addEventListener('change', host.handleSettingChange.bind(host));
   host.popularityMinRatingCount?.addEventListener('change', host.handleSettingChange.bind(host));
   host.enableVideoEnhancement?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.enableSuperRanking?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableCoverImage?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veShowLoadingIndicator?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableReviewEnhancement?.addEventListener('change', host.handleSettingChange.bind(host));
@@ -39,6 +41,8 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.veEnableReviewPush115?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableActorRemarks?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableActorNameMarks?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.veEnableRelatedLists?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.veEnableOnlineAvailability?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veActorRemarksMode?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veActorRemarksTTL?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veActorRemarksTaskTimeout?.addEventListener('change', host.handleSettingChange.bind(host));
