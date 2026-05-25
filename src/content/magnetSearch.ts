@@ -83,7 +83,9 @@ export class MagnetSearchManager {
   private currentVideoId: string | null = null;
   private baseMagnetWidth = 0;
   private currentMagnetResults: MagnetResult[] = [];
+  private currentMagnetDisplayResults: MagnetResult[] = [];
   private currentMagnetPage = 1;
+  private currentMagnetSourceFilter = 'all';
   private nativeMagnetPage = 1;
   private searchRunId = 0;
   private sourceTagStates: Partial<Record<MagnetSourceKey, MagnetSourceSearchState>> = {};
@@ -1014,11 +1016,13 @@ export class MagnetSearchManager {
 
       // 重新显示所有磁力数据
       this.currentMagnetResults = limitedResults;
+      this.currentMagnetSourceFilter = 'all';
+      this.currentMagnetDisplayResults = this.getFilteredMagnetResults(limitedResults);
       this.currentMagnetPage = 1;
-      this.displayAllMagnets(limitedResults);
+      this.displayAllMagnets(this.currentMagnetDisplayResults);
 
       // 更新总数显示
-      this.updateTotalCount(limitedResults.length);
+      this.updateTotalCount(this.currentMagnetDisplayResults.length);
 
       // 渲染后再次钳制容器宽度，防止新增节点导致回流拉宽
       this.clampMagnetContainerWidth();
@@ -1051,6 +1055,7 @@ export class MagnetSearchManager {
    * 显示所有磁力数据（统一样式）- 清空与追加在同一个 DOM 批次中执行，避免乱序
    */
   private displayAllMagnets(results: MagnetResult[], scrollToTop = false): void {
+    this.currentMagnetDisplayResults = results;
     const pagination = buildMagnetPaginationState(results.length, this.currentMagnetPage);
     this.currentMagnetPage = pagination.currentPage;
     const pageResults = results.slice(pagination.startIndex, pagination.endIndex);
@@ -1076,6 +1081,7 @@ export class MagnetSearchManager {
       }
       magnetContent.innerHTML = '';
       log('Cleared existing magnet list');
+      this.renderMagnetSourceFilterBar(magnetContent);
       magnetContent.appendChild(fragment);
       this.renderMagnetPaginationControls(magnetContent, pagination, results.length);
       if (scrollToTop && magnetContent instanceof HTMLElement) {
@@ -1116,10 +1122,70 @@ export class MagnetSearchManager {
   }
 
   private goToMagnetPage(page: number): void {
-    if (this.currentMagnetResults.length === 0) return;
+    if (this.currentMagnetDisplayResults.length === 0) return;
     this.currentMagnetPage = page;
-    this.displayAllMagnets(this.currentMagnetResults, true);
-    this.updateTotalCount(this.currentMagnetResults.length);
+    this.displayAllMagnets(this.currentMagnetDisplayResults, true);
+    this.updateTotalCount(this.currentMagnetDisplayResults.length);
+  }
+
+  private normalizeMagnetSourceFilter(source: string): string {
+    return source.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  private getFilteredMagnetResults(results = this.currentMagnetResults): MagnetResult[] {
+    if (this.currentMagnetSourceFilter === 'all') return results;
+    return results.filter((result) => getResultSources(result)
+      .some(source => this.normalizeMagnetSourceFilter(source) === this.currentMagnetSourceFilter));
+  }
+
+  private getMagnetSourceFilterOptions(results = this.currentMagnetResults): Array<{ key: string; label: string; count: number }> {
+    const counts = new Map<string, { label: string; count: number }>();
+    results.forEach((result) => {
+      getResultSources(result).forEach((source) => {
+        const key = this.normalizeMagnetSourceFilter(source);
+        const current = counts.get(key);
+        counts.set(key, { label: source, count: (current?.count || 0) + 1 });
+      });
+    });
+
+    return [
+      { key: 'all', label: '全部', count: results.length },
+      ...Array.from(counts.entries())
+        .map(([key, value]) => ({ key, ...value }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    ];
+  }
+
+  private renderMagnetSourceFilterBar(container: Element): void {
+    if (this.currentMagnetResults.length === 0) return;
+
+    const options = this.getMagnetSourceFilterOptions();
+    if (options.length <= 2) return;
+
+    const activeExists = options.some(option => option.key === this.currentMagnetSourceFilter);
+    if (!activeExists) this.currentMagnetSourceFilter = 'all';
+
+    const bar = document.createElement('div');
+    bar.className = 'jdb-magnet-source-filter-bar';
+
+    options.forEach((option) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `jdb-magnet-source-filter${option.key === this.currentMagnetSourceFilter ? ' is-active' : ''}`;
+      button.dataset.jdbMagnetSourceFilter = option.key;
+      button.textContent = `${option.label} ${option.count}`;
+      button.addEventListener('click', () => {
+        if (this.currentMagnetSourceFilter === option.key) return;
+        this.currentMagnetSourceFilter = option.key;
+        this.currentMagnetPage = 1;
+        const filtered = this.getFilteredMagnetResults();
+        this.displayAllMagnets(filtered, true);
+        this.updateTotalCount(filtered.length);
+      });
+      bar.appendChild(button);
+    });
+
+    container.appendChild(bar);
   }
 
   private applyNativeMagnetPresentation(page = this.nativeMagnetPage): void {
@@ -2187,6 +2253,35 @@ export class MagnetSearchManager {
       #magnets-content .jdb-magnet-pagination .button {
         flex: 0 0 auto;
         border-radius: 8px;
+        color: var(--jdb-magnet-button-text);
+        background: var(--jdb-magnet-button-bg);
+      }
+
+      #magnets-content .jdb-magnet-source-filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin: 0 0 10px;
+        padding: 0 0 10px;
+        border-bottom: 1px solid var(--jdb-magnet-card-border);
+      }
+
+      #magnets-content .jdb-magnet-source-filter {
+        height: 24px;
+        padding: 0 9px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--jdb-magnet-muted);
+        background: var(--jdb-magnet-surface);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 22px;
+        cursor: pointer;
+      }
+
+      #magnets-content .jdb-magnet-source-filter:hover,
+      #magnets-content .jdb-magnet-source-filter.is-active {
         color: var(--jdb-magnet-button-text);
         background: var(--jdb-magnet-button-bg);
       }
