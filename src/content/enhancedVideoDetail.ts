@@ -8,12 +8,13 @@ import { VideoMetadata, ImageData } from '../services/dataAggregator/types';
 import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { reviewBreakerService, ReviewData } from '../services/reviewBreaker';
+import { relatedListsService, RelatedListItem } from '../services/relatedLists';
 import { fc2BreakerService, FC2VideoInfo } from '../services/fc2Breaker';
 import { yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementDone } from './enhancementLoadingIndicator';
-import { isDarkTheme } from './utils';
+import { getJavdbTheme, isDarkTheme, type JavdbTheme } from './utils';
 import { addTaskUrlsV2 } from '../services/drive115Router';
 import {
   createPreviewCacheEntry,
@@ -32,6 +33,8 @@ import {
   restoreNativeJavdbPreview,
 } from './nativeJavdbPreview';
 
+const RELATED_LISTS_PAGE_SIZE = 10;
+
 export interface EnhancementOptions {
   enableCoverImage: boolean;
   enableTranslation: boolean;
@@ -41,6 +44,7 @@ export interface EnhancementOptions {
   enableReviewEnhancement: boolean;
   enableReviewMagnetLinkify: boolean;
   enableReviewPush115: boolean;
+  enableRelatedLists: boolean;
   enableVideoPreview: boolean; // 🆕 视频预览功能
 }
 
@@ -67,6 +71,7 @@ export class VideoDetailEnhancer {
       enableReviewEnhancement: false,
       enableReviewMagnetLinkify: true,
       enableReviewPush115: true,
+      enableRelatedLists: true,
       enableVideoPreview: true, // 🆕 默认启用视频预览
       ...options,
     };
@@ -96,6 +101,7 @@ export class VideoDetailEnhancer {
       this.options.enableReviewEnhancement = cfg.enableReviewEnhancement === true;
       this.options.enableReviewMagnetLinkify = cfg.enableReviewMagnetLinkify !== false;
       this.options.enableReviewPush115 = cfg.enableReviewPush115 !== false;
+      this.options.enableRelatedLists = (cfg as any).enableRelatedLists !== false;
       // 🆕 从列表增强配置中读取视频预览设置（详情页专用）
       const listCfg = STATE.settings?.listEnhancement;
       this.options.enableVideoPreview = listCfg?.enableVideoPreview !== false && listCfg?.enableVideoPreviewDetail !== false;
@@ -489,6 +495,24 @@ export class VideoDetailEnhancer {
   }
 
   /**
+   * 单独运行相关清单解锁功能
+   */
+  async runRelatedLists(): Promise<void> {
+    log('[RelatedLists] runRelatedLists entered', {
+      videoId: this.videoId,
+      enabled: this.options.enableRelatedLists,
+      pathname: window.location.pathname,
+    });
+    if (!this.videoId || !this.options.enableRelatedLists) return;
+
+    try {
+      await this.enhanceRelatedLists(this.videoId);
+    } catch (error) {
+      log('[RelatedLists] Error enhancing related lists:', error);
+    }
+  }
+
+  /**
    * 外部编排结束时可显式调用，统一隐藏加载指示器
    */
   finish(): void {
@@ -654,6 +678,7 @@ export class VideoDetailEnhancer {
    */
   private async enhanceReviews(_videoId: string): Promise<void> {
     try {
+      this.injectReviewBreakerStyles();
       // 从URL中提取movieId（例如：https://javdb.com/v/NQ6pPb -> NQ6pPb）
       const movieId = window.location.pathname.split('/').pop()?.split(/[?#]/)[0];
       if (!movieId) {
@@ -751,6 +776,623 @@ export class VideoDetailEnhancer {
       log('[ReviewBreaker] Error enhancing reviews:', error);
       showToast('评论区增强失败', 'error');
     }
+  }
+
+  /**
+   * 增强相关清单标签页，使用 JAV-JHS/JavdbBuddy 同源 API 解锁完整清单。
+   */
+  private async enhanceRelatedLists(_videoId: string): Promise<void> {
+    const movieId = window.location.pathname.split('/').pop()?.split(/[?#]/)[0];
+    if (!movieId) {
+      log('[RelatedLists] Failed to extract movieId from URL');
+      return;
+    }
+
+    const listTab = this.findRelatedListsTab();
+    if (listTab) {
+      this.neutralizeRelatedListsTab(listTab);
+    }
+
+    const relatedPanel = await this.ensureRelatedListsPanel();
+    if (!relatedPanel) {
+      log('[RelatedLists] #tabs-container not found');
+      return;
+    }
+
+    this.bindRelatedListsTabInterception(relatedPanel, movieId);
+
+    const existingRoot = document.querySelector('div[data-movie-tab-target="lists"], #lists') as HTMLElement | null;
+    if (existingRoot && this.isRelatedListsPanelVisible(existingRoot)) {
+      this.activateRelatedListsPanel(relatedPanel, listTab);
+      await this.loadRelatedLists(relatedPanel, movieId, 1);
+      return;
+    }
+
+    const observerFlag = '__jdb_related_lists_tab_observer__';
+    if (!(window as any)[observerFlag]) {
+      (window as any)[observerFlag] = true;
+      const observer = new MutationObserver(() => {
+        const nextTab = this.findRelatedListsTab();
+        if (nextTab) {
+          this.neutralizeRelatedListsTab(nextTab);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['href', 'data-action', 'data-movie-tab-target'] });
+    }
+  }
+
+  private async ensureRelatedListsPanel(): Promise<HTMLElement | null> {
+    const tabsContainer = await this.waitForElement('#tabs-container', 6000, 200) as HTMLElement | null;
+    if (!tabsContainer) return null;
+
+    const existing = document.getElementById('jdb-related-lists-panel') as HTMLElement | null;
+    if (existing) {
+      this.applyRelatedListsTheme(existing);
+      this.bindRelatedListsThemeObserver(existing);
+      return existing;
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'jdb-related-lists-panel';
+    panel.className = 'content-panel jdb-related-lists-panel';
+    panel.style.display = 'none';
+    panel.setAttribute('aria-hidden', 'true');
+    this.applyRelatedListsTheme(panel);
+    this.bindRelatedListsThemeObserver(panel);
+    tabsContainer.appendChild(panel);
+    return panel;
+  }
+
+  private bindRelatedListsTabInterception(panel: HTMLElement, movieId: string): void {
+    const key = '__jdb_related_lists_click_handler__';
+    const oldHandler = (window as any)[key] as ((event: MouseEvent) => void) | undefined;
+    if (oldHandler) {
+      document.removeEventListener('click', oldHandler, true);
+    }
+
+    const handler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || target.closest('#jdb-related-lists-panel')) return;
+
+      const relatedTab = this.findRelatedListsTabFromTarget(target);
+      if (relatedTab) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        this.neutralizeRelatedListsTab(relatedTab);
+        this.activateRelatedListsPanel(panel, relatedTab);
+        void this.loadRelatedLists(panel, movieId, 1);
+        return;
+      }
+
+      if (this.isMovieTabClickTarget(target)) {
+        this.deactivateRelatedListsPanel(panel);
+      }
+    };
+
+    document.addEventListener('click', handler, true);
+    (window as any)[key] = handler;
+  }
+
+  private neutralizeRelatedListsTab(tab: HTMLElement): void {
+    const relatedElements = [tab, ...Array.from(tab.querySelectorAll<HTMLElement>('[data-action], [data-movie-tab-target], a'))];
+    relatedElements.forEach((el) => {
+      el.removeAttribute('data-action');
+      if (el.getAttribute('data-movie-tab-target') === 'lists') {
+        el.removeAttribute('data-movie-tab-target');
+      }
+    });
+
+    const anchors = tab.matches('a')
+      ? [tab as HTMLAnchorElement]
+      : Array.from(tab.querySelectorAll<HTMLAnchorElement>('a'));
+    anchors.forEach((anchor) => {
+      const href = anchor.getAttribute('href') || '';
+      if (href && !anchor.dataset.jdbRelatedListsOriginalHref) {
+        anchor.dataset.jdbRelatedListsOriginalHref = href;
+      }
+      anchor.setAttribute('href', '#jdb-related-lists-panel');
+      anchor.setAttribute('data-turbo', 'false');
+      anchor.setAttribute('data-turbolinks', 'false');
+    });
+  }
+
+  private findRelatedListsTabFromTarget(target: HTMLElement): HTMLElement | null {
+    const candidate = target.closest<HTMLElement>('li, a, button, [role="tab"], [data-movie-tab-target]');
+    if (!candidate || candidate.closest('#jdb-related-lists-panel')) return null;
+
+    const anchor = (candidate.matches('a') ? candidate : candidate.querySelector('a')) as HTMLAnchorElement | null;
+    const href = anchor?.getAttribute('href') || '';
+    const dataTarget = candidate.getAttribute('data-movie-tab-target')
+      || candidate.querySelector<HTMLElement>('[data-movie-tab-target]')?.getAttribute('data-movie-tab-target')
+      || '';
+    const text = candidate.textContent || '';
+    const inMovieTabBar = !!candidate.closest('.tabs, .movie-panel-info, [data-controller*="movie-tab"]');
+    const isRelated = dataTarget === 'lists'
+      || href.includes('#lists')
+      || href.includes('/plans/')
+      || /相关清单|相關清單|清单|清單|lists/i.test(text);
+
+    return inMovieTabBar && isRelated ? candidate : null;
+  }
+
+  private isMovieTabClickTarget(target: HTMLElement): boolean {
+    const candidate = target.closest<HTMLElement>('li, a, button, [role="tab"], [data-movie-tab-target]');
+    return !!candidate
+      && !candidate.closest('#jdb-related-lists-panel')
+      && !!candidate.closest('.tabs, .movie-panel-info, [data-controller*="movie-tab"]');
+  }
+
+  private activateRelatedListsPanel(panel: HTMLElement, tab: HTMLElement | null): void {
+    this.injectRelatedListsStyles();
+    this.applyRelatedListsTheme(panel);
+    this.setRelatedListsPanelMode(panel, true);
+
+    document.querySelectorAll<HTMLElement>('div[data-movie-tab-target="lists"], #lists').forEach((nativePanel) => {
+      if (nativePanel === panel) return;
+      nativePanel.style.display = 'none';
+      nativePanel.setAttribute('aria-hidden', 'true');
+      nativePanel.classList.remove('is-active');
+    });
+
+    document.querySelectorAll<HTMLElement>('.tabs li.is-active').forEach((li) => {
+      li.classList.remove('is-active');
+    });
+    const activeTab = tab?.closest<HTMLElement>('li') || tab;
+    activeTab?.classList.add('is-active');
+  }
+
+  private deactivateRelatedListsPanel(panel: HTMLElement): void {
+    this.setRelatedListsPanelMode(panel, false);
+  }
+
+  private setRelatedListsPanelMode(panel: HTMLElement, active: boolean): void {
+    const container = panel.parentElement;
+    if (!container) return;
+
+    Array.from(container.children).forEach((child) => {
+      if (!(child instanceof HTMLElement) || child === panel) return;
+      if (active) {
+        if (!child.hasAttribute('data-jdb-related-lists-prev-display')) {
+          child.setAttribute('data-jdb-related-lists-prev-display', child.style.display || '');
+        }
+        child.style.display = 'none';
+      } else if (child.hasAttribute('data-jdb-related-lists-prev-display')) {
+        child.style.display = child.getAttribute('data-jdb-related-lists-prev-display') || '';
+        child.removeAttribute('data-jdb-related-lists-prev-display');
+      }
+    });
+
+    panel.style.display = active ? 'block' : 'none';
+    panel.hidden = false;
+    panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+  }
+
+  private applyRelatedListsTheme(panel: HTMLElement): JavdbTheme {
+    const theme = getJavdbTheme();
+    panel.dataset.jdbTheme = theme;
+    return theme;
+  }
+
+  private bindRelatedListsThemeObserver(panel: HTMLElement): void {
+    const key = '__jdb_related_lists_theme_observer__';
+    const oldObserver = (window as any)[key] as MutationObserver | undefined;
+    oldObserver?.disconnect();
+
+    const observer = new MutationObserver(() => {
+      this.applyRelatedListsTheme(panel);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    (window as any)[key] = observer;
+  }
+
+  private findRelatedListsTab(): HTMLElement | null {
+    const selectors = [
+      '.movie-panel-info a[data-movie-tab-target="lists"]',
+      'a[href="#lists"]',
+      'a[data-movie-tab-target="lists"]',
+      '.tabs a[href="#lists"]',
+      '.tab a[href="#lists"]',
+      '[data-tab="lists"]',
+      '[data-movie-tab-target="lists"]',
+    ];
+    const direct = document.querySelector(selectors.join(', ')) as HTMLElement | null;
+    if (direct) return direct;
+
+    const candidates = Array.from(document.querySelectorAll<HTMLElement>('.tabs li, .tabs a, .tab, button, [role="tab"]'));
+    return candidates.find((el) => /相关清单|相關清單|清单|清單|lists/i.test(el.textContent || '')) || null;
+  }
+
+  private isRelatedListsPanelVisible(panel: HTMLElement): boolean {
+    return panel.offsetParent !== null
+      || panel.classList.contains('is-active')
+      || panel.getAttribute('aria-hidden') === 'false'
+      || panel.style.display === 'block';
+  }
+
+  private async loadRelatedLists(panel: HTMLElement, movieId: string, page: number): Promise<void> {
+    if (panel.dataset.jdbRelatedListsLoading === '1') return;
+    const safePage = Math.max(1, Math.round(Number(page) || 1));
+    const currentMovieId = panel.dataset.jdbRelatedListsMovieId;
+    const currentPage = Number(panel.dataset.jdbRelatedListsCurrentPage || '0');
+    if (currentMovieId === movieId && currentPage === safePage && panel.dataset.jdbRelatedListsLoaded === '1') return;
+
+    this.injectRelatedListsStyles();
+    this.applyRelatedListsTheme(panel);
+    panel.dataset.jdbRelatedListsLoading = '1';
+    panel.dataset.jdbRelatedListsMovieId = movieId;
+    panel.dataset.jdbRelatedListsCurrentPage = String(safePage);
+    panel.dataset.jdbRelatedListsLoaded = '0';
+    panel.innerHTML = `
+      <div class="jdb-related-lists-status">
+        <div class="jdb-related-lists-spinner"></div>
+        <span>正在获取第 ${safePage} 页相关清单...</span>
+      </div>
+    `;
+
+    try {
+      const response = await relatedListsService.getRelatedLists(movieId, safePage, RELATED_LISTS_PAGE_SIZE);
+      if (!response.success || !response.data) {
+        this.renderRelatedListsError(panel, movieId, safePage, response.error || '获取相关清单失败');
+        return;
+      }
+
+      const pageItems = response.data.slice(0, RELATED_LISTS_PAGE_SIZE);
+      const responsePage = response.page || safePage;
+      const totalPages = response.totalPages;
+      panel.dataset.jdbRelatedListsCurrentPage = String(responsePage);
+      panel.innerHTML = `
+        <div class="jdb-related-lists-header">
+          <div class="jdb-related-lists-title">相关清单</div>
+          <div class="jdb-related-lists-page-meta">${this.getRelatedListsPageText(responsePage, pageItems.length, totalPages)}</div>
+        </div>
+        <div class="jdb-related-lists-banner">已为您解锁全部相关清单，本页显示 ${pageItems.length} 条</div>
+        <div class="jdb-related-lists"></div>
+      `;
+
+      const listContainer = panel.querySelector<HTMLElement>('.jdb-related-lists') || panel;
+      if (pageItems.length === 0) {
+        listContainer.innerHTML = '<div class="jdb-related-lists-empty">本页暂无相关清单</div>';
+        panel.dataset.jdbRelatedListsLoaded = '1';
+        this.renderRelatedListsFooter(panel, movieId, responsePage, false, 0, totalPages);
+        return;
+      }
+
+      this.renderRelatedListItems(listContainer, pageItems, responsePage);
+      panel.dataset.jdbRelatedListsLoaded = '1';
+      this.renderRelatedListsFooter(panel, movieId, responsePage, response.hasMore === true, pageItems.length, totalPages);
+    } finally {
+      panel.dataset.jdbRelatedListsLoading = '0';
+    }
+  }
+
+  private getRelatedListsPageText(page: number, itemCount: number, totalPages?: number): string {
+    return totalPages
+      ? `第 ${page} / ${totalPages} 页 · 本页 ${itemCount} 条`
+      : `第 ${page} 页 · 本页 ${itemCount} 条`;
+  }
+
+  private renderRelatedListItems(container: HTMLElement, items: RelatedListItem[], page: number): void {
+    const baseIndex = (page - 1) * RELATED_LISTS_PAGE_SIZE;
+    items.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.className = 'jdb-related-list-card';
+      card.innerHTML = `
+        <div class="jdb-related-list-index">#${baseIndex + index + 1}</div>
+        <a class="jdb-related-list-title" href="/lists/${encodeURIComponent(item.relatedId)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(item.name)}</a>
+        ${item.description ? `<div class="jdb-related-list-desc">${this.escapeHtml(item.description)}</div>` : ''}
+        <div class="jdb-related-list-meta">
+          <span>影片 ${item.movieCount}</span>
+          <span>收藏 ${item.collectionCount}</span>
+          <span>浏览 ${item.viewCount}</span>
+          ${item.createTime ? `<span>创建 ${this.escapeHtml(item.createTime)}</span>` : ''}
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  private renderRelatedListsFooter(panel: HTMLElement, movieId: string, page: number, hasMore: boolean, itemCount: number, totalPages?: number): void {
+    panel.querySelector('#jdb-related-lists-footer')?.remove();
+    const footer = document.createElement('div');
+    footer.id = 'jdb-related-lists-footer';
+    footer.className = 'jdb-related-lists-footer';
+
+    const prevButton = document.createElement('button');
+    prevButton.type = 'button';
+    prevButton.dataset.jdbRelatedPagePrev = '1';
+    prevButton.textContent = '上一页';
+    prevButton.disabled = page <= 1;
+    if (page > 1) {
+      prevButton.addEventListener('click', () => {
+        void this.loadRelatedLists(panel, movieId, page - 1);
+      });
+    }
+
+    const pageInfo = document.createElement('div');
+    pageInfo.className = 'jdb-related-lists-page-info';
+    const pageText = this.getRelatedListsPageText(page, itemCount, totalPages);
+    pageInfo.textContent = hasMore ? pageText : `${pageText} · 已到最后一页`;
+
+    const nextButton = document.createElement('button');
+    nextButton.type = 'button';
+    nextButton.dataset.jdbRelatedPageNext = '1';
+    nextButton.textContent = '下一页';
+    nextButton.disabled = !hasMore;
+    if (hasMore) {
+      nextButton.addEventListener('click', () => {
+        void this.loadRelatedLists(panel, movieId, page + 1);
+      });
+    }
+
+    footer.appendChild(prevButton);
+    footer.appendChild(pageInfo);
+    footer.appendChild(nextButton);
+    panel.appendChild(footer);
+  }
+
+  private renderRelatedListsError(panel: HTMLElement, movieId: string, page: number, message: string): void {
+    this.applyRelatedListsTheme(panel);
+    panel.innerHTML = `
+      <div class="jdb-related-lists-error">
+        <span>${this.escapeHtml(message)}</span>
+        <div class="jdb-related-lists-error-actions">
+          ${page > 1 ? '<button type="button" data-jdb-related-error-prev>上一页</button>' : ''}
+          <button type="button" data-jdb-related-error-retry>重试</button>
+        </div>
+      </div>
+    `;
+    const retry = panel.querySelector<HTMLButtonElement>('[data-jdb-related-error-retry]');
+    retry?.addEventListener('click', () => {
+      void this.loadRelatedLists(panel, movieId, page);
+    });
+    const prev = panel.querySelector<HTMLButtonElement>('[data-jdb-related-error-prev]');
+    prev?.addEventListener('click', () => {
+      void this.loadRelatedLists(panel, movieId, page - 1);
+    });
+  }
+
+  private injectRelatedListsStyles(): void {
+    const styleId = 'jdb-related-lists-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .jdb-related-lists-panel[data-jdb-theme="light"] {
+        --jdb-rl-panel-bg: #f7fafc;
+        --jdb-rl-card-bg: #ffffff;
+        --jdb-rl-card-border: rgba(15, 23, 42, 0.10);
+        --jdb-rl-card-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+        --jdb-rl-text: #1f2937;
+        --jdb-rl-muted: #64748b;
+        --jdb-rl-title: #0f73a8;
+        --jdb-rl-pill-bg: #eef7ff;
+        --jdb-rl-pill-text: #176b98;
+        --jdb-rl-surface: #eef2f7;
+        --jdb-rl-button-bg: #e1f5fe;
+        --jdb-rl-button-text: #0277bd;
+        --jdb-rl-button-hover: #c8ecfb;
+        --jdb-rl-disabled-bg: #e5e7eb;
+        --jdb-rl-disabled-text: #94a3b8;
+        --jdb-rl-spinner-track: rgba(2, 119, 189, 0.25);
+      }
+      .jdb-related-lists-panel[data-jdb-theme="dark"] {
+        --jdb-rl-panel-bg: #111827;
+        --jdb-rl-card-bg: #1f2937;
+        --jdb-rl-card-border: rgba(148, 163, 184, 0.22);
+        --jdb-rl-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+        --jdb-rl-text: #e5e7eb;
+        --jdb-rl-muted: #9ca3af;
+        --jdb-rl-title: #7dd3fc;
+        --jdb-rl-pill-bg: rgba(14, 165, 233, 0.14);
+        --jdb-rl-pill-text: #bae6fd;
+        --jdb-rl-surface: rgba(148, 163, 184, 0.12);
+        --jdb-rl-button-bg: rgba(14, 165, 233, 0.18);
+        --jdb-rl-button-text: #bae6fd;
+        --jdb-rl-button-hover: rgba(14, 165, 233, 0.28);
+        --jdb-rl-disabled-bg: rgba(148, 163, 184, 0.12);
+        --jdb-rl-disabled-text: #64748b;
+        --jdb-rl-spinner-track: rgba(186, 230, 253, 0.25);
+      }
+      .jdb-related-lists-panel {
+        padding: 14px;
+        border-radius: 12px;
+        color: var(--jdb-rl-text);
+        background: var(--jdb-rl-panel-bg);
+      }
+      .jdb-related-lists-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .jdb-related-lists-title {
+        color: var(--jdb-rl-text);
+        font-size: 16px;
+        font-weight: 800;
+      }
+      .jdb-related-lists-page-meta {
+        padding: 4px 10px;
+        border-radius: 999px;
+        color: var(--jdb-rl-pill-text);
+        background: var(--jdb-rl-pill-bg);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .jdb-related-lists-banner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--jdb-rl-card-border);
+        border-radius: 10px;
+        color: var(--jdb-rl-text);
+        background: var(--jdb-rl-card-bg);
+        box-shadow: var(--jdb-rl-card-shadow);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .jdb-related-lists-banner::before {
+        content: "✓";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        color: var(--jdb-rl-button-text);
+        background: var(--jdb-rl-button-bg);
+        font-size: 12px;
+        line-height: 1;
+      }
+      .jdb-related-lists {
+        display: grid;
+        gap: 10px;
+      }
+      .jdb-related-list-card {
+        position: relative;
+        padding: 12px 14px;
+        border: 1px solid var(--jdb-rl-card-border);
+        border-radius: 10px;
+        color: var(--jdb-rl-text);
+        background: var(--jdb-rl-card-bg);
+        box-shadow: var(--jdb-rl-card-shadow);
+      }
+      .jdb-related-list-index {
+        position: absolute;
+        right: 12px;
+        top: 10px;
+        color: var(--jdb-rl-muted);
+        font-size: 12px;
+      }
+      .jdb-related-list-title {
+        display: inline-block;
+        max-width: calc(100% - 52px);
+        color: var(--jdb-rl-title);
+        font-weight: 700;
+        line-height: 1.45;
+        text-decoration: none;
+      }
+      .jdb-related-list-title:hover {
+        text-decoration: underline;
+      }
+      .jdb-related-list-desc {
+        margin-top: 6px;
+        color: var(--jdb-rl-muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .jdb-related-list-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin-top: 8px;
+        color: var(--jdb-rl-muted);
+        font-size: 12px;
+      }
+      .jdb-related-list-meta span {
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--jdb-rl-surface);
+      }
+      .jdb-related-lists-footer,
+      .jdb-related-lists-empty,
+      .jdb-related-lists-status,
+      .jdb-related-lists-error {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+        color: var(--jdb-rl-muted);
+        background: var(--jdb-rl-surface);
+      }
+      .jdb-related-lists-footer {
+        display: grid;
+        grid-template-columns: minmax(92px, 1fr) auto minmax(92px, 1fr);
+        align-items: center;
+        gap: 10px;
+      }
+      .jdb-related-lists-page-info {
+        color: var(--jdb-rl-muted);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .jdb-related-lists-footer button,
+      .jdb-related-lists-error button {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        color: var(--jdb-rl-button-text);
+        background: var(--jdb-rl-button-bg);
+        font-weight: 700;
+        transition: background 0.15s ease, opacity 0.15s ease;
+      }
+      .jdb-related-lists-footer button:hover:not(:disabled),
+      .jdb-related-lists-error button:hover:not(:disabled) {
+        background: var(--jdb-rl-button-hover);
+      }
+      .jdb-related-lists-footer button:disabled,
+      .jdb-related-lists-error button:disabled {
+        cursor: not-allowed;
+        color: var(--jdb-rl-disabled-text);
+        background: var(--jdb-rl-disabled-bg);
+        opacity: 0.85;
+      }
+      .jdb-related-lists-error button {
+        width: auto;
+      }
+      .jdb-related-lists-error-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .jdb-related-lists-spinner {
+        width: 18px;
+        height: 18px;
+        margin: 0 auto 8px;
+        border: 2px solid var(--jdb-rl-spinner-track);
+        border-top-color: var(--jdb-rl-button-text);
+        border-radius: 50%;
+        animation: jdb-related-lists-spin 0.8s linear infinite;
+      }
+      @media (max-width: 520px) {
+        .jdb-related-lists-panel {
+          padding: 10px;
+        }
+        .jdb-related-lists-header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .jdb-related-lists-footer {
+          grid-template-columns: 1fr 1fr;
+        }
+        .jdb-related-lists-page-info {
+          grid-column: 1 / -1;
+          grid-row: 1;
+        }
+      }
+      @keyframes jdb-related-lists-spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  private escapeHtml(value: string): string {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   /**
@@ -1304,12 +1946,311 @@ export class VideoDetailEnhancer {
     };
   }
 
+  private injectReviewBreakerStyles(): void {
+    const styleId = 'jdb-review-breaker-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      #reviews,
+      div[data-movie-tab-target="reviews"] {
+        --jdb-review-panel-bg: #f7fafc;
+        --jdb-review-card-bg: #ffffff;
+        --jdb-review-card-border: rgba(15, 23, 42, 0.10);
+        --jdb-review-card-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        --jdb-review-text: #1f2937;
+        --jdb-review-muted: #64748b;
+        --jdb-review-title: #0f73a8;
+        --jdb-review-accent: #0ea5e9;
+        --jdb-review-surface: #eef2f7;
+        --jdb-review-button-bg: #e1f5fe;
+        --jdb-review-button-hover: #c8ecfb;
+        --jdb-review-button-text: #0277bd;
+        --jdb-review-success-bg: #dcfce7;
+        --jdb-review-success-text: #166534;
+        --jdb-review-star: #f59e0b;
+      }
+
+      html[data-theme="dark"] #reviews,
+      html[data-theme="dark"] div[data-movie-tab-target="reviews"] {
+        --jdb-review-panel-bg: #111827;
+        --jdb-review-card-bg: #1f2937;
+        --jdb-review-card-border: rgba(148, 163, 184, 0.22);
+        --jdb-review-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+        --jdb-review-text: #e5e7eb;
+        --jdb-review-muted: #9ca3af;
+        --jdb-review-title: #7dd3fc;
+        --jdb-review-accent: #38bdf8;
+        --jdb-review-surface: rgba(148, 163, 184, 0.12);
+        --jdb-review-button-bg: rgba(14, 165, 233, 0.18);
+        --jdb-review-button-hover: rgba(14, 165, 233, 0.28);
+        --jdb-review-button-text: #bae6fd;
+        --jdb-review-success-bg: rgba(34, 197, 94, 0.18);
+        --jdb-review-success-text: #bbf7d0;
+        --jdb-review-star: #fbbf24;
+      }
+
+      #reviews .review-items,
+      div[data-movie-tab-target="reviews"] .review-items {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 10px;
+        border-radius: 12px;
+        background: var(--jdb-review-panel-bg);
+      }
+
+      #reviews .review-items > .review-item:not(.more),
+      div[data-movie-tab-target="reviews"] .review-items > .review-item:not(.more) {
+        display: block;
+        margin: 0;
+        padding: 9px 12px;
+        border: 1px solid var(--jdb-review-card-border);
+        border-radius: 10px;
+        color: var(--jdb-review-text);
+        background: var(--jdb-review-card-bg);
+        box-shadow: var(--jdb-review-card-shadow);
+      }
+
+      #reviews .review-title,
+      div[data-movie-tab-target="reviews"] .review-title {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px 8px;
+        margin-bottom: 6px;
+        color: var(--jdb-review-title);
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.3;
+      }
+
+      #reviews .review-title .likes,
+      div[data-movie-tab-target="reviews"] .review-title .likes {
+        float: none !important;
+        order: 10;
+        margin-left: auto;
+      }
+
+      #reviews .review-title .likes .button,
+      div[data-movie-tab-target="reviews"] .review-title .likes .button,
+      #jhs-review-pagination .button {
+        height: 26px;
+        margin: 0;
+        border-color: transparent;
+        border-radius: 8px;
+        color: var(--jdb-review-button-text);
+        background: var(--jdb-review-button-bg);
+        font-weight: 700;
+      }
+
+      #reviews .review-title .likes .button:hover,
+      div[data-movie-tab-target="reviews"] .review-title .likes .button:hover,
+      #jhs-review-pagination .button:hover {
+        background: var(--jdb-review-button-hover);
+      }
+
+      #reviews .review-title .likes .button:disabled,
+      div[data-movie-tab-target="reviews"] .review-title .likes .button:disabled {
+        opacity: 1;
+      }
+
+      #reviews .jdb-review-like-count,
+      div[data-movie-tab-target="reviews"] .jdb-review-like-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 24px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        color: var(--jdb-review-button-text);
+        background: var(--jdb-review-button-bg);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      #reviews .jdb-review-author,
+      div[data-movie-tab-target="reviews"] .jdb-review-author {
+        color: var(--jdb-review-title);
+      }
+
+      #reviews .jdb-review-meta,
+      div[data-movie-tab-target="reviews"] .jdb-review-meta {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        color: var(--jdb-review-muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      #reviews .score-stars,
+      div[data-movie-tab-target="reviews"] .score-stars {
+        display: inline-flex;
+        gap: 2px;
+        color: var(--jdb-review-star);
+      }
+
+      #reviews .score-stars .icon-star,
+      div[data-movie-tab-target="reviews"] .score-stars .icon-star {
+        color: var(--jdb-review-star);
+      }
+
+      #reviews .time,
+      div[data-movie-tab-target="reviews"] .time {
+        display: inline-flex;
+        align-items: center;
+        min-height: 20px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        color: var(--jdb-review-muted);
+        background: var(--jdb-review-surface);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      #reviews .review-item .content,
+      div[data-movie-tab-target="reviews"] .review-item .content {
+        margin-top: 0;
+        color: var(--jdb-review-text);
+      }
+
+      #reviews .review-item .content p,
+      div[data-movie-tab-target="reviews"] .review-item .content p {
+        margin: 0;
+        color: var(--jdb-review-text);
+        font-size: 13px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      #reviews .review-item .content a,
+      div[data-movie-tab-target="reviews"] .review-item .content a {
+        color: var(--jdb-review-title);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+
+      #reviews .jhs-review-push-115,
+      div[data-movie-tab-target="reviews"] .jhs-review-push-115 {
+        border-color: transparent;
+        border-radius: 8px;
+        color: var(--jdb-review-success-text);
+        background: var(--jdb-review-success-bg);
+        font-weight: 700;
+      }
+
+      #jhs-review-pagination {
+        display: grid !important;
+        grid-template-columns: minmax(92px, 1fr) auto minmax(92px, 1fr);
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px !important;
+        padding: 10px !important;
+        border-radius: 8px !important;
+        color: var(--jdb-review-muted);
+        background: var(--jdb-review-surface);
+      }
+
+      #jhs-page-info {
+        color: var(--jdb-review-muted);
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        white-space: nowrap;
+      }
+
+      #jhs-review-banner,
+      #jhs-review-loading {
+        border: 1px solid var(--jdb-review-card-border) !important;
+        color: var(--jdb-review-text) !important;
+        background: var(--jdb-review-card-bg) !important;
+        box-shadow: var(--jdb-review-card-shadow) !important;
+      }
+
+      #jhs-review-banner {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        margin: 0 0 10px 0 !important;
+        padding: 10px 12px !important;
+        border-radius: 10px !important;
+      }
+
+      #jhs-review-banner > div,
+      #jhs-review-loading > div {
+        color: var(--jdb-review-text) !important;
+      }
+
+      #jhs-review-loading > div:first-child {
+        border-color: rgba(14, 165, 233, 0.22) !important;
+        border-top-color: var(--jdb-review-accent) !important;
+      }
+
+      #jhs-review-banner button {
+        color: var(--jdb-review-button-text) !important;
+        background: var(--jdb-review-button-bg) !important;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) #reviews,
+        html:not([data-theme="light"]) div[data-movie-tab-target="reviews"] {
+          --jdb-review-panel-bg: #111827;
+          --jdb-review-card-bg: #1f2937;
+          --jdb-review-card-border: rgba(148, 163, 184, 0.22);
+          --jdb-review-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+          --jdb-review-text: #e5e7eb;
+          --jdb-review-muted: #9ca3af;
+          --jdb-review-title: #7dd3fc;
+          --jdb-review-accent: #38bdf8;
+          --jdb-review-surface: rgba(148, 163, 184, 0.12);
+          --jdb-review-button-bg: rgba(14, 165, 233, 0.18);
+          --jdb-review-button-hover: rgba(14, 165, 233, 0.28);
+          --jdb-review-button-text: #bae6fd;
+          --jdb-review-success-bg: rgba(34, 197, 94, 0.18);
+          --jdb-review-success-text: #bbf7d0;
+          --jdb-review-star: #fbbf24;
+        }
+      }
+
+      @media (max-width: 520px) {
+        #reviews .review-items,
+        div[data-movie-tab-target="reviews"] .review-items {
+          padding: 10px;
+        }
+        #reviews .review-title,
+        div[data-movie-tab-target="reviews"] .review-title {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        #reviews .review-title .likes,
+        div[data-movie-tab-target="reviews"] .review-title .likes {
+          margin-left: 0;
+          order: 10;
+        }
+        #jhs-review-pagination {
+          grid-template-columns: 1fr 1fr;
+        }
+        #jhs-page-info {
+          grid-column: 1 / -1;
+          grid-row: 1;
+          text-align: center;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   /**
    * 创建加载提示
    */
   private createLoadingIndicator(): HTMLElement {
+    this.injectReviewBreakerStyles();
     const indicator = document.createElement('div');
     indicator.id = 'jhs-review-loading';
+    indicator.className = 'jdb-review-loading';
     indicator.style.cssText = `
       margin: 0 0 16px 0;
       padding: 20px;
@@ -1394,6 +2335,7 @@ export class VideoDetailEnhancer {
    * 添加评论破解提示横幅
    */
   private addReviewBreakerBanner(listEl: HTMLElement, fetchedCount: number, totalCount: number): void {
+    this.injectReviewBreakerStyles();
     // 检查是否已存在横幅
     const existingBanner = document.querySelector('#jhs-review-banner');
     if (existingBanner) {
@@ -1402,6 +2344,7 @@ export class VideoDetailEnhancer {
 
     const banner = document.createElement('div');
     banner.id = 'jhs-review-banner';
+    banner.className = 'jdb-review-banner';
     banner.style.cssText = `
       margin: 0 0 16px 0;
       padding: 12px 16px;
@@ -1520,6 +2463,7 @@ export class VideoDetailEnhancer {
    * 将评论渲染为原生样式并挂载到 <dl class="review-items">，支持分页
    */
   private displayNativeReviews(reviews: ReviewData[], dl: HTMLElement, expectedTotalCount?: number): void {
+    this.injectReviewBreakerStyles();
     log(`[ReviewBreaker] displayNativeReviews called with ${reviews.length} reviews`);
     
     const filterKeywords = reviewBreakerService.getFilterKeywords();
@@ -1602,7 +2546,7 @@ export class VideoDetailEnhancer {
     const createPagination = (): HTMLElement => {
       const pagination = document.createElement('div');
       pagination.id = 'jhs-review-pagination';
-      pagination.className = 'message-body'; // 使用JavDB的message-body类来继承主题样式
+      pagination.className = 'message-body jdb-review-pagination'; // 使用JavDB的message-body类来继承主题样式
       
       pagination.style.cssText = `
         display: flex;
@@ -1814,38 +2758,30 @@ export class VideoDetailEnhancer {
    * 创建接近原生结构的 <dt class="review-item">，以复用站点样式
    */
   private createNativeReviewElement(review: ReviewData): HTMLElement {
+    this.injectReviewBreakerStyles();
     const dt = document.createElement('dt');
-    dt.className = 'review-item jhs-review-item';
+    dt.className = 'review-item jhs-review-item jdb-review-card';
     dt.id = `jhs-review-${review.id}`;
     dt.setAttribute('data-source', 'jhs');
 
     const title = document.createElement('div');
-    title.className = 'review-title';
+    title.className = 'review-title jdb-review-head';
 
-    // 右侧点赞（只展示，不提交）
     const likesWrap = document.createElement('div');
-    likesWrap.className = 'likes is-pulled-right';
-    const likeBtn = document.createElement('button');
-    likeBtn.className = 'button is-small is-info';
-    likeBtn.type = 'button';
-    likeBtn.title = '贊';
-    likeBtn.disabled = true;
-    const likeLabel = document.createElement('span');
-    likeLabel.className = 'label';
-    likeLabel.textContent = '贊';
+    likesWrap.className = 'likes is-pulled-right jdb-review-likes';
     const likeCount = document.createElement('span');
-    likeCount.className = 'likes-count';
-    likeCount.textContent = String(review.likes ?? 0);
-    likeBtn.appendChild(likeLabel);
-    likeBtn.appendChild(likeCount);
-    likesWrap.appendChild(likeBtn);
+    likeCount.className = 'likes-count jdb-review-like-count';
+    likeCount.textContent = `贊 ${review.likes ?? 0}`;
+    likesWrap.appendChild(likeCount);
 
     // 作者
-    const authorText = document.createTextNode(`${review.author}\u00A0`);
+    const author = document.createElement('span');
+    author.className = 'jdb-review-author';
+    author.textContent = review.author || '匿名用户';
 
     // 评分星星（最多5个）
     const stars = document.createElement('span');
-    stars.className = 'score-stars';
+    stars.className = 'score-stars jdb-review-stars';
     const starCount = Math.max(0, Math.min(5, Math.round(((review.rating ?? 0) as number) / 2)));
     for (let i = 0; i < starCount; i++) {
       const iEl = document.createElement('i');
@@ -1855,7 +2791,7 @@ export class VideoDetailEnhancer {
 
     // 时间
     const time = document.createElement('span');
-    time.className = 'time';
+    time.className = 'time jdb-review-time';
     try {
       const d = new Date(review.date);
       const y = d.getFullYear();
@@ -1866,18 +2802,21 @@ export class VideoDetailEnhancer {
       time.textContent = review.date;
     }
 
+    const meta = document.createElement('span');
+    meta.className = 'jdb-review-meta';
+    meta.appendChild(stars);
+    meta.appendChild(time);
+
     // 标题行组装
     title.appendChild(likesWrap);
-    title.appendChild(authorText);
-    title.appendChild(document.createTextNode('\u00A0'));
-    title.appendChild(stars);
-    title.appendChild(document.createTextNode('\u00A0'));
-    title.appendChild(time);
+    title.appendChild(author);
+    title.appendChild(meta);
 
     // 正文
     const contentWrap = document.createElement('div');
-    contentWrap.className = 'content';
+    contentWrap.className = 'content jdb-review-content';
     const p = document.createElement('p');
+    p.className = 'jdb-review-text';
     this.renderReviewContent(p, review.content);
     contentWrap.appendChild(p);
 

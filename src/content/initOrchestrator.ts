@@ -44,6 +44,7 @@ type TaskBlueprint = {
   priority?: number;
   timeout?: number;
   visibilityPolicy?: GlobalTaskVisibilityPolicy;
+  dependsOn?: string[];
 };
 
 function getDefaultVisibilityPolicy(phase: InitPhase): GlobalTaskVisibilityPolicy {
