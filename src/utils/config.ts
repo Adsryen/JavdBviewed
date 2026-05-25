@@ -254,6 +254,48 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             icon: 'assets/javbus.ico',
             name: 'Javbus',
             urlTemplate: 'https://www.javbus.com/search/{{ID}}&type=&parent=ce'
+        },
+        {
+            id: 'sehuatang',
+            icon: 'assets/sehuatang.ico',
+            name: '98堂',
+            urlTemplate: 'https://sehuatang.net/search.php?mod=forum&srchtxt={{ID}}'
+        },
+        {
+            id: 'btsow',
+            icon: 'assets/btsow.png',
+            name: 'BTSOW',
+            urlTemplate: 'https://btsow.com/search/{{ID}}'
+        },
+        {
+            id: 'javlib',
+            icon: 'assets/javlibrary.ico',
+            name: 'JAVLib',
+            urlTemplate: 'https://www.javlibrary.com/cn/vl_searchbyid.php?keyword={{ID}}'
+        },
+        {
+            id: 'jable',
+            icon: 'assets/jable.ico',
+            name: 'Jable',
+            urlTemplate: 'https://jable.tv/search/{{ID}}/'
+        },
+        {
+            id: 'missav',
+            icon: 'assets/missav.ico',
+            name: 'MISSAV',
+            urlTemplate: 'https://missav.ws/search/{{ID}}'
+        },
+        {
+            id: '123av',
+            icon: 'assets/123av.png',
+            name: '123AV',
+            urlTemplate: 'https://123av.com/zh/search?keyword={{ID}}'
+        },
+        {
+            id: 'google',
+            icon: 'assets/google.ico',
+            name: 'Google',
+            urlTemplate: 'https://www.google.com/search?q={{ID}}'
         }
     ],
     logging: {
