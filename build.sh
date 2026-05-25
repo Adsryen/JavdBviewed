@@ -19,6 +19,7 @@ root_dir="$(cd "$(dirname "$0")" && pwd)"
 dist_dir="$root_dir/dist"
 zip_dir="$root_dir/dist-zip"
 zip_name=""
+pnpm_virtual_store_dir=""
 
 log() { printf "%b\n" "$1"; }
 info() { printf "%b%s%b\n" "$CYAN" "$1" "$NC"; }
@@ -27,6 +28,33 @@ warn() { printf "%b%s%b\n" "$YELLOW" "$1" "$NC"; }
 err() { printf "%b%s%b\n" "$RED" "$1" "$NC"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
+
+is_wsl_on_onedrive() {
+  [[ "$root_dir" == /mnt/*/*[Oo]ne[Dd]rive* ]]
+}
+
+configure_pnpm_virtual_store() {
+  if [[ -n "$pnpm_virtual_store_dir" ]]; then
+    return 0
+  fi
+
+  if is_wsl_on_onedrive; then
+    local key
+    key=$(printf '%s' "$root_dir" | sha256sum | cut -d' ' -f1)
+    pnpm_virtual_store_dir="/tmp/javdb-extension-pnpm/${key}/.pnpm"
+    mkdir -p "$pnpm_virtual_store_dir"
+    warn "Detected WSL + OneDrive workspace. Using Linux virtual store: $pnpm_virtual_store_dir"
+  fi
+}
+
+pnpm_install() {
+  configure_pnpm_virtual_store
+  if [[ -n "$pnpm_virtual_store_dir" ]]; then
+    pnpm install --virtual-store-dir "$pnpm_virtual_store_dir" "$@"
+  else
+    pnpm install "$@"
+  fi
+}
 
 clear_node_modules() {
   local node_modules="$root_dir/node_modules"
@@ -37,14 +65,27 @@ clear_node_modules() {
 }
 
 install_dependencies() {
-  info "Installing dependencies (pnpm install)"
-  if pnpm install --frozen-lockfile || pnpm install; then
+  info "Installing dependencies (pnpm install --frozen-lockfile)"
+  configure_pnpm_virtual_store
+  if [[ -n "$pnpm_virtual_store_dir" && -d "$root_dir/node_modules/.pnpm" ]]; then
+    warn "Removing project-local pnpm virtual store before using Linux virtual store..."
+    rm -rf "$root_dir/node_modules/.pnpm"
+  fi
+
+  if pnpm_install --frozen-lockfile; then
     return 0
   fi
 
-  warn "pnpm install failed. Removing node_modules and retrying once..."
+  warn "pnpm install failed. Removing node_modules before retry..."
   clear_node_modules
-  pnpm install --frozen-lockfile || pnpm install
+  info "Retrying dependencies install (pnpm install --frozen-lockfile)"
+  if pnpm_install --frozen-lockfile; then
+    return 0
+  fi
+
+  warn "Frozen install failed after cleanup. Retrying once with pnpm install..."
+  clear_node_modules
+  pnpm_install
 }
 
 read_version() {
