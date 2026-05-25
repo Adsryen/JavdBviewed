@@ -118,6 +118,7 @@ export class HttpClient {
       timeout = this.defaultTimeout,
       retries = this.defaultRetries,
       responseType = 'json',
+      referrer,
     } = config;
 
     const requestHeaders = {
@@ -142,6 +143,7 @@ export class HttpClient {
             body,
             timeout,
             responseType,
+            referrer,
           });
         }
 
@@ -154,6 +156,7 @@ export class HttpClient {
           headers: requestHeaders,
           body,
           signal: controller.signal,
+          ...(referrer ? { referrer } : {}),
         });
 
         clearTimeout(timeoutId);
@@ -277,6 +280,11 @@ export class HttpClient {
 
         if (!response.success) {
           reject(new NetworkError(response.error, url));
+          return;
+        }
+
+        if (typeof response.status === 'number' && response.status >= 400) {
+          reject(new NetworkError(`HTTP ${response.status}`, url, response.status));
           return;
         }
 

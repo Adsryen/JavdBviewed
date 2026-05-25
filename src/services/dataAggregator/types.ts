@@ -13,6 +13,7 @@ export interface FetchOptions {
   timeout?: number;
   retries?: number;
   headers?: Record<string, string>;
+  referrer?: string;
   proxy?: boolean;
   // 响应类型（用于 httpClient 中的解析），默认为 json
   responseType?: 'text' | 'json' | 'blob' | 'document';
