@@ -2,7 +2,7 @@
 // @name         Javdb全能助手
 // @name:en      JavdbBuddy
 // @namespace    https://github.com/86168057/JavdbBuddy
-// @version      0.8.0
+// @version      0.9.0
 // @description  JAVDB 一站式增强 Tampermonkey 用户脚本，集成 Emby / Jellyfin 入库状态同步、预览图查看、磁力链管理、多站点快捷搜索、免VIP热播/Top250/FC2PPV、全部评论、相关清单等功能。
 // @description:en  JavdbBuddy - JAVDB All-in-One Assistant: Emby / Jellyfin library sync, preview images, magnet links, multi-site search, Hot/Top250/FC2PPV, all reviews, related lists
 // @description:zh-CN  JAVDB + Emby / Jellyfin 联动脚本：实时同步入库状态、预览图查看、磁力链管理、多站点搜索、免VIP热播/Top250/FC2PPV、全部评论、相关清单
@@ -826,8 +826,19 @@
     // 缓存与索引
     let LIBRARY_INDEX = {};
     let JELLYFIN_LIBRARY_INDEX = {};
-    let SYNC_ERROR = GM_getValue('emby_sync_error', '');
-    let JELLYFIN_SYNC_ERROR = GM_getValue('jellyfin_sync_error', '');
+    let SYNC_ERROR = '';
+    let JELLYFIN_SYNC_ERROR = '';
+    // 启动时清除旧的错误缓存，让 verifyStatusBackground 实时检测连接状态
+    (() => {
+        const allServers = getServers();
+        let changed = false;
+        allServers.forEach(s => {
+            if (s.lastError) { s.lastError = false; s.statusMsg = ''; changed = true; }
+        });
+        if (changed) saveServers(allServers);
+        GM_setValue('emby_sync_error', '');
+        GM_setValue('jellyfin_sync_error', '');
+    })();
     try {
         LIBRARY_INDEX = JSON.parse(GM_getValue('emby_library_index', '{}'));
     } catch(e) {
@@ -1090,6 +1101,8 @@
         const openInNewTab = GM_getValue('jb_open_in_new_tab', false);
         const openAllLinksInNewTab = GM_getValue('jb_open_all_links_in_new_tab', false);
         const openInPopup = GM_getValue('jb_open_in_popup', false);
+        const showEmbyStatus = GM_getValue('jb_show_emby_status', true);
+        const showJellyfinStatus = GM_getValue('jb_show_jellyfin_status', true);
         const webdavUrl = GM_getValue('jb_webdav_url', '');
         const webdavUser = GM_getValue('jb_webdav_user', '');
         const webdavPass = GM_getValue('jb_webdav_pass', '');
@@ -1130,6 +1143,14 @@
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#555;">
                                     <input type="checkbox" id="jb-open-popup" ${openInPopup ? 'checked' : ''} style="cursor:pointer;width:16px;height:16px;">
                                     <span>弹窗方式打开详情页</span>
+                                </label>
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#555;">
+                                    <input type="checkbox" id="jb-show-emby-status" ${showEmbyStatus ? 'checked' : ''} style="cursor:pointer;width:16px;height:16px;">
+                                    <span>显示 Emby 入库状态</span>
+                                </label>
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#555;">
+                                    <input type="checkbox" id="jb-show-jellyfin-status" ${showJellyfinStatus ? 'checked' : ''} style="cursor:pointer;width:16px;height:16px;">
+                                    <span>显示 Jellyfin 入库状态</span>
                                 </label>
                             </div>
                         </div>
@@ -1502,6 +1523,14 @@
             // 立即应用到当前页面
             applyListPagePopup();
         });
+        document.getElementById('jb-show-emby-status')?.addEventListener('change', (e) => {
+            GM_setValue('jb_show_emby_status', e.target.checked);
+            refreshStatusIndicators();
+        });
+        document.getElementById('jb-show-jellyfin-status')?.addEventListener('change', (e) => {
+            GM_setValue('jb_show_jellyfin_status', e.target.checked);
+            refreshStatusIndicators();
+        });
 
         // WebDAV 配置保存
         document.getElementById('jb-webdav-save-btn')?.addEventListener('click', () => {
@@ -1723,7 +1752,8 @@
         .emby-tools-row .emby-status, 
         .emby-tools-row .preview-toggle-btn, 
         .emby-tools-row .magnet-toggle-btn,
-        .emby-tools-row .review-toggle-btn {
+        .emby-tools-row .review-toggle-btn,
+        .emby-tools-row .copy-code-btn {
             margin: 0 !important;
             padding: 2px 6px !important; /* 缩小内边距 */
             font-size: clamp(9px, 1.2vw, 12px) !important;  /* 响应式字体，最小9px，最大12px */
@@ -1737,7 +1767,8 @@
         @media screen and (max-width: 480px) {
             .emby-tools-row .preview-toggle-btn,
             .emby-tools-row .magnet-toggle-btn,
-            .emby-tools-row .review-toggle-btn {
+            .emby-tools-row .review-toggle-btn,
+            .emby-tools-row .copy-code-btn {
                 font-size: 9px !important;
                 padding: 1px 4px !important;
             }
@@ -2185,6 +2216,10 @@
     function addStatusIndicator(container, videoCode, itemEl = null, insertBefore = null, serverType = 'emby') {
         if (!videoCode) return;
 
+        // 独立开关控制
+        if (serverType === 'emby' && !GM_getValue('jb_show_emby_status', true)) return;
+        if (serverType === 'jellyfin' && !GM_getValue('jb_show_jellyfin_status', true)) return;
+
         // 移除旧的显示状态（如果存在）
         const oldStatus = container.querySelector(`.emby-status[data-type="${serverType}"]`);
         if (oldStatus) {
@@ -2200,6 +2235,13 @@
         const syncError = isEmby ? SYNC_ERROR : JELLYFIN_SYNC_ERROR;
         const lastSync = isEmby ? LAST_SYNC_TIME : JELLYFIN_LAST_SYNC_TIME;
 
+        // 先插入到容器（确保 isConnected 为 true，后续 render 才能正常工作）
+        if (insertBefore) {
+            container.insertBefore(statusDiv, insertBefore);
+        } else {
+            container.appendChild(statusDiv);
+        }
+
         // 优先处理状态异常情况
         if (servers.length === 0) {
             renderStatusMessage(statusDiv, '未添加服务器', 'not-added', serverType);
@@ -2207,6 +2249,7 @@
             renderStatusMessage(statusDiv, syncError, 'error', serverType);
         } else if (Object.keys(libraryIndex).length === 0 && lastSync === 0) {
             renderStatusMessage(statusDiv, '请点击设置并同步服务器', 'error', serverType);
+            verifyStatusBackground(statusDiv, videoCode, false, serverType);
         } else {
             const info = libraryIndex[videoCode.toUpperCase()];
             if (info) {
@@ -2216,13 +2259,6 @@
                 renderNotExists(statusDiv, serverType);
                 verifyStatusBackground(statusDiv, videoCode, false, serverType);
             }
-        }
-
-        // 插入到容器
-        if (insertBefore) {
-            container.insertBefore(statusDiv, insertBefore);
-        } else {
-            container.appendChild(statusDiv);
         }
     }
 
@@ -2530,6 +2566,37 @@
             showDualMagnetModalForList(videoCode, itemEl);
         };
         container.appendChild(toggleBtn);
+    }
+
+    // 复制番号按钮
+    function addCopyCodeButton(container, videoCode) {
+        if (container.querySelector('.copy-code-btn')) return;
+        const btn = document.createElement('span');
+        btn.className = 'copy-code-btn';
+        btn.textContent = '📋 复制番号';
+        btn.title = '复制番号到剪贴板';
+        btn.style.cssText = 'display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 3px; font-size: 12px; cursor: pointer; background-color: #607D8B; color: white; white-space: nowrap; transition: all 0.2s;';
+        btn.onmouseenter = () => { btn.style.backgroundColor = '#455A64'; };
+        btn.onmouseleave = () => { btn.style.backgroundColor = '#607D8B'; };
+        btn.onclick = (e) => {
+            e.preventDefault(); e.stopPropagation();
+            navigator.clipboard.writeText(videoCode).then(() => {
+                btn.textContent = '✅ 已复制';
+                setTimeout(() => { btn.textContent = '📋 复制番号'; }, 1500);
+            }).catch(() => {
+                // fallback
+                const ta = document.createElement('textarea');
+                ta.value = videoCode;
+                ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                btn.textContent = '✅ 已复制';
+                setTimeout(() => { btn.textContent = '📋 复制番号'; }, 1500);
+            });
+        };
+        container.appendChild(btn);
     }
 
     // 添加短评按钮
@@ -3587,6 +3654,7 @@
         { name: 'BTSOW', url: 'https://btsow.pics/search/{code}', format: 'path' },
         { name: 'JAVLib', url: 'https://www.javlibrary.com/cn/vl_searchbyid.php?keyword={code}', format: 'query' },
         { name: 'JAVBUS', url: 'https://javbus.com/{code}', format: 'path' },
+        { name: '草榴社区', url: 'https://www.google.com/search?q={code}%20site:t66y.com', format: 'query' },
         { name: '谷歌搜索', url: 'https://www.google.com/search?q={code}', format: 'query' }
     ];
 
@@ -3606,6 +3674,7 @@
             { bg: '#007bff', hover: '#0056b3' },
             { bg: '#28a745', hover: '#218838' },
             { bg: '#ffc107', hover: '#e0a800', text: '#000' },
+            { bg: '#6f42c1', hover: '#5a32a3' },
             { bg: '#17a2b8', hover: '#138496' }
         ];
 
@@ -4010,6 +4079,10 @@
 
     function renderExists(statusDiv, info, serverType = 'emby') {
         const label = serverType === 'emby' ? 'Emby已入库' : 'Jellyfin已入库';
+        if (!statusDiv.isConnected) {
+            const el = document.querySelector(`.emby-status[data-type="${serverType}"]`);
+            if (!el) return; statusDiv = el;
+        }
         statusDiv.className = 'emby-status exists';
         statusDiv.textContent = label;
 
@@ -4041,6 +4114,10 @@
 
     function renderNotExists(statusDiv, serverType = 'emby') {
         const label = serverType === 'emby' ? 'Emby未入库' : 'Jellyfin未入库';
+        if (!statusDiv.isConnected) {
+            const el = document.querySelector(`.emby-status[data-type="${serverType}"]`);
+            if (!el) return; statusDiv = el;
+        }
         statusDiv.className = 'emby-status not-exists';
         statusDiv.textContent = label;
         statusDiv.title = '未在服务器中找到，点击打开设置';
@@ -4054,15 +4131,45 @@
     // 新增：渲染状态消息（如未添加服务器、连接失败）
     function renderStatusMessage(statusDiv, message, type, serverType = 'emby') {
         const prefix = serverType === 'emby' ? 'Emby' : 'Jellyfin';
-        const label = message.startsWith(prefix) || message.startsWith('点击') ? message : prefix + message;
-        statusDiv.className = `emby-status ${type}`;
-        statusDiv.textContent = label;
-        statusDiv.title = label;
-        statusDiv.style.cursor = 'pointer';
-        statusDiv.onclick = (e) => {
+        // 简化长错误消息
+        const shorten = (msg) => {
+            if (msg.includes('未添加服务器')) return '未添加';
+            if (msg.includes('地址错误') || msg.includes('无法连接') || msg.includes('连接超时') || msg.includes('连接失败') || msg.includes('所有服务器') || msg.includes('连接出错')) return '无法连接';
+            if (msg.includes('返回数据异常')) return '数据异常';
+            if (msg.includes('API Key')) return 'API Key 错误';
+            if (msg.includes('配置不完整')) return '配置不完整';
+            return msg;
+        };
+        const shortMsg = shorten(message);
+        const label = shortMsg.startsWith(prefix) || shortMsg.startsWith('点击') ? shortMsg : prefix + shortMsg;
+        // 确保 statusDiv 仍然在 DOM 中，如果已脱离则通过 data-type 重新定位
+        const el = statusDiv.isConnected ? statusDiv : document.querySelector(`.emby-status[data-type="${serverType}"]`);
+        if (!el) return;
+        el.className = `emby-status ${type}`;
+        el.textContent = label;
+        el.title = label;
+        el.style.cursor = 'pointer';
+        el.onclick = (e) => {
             e.preventDefault(); e.stopPropagation();
             showSettingsDialog('tab-emby');
         };
+    }
+
+    // 请求队列：限制并发 GM_xmlhttpRequest 数量，防止限流导致回调丢失
+    const xhrQueue = [];
+    let xhrRunning = 0;
+    const MAX_CONCURRENT_XHR = 3;
+
+    function enqueueXhr(fn) {
+        xhrQueue.push(fn);
+        processXhrQueue();
+    }
+    function processXhrQueue() {
+        while (xhrRunning < MAX_CONCURRENT_XHR && xhrQueue.length > 0) {
+            xhrRunning++;
+            const fn = xhrQueue.shift();
+            fn(() => { xhrRunning--; processXhrQueue(); });
+        }
     }
 
     // 后台验证状态（实时同步关键）
@@ -4071,12 +4178,6 @@
         if (servers.length === 0) return;
 
         const firstServer = servers[0];
-
-        // 如果服务器已经有已知的错误，立即显示，不再等待请求
-        if (firstServer.lastError && firstServer.statusMsg) {
-            renderStatusMessage(statusDiv, firstServer.statusMsg, 'error', serverType);
-            return;
-        }
 
         if (!firstServer.url || !firstServer.apiKey) {
             renderStatusMessage(statusDiv, '服务器配置不完整', 'error', serverType);
@@ -4090,19 +4191,23 @@
         const syncError = isEmby ? SYNC_ERROR : JELLYFIN_SYNC_ERROR;
         const indexKey = isEmby ? 'emby_library_index' : 'jellyfin_library_index';
 
-        GM_xmlhttpRequest({
+        enqueueXhr(function(done) {
+            GM_xmlhttpRequest({
             method: 'GET',
             url: apiUrl,
-            timeout: 2000,
+            timeout: 1500,
             onload: function(response) {
-                if (syncError && statusDiv.classList.contains('error')) return;
-
                 if (response.status !== 200) {
                     let msg = `连接出错 (${response.status})`;
                     if (response.status === 401) msg = `${serverType === 'emby' ? 'Emby' : 'Jellyfin'} API Key 错误`;
+                    firstServer.lastError = true;
+                    firstServer.statusMsg = msg;
                     renderStatusMessage(statusDiv, msg, 'error', serverType);
-                    return;
+                    done(); return;
                 }
+                // 连接成功，清除错误状态
+                firstServer.lastError = false;
+                firstServer.statusMsg = '';
                 try {
                     const data = JSON.parse(response.responseText);
                     const nowExists = data.Items && data.Items.length > 0;
@@ -4136,13 +4241,21 @@
                 } catch (e) {
                     renderStatusMessage(statusDiv, `${serverType === 'emby' ? 'Emby' : 'Jellyfin'}返回数据异常`, 'error', serverType);
                 }
+                done();
             },
             onerror: function() {
+                firstServer.lastError = true;
+                firstServer.statusMsg = '地址错误或无法连接';
                 renderStatusMessage(statusDiv, '地址错误或无法连接', 'error', serverType);
+                done();
             },
             ontimeout: function() {
+                firstServer.lastError = true;
+                firstServer.statusMsg = '连接超时';
                 renderStatusMessage(statusDiv, '连接超时', 'error', serverType);
+                done();
             }
+        });
         });
     }
 
@@ -4205,8 +4318,15 @@
                         addStatusIndicator(statusWrap, videoCode, null, null, 'emby');
                         addStatusIndicator(statusWrap, videoCode, null, null, 'jellyfin');
 
-                        // 为详情页番号块添加5个网站搜索按钮
-                        if (!block.querySelector('.detail-search-panel')) {
+                        // 为详情页番号块添加网站搜索按钮
+                        // 先清理 block 后面可能残留的旧搜索面板（after 插入的是兄弟节点，querySelector 查不到）
+                        let next = block.nextElementSibling;
+                        while (next && next.classList.contains('detail-search-panel')) {
+                            const toRemove = next;
+                            next = next.nextElementSibling;
+                            toRemove.remove();
+                        }
+                        if (!block.nextElementSibling || !block.nextElementSibling.classList.contains('detail-search-panel')) {
                             const detailSearchPanel = document.createElement('div');
                             detailSearchPanel.className = 'detail-search-panel';
                             detailSearchPanel.style.cssText = 'display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;';
@@ -4215,6 +4335,7 @@
                                 { bg: '#007bff', hover: '#0056b3', text: '#fff' },
                                 { bg: '#28a745', hover: '#218838', text: '#fff' },
                                 { bg: '#ffc107', hover: '#e0a800', text: '#000' },
+                                { bg: '#6f42c1', hover: '#5a32a3', text: '#fff' },
                                 { bg: '#17a2b8', hover: '#138496', text: '#fff' }
                             ];
                             SEARCH_SITES.forEach((site, idx) => {
@@ -4265,22 +4386,23 @@
                     return;
                 }
 
-                // 1. 入库状态标签：插入到日期元素后面，紧跟日期显示在同一行
+                // 1. 入库状态标签：用 emby-status-wrap 包裹日期和标签同行显示
                 if (dateEl) {
-                    // 如果日期元素是块级，改成 inline-block 以便与标签同行
-                    const dateDisplay = window.getComputedStyle(dateEl).display;
-                    if (dateDisplay === 'block' || dateDisplay === 'flex') {
-                        dateEl.style.display = 'inline-block';
+                    const existingWrap = dateEl.closest('.emby-status-wrap');
+                    if (existingWrap) {
+                        // 已包裹：只刷新标签，不重建 wrapper（避免孤儿 API 回调）
+                        existingWrap.querySelectorAll('.emby-status').forEach(el => el.remove());
+                        addStatusIndicator(existingWrap, code, item, null, 'emby');
+                        addStatusIndicator(existingWrap, code, item, null, 'jellyfin');
+                    } else {
+                        // 首次：创建 wrapper 包裹日期
+                        const statusWrap = document.createElement('span');
+                        statusWrap.className = 'emby-status-wrap';
+                        dateEl.before(statusWrap);
+                        statusWrap.appendChild(dateEl);
+                        addStatusIndicator(statusWrap, code, item, null, 'emby');
+                        addStatusIndicator(statusWrap, code, item, null, 'jellyfin');
                     }
-                    let statusContainer = dateEl.parentElement.querySelector('.emby-status-inline');
-                    if (!statusContainer) {
-                        statusContainer = document.createElement('span');
-                        statusContainer.className = 'emby-status-inline';
-                        statusContainer.style.cssText = 'display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; flex-wrap: wrap; align-items: center;';
-                        dateEl.after(statusContainer);
-                    }
-                    addStatusIndicator(statusContainer, code, item, null, 'emby');
-                    addStatusIndicator(statusContainer, code, item, null, 'jellyfin');
                 }
 
                 // 2. 其他工具按钮容器
@@ -4300,6 +4422,7 @@
                     toolsRow.style.cssText = 'display: flex; flex-wrap: wrap; align-items: center; gap: 3px; width: 100%; overflow: visible;';
                     toolsContainer.appendChild(toolsRow);
 
+                    addCopyCodeButton(toolsRow, code);
                     addShortReviewButton(toolsRow, item, code);
                     addPreviewToggle(toolsRow, item, code);
                     addMagnetToggle(toolsRow, item, code);
@@ -4316,6 +4439,44 @@
                 console.log(`JavdbBuddy: 第 ${index + 1} 项缺少必要元素`, { titleDiv: !!titleDiv, tags: !!tags });
             }
         });
+    }
+
+    // 实时刷新入库状态标签的显示/隐藏
+    function refreshStatusIndicators() {
+        const showEmby = GM_getValue('jb_show_emby_status', true);
+        const showJellyfin = GM_getValue('jb_show_jellyfin_status', true);
+
+        // 关闭时直接移除对应标签
+        if (!showEmby) {
+            document.querySelectorAll('.emby-status[data-type="emby"]').forEach(el => el.remove());
+        }
+        if (!showJellyfin) {
+            document.querySelectorAll('.emby-status[data-type="jellyfin"]').forEach(el => el.remove());
+        }
+
+        // 清理空的状态容器（先恢复被包裹的日期元素，避免一起被删）
+        document.querySelectorAll('.emby-status-wrap').forEach(el => {
+            if (!el.querySelector('.emby-status')) {
+                const innerDateEl = el.querySelector('.video-date, .date, .meta');
+                if (innerDateEl) el.before(innerDateEl);
+                el.remove();
+            }
+        });
+        document.querySelectorAll('.emby-status-inline').forEach(el => {
+            if (!el.querySelector('.emby-status')) el.remove();
+        });
+
+        // 如果任一开关开启，清除已处理标记并重新扫描
+        // 注意：不清除 data-jb_processed 会导致已处理元素被跳过，所以仍然需要清除
+        // 但需要先清理详情页已存在的旧搜索面板，避免重复
+        if (showEmby || showJellyfin) {
+            // 清理详情页已存在的旧搜索面板（防止重新扫描时重复创建）
+            document.querySelectorAll('.detail-search-panel').forEach(el => el.remove());
+            document.querySelectorAll('[data-jb_processed]').forEach(el => {
+                el.removeAttribute('data-jb_processed');
+            });
+            initCheck();
+        }
     }
 
     // 启动
@@ -5423,6 +5584,65 @@
         }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // 页面加载后持续轮询服务器状态（实时监测开关机）
+    let lastPingResult = {}; // { emby: true/false, jellyfin: true/false }
+    function doDelayedReverify() {
+        ['emby', 'jellyfin'].forEach(serverType => {
+            const servers = getServersByType(serverType);
+            if (servers.length === 0 || !servers[0].url || !servers[0].apiKey) return;
+            const pingUrl = `${servers[0].url.replace(/\/$/, '')}/System/Info?api_key=${servers[0].apiKey}`;
+            GM_xmlhttpRequest({
+                method: 'GET', url: pingUrl, timeout: 3000,
+                onload: function(r) {
+                    const online = r.status === 200;
+                    const prev = lastPingResult[serverType];
+                    lastPingResult[serverType] = online;
+                    if (prev !== undefined && prev === online) return;
+                    if (!online) {
+                        bulkUpdateStatus(serverType, '无法连接');
+                    } else {
+                        // 服务器恢复在线：只把显示"无法连接"的标签改为"未入库"，已入库的保留不动
+                        const prefix = serverType === 'emby' ? 'Emby' : 'Jellyfin';
+                        document.querySelectorAll(`.emby-status.error[data-type="${serverType}"]`).forEach(el => {
+                            el.className = 'emby-status not-exists';
+                            el.textContent = prefix + '未入库';
+                            el.title = prefix + '未入库';
+                        });
+                        // 触发重新检测已入库项
+                        document.querySelectorAll('.detail-search-panel').forEach(el => el.remove());
+                        document.querySelectorAll('[data-jb_processed]').forEach(el => el.removeAttribute('data-jb_processed'));
+                        initCheck();
+                    }
+                },
+                onerror: function() {
+                    if (lastPingResult[serverType] !== false) {
+                        lastPingResult[serverType] = false;
+                        bulkUpdateStatus(serverType, '无法连接');
+                    }
+                },
+                ontimeout: function() {
+                    if (lastPingResult[serverType] !== false) {
+                        lastPingResult[serverType] = false;
+                        bulkUpdateStatus(serverType, '无法连接');
+                    }
+                }
+            });
+        });
+    }
+    // 首次延迟检查，之后每5秒轮询
+    setTimeout(doDelayedReverify, 1500);
+    setInterval(doDelayedReverify, 5000);
+    function bulkUpdateStatus(serverType, msg) {
+        const cls = (msg === '未入库') ? 'emby-status not-exists' : 'emby-status error';
+        document.querySelectorAll(`.emby-status[data-type="${serverType}"]`).forEach(el => {
+            const prefix = serverType === 'emby' ? 'Emby' : 'Jellyfin';
+            el.className = cls;
+            el.textContent = prefix + msg;
+            el.title = prefix + msg;
+        });
+    }
+    setTimeout(doDelayedReverify, 1500);
 
     // 配置变更监听：当设置中添加/修改服务器后，立即重新检查所有标签
     let lastConfigChangeTime = GM_getValue('emby_config_changed', 0);

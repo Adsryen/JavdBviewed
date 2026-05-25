@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         JAV-JHS
 // @namespace    JAV-JHS
-// @version      3.3.6.011
+// @version      3.3.6.025
 // @author       JAV-JHS
 // @description  Jav-鉴黄师 收藏、屏蔽、标记已下载; 屏蔽标签、屏蔽演员、同步收藏演员、新作品检测; 免VIP查看热播、Top250排行榜、Fc2ppv、可查看所有评论信息、相关清单; 支持云盘备份; 以图识图; 字幕搜索; JavDb|JavBus
 // @license      MIT
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=javdb.com
+// @icon         https://javdb.com/favicon-32x32.png
 // @match        https://javdb.com/*
 // @match        https://www.javbus.com/*
 // @include      https://javdb*.com/*
@@ -14,9 +14,6 @@
 // @include      https://*seejav*/*
 // @include      https://javtrailers.com/*
 // @include      https://subtitlecat.com/*
-// @include      https://www.aliyundrive.com/*
-// @include      https://www.alipan.com/*
-// @include      https://115.com/*
 // @exclude      https://*javbus*/forum/*
 // @exclude      https://*javbus*/*actresses
 // @exclude      https://*javsee*/forum/*
@@ -34,8 +31,6 @@
 // @require      https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js
 // @connect      xunlei.com
 // @connect      geilijiasu.com
-// @connect      aliyundrive.com
-// @connect      aliyundrive.net
 // @connect      ja.wikipedia.org
 // @connect      beta.magnet.pics
 // @connect      jdforrepam.com
@@ -767,6 +762,9 @@ const _updateImgServer = originalStr => originalStr.replace(/https:\/\/.*?\/rhe9
         return await gmHttp.get(url, null, headers);
     },
     buildSignature: buildSignature,
+    removeSignature: () => {
+        localStorage.removeItem("jhs_jdsignature");
+    },
     markDataListHtml: movies => {
         let moviesHtml = "";
         movies.forEach((movie => {
@@ -1047,6 +1045,20 @@ class Utils {
         match && match[1] && (value = decodeURIComponent(match[1].replace(/\+/g, " ")));
         return value ? "true" === value || "false" === value ? "true" === value.toLowerCase() : "string" != typeof value || "" === value.trim() || isNaN(Number(value)) ? value : Number(value) : value;
     }
+    setUrlParam(url, key, value) {
+        if (null == value) {
+            const regex2 = new RegExp(`([?&])${key}=[^&]*(&?)`, "i"), match = url.match(regex2);
+            if (match) {
+                let replacement = match[2] ? match[1] : "";
+                "?" === match[1] && "" === match[2] ? replacement = "" : "?" === match[1] && "&" === match[2] ? replacement = "?" : "&" === match[1] && "" === match[2] ? replacement = "" : "&" === match[1] && "&" === match[2] && (replacement = "&");
+                return url.replace(regex2, replacement).replace(/([?&])$/, "");
+            }
+            return url;
+        }
+        const urlParts = url.split("#"), baseUrl = urlParts[0], hash = urlParts[1] ? `#${urlParts[1]}` : "", encodedValue = encodeURIComponent(String(value)), regex = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        let separator = -1 !== baseUrl.indexOf("?") ? "&" : "?";
+        return baseUrl.match(regex) ? baseUrl.replace(regex, "$1" + key + "=" + encodedValue + "$2") + hash : baseUrl + separator + key + "=" + encodedValue + hash;
+    }
     reBuildSignature() {
         return javDbApi.buildSignature();
     }
@@ -1111,7 +1123,7 @@ class Utils {
             precision: precision
         });
     }
-    sleep(ms = 1e3) {
+    async sleep(ms = 1e3) {
         return new Promise((resolve => setTimeout(resolve, ms)));
     }
     genericSort(arr, sortRules, emptyLast = !0) {
@@ -1150,15 +1162,16 @@ class Utils {
         }));
     }
     async retry(fun, tryCount = 3) {
+        var _a2, _b;
         let runCount = 0;
         for (;runCount < tryCount; ) try {
             const result = await fun();
             runCount > 0 && clog.debug(`[重试] 成功，共发起 ${runCount + 1} 次。`);
             return result;
         } catch (e) {
-            let errorString = String(e);
+            let errorString = (null == (_b = null == (_a2 = e.response) ? void 0 : _a2.data) ? void 0 : _b.error) || e.message || String(e);
             errorString.startsWith("Error: ") && (errorString = errorString.replace("Error: ", ""));
-            if (errorString.includes("Just a moment") || errorString.includes("重定向") || errorString.toLowerCase().includes("404 page not found") || errorString.toLowerCase().includes("404 not found")) throw e;
+            if (errorString.includes("Just a moment") || errorString.includes("重定向") || errorString.toLowerCase().includes("404 page not found") || errorString.toLowerCase().includes("已過期") || errorString.toLowerCase().includes("404 not found")) throw e;
             runCount++;
             if (runCount === tryCount) {
                 clog.debug(`[重试] 达到最大重试次数 (${tryCount})，最终失败：`, e);
@@ -1717,7 +1730,7 @@ window.ImageHoverPreview = class {
             header.className = "console-logger-header";
             const title = document.createElement("div");
             title.className = "console-logger-title";
-            title.textContent = "JHS V3.3.6.011";
+            title.textContent = "JHS V3.3.6.025";
             const controls = document.createElement("div");
             controls.className = "console-logger-controls";
             this.maximizeBtn = document.createElement("button");
@@ -2138,7 +2151,7 @@ class PluginManager {
         failedCssLoads.length && console.error("以下插件的 CSS 加载失败：", failedCssLoads.map((p => p.value.name)));
     }
     async processPlugins() {
-        const failedPlugins = (await Promise.allSettled(Array.from(this.plugins).map((async ([name2, instance]) => {
+        await Promise.allSettled(Array.from(this.plugins).map((async ([name2, instance]) => {
             try {
                 if ("function" == typeof instance.handle) {
                     await instance.handle();
@@ -2148,15 +2161,14 @@ class PluginManager {
                     };
                 }
             } catch (e) {
-                clog.error(`插件 ${name2} 执行失败`, e);
+                console.error(`插件 ${name2} 执行失败`, e);
                 return {
                     name: name2,
                     status: "rejected",
                     error: e
                 };
             }
-        })))).filter((r => "rejected" === r.status));
-        failedPlugins.length && console.error("以下插件执行失败：", failedPlugins.map((p => p.value.name)));
+        })));
     }
 }
 
@@ -2269,7 +2281,7 @@ class BasePlugin {
             },
             javbus: {
                 boxSelector: ".masonry",
-                itemSelector: ".masonry .item",
+                itemSelector: ".masonry .item:not(:has(.avatar-box))",
                 coverImgSelector: ".masonry .movie-box .photo-frame img",
                 requestDomItemSelector: "#waterfall .item",
                 nextPageSelector: "#next"
@@ -2307,7 +2319,7 @@ class BasePlugin {
             carNum: carNum2,
             url: url,
             aHref: url,
-            title: title,
+            title: title ?? "",
             publishTime: publishTime
         };
     }
@@ -3220,6 +3232,7 @@ class ActressInfoPlugin extends BasePlugin {
     async handleDetailPage() {
         if ($(".actress-info").length > 0) return;
         let nameList = $(".female").prev().map(((i, el) => $(el).text().trim())).get();
+        nameList.length || (nameList = $('span[onmouseover*="star_"] a').map(((i, el) => $(el).text().trim())).get());
         if (!nameList.length) return;
         const cacheKey = "jhs_actress_info", cacheData = localStorage.getItem(cacheKey) ? JSON.parse(localStorage.getItem(cacheKey)) : {};
         let result = null, infoHtml = "";
@@ -3233,10 +3246,10 @@ class ActressInfoPlugin extends BasePlugin {
                 console.error("该名称查询失败,尝试其它名称");
             }
             let contentHtml = "";
-            contentHtml = result ? `\n                    <div class="panel-block actress-info">\n                        <strong>${name2}:</strong>\n                        <a href="${result.url}" style="margin-left: 5px" target="_blank">\n                            <span class="info-tag">${result.birthday} ${result.age}</span>\n                            <span class="info-tag">${result.height} ${result.weight}</span>\n                            <span class="info-tag">${result.threeSizeText} ${result.braSize}</span>\n                        </a>\n                    </div>\n                ` : `<div class="panel-block actress-info"><a href="${this.apiUrl + name2}" target="_blank"><strong>${name2}:</strong></a></div> `;
+            contentHtml = result ? `\n                    <div class="panel-block actress-info">\n                        <strong style="margin-right: 5px;"><span style="user-select: all">${name2}</span>: </strong>\n                        <a href="${result.url}" style="margin-left: 5px" target="_blank">\n                            <span class="info-tag">${result.birthday} ${result.age}</span>\n                            <span class="info-tag">${result.height} ${result.weight}</span>\n                            <span class="info-tag">${result.threeSizeText} ${result.braSize}</span>\n                        </a>\n                    </div>\n                ` : `<div class="panel-block actress-info"><strong style="margin-right: 5px;"><span style="user-select: all">${name2}</span>: </strong><a href="${this.apiUrl + name2}" target="_blank">暂无此演员信息</a></div> `;
             infoHtml += contentHtml;
         }
-        $('strong:contains("演員")').parent().after(infoHtml);
+        isJavDb ? $('strong:contains("演員")').parent().after(infoHtml) : $('span[onmouseover*="star_"]:first').parent().after(infoHtml);
         localStorage.setItem(cacheKey, JSON.stringify(cacheData));
     }
     async handleStarPage() {
@@ -3286,28 +3299,6 @@ class ActressInfoPlugin extends BasePlugin {
             braSize: $dom.find('th:contains("ブラサイズ")').next("td").contents().first().text().trim(),
             url: url
         };
-    }
-}
-
-class AliyunPanPlugin extends BasePlugin {
-    getName() {
-        return "AliyunPanPlugin";
-    }
-    handle() {
-        $("body").append('<a class="a-success" id="refresh-token-btn" style="position:fixed; right: 0; top:50%;z-index:99999">获取refresh_token</a>');
-        $("#refresh-token-btn").on("click", (event => {
-            let tokenStr = localStorage.getItem("token");
-            if (!tokenStr) {
-                alert("请先登录!");
-                return;
-            }
-            let refresh_token = JSON.parse(tokenStr).refresh_token;
-            navigator.clipboard.writeText(refresh_token).then((() => {
-                alert("已复制到剪切板 如失败, 请手动复制: " + refresh_token);
-            })).catch((err => {
-                console.error("Failed to copy refresh token: ", err);
-            }));
-        }));
     }
 }
 
@@ -3609,22 +3600,7 @@ class NavBarPlugin extends BasePlugin {
     }
     hookSearch() {
         $("#navbar-menu-hero").after('\n            <div class="navbar-menu" id="search-box">\n                <div class="navbar-start" style="display: flex; align-items: center; gap: 5px;">\n                    <select id="jhs-search-type" style="padding: 8px 12px; border: 1px solid #555; border-radius: 4px; background-color: #333; color: #eee; font-size: 14px; outline: none;">\n                        <option value="all">影片</option>\n                        <option value="actor">演員</option>\n                        <option value="series">系列</option>\n                        <option value="maker">片商</option>\n                        <option value="director">導演</option>\n                        <option value="code">番號</option>\n                        <option value="list">清單</option>\n                    </select>\n                    <input id="search-keyword" type="text" placeholder="輸入影片番號，演員名等關鍵字進行檢索" style="padding: 8px 12px; border: 1px solid #555; border-radius: 4px; flex-grow: 1; font-size: 14px; background-color: #333; color: #eee; outline: none;">\n                    <a href="/advanced_search?noFold=1" title="進階檢索" style="padding: 6px 12px; background-color: #444; border-radius: 4px; text-decoration: none; color: #ddd; font-size: 14px; border: 1px solid #555;"><span>...</span></a>\n                    <a id="search-img-btn" style="padding: 6px 16px; background-color: #444; color: #fff; border-radius: 4px; text-decoration: none; font-weight: 500; cursor: pointer; border: 1px solid #555;">识图</a>\n                    <a id="search-btn" style="padding: 6px 16px; background-color: #444; color: #fff; border-radius: 4px; text-decoration: none; font-weight: 500; cursor: pointer; border: 1px solid #555;">檢索</a>\n                </div>\n            </div>\n        ');
-        $("#search-keyword").on("paste", (event => {
-            const items = event.originalEvent.clipboardData.items;
-            for (let i = 0; i < items.length; i++) if (-1 !== items[i].type.indexOf("image")) {
-                const blob = items[i].getAsFile();
-                $("#search-keyword").blur();
-                const imageRecognitionPlugin = this.getBean("ImageRecognitionPlugin");
-                imageRecognitionPlugin.open((() => {
-                    imageRecognitionPlugin.handleImageFile(blob);
-                    imageRecognitionPlugin.resetSearchUI();
-                }));
-                return;
-            }
-            setTimeout((() => {
-                $("#search-btn").click();
-            }), 0);
-        })).on("keypress", (event => {
+        $("#search-keyword").on("keypress", (event => {
             "Enter" === event.key && setTimeout((() => {
                 $("#search-btn").click();
             }), 0);
@@ -4083,28 +4059,41 @@ class DetailPageButtonPlugin extends BasePlugin {
         this.showStatus(carNum2).then();
     }
     async showStatus(carNum2) {
-        const $filterBtn = $("#filterBtn span"), $favoriteBtn = $("#favoriteBtn span"), $hasDownBtn = $("#hasDownBtn span"), $hasWatchBtn = $("#hasWatchBtn span"), hotKeyDisplay = hotKey => hotKey ? `(${hotKey})` : "";
-        $filterBtn.text(`🚫 屏蔽 ${hotKeyDisplay(this.filterHotKey)}`);
-        $favoriteBtn.text(`⭐ 收藏 ${hotKeyDisplay(this.favoriteHotKey)}`);
-        $hasDownBtn.text(`📥️ 已下载 ${hotKeyDisplay(this.hasDownHotKey)}`);
-        $hasWatchBtn.text(`🔍 已观看 ${hotKeyDisplay(this.hasWatchHotKey)}`);
-        const car = await storageManager.getCar(carNum2);
-        if (car) switch (car.status) {
-          case Status_FILTER:
-            $filterBtn.text(`🚫 已屏蔽 ${hotKeyDisplay(this.filterHotKey)}`);
-            break;
-
-          case Status_FAVORITE:
-            $favoriteBtn.text(`⭐ 已收藏 ${hotKeyDisplay(this.favoriteHotKey)}`);
-            break;
-
-          case Status_HAS_DOWN:
-            $hasDownBtn.text(`📥️ 已标记下载 ${hotKeyDisplay(this.hasDownHotKey)}`);
-            break;
-
-          case Status_HAS_WATCH:
-            $hasWatchBtn.text(`🔍 已标记观看 ${hotKeyDisplay(this.hasWatchHotKey)}`);
-        }
+        const btns = {
+            [Status_FILTER]: $("#filterBtn"),
+            [Status_FAVORITE]: $("#favoriteBtn"),
+            [Status_HAS_DOWN]: $("#hasDownBtn"),
+            [Status_HAS_WATCH]: $("#hasWatchBtn")
+        }, hotKeyDisplay = hotKey => hotKey ? `(${hotKey})` : "";
+        btns[Status_FILTER].find("span").text(`🚫 屏蔽 ${hotKeyDisplay(this.filterHotKey)}`);
+        btns[Status_FAVORITE].find("span").text(`⭐ 收藏 ${hotKeyDisplay(this.favoriteHotKey)}`);
+        btns[Status_HAS_DOWN].find("span").text(`📥️ 已下载 ${hotKeyDisplay(this.hasDownHotKey)}`);
+        btns[Status_HAS_WATCH].find("span").text(`🔍 已观看 ${hotKeyDisplay(this.hasWatchHotKey)}`);
+        const car = await storageManager.getCar(carNum2), allBtns = Object.values(btns);
+        car && car.status ? allBtns.forEach(($b => {
+            const isMatch = btns[car.status] && btns[car.status][0] === $b[0];
+            $b.css({
+                opacity: isMatch ? "1" : "0.35",
+                filter: isMatch ? "brightness(1.2)" : "grayscale(0.6)"
+            });
+            if (isMatch) {
+                const textMap = {
+                    [Status_FILTER]: "🚫 已屏蔽",
+                    [Status_FAVORITE]: "⭐ 已收藏",
+                    [Status_HAS_DOWN]: "📥️ 已标记下载",
+                    [Status_HAS_WATCH]: "🔍 已标记观看"
+                }, keys = {
+                    [Status_FILTER]: this.filterHotKey,
+                    [Status_FAVORITE]: this.favoriteHotKey,
+                    [Status_HAS_DOWN]: this.hasDownHotKey,
+                    [Status_HAS_WATCH]: this.hasWatchHotKey
+                };
+                $b.find("span").text(`${textMap[car.status]} ${hotKeyDisplay(keys[car.status])}`);
+            }
+        })) : allBtns.forEach(($b => $b.css({
+            opacity: "1",
+            filter: "none"
+        })));
     }
     async favoriteOne() {
         let pageInfo = this.getPageInfo();
@@ -4899,6 +4888,7 @@ class ReviewPlugin extends BasePlugin {
         enableLoadReview === YES && await this.fetchAndDisplayReviews(movieId);
     }
     async fetchAndDisplayReviews(movieId) {
+        var _a2, _b;
         const $reviewsContainer = $("#reviewsContainer"), $reviewsFooter = $("#reviewsFooter");
         $reviewsContainer.append('<div id="reviewsLoading" style="margin-top:15px;background-color:#ffffff;padding:10px;margin-left: -10px;">获取评论中...</div>');
         const reviewCount = await storageManager.getSetting("reviewCount", 20);
@@ -4906,7 +4896,10 @@ class ReviewPlugin extends BasePlugin {
         try {
             dataList = await javDbApi.getReviews(movieId, 1, reviewCount);
         } catch (e) {
-            e.toString().includes("簽名已過期") && show.error("生成签名失败, 请检查系统时间及时区是否正确!");
+            if (((null == (_b = null == (_a2 = e.response) ? void 0 : _a2.data) ? void 0 : _b.error) || e.message || String(e)).includes("簽名已過期")) {
+                show.error("生成签名失败, 请检查系统时间及时区是否正确!");
+                javDbApi.removeSignature();
+            }
             clog.error("获取评论失败:", e);
             console.error("获取评论失败:", e);
         } finally {
@@ -5434,7 +5427,7 @@ class BlacklistPlugin extends BasePlugin {
     }
     async openBlacklistDialog() {
         const taskPlugin = this.getBean("TaskPlugin"), settingObj = await storageManager.getSetting();
-        let html = `\n            <div style="padding: 10px 20px; height: 100%;overflow:hidden;"> \n                 <div style="display: flex;justify-content: space-between;">\n                    <div style="display: flex; gap:5px">\n                        <a id="checkBlacklistBtn" class="a-danger" data-tip="上次检测时间: ${localStorage.getItem(taskPlugin.lastCheckBlacklistTimeKey) || "无"}; 检测间隔时间: ${settingObj.checkBlacklist_intervalTime}小时">${this.blacklistSvg} &nbsp;手动检测黑名单</a>\n                        <a class="a-warning" id="clearKeywordBlacklist" data-tip="检测黑名单番号数据列表, 是否包含标题关键词">${this.removeSvg} &nbsp;&nbsp; 清理数据</a>\n                        <a class="a-info" id="toSetting">${this.settingSvg} &nbsp;&nbsp; 配置</a>\n                    </div>\n                    <div style="display: flex; gap:5px">\n                        <select id="dataType" style="text-align: center;min-width: 150px;">\n                            <option value="" selected>所有</option>\n                            <option value="actor">男演员</option>\n                            <option value="actress">女演员</option>\n                            <option value="虚拟演员">虚拟演员</option>\n                        </select>\n                        <select id="statusType" style="text-align: center;min-width: 150px;">\n                            <option value="" selected>--检测状态--</option>\n                            <option value="normal">正常检测</option>\n                            <option value="stop">停止检测</option>\n                        </select>\n                        <select id="urlType" data-tip="在演员页屏蔽时,是否选择了分类" style="text-align: center;min-width: 150px; ${isJavDb ? "" : "display: none;"}">\n                            <option value="" selected>--屏蔽类型--</option>\n                            <option value="hasT">按所选分类屏蔽</option>\n                            <option value="noT">所有分类</option>\n                        </select>\n                        <input id="searchValue" type="text" placeholder="搜索演员" style="padding: 4px 5px;">\n                        <a id="cleanQueryBtn" class="a-info" style="margin-left: 0">重置</a>\n                    </div>\n\n                 </div>\n                 <div id="table-container" style="margin-top:20px !important; height: calc(100% - 50px);"></div>\n            </div>\n        `;
+        let html = `\n            <div style="padding: 10px 20px; height: 100%;overflow:hidden;"> \n                 <div style="display: flex;justify-content: space-between;">\n                    <div style="display: flex; gap:5px">\n                        <a id="checkBlacklistBtn" class="a-danger" data-tip="上次检测时间: ${localStorage.getItem(taskPlugin.lastCheckBlacklistTimeKey) || "无"}; 检测间隔时间: ${settingObj.checkBlacklist_intervalTime}小时">${this.blacklistSvg} &nbsp;手动检测黑名单</a>\n                        <a class="a-info" id="toSetting">${this.settingSvg} &nbsp;&nbsp; 配置</a>\n                    </div>\n                    <div style="display: flex; gap:5px">\n                        <select id="dataType" style="text-align: center;min-width: 150px;">\n                            <option value="" selected>所有</option>\n                            <option value="actor">男演员</option>\n                            <option value="actress">女演员</option>\n                            <option value="虚拟演员">虚拟演员</option>\n                        </select>\n                        <select id="statusType" style="text-align: center;min-width: 150px;">\n                            <option value="" selected>--检测状态--</option>\n                            <option value="normal">正常检测</option>\n                            <option value="stop">停止检测</option>\n                        </select>\n                        <select id="urlType" data-tip="在演员页屏蔽时,是否选择了分类" style="text-align: center;min-width: 150px; ${isJavDb ? "" : "display: none;"}">\n                            <option value="" selected>--屏蔽类型--</option>\n                            <option value="hasT">按所选分类屏蔽</option>\n                            <option value="noT">所有分类</option>\n                        </select>\n                        <input id="searchValue" type="text" placeholder="搜索演员" style="padding: 4px 5px;">\n                        <a id="cleanQueryBtn" class="a-info" style="margin-left: 0">重置</a>\n                    </div>\n\n                 </div>\n                 <div id="table-container" style="margin-top:20px !important; height: calc(100% - 50px);"></div>\n            </div>\n        `;
         layer.open({
             type: 1,
             title: "演员黑名单",
@@ -5469,8 +5462,6 @@ class BlacklistPlugin extends BasePlugin {
                             border: "1px solid #f40"
                         });
                     }));
-                })).on("click", "#clearKeywordBlacklist", (async () => {
-                    await this.clearKeywordBlacklist();
                 })).on("click", ".open-url", (event => {
                     event.preventDefault();
                     const $el = $(event.currentTarget), url = $el.attr("data-url"), name2 = $el.attr("data-name");
@@ -5826,102 +5817,6 @@ class BlacklistPlugin extends BasePlugin {
             lastPublishTime: lastPublishTime
         };
     }
-    async clearKeywordBlacklist() {
-        let filterKeywordList = await storageManager.getTitleFilterKeyword();
-        const processedKeywordsSet = new Set;
-        filterKeywordList.forEach((item => {
-            /^[a-z]{2,}-/i.test(item) && processedKeywordsSet.add(item);
-        }));
-        if (0 === processedKeywordsSet.size) {
-            show.info("没有需要清理的关键词数据");
-            return;
-        }
-        const carList = await storageManager.getCarList(), blacklistCarList = await storageManager.getBlacklistCarList(), carNumSet = new Set(carList.map((car => car.carNum))), keywords = Array.from(processedKeywordsSet), waitRemoveCarNumList = [], removableCarData = [];
-        for (const car of blacklistCarList) {
-            const carNum2 = car.carNum;
-            let matched = !1;
-            for (const keyword of keywords) if (carNum2.startsWith(keyword)) {
-                removableCarData.push({
-                    carNum: carNum2,
-                    names: car.names,
-                    matchedKeyword: keyword
-                });
-                waitRemoveCarNumList.push(carNum2);
-                matched = !0;
-                break;
-            }
-            if (!matched && carNumSet.has(carNum2)) {
-                removableCarData.push({
-                    carNum: carNum2,
-                    names: car.names,
-                    matchedKeyword: "已在鉴定记录中"
-                });
-                waitRemoveCarNumList.push(carNum2);
-            }
-        }
-        const carNumCount = waitRemoveCarNumList.length;
-        0 !== carNumCount ? layer.open({
-            type: 1,
-            title: `确认清理黑名单数据 (共 ${carNumCount} 个番号)`,
-            area: [ "80%", "70%" ],
-            anim: -1,
-            content: `\n                <div style="height: 100%;overflow:hidden;">\n                    <div style="padding: 10px; overflow-y: auto;">\n                        <p>以下匹配到 <strong style="color: red;">${carNumCount}</strong> 个黑名单番号存在于屏蔽关键词中, 是否移除?</p>\n                    </div>\n                    <div id="wait-remove-table"  style="height: calc(100% - 70px);"></div>\n                </div>\n            `,
-            btn: [ "确定清理", "取消" ],
-            success: function(layero, index) {
-                new Tabulator("#wait-remove-table", {
-                    data: removableCarData,
-                    virtualDom: !0,
-                    layout: "fitColumns",
-                    pagination: !0,
-                    paginationMode: "local",
-                    paginationSize: 50,
-                    paginationSizeSelector: [ 50, 100, 1e3, 99999 ],
-                    columns: [ {
-                        title: "演员",
-                        field: "names"
-                    }, {
-                        title: "番号",
-                        field: "carNum"
-                    }, {
-                        title: "匹配关键词",
-                        field: "matchedKeyword"
-                    } ],
-                    locale: "zh-cn",
-                    initialSort: [ {
-                        column: "names",
-                        dir: "asc"
-                    } ],
-                    langs: {
-                        "zh-cn": {
-                            pagination: {
-                                first: "首页",
-                                first_title: "首页",
-                                last: "尾页",
-                                last_title: "尾页",
-                                prev: "上一页",
-                                prev_title: "上一页",
-                                next: "下一页",
-                                next_title: "下一页",
-                                all: "所有",
-                                page_size: "每页行数"
-                            }
-                        }
-                    }
-                });
-            },
-            yes: async index => {
-                const removedCount = await storageManager.batchRemoveBlacklistCars(waitRemoveCarNumList);
-                if (0 === removedCount) show.error("移除失败"); else {
-                    show.ok(`🎉 清理完成！已移除${removedCount}个相关黑名单番号数据`);
-                    await this.reloadTable();
-                    layer.close(index);
-                }
-            },
-            btn2: function(index) {
-                layer.close(index);
-            }
-        }) : show.info("没有需要清理的黑名单番号数据");
-    }
 }
 
 class ListPageButtonPlugin extends BasePlugin {
@@ -6187,10 +6082,18 @@ class ListPagePlugin extends BasePlugin {
         return "ListPagePlugin";
     }
     async handle() {
+        const $recommendContainer = $("#recommend-container");
+        $recommendContainer.children().prependTo(".movie-list");
+        $recommendContainer.removeClass("movie-list").text("重复容器, 内容已移动到下方视频列表").css({
+            color: "#999",
+            padding: "10px",
+            background: "#f5f5f5",
+            "text-align": "center"
+        });
         this.cleanRepeatId();
-        this.replaceHdImg();
-        this.addJumpPageControl();
         this.fixBusTitleBox();
+        this.addJumpPageControl();
+        this.replaceHdImg();
         await this.doFilter();
         this.bindClick().then();
         this.bindListPageHotKey().then();
@@ -6242,8 +6145,9 @@ class ListPagePlugin extends BasePlugin {
             var _a2;
             let $box2 = $(ele);
             if ($box2.find(".avatar-box").length > 0) return;
-            const title = (null == (_a2 = $box2.find("img").attr("title")) ? void 0 : _a2.trim()) || "";
-            $box2.find(".photo-info span:first").contents().first().wrap(`<span class="video-title" title="${title}">${title}</span>`);
+            if ($box2.find(".video-title").length) return;
+            const title = (null == (_a2 = $box2.find("img").attr("title")) ? void 0 : _a2.trim()) || "", firstChild = $box2.find(".photo-info span:first").contents()[0];
+            firstChild && 3 === firstChild.nodeType && $(firstChild).wrap(`<span class="video-title" title="${title}"></span>`);
             $box2.find("br").remove();
         }));
     }
@@ -6317,7 +6221,9 @@ class ListPagePlugin extends BasePlugin {
         await Promise.all(movieList.map((async ele => {
             let $box2 = $(ele);
             if (isJavBus && $box2.find(".avatar-box").length > 0) return;
-            const {carNum: carNum2, title: title} = this.getBoxCarInfo($box2), {filter: filter, favorite: favorite, hasDown: hasDown, hasWatch: hasWatch} = carNumSets, lowerCarNum = carNum2.toLowerCase(), lowerTitle = title.toLowerCase(), isFavorite = favorite.has(lowerCarNum), isHasDown = hasDown.has(lowerCarNum), isHasWatch = hasWatch.has(lowerCarNum), isFiltered = filter.has(lowerCarNum), isFilterActorMale = actorCarNumToNameMap.has(carNum2), isFilterActorFemale = actressCarNumToNameMap.has(carNum2), isFilterActor = isFilterActorMale || isFilterActorFemale, foundKeyword = filterKeywordList.find((kw => lowerTitle.includes(kw.toLowerCase()) || lowerCarNum.startsWith(kw.toLowerCase()))), isFilterKeyword = !!foundKeyword;
+            const {carNum: carNum2, title: title} = this.getBoxCarInfo($box2), {filter: filter, favorite: favorite, hasDown: hasDown, hasWatch: hasWatch} = carNumSets, lowerCarNum = carNum2.toLowerCase(), lowerTitle = title.toLowerCase();
+            lowerTitle || clog.warn(`${carNum2} 无标题`);
+            const isFavorite = favorite.has(lowerCarNum), isHasDown = hasDown.has(lowerCarNum), isHasWatch = hasWatch.has(lowerCarNum), isFiltered = filter.has(lowerCarNum), isFilterActorMale = actorCarNumToNameMap.has(carNum2), isFilterActorFemale = actressCarNumToNameMap.has(carNum2), isFilterActor = isFilterActorMale || isFilterActorFemale, foundKeyword = filterKeywordList.find((kw => lowerTitle.includes(kw.toLowerCase()) || lowerCarNum.startsWith(kw.toLowerCase()))), isFilterKeyword = !!foundKeyword;
             if (!isSearchPage) {
                 let shouldHide = settings.showFavoriteItem === NO && isFavorite || settings.showHasDownItem === NO && isHasDown || settings.showHasWatchItem === NO && isHasWatch || settings.showFilterItem === NO && isFiltered && !(isFavorite || isHasDown || isHasWatch) || settings.showFilterActorItem === NO && isFilterActor || settings.showFilterKeywordItem === NO && isFilterKeyword;
                 if ($box2.attr("data-movieShowType") !== settings.movieShowType) {
@@ -6525,31 +6431,41 @@ class ListPagePlugin extends BasePlugin {
     replaceHdImg(coverImgNodeList) {
         coverImgNodeList && "string" == typeof coverImgNodeList.jquery && (coverImgNodeList = coverImgNodeList.toArray());
         coverImgNodeList || (coverImgNodeList = document.querySelectorAll(this.getSelector().coverImgSelector));
-        isJavDb && coverImgNodeList.forEach((img => {
-            img.src = img.src.replace("thumbs", "covers");
-            img.title = "";
+        coverImgNodeList.forEach((img => {
+            if (!utils.isHidden(img) && "true" !== img.dataset.hdReplaced) {
+                if (isJavDb) {
+                    const newSrc = img.src.replace("thumbs", "covers");
+                    if (newSrc !== img.src) {
+                        img.src = newSrc;
+                        img.dataset.hdReplaced = "true";
+                    }
+                    const itemNode = img.closest(".item");
+                    if (itemNode) {
+                        const {carNum: carNum2} = this.getBoxCarInfo($(itemNode));
+                        if (carNum2) {
+                            const newSrc2 = img.src.replace("thumbs", "covers");
+                            if (newSrc2 !== img.src) {
+                                img.src = newSrc2;
+                                img.dataset.hdReplaced = "true";
+                            }
+                        }
+                    }
+                }
+                if (isJavBus) {
+                    const THUMB_PATH_REGEX = /\/(imgs|pics)\/(thumb|thumbs)\//, IMG_EXT_REGEX = /(\.jpg|\.jpeg|\.png)$/i, DMM_THUMB_REGEX = /ps(\.jpg|\.jpeg|\.png)$/i;
+                    let newSrc = "";
+                    if (THUMB_PATH_REGEX.test(img.src)) {
+                        newSrc = img.src.replace(THUMB_PATH_REGEX, "/$1/cover/");
+                        img.src.includes("nopic.jpg") || (newSrc = newSrc.replace(IMG_EXT_REGEX, "_b$1"));
+                    } else DMM_THUMB_REGEX.test(img.src) && (newSrc = img.src.replace(DMM_THUMB_REGEX, "pl$1"));
+                    if (newSrc) {
+                        img.dataset.oldSrc = img.src;
+                        img.src = newSrc;
+                        img.dataset.hdReplaced = "true";
+                    }
+                }
+            }
         }));
-        if (isJavBus) {
-            const THUMB_PATH_REGEX = /\/(imgs|pics)\/(thumb|thumbs)\//, IMG_EXT_REGEX = /(\.jpg|\.jpeg|\.png)$/i, replaceWithHd = img => {
-                if (img.src && THUMB_PATH_REGEX.test(img.src) && "true" !== img.dataset.hdReplaced) {
-                    img.src = img.src.replace(THUMB_PATH_REGEX, "/$1/cover/").replace(IMG_EXT_REGEX, "_b$1");
-                    img.dataset.hdReplaced = "true";
-                    img.dataset.title = img.title;
-                    img.title = "";
-                }
-            }, DMM_THUMB_REGEX = /ps(\.jpg|\.jpeg|\.png)$/i, replaceWithHdForDMM = img => {
-                if (img.src && DMM_THUMB_REGEX.test(img.src) && "true" !== img.dataset.hdReplaced) {
-                    img.src = img.src.replace(DMM_THUMB_REGEX, "pl$1");
-                    img.dataset.hdReplaced = "true";
-                    img.dataset.title = img.title;
-                    img.title = "";
-                }
-            };
-            coverImgNodeList.forEach((img => {
-                replaceWithHd(img);
-                replaceWithHdForDMM(img);
-            }));
-        }
         storageManager.getSetting("hoverBigImg", NO).then((hoverBigImg => {
             hoverBigImg === YES && (window.imageHoverPreviewObj ? window.imageHoverPreviewObj.bindEvents() : window.imageHoverPreviewObj = new ImageHoverPreview({
                 selector: this.getSelector().coverImgSelector
@@ -6558,34 +6474,26 @@ class ListPagePlugin extends BasePlugin {
     }
     async translate($box2) {
         if (await storageManager.getSetting("translateTitle", YES) !== YES) return;
-        let content, carNum2, $title = $box2.find(".video-title");
-        if (isJavDb) {
-            content = $title.contents().filter(((i, node) => 3 === node.nodeType && "" !== node.textContent.trim())).text().trim();
-            carNum2 = $box2.find(".video-title strong").text().trim();
-        } else {
-            content = $box2.find("img").attr("data-title").trim();
-            carNum2 = $box2.find("a").attr("href").split("/").filter(Boolean).pop().trim();
-        }
-        if (this.cache[carNum2]) {
-            let _this = this;
-            $title.contents().each((function() {
-                3 === this.nodeType && "" !== this.textContent.trim() && (this.textContent = " " + _this.cache[carNum2] + " ");
+        let $title = $box2.find(".video-title");
+        if ($title.attr("has-translate")) return;
+        const updateTitleDom = ($target, text) => {
+            $target.contents().each((function() {
+                3 === this.nodeType && "" !== this.textContent.trim() && (this.textContent = " " + text + " ");
             }));
-            $title.attr("title", _this.cache[carNum2]);
-        } else translateText(content).then((result => {
-            if (isJavDb) {
-                $title.contents().each((function() {
-                    3 !== this.nodeType || "" === this.textContent.trim() || this.textContent.includes(carNum2) || (this.textContent = " " + result + " ");
-                }));
-                $title.attr("title", result);
-            } else $title.text(result);
-            this.writeQueue = this.writeQueue.then((() => {
+            $target.attr("title", text);
+            $target.attr("has-translate", "yes");
+        }, {carNum: carNum2, title: title} = this.getBoxCarInfo($box2);
+        title ? this.cache[carNum2] ? updateTitleDom($title, this.cache[carNum2]) : translateText(title).then((result => {
+            if (result) {
+                updateTitleDom($title, result);
                 this.cache[carNum2] = result;
-                localStorage.setItem("jhs_translate", JSON.stringify(this.cache));
-            }));
+                this.writeQueue = this.writeQueue.then((() => {
+                    localStorage.setItem("jhs_translate", JSON.stringify(this.cache));
+                }));
+            }
         })).catch((error => {
             console.error("翻译失败:", error);
-        }));
+        })) : clog.warn(`数据不全,跳过翻译,番号:${carNum2},标题:${title}`);
     }
     async revertTranslation() {
         $(this.getSelector().itemSelector).toArray().forEach((ele => {
@@ -6805,179 +6713,6 @@ class AutoPagePlugin extends BasePlugin {
     }
 }
 
-class AliyunApi {
-    constructor(refresh_token) {
-        this.baseApiUrl = "https://api.aliyundrive.com";
-        this.refresh_token = refresh_token;
-        this.authorization = null;
-        this.default_drive_id = null;
-        this.backupFolderId = null;
-    }
-    async getDefaultDriveId() {
-        if (this.default_drive_id) return this.default_drive_id;
-        this.userInfo = await this.getUserInfo();
-        this.default_drive_id = this.userInfo.default_drive_id;
-        return this.default_drive_id;
-    }
-    async getHeaders() {
-        if (this.authorization) return {
-            authorization: this.authorization
-        };
-        this.authorization = await this.getAuthorization();
-        return {
-            authorization: this.authorization
-        };
-    }
-    async getAuthorization() {
-        let url = this.baseApiUrl + "/v2/account/token", data = {
-            refresh_token: this.refresh_token,
-            grant_type: "refresh_token"
-        };
-        try {
-            return "Bearer " + (await gmHttp.post(url, data)).access_token;
-        } catch (e) {
-            throw e.message.includes("is not valid") ? new Error("refresh_token无效, 请重新填写并保存") : e;
-        }
-    }
-    async getUserInfo() {
-        const headers = await this.getHeaders();
-        let url = this.baseApiUrl + "/v2/user/get";
-        return await gmHttp.post(url, {}, headers);
-    }
-    async deleteFile(file_id, drive_id = null) {
-        if (!file_id) throw new Error("未传入file_id");
-        drive_id || (drive_id = await this.getDefaultDriveId());
-        let data = {
-            file_id: file_id,
-            drive_id: drive_id
-        }, url = this.baseApiUrl + "/v2/recyclebin/trash";
-        const headers = await this.getHeaders();
-        await gmHttp.post(url, data, headers);
-        return {};
-    }
-    async createFolder(name2, drive_id = null, parent_folder_id = "root") {
-        drive_id || (drive_id = await this.getDefaultDriveId());
-        let url = this.baseApiUrl + "/adrive/v2/file/createWithFolders", data = {
-            name: name2,
-            type: "folder",
-            parent_file_id: parent_folder_id,
-            check_name_mode: "auto_rename",
-            content_hash_name: "sha1",
-            drive_id: drive_id
-        };
-        const headers = await this.getHeaders();
-        return await gmHttp.post(url, data, headers);
-    }
-    async getFileList(parent_folder_id = "root", drive_id = null) {
-        drive_id || (drive_id = await this.getDefaultDriveId());
-        let url = this.baseApiUrl + "/adrive/v3/file/list";
-        const data = {
-            drive_id: drive_id,
-            parent_file_id: parent_folder_id,
-            limit: 200,
-            all: !1,
-            url_expire_sec: 14400,
-            image_thumbnail_process: "image/resize,w_256/format,avif",
-            image_url_process: "image/resize,w_1920/format,avif",
-            video_thumbnail_process: "video/snapshot,t_120000,f_jpg,m_lfit,w_256,ar_auto,m_fast",
-            fields: "*",
-            order_by: "updated_at",
-            order_direction: "DESC"
-        }, headers = await this.getHeaders();
-        return (await gmHttp.post(url, data, headers)).items;
-    }
-    async uploadFile(folder_id, fileName, uploadContent, drive_id = null) {
-        show.info("请求存储空间中...");
-        let createFileUrl = this.baseApiUrl + "/adrive/v2/file/createWithFolders";
-        drive_id || (drive_id = await this.getDefaultDriveId());
-        let data = {
-            drive_id: drive_id,
-            part_info_list: [ {
-                part_number: 1
-            } ],
-            parent_file_id: folder_id,
-            name: fileName,
-            type: "file",
-            check_name_mode: "auto_rename"
-        };
-        const headers = await this.getHeaders(), createFileResult = await gmHttp.post(createFileUrl, data, headers), upload_id = createFileResult.upload_id, upload_file_id = createFileResult.file_id, upload_url = createFileResult.part_info_list[0].upload_url;
-        show.info("开始上传文件...");
-        await this._doUpload(upload_url, uploadContent);
-        await gmHttp.post("https://api.aliyundrive.com/v2/file/complete", data = {
-            drive_id: drive_id,
-            file_id: upload_file_id,
-            upload_id: upload_id
-        }, headers);
-    }
-    _doUpload(upload_url, uploadContent) {
-        return new Promise(((resolve, reject) => {
-            $.ajax({
-                type: "PUT",
-                url: upload_url,
-                data: uploadContent,
-                contentType: " ",
-                processData: !1,
-                success: (res, status, xhr) => {
-                    200 === xhr.status ? resolve({}) : reject(xhr);
-                },
-                error: xhr => {
-                    clog.error("上传失败", xhr.responseText);
-                    reject(xhr);
-                }
-            });
-        }));
-    }
-    async getDownloadUrl(file_id, drive_id = null) {
-        drive_id || (drive_id = await this.getDefaultDriveId());
-        let url = this.baseApiUrl + "/v2/file/get_download_url";
-        const headers = await this.getHeaders();
-        let data = {
-            file_id: file_id,
-            drive_id: drive_id
-        };
-        return (await gmHttp.post(url, data, headers)).url;
-    }
-    async _createBackupFolder(folderName) {
-        const fileList = await this.getFileList();
-        let folderObj = null;
-        for (let i = 0; i < fileList.length; i++) {
-            let file = fileList[i];
-            if (file.name === folderName) {
-                folderObj = file;
-                break;
-            }
-        }
-        if (!folderObj) {
-            show.info("不存在备份目录, 进行创建");
-            folderObj = await this.createFolder(folderName);
-        }
-        this.backupFolderId = folderObj.file_id;
-    }
-    async backup(folderName, fileName, uploadContent) {
-        if (this.backupFolderId) await this.uploadFile(this.backupFolderId, fileName, uploadContent); else {
-            await this._createBackupFolder(folderName);
-            await this.uploadFile(this.backupFolderId, fileName, uploadContent);
-        }
-    }
-    async getBackupList(folderName) {
-        let dataList;
-        if (this.backupFolderId) dataList = await this.getFileList(this.backupFolderId); else {
-            await this._createBackupFolder(folderName);
-            dataList = await this.getFileList(this.backupFolderId);
-        }
-        const fileList = [];
-        dataList.forEach((data => {
-            fileList.push({
-                name: data.name,
-                fileId: data.file_id,
-                createTime: data.created_at,
-                size: data.size
-            });
-        }));
-        return fileList;
-    }
-}
-
 class WebDavApi {
     constructor(davUrl, username, password) {
         this.davUrl = davUrl.endsWith("/") ? davUrl : davUrl + "/";
@@ -7015,8 +6750,35 @@ class WebDavApi {
             });
         }));
     }
+    async checkFolderExists(path) {
+        const headers = {
+            Depth: "0"
+        };
+        try {
+            await this._sendRequest("PROPFIND", path, headers);
+            return !0;
+        } catch (error) {
+            const statusMatch = error.message.match(/请求失败 (\d+):/);
+            if (404 === (statusMatch ? parseInt(statusMatch[1]) : 0)) return !1;
+            throw error;
+        }
+    }
+    async createFolder(folderName) {
+        try {
+            if (!(await this.checkFolderExists(folderName))) {
+                clog.log(`目录 ${folderName} 不存在，正在创建...`);
+                await this._sendRequest("MKCOL", folderName, {
+                    Depth: "0"
+                });
+                clog.log(`目录 ${folderName} 创建成功。`);
+            }
+        } catch (error) {
+            clog.error(`创建目录 ${folderName} 时发生错误:`, error);
+            throw error;
+        }
+    }
     async backup(folderName, fileName, uploadContent) {
-        await this._sendRequest("MKCOL", folderName);
+        await this.createFolder(folderName);
         const path = folderName + "/" + fileName;
         await this._sendRequest("PUT", path, {
             "Content-Type": "text/plain"
@@ -7030,7 +6792,6 @@ class WebDavApi {
         for (let i = 0; i < items.length; i++) {
             if (0 === i) continue;
             let item = items[i];
-            console.log(item);
             const name2 = item.getElementsByTagNameNS("DAV:", "displayname")[0].textContent, size = (null == (_a2 = item.getElementsByTagNameNS("DAV:", "getcontentlength")[0]) ? void 0 : _a2.textContent) || "0", createTime = (null == (_b = item.getElementsByTagNameNS("DAV:", "creationdate")[0]) ? void 0 : _b.textContent) || (null == (_c = item.getElementsByTagNameNS("DAV:", "getlastmodified")[0]) ? void 0 : _c.textContent) || "";
             "0" !== size && fileList.push({
                 fileId: name2,
@@ -7050,7 +6811,7 @@ class WebDavApi {
     }
     async getBackupList(folderName) {
         this.folderName = folderName;
-        await this._sendRequest("MKCOL", folderName);
+        await this.createFolder(folderName);
         return this.getFileList(folderName);
     }
     async getFileContent(filePath) {
@@ -7061,7 +6822,7 @@ class WebDavApi {
     }
 }
 
-const helpHtml = `\n<style>\n    .help-container {\n        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n        color: #333;\n        padding: 15px;\n        max-height: 100%;\n        overflow-y: auto;\n    }\n    \n    .help-section {\n        margin-bottom: 25px;\n    }\n    \n    .help-section summary {\n        font-size: 18px;\n        color: #3498db;\n        margin-bottom: 12px;\n        cursor: pointer;\n    }\n    \n    .help-content {\n        background-color: #f9f9f9;\n        border-radius: 5px;\n        padding: 15px;\n        border-left: 4px solid #3498db;\n    }\n    \n    .help-content p {\n        line-height: 1.6;\n        margin-bottom: 10px;\n    }\n    .help-section img {\n        max-width: 100%;\n        height: auto;\n        border: 1px solid #ddd;\n        border-radius: 4px;\n        box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n    }\n\n    .code-wrapper {\n        position: relative;\n        overflow: hidden;\n        border: 1px solid #d1e3f8;\n    }\n\n    .code-block {\n        background-color: #f5f9ff;\n        color: #24292e;\n        font-family: 'Consolas', 'Monaco', monospace;\n        font-size: 13px;\n        line-height: 1.6;\n        overflow-x: auto;\n        white-space: pre;\n        padding: 10px 0; /* 上下内边距 */\n        counter-reset: line; /* 初始化行号计数器 */\n    }\n\n    /* 每一行的样式 */\n    .code-line {\n        display: block;\n        padding-left: 50px; /* 为行号留出空间 */\n        position: relative;\n    }\n\n    /* 利用伪元素生成行号 */\n    .code-line::before {\n        counter-increment: line; /* 计数器自增 */\n        content: counter(line);  /* 显示计数器内容 */\n        position: absolute;\n        left: 0;\n        top: 0;\n        width: 35px;\n        text-align: right;\n        padding-right: 10px;\n        color: #99abbf;\n        background-color: #eef4fb; /* 行号背景色 */\n        border-right: 1px solid #d1e3f8;\n        user-select: none; /* 防止行号被选中 */\n    }\n\n    .code-line:hover {\n        background-color: #ebf3ff;\n    }\n\n    .copy-btn {\n        position: absolute;\n        top: 8px;\n        right: 8px;\n        padding: 4px 10px;\n        font-size: 12px;\n        background-color: #3498db;\n        color: white;\n        border: none;\n        border-radius: 4px;\n        cursor: pointer;\n        z-index: 10;\n        box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n    }\n\n    .copy-btn:hover { background-color: #2980b9; }\n    .copy-btn.success { background-color: #27ae60; }\n</style>\n\n<div class="help-container">\n    <h1 style="font-size: 22px; margin-bottom: 20px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 10px;">常见问题</h1>\n    \n    <details class="help-section">\n        <summary>1. 无法查看预览视频，提示分流?</summary>\n        <div class="help-content">\n            <p>JavDB限制日本IP的访问，而预览视频来自DMM，需要日本IP才能访问。导致二者无法同时使用，需要对其一进行代理转发。</p>\n            <p>将 dmm.co 用DOMAIN-KEYWORD模式 分流到日本ip。</p>\n            <p><a href="https://youtu.be/wQUK8z_YeU4?t=121" target="_blank">Clash Verge分流规则设置 </a> (如果你是别的代理软件，自行搜索如何分流)</p>\n            \n            <p><a href="https://cc3001.dmm.co.jp/pv/AXZ9NBoxx14AIU1YgyMyaQeNW9cVXkjnz6sAVZ11g7R1IpkJtAtpjfWonCEVn2/1fsdss352_mhb_w.mp4" target="_blank">打开此链接, 检测是否能够正常访问</a></p>\n            \n            <p>Clash Verge 扩展脚本参考：</p>\n            <div class="code-wrapper">\n                <button class="copy-btn" onclick="copyVergeCode(this)">复制代码</button>\n                <div class="code-block" id="vergeCodeContent">${'\nfunction main(config, profileName) {\n    const japanGroupName = "DMM代理";\n\n    // 1. 筛选所有日本节点 (匹配关键词：日本、Japan、JP、Tokyo、Osaka)\n    const jpProxies = config.proxies\n        .filter(p => /日本|Japan|JP|Tokyo|Osaka/i.test(p.name))\n        .map(p => p.name);\n\n    // 没有日本节点，中断\n    if (jpProxies.length === 0) {\n        return config;\n    }\n\n    // 2. 创建 url-test 类型的代理组\n    const dmmGroup = {\n        name: japanGroupName,\n        type: "url-test",\n        proxies: jpProxies,\n        // 低画质的dmm视频,用于测试\n        url: "https://cc3001.dmm.co.jp/pv/TxMNGyki6TDnzFjUDf_vqH0wloiQbMBdABFyLjVBwf7MQk2x5TZ0WlkKybu2-n/ssni00947_sm_w.mp4",\n        interval: 120, // 每n秒测试一次\n        timeout: 500, // 超时1000毫秒\n        lazy: true, // 懒加载 流量需要使用这个代理组时才开始进行延迟测试\n        "max-failed-times": 5, // 最大失败次数\n        tolerance: 50  // 两次测试结果差异小于 50ms 时不切换节点，保持连接稳定\n    };\n\n    // 3. 将新组插入到代理组列表\n    config["proxy-groups"].unshift(dmmGroup);\n\n    // 4. 插入dmm.co规则插入到列表最顶部,最先匹配\n    const dmmRules = [\n        `DOMAIN-KEYWORD,dmm.co,${japanGroupName}`\n        `DOMAIN-KEYWORD,mgstage.com,${japanGroupName}`,\n    ];\n\n    config.rules = [...dmmRules, ...config.rules];\n\n    return config;\n}'.trim().split("\n").map((line => `<span class="code-line">${line || " "}</span>`)).join("")}</div>\n            </div>\n        </div>\n    </details>\n    \n    <details class="help-section">\n        <summary>2. 如何屏蔽某一系列的番号?</summary>\n        <div class="help-content">\n            <p>方法一：设置中-添加视频标题关键词，如: VENX-</p>\n            <p>方法二：进入详情页，选中标题文字，右键可加入</p>\n            <img src="https://i.imgur.com/lVnhK5A.png" alt="进入详情页，选中标题，进行右键"/>\n        </div>\n    </details>\n\n    <details class="help-section">\n        <summary>3. 屏蔽某演员，如何只屏蔽单体影片?</summary>\n        <div class="help-content">\n            <p>屏蔽演员前，先筛选分类，再点屏蔽</p>\n            <img src="https://imgur.com/Ue7eCAi.png" alt="屏蔽演员前，先筛选分类，再点屏蔽"/>\n        </div>\n    </details>\n    \n    <details class="help-section">\n        <summary>4. 如何多浏览器同时登录115网盘?</summary>\n        <div class="help-content">\n            <p>① 访问115登录页, 选择JHS-扫码面板, 并扫码登录</p>\n            <img src="https://imgur.com/XbaisWD.png" alt=""/>\n        </div>\n        <div class="help-content">\n            <p>② 进入网盘后, 右下角悬浮按钮, 复制Cookie</p>\n            <img src="https://imgur.com/GvzJ2Gy.png" alt=""/>\n        </div>\n        <div class="help-content">\n            <p>③ 打开另一个浏览器(需装JHS脚本), 进入登录页面, 选择JHS-扫码面板, 输入Cookie并回车</p>\n            <img src="https://imgur.com/FX08qdO.png" alt=""/>\n        </div>\n    </details>\n</div>\n\n<script>\n    function copyVergeCode(btn) {\n        // 注意：这里需要获取 innerText，innerText 会忽略 CSS 生成的内容（行号）\n        const codeText = document.getElementById('vergeCodeContent').innerText;\n        navigator.clipboard.writeText(codeText).then(() => {\n            btn.innerText = '已复制!';\n            btn.classList.add('success');\n            setTimeout(() => {\n                btn.innerText = '复制代码';\n                btn.classList.remove('success');\n            }, 2000);\n        });\n    }\n<\/script>\n`;
+const helpHtml = `\n<style>\n    .help-container {\n        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n        color: #333;\n        padding: 15px;\n        max-height: 100%;\n        overflow-y: auto;\n    }\n    \n    .help-section {\n        margin-bottom: 25px;\n    }\n    \n    .help-section summary {\n        font-size: 18px;\n        color: #3498db;\n        margin-bottom: 12px;\n        cursor: pointer;\n    }\n    \n    .help-content {\n        background-color: #f9f9f9;\n        border-radius: 5px;\n        padding: 15px;\n        border-left: 4px solid #3498db;\n    }\n    \n    .help-content p {\n        line-height: 1.6;\n        margin-bottom: 10px;\n    }\n    .help-section img {\n        max-width: 100%;\n        height: auto;\n        border: 1px solid #ddd;\n        border-radius: 4px;\n        box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n    }\n\n    .code-wrapper {\n        position: relative;\n        overflow: hidden;\n        border: 1px solid #d1e3f8;\n    }\n\n    .code-block {\n        background-color: #f5f9ff;\n        color: #24292e;\n        font-family: 'Consolas', 'Monaco', monospace;\n        font-size: 13px;\n        line-height: 1.6;\n        overflow-x: auto;\n        white-space: pre;\n        padding: 10px 0; /* 上下内边距 */\n        counter-reset: line; /* 初始化行号计数器 */\n    }\n\n    /* 每一行的样式 */\n    .code-line {\n        display: block;\n        padding-left: 50px; /* 为行号留出空间 */\n        position: relative;\n    }\n\n    /* 利用伪元素生成行号 */\n    .code-line::before {\n        counter-increment: line; /* 计数器自增 */\n        content: counter(line);  /* 显示计数器内容 */\n        position: absolute;\n        left: 0;\n        top: 0;\n        width: 35px;\n        text-align: right;\n        padding-right: 10px;\n        color: #99abbf;\n        background-color: #eef4fb; /* 行号背景色 */\n        border-right: 1px solid #d1e3f8;\n        user-select: none; /* 防止行号被选中 */\n    }\n\n    .code-line:hover {\n        background-color: #ebf3ff;\n    }\n\n    .copy-btn {\n        position: absolute;\n        top: 8px;\n        right: 8px;\n        padding: 4px 10px;\n        font-size: 12px;\n        background-color: #3498db;\n        color: white;\n        border: none;\n        border-radius: 4px;\n        cursor: pointer;\n        z-index: 10;\n        box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n    }\n\n    .copy-btn:hover { background-color: #2980b9; }\n    .copy-btn.success { background-color: #27ae60; }\n</style>\n\n<div class="help-container">\n    <h1 style="font-size: 22px; margin-bottom: 20px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 10px;">常见问题</h1>\n    \n    <details class="help-section">\n        <summary>1. 无法查看预览视频，提示分流?</summary>\n        <div class="help-content">\n            <p>JavDB限制日本IP的访问，而预览视频来自DMM，需要日本IP才能访问。导致二者无法同时使用，需要对其一进行代理转发。</p>\n            <p>将 dmm.co 用DOMAIN-KEYWORD模式 分流到日本ip。</p>\n            <p><a href="https://youtu.be/wQUK8z_YeU4?t=121" target="_blank">Clash Verge分流规则设置 </a> (如果你是别的代理软件，自行搜索如何分流)</p>\n            \n            <p><a href="https://cc3001.dmm.co.jp/pv/AXZ9NBoxx14AIU1YgyMyaQeNW9cVXkjnz6sAVZ11g7R1IpkJtAtpjfWonCEVn2/1fsdss352_mhb_w.mp4" target="_blank">打开此链接, 检测是否能够正常访问</a></p>\n            \n            <p>Clash Verge 扩展脚本参考：</p>\n            <div class="code-wrapper">\n                <button class="copy-btn" onclick="copyVergeCode(this)">复制代码</button>\n                <div class="code-block" id="vergeCodeContent">${'\nfunction main(config, profileName) {\n    const japanGroupName = "DMM代理";\n\n    // 1. 筛选所有日本节点 (匹配关键词：日本、Japan、JP、Tokyo、Osaka)\n    const jpProxies = config.proxies\n        .filter(p => /日本|Japan|JP|Tokyo|Osaka/i.test(p.name))\n        .map(p => p.name);\n\n    // 没有日本节点，中断\n    if (jpProxies.length === 0) {\n        return config;\n    }\n\n    // 2. 创建 url-test 类型的代理组\n    const dmmGroup = {\n        name: japanGroupName,\n        type: "url-test",\n        proxies: jpProxies,\n        // 低画质的dmm视频,用于测试\n        url: "https://cc3001.dmm.co.jp/pv/TxMNGyki6TDnzFjUDf_vqH0wloiQbMBdABFyLjVBwf7MQk2x5TZ0WlkKybu2-n/ssni00947_sm_w.mp4",\n        interval: 120, // 每n秒测试一次\n        timeout: 500, // 超时1000毫秒\n        lazy: true, // 懒加载 流量需要使用这个代理组时才开始进行延迟测试\n        "max-failed-times": 5, // 最大失败次数\n        tolerance: 50  // 两次测试结果差异小于 50ms 时不切换节点，保持连接稳定\n    };\n\n    // 3. 将新组插入到代理组列表\n    config["proxy-groups"].unshift(dmmGroup);\n\n    // 4. 插入dmm.co规则插入到列表最顶部,最先匹配\n    const dmmRules = [\n        `DOMAIN-KEYWORD,dmm.co,${japanGroupName}`\n        `DOMAIN-KEYWORD,mgstage.com,${japanGroupName}`,\n    ];\n\n    config.rules = [...dmmRules, ...config.rules];\n\n    return config;\n}'.trim().split("\n").map((line => `<span class="code-line">${line || " "}</span>`)).join("")}</div>\n            </div>\n        </div>\n    </details>\n    \n    <details class="help-section">\n        <summary>2. 如何屏蔽某一系列的番号?</summary>\n        <div class="help-content">\n            <p>方法一：设置中-添加视频标题关键词，如: VENX-</p>\n            <p>方法二：进入详情页，选中标题文字，右键可加入</p>\n            <img src="https://i.imgur.com/lVnhK5A.png" alt="进入详情页，选中标题，进行右键"/>\n        </div>\n    </details>\n\n    <details class="help-section">\n        <summary>3. 屏蔽某演员，如何只屏蔽单体影片?</summary>\n        <div class="help-content">\n            <p>屏蔽演员前，先筛选分类，再点屏蔽</p>\n            <img src="https://imgur.com/Ue7eCAi.png" alt="屏蔽演员前，先筛选分类，再点屏蔽"/>\n        </div>\n    </details>\n</div>\n\n<script>\n    function copyVergeCode(btn) {\n        // 注意：这里需要获取 innerText，innerText 会忽略 CSS 生成的内容（行号）\n        const codeText = document.getElementById('vergeCodeContent').innerText;\n        navigator.clipboard.writeText(codeText).then(() => {\n            btn.innerText = '已复制!';\n            btn.classList.add('success');\n            setTimeout(() => {\n                btn.innerText = '复制代码';\n                btn.classList.remove('success');\n            }, 2000);\n        });\n    }\n<\/script>\n`;
 
 class SettingPlugin extends BasePlugin {
     constructor() {
@@ -7155,7 +6916,7 @@ class SettingPlugin extends BasePlugin {
             option.canSelect && (videoQualityHtml += `<option value="${option.quality}">${option.text}</option>`);
         }));
         const coverButtonPlugin = this.getBean("CoverButtonPlugin");
-        let settingHtml = `\n            <div style="display: flex; height: 100%;">\n                <div style="width: 140px; flex-shrink: 0; padding: 15px 0; background: #f5f5f5; border-right: 1px solid #ddd;">\n                    <div class="side-menu-item ${"backup-panel" === defaultActivePanel ? "active" : ""}" data-panel="backup-panel">💾 数据备份</div>\n                    <div class="side-menu-item ${"base-panel" === defaultActivePanel ? "active" : ""}" data-panel="base-panel">⚙️ 基础配置</div>\n                    <div class="side-menu-item ${"filter-panel" === defaultActivePanel ? "active" : ""}" data-panel="filter-panel">🚫 屏蔽配置</div>\n                    <div class="side-menu-item ${"task-panel" === defaultActivePanel ? "active" : ""}" data-panel="task-panel">📋 定时任务</div>\n                    <div class="side-menu-item ${"domain-panel" === defaultActivePanel ? "active" : ""}" data-panel="domain-panel" title="第三方视频资源域名配置">🌐 外部网站</div>\n                    <div class="side-menu-item ${"hotkey-panel" === defaultActivePanel ? "active" : ""}" data-panel="hotkey-panel">⌨️ 快捷键配置</div>\n                    <div class="side-menu-item ${"cache-panel" === defaultActivePanel ? "active" : ""}" data-panel="cache-panel">🧹 清理缓存</div>\n                    <div class="side-menu-item ${"tip-author-panel" === defaultActivePanel ? "active" : ""}" data-panel="tip-author-panel">💵 打赏作者</div>\n                </div>\n        \n                <div style="flex: 1; display: flex; flex-direction: column; height: 100%; ">\n                    <div style="flex: 1; margin: 0 10px; padding-bottom: 20px;overflow: hidden">\n                    \n                        \x3c!-- 阿里云盘面板 --\x3e\n                        <div id="backup-panel" class="content-panel" style="display: ${"backup-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div style="margin-bottom: 20px">\n                                <a id="importBtn" class="menu-btn" style="background-color:#d25a88"><span>导入数据</span></a>\n                                <a id="exportBtn" class="menu-btn" style="background-color:#85d0a3"><span>导出数据</span></a>\n                                <a id="getRefreshTokenBtn" class="menu-btn fr-btn" style="background-color:#c4a35e"><span>获取refresh_token</span></a>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">阿里云盘备份</span>\n                                <div>\n                                    <a id="backupListBtn" class="menu-btn" style="background-color:#5d87c2"><span>查看备份</span></a>\n                                    <a id="backupBtn" class="menu-btn" style="background-color:#64bb69"><span>备份数据</span></a>\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">refresh_token:</span>\n                                <div class="form-content">\n                                    <input id="refresh_token">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">WebDav备份</span>\n                                <div>\n                                    <a id="webdavBackupListBtn" class="menu-btn" style="background-color:#5d87c2"><span>查看备份</span></a>\n                                    <a id="webdavBackupBtn" class="menu-btn" style="background-color:#64bb69"><span>备份数据</span></a>\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">服务地址:</span>\n                                <div class="form-content">\n                                    <input id="webDavUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">用户名:</span>\n                                <div class="form-content">\n                                    <input id="webDavUsername">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">密码:</span>\n                                <div class="form-content">\n                                    <input id="webDavPassword">\n                                </div>\n                            </div>                            \n                        </div>\n                        \n                        \n                        \x3c!-- 基础设置面板 --\x3e\n                        <div id="base-panel" class="content-panel" style="display: ${"base-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div class="setting-item">\n                                <span class="setting-label">已鉴定标签展示位置:</span>\n                                <div class="form-content">\n                                    <select id="tagPosition">\n                                        <option value="rightTop">右上</option>\n                                        <option value="leftTop">左上</option>\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">已鉴定内容处理方式:</span>\n                                <div class="form-content">\n                                    <select id="movieShowType">\n                                        <option value="hide">隐藏</option>\n                                        <option value="visibility">透明</option>\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    鉴定补录演员信息 <span data-tip="在列表页进行鉴定是获取不到演员名称的, 开启后, 额外解析详情页补录演员名称, 因发请求解析费时, 会被以往慢1秒左右">❓</span>\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableSaveActressCarInfo" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item" style="margin-top:10px">\n                                <span class="setting-label">\n                                    列表页功能按钮\n                                </span>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">按钮-打开待鉴定:</span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="showWaitCheckBtn" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">按钮-打开已收藏:</span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="showWaitDownBtn" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">打开待鉴定|已收藏 窗口数:</span>\n                                <div class="form-content">\n                                    <input type="number" id="waitCheckCount" min="1" max="20" style="width: 100%;">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">随机打开已收藏:</span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="randomOpenWaitDown" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item" style="margin-top:10px">\n                                <span class="setting-label">\n                                    封面快捷按钮\n                                </span>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.screenSvg}长缩略图:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableScreenSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.videoSvg}预览视频:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableVideoSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.handleSvg}鉴定按钮:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableHandleSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.siteSvg}第三方跳转:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableSiteSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.copySvg}复制按钮:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableCopySvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                            <div class="setting-item">\n                                <span class="setting-label">预览视频默认画质:</span>\n                                <div class="form-content">\n                                    <select id="videoQuality">\n                                        ${videoQualityHtml}\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">评论区条数:</span>\n                                <div class="form-content">\n                                    <select id="reviewCount">\n                                        <option value="10">10条</option>\n                                        <option value="20">20条</option>\n                                        <option value="30">30条</option>\n                                        <option value="40">40条</option>\n                                        <option value="50">50条</option>\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item ${isJavDb ? "" : "do-hide"}">\n                                <span class="setting-label">\n                                    高亮已收藏演员 <span data-tip="详情页, 对已收藏的演员进行边框高亮提醒">❓</span>\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableFavoriteActresses" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item ${isJavDb ? "" : "do-hide"}">\n                                <span id="highlightedTagLabel" class="setting-label">\n                                    分类标签|高亮演员-边框样式:\n                                </span>\n                                <div class="form-content" style="display: flex; align-items: center;">\n                                    <input type="number" id="highlightedTagNumber" min="0" max="20">\n                                    <input type="color" id="highlightedTagColor">\n                                </div>\n                            </div>\n\n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">请求超时时间(毫秒):</span>\n                                <div class="form-content">\n                                    <input type="number" id="httpTimeout" min="1000" max="10000" style="width: 100%;">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">请求失败重试次数:</span>\n                                <div class="form-content">\n                                    <input type="number" id="httpRetryCount" min="0" max="10" style="width: 100%;">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">\n                                    启用控制台日志:\n                                </span>\n                                <div class="form-content">\n                                    <select id="enableClog">\n                                        <option value="no">禁用</option>\n                                        <option value="yes">开启</option>\n                                    </select>\n                                </div>\n                            </div>\n\n                            <div class="setting-item">\n                                <span class="setting-label">日志最大行数:</span>\n                                <div class="form-content">\n                                    <input type="number" id="clogMsgCount" min="100" max="3000" style="width: 100%;">\n                                </div>\n                            </div>\n                        </div>\n                        \n                        \x3c!-- 定时任务 --\x3e\n                        <div id="task-panel" class="content-panel" style="display: ${"task-panel" === defaultActivePanel ? "block" : "none"};">\n                        \n                            <div class="setting-item">\n                                <span class="setting-label">请求并发数量:</span>\n                                <div class="form-content">\n                                    <input type="number" id="checkConcurrencyCount" min="2" max="5" style="width: 100%;">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">请求间隔时间(毫秒):</span>\n                                <div class="form-content">\n                                    <input type="number" id="checkRequestSleep" min="0" max="3000" style="width: 100%;">\n                                </div>\n                            </div>\n                        \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                        \n                            <div id="setting-blacklist" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">自动检测屏蔽黑名单演员</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        任务开关: <span data-tip="变更后, 刷新页面生效">❓</span> \n                                    </span>\n                                    <div class="form-content">\n                                        <select id="enableCheckBlacklist">\n                                            <option value="no">禁用</option>\n                                            <option value="yes">开启</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">任务间隔时间:</span>\n                                    <div class="form-content">\n                                         <select id="checkBlacklist_intervalTime">\n                                            <option value="2">每2小时</option>\n                                            <option value="3">每3小时</option>\n                                            <option value="6">每6小时</option>\n                                            <option value="12">每12小时</option>\n                                            <option value="24">每24小时</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">检测规则:</span>\n                                    <div class="form-content">\n                                         <select id="checkBlacklist_ruleTime">\n                                            <option value="0">全部检测</option>\n                                            <option value="8760">不检测停更1年以上</option>\n                                            <option value="17520">不检测停更2年以上</option>\n                                            <option value="26280">不检测停更3年以上</option>\n                                        </select>\n                                    </div>\n                                </div>\n                            </div>\n                        \n                            <div id="setting-checkFavoriteActress" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;" class="${isJavDb ? "" : "do-hide"}">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">自动同步已收藏的演员</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        任务开关: <span data-tip="变更后, 刷新页面生效">❓</span> \n                                    </span>\n                                    <div class="form-content">\n                                        <select id="enableCheckFavoriteActress">\n                                            <option value="no">禁用</option>\n                                            <option value="yes">开启</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">任务间隔时间:</span>\n                                    <div class="form-content">\n                                         <select id="checkFavoriteActress_IntervalTime">\n                                            <option value="12">每12小时</option>\n                                            <option value="24">每24小时</option>\n                                        </select>\n                                    </div>\n                                </div>\n                            </div>\n                        \n                            <div id="setting-checkNewVideo" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;" class="${isJavDb ? "" : "do-hide"}">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">自动检测已收藏演员的最新作品</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        任务开关: <span data-tip="变更后, 刷新页面生效">❓</span> \n                                    </span>\n                                    <div class="form-content">\n                                        <select id="enableCheckNewVideo">\n                                            <option value="no">禁用</option>\n                                            <option value="yes">开启</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">任务间隔时间:</span>\n                                    <div class="form-content">\n                                         <select id="checkNewVideo_intervalTime">\n                                            <option value="2">每2小时</option>\n                                            <option value="3">每3小时</option>\n                                            <option value="6">每6小时</option>\n                                            <option value="12">每12小时</option>\n                                            <option value="24">每24小时</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">检测规则:</span>\n                                    <div class="form-content">\n                                         <select id="checkNewVideo_ruleTime">\n                                            <option value="0">全部检测</option>\n                                            <option value="8760">不检测停更1年以上</option>\n                                            <option value="17520">不检测停更2年以上</option>\n                                            <option value="26280">不检测停更3年以上</option>\n                                        </select>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>               \n         \n                        \x3c!-- 域名设置面板 --\x3e\n                        <div id="domain-panel" class="content-panel" style="display: ${"domain-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - MissAv:</span>\n                                <div class="form-content">\n                                    <input id="missAvUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - Jable:</span>\n                                <div class="form-content">\n                                    <input id="jableUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - Avgle:</span>\n                                <div class="form-content">\n                                    <input id="avgleUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - JavTrailer:</span>\n                                <div class="form-content">\n                                    <input id="javTrailersUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - 123Av:</span>\n                                <div class="form-content">\n                                    <input id="av123Url">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - JavDb:</span>\n                                <div class="form-content">\n                                    <input id="javDbUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - JavBus:</span>\n                                <div class="form-content">\n                                    <input id="javBusUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - SupJav:</span>\n                                <div class="form-content">\n                                    <input id="supJavUrl">\n                                </div>\n                            </div>           \n                        </div>\n                         \n                         \x3c!-- 快捷键 --\x3e\n                        <div id="hotkey-panel" class="content-panel" style="display: ${"hotkey-panel" === defaultActivePanel ? "block" : "none"};">\n                            <p style="color: #c62222; font-size: 14px;font-weight: bold;margin-bottom: 10px;">快捷键修改后, 刷新页面生效</p>\n                            <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <div class="setting-item">\n                                    <span class="setting-label">🚫 屏蔽:</span>\n                                    <div class="form-content">\n                                        <input id="filterHotKey" placeholder="录入快捷键" data-default-hotkey="a">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">⭐ 收藏:</span>\n                                    <div class="form-content">\n                                        <input id="favoriteHotKey" placeholder="录入快捷键" data-default-hotkey="s">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">📥️ 已下载:</span>\n                                    <div class="form-content">\n                                        <input id="hasDownHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">🔍 已观看:</span>\n                                    <div class="form-content">\n                                        <input id="hasWatchHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                \n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        <span data-tip="列表页,鼠标放置图片上时可使用快捷键">❓ </span> 对视频列表页启用快捷键:\n                                    </span>\n                                    <div class="form-content">\n                                        <input type="checkbox" id="enableImageHotKey" class="mini-switch">\n                                    </div>\n                                </div>\n                            </div>\n                            \n                            <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <div class="setting-item">\n                                    <span class="setting-label">⏩ 快进:</span>\n                                    <div class="form-content">\n                                        <input id="speedVideoHotKey" placeholder="录入快捷键" data-default-hotkey="z">\n                                    </div>\n                                </div>\n                                \n                                <div class="setting-item">\n                                    <span class="setting-label">▲ 折叠:</span>\n                                    <div class="form-content">\n                                        <input id="foldCategoryHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                \n                                <div class="setting-item">\n                                    <span class="setting-label">💻 控制台:</span>\n                                    <div class="form-content">\n                                        <input id="clogHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                            </div>\n\n\n                            <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">显示已鉴定内容</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">屏蔽单番号:</span>\n                                    <div class="form-content">\n                                        <input id="showFilterItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">屏蔽演员:</span>\n                                    <div class="form-content">\n                                        <input id="showFilterActorItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">屏蔽关键词:</span>\n                                    <div class="form-content">\n                                        <input id="showFilterKeywordItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">收藏:</span>\n                                    <div class="form-content">\n                                        <input id="showFavoriteItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">已下载:</span>\n                                    <div class="form-content">\n                                        <input id="showHasDownItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">已观看:</span>\n                                    <div class="form-content">\n                                        <input id="showHasWatchItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">显示所有:</span>\n                                    <div class="form-content">\n                                        <input id="showAllItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>                                \n                            </div>\n\n                        </div>\n                        \n                        \x3c!-- 屏蔽设置面板 --\x3e\n                        <div id="filter-panel" class="content-panel" style="display: ${"filter-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div class="setting-item">\n                                <span class="setting-label">\n                                     启用划词屏蔽 <span data-tip="视频详情页中, 标题或评论区选中文字, 按右键可快捷加入屏蔽词">❓ </span>\n                                </span>\n                                <div style="display: flex">\n                                    <input type="checkbox" id="enableTitleSelectFilter" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div id="reviewKeywordContainer">\n                                <div class="setting-item">\n                                    <span class="setting-label">评论区屏蔽词:</span>\n                                    <div style="display: flex">\n                                        <input type="text" class="keyword-input" placeholder="添加屏蔽词">\n                                        <button class="add-tag-btn">添加</button>\n                                    </div>\n                                </div>\n                                <div class="tag-box"> </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div id="filterKeywordContainer">\n                                <div class="setting-item">\n                                    <span class="setting-label">视频标题屏蔽词:</span>\n                                    <div style="display: flex">\n                                        <input type="text" class="keyword-input" placeholder="添加屏蔽词">\n                                        <button class="add-tag-btn">添加</button>\n                                    </div>\n                                </div>\n                                <div class="tag-box"> </div>\n                            </div>\n                        </div>\n                        <div id="cache-panel" class="content-panel" style="display: ${"cache-panel" === defaultActivePanel ? "block" : "none"};">\n                            <h1 style="text-align:center;font-size: 20px;font-weight: bold">以下操作, 不会对核心数据造成影响</h1>\n                            <br/>               \n                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px;">\n                                ${buttonsHTML}\n                            </div>    \n                            <div id="cache-data-display" style="margin-top: 20px; display: none;">\n                                <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; max-height: 400px; overflow: auto;"></pre>\n                            </div>\n                        </div>                        \n                        <div id="tip-author-panel" class="content-panel" style="display: ${"tip-author-panel" === defaultActivePanel ? "block" : "none"};">\n                            <p style="color: #666; font-size: 0.9em;">如果JAV-JHS给您带来了便捷和价值，请考虑给予一点支持，您的鼓励是我持续创作的最大动力！感谢您的慷慨支持！</p>\n                            <div>\n                                <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap;">\n                                    <div style="text-align: center; margin: 10px; flex: 1 1 30%; min-width: 150px;">\n                                        <img src="https://imgur.com/AvF0r3r.png" alt="TRC20-USDT二维码" style="width: 350px; height: 350px; border: 1px solid #ddd; padding: 5px; display: block; margin: 0 auto 5px;">\n                                        <p>TRC20-USDT</p>\n                                        <input type="text" readonly value="TYphgzpJ2hoDTa3J7kzj5xaHWbcPAyhbd5" onclick="this.select();document.execCommand('copy');alert('地址已复制！');" \n                                            style="width: 90%; padding: 5px; margin-top: 5px; border: 1px solid #a99087; background-color: #fff; text-align: center; font-size: 0.8em; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">\n                                        <p style="font-size: 0.75em; color: #5a504c; margin-top: 4px;">点击地址可复制</p>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                    \n                    <div style="flex-shrink: 0; padding: 15px 20px; text-align: right; border-top: 1px solid #eee; background: white;display: flex; justify-content: space-between;align-items: baseline;">   \n                        <div>当前版本为3.3.6维护版，2025年11月前打赏者，可提供截图，获取最新版本，TG号: <a href="https://t.me/t_19527" target="_blank">https://t.me/t_19527</a></div>\n                        <button id="saveBtn">保存设置</button>\n                        <button id="clean-all" style="display: none">♾️ 清理全部缓存</button>\n                    </div>\n                </div>\n            </div>\n        `;
+        let settingHtml = `\n            <div style="display: flex; height: 100%;">\n                <div style="width: 140px; flex-shrink: 0; padding: 15px 0; background: #f5f5f5; border-right: 1px solid #ddd;">\n                    <div class="side-menu-item ${"backup-panel" === defaultActivePanel ? "active" : ""}" data-panel="backup-panel">💾 数据备份</div>\n                    <div class="side-menu-item ${"base-panel" === defaultActivePanel ? "active" : ""}" data-panel="base-panel">⚙️ 基础配置</div>\n                    <div class="side-menu-item ${"filter-panel" === defaultActivePanel ? "active" : ""}" data-panel="filter-panel">🚫 屏蔽配置</div>\n                    <div class="side-menu-item ${"task-panel" === defaultActivePanel ? "active" : ""}" data-panel="task-panel">📋 定时任务</div>\n                    <div class="side-menu-item ${"domain-panel" === defaultActivePanel ? "active" : ""}" data-panel="domain-panel" title="第三方视频资源域名配置">🌐 外部网站</div>\n                    <div class="side-menu-item ${"hotkey-panel" === defaultActivePanel ? "active" : ""}" data-panel="hotkey-panel">⌨️ 快捷键配置</div>\n                    <div class="side-menu-item ${"cache-panel" === defaultActivePanel ? "active" : ""}" data-panel="cache-panel">🧹 清理缓存</div>\n                    <div class="side-menu-item ${"tip-author-panel" === defaultActivePanel ? "active" : ""}" data-panel="tip-author-panel">💵 打赏作者</div>\n                </div>\n        \n                <div style="flex: 1; display: flex; flex-direction: column; height: 100%; ">\n                    <div style="flex: 1; margin: 0 10px; padding-bottom: 20px;overflow: hidden">\n                    \n                        <div id="backup-panel" class="content-panel" style="display: ${"backup-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div class="setting-item">\n                                <span class="setting-label">数据管理</span>\n                                <div>\n                                    <a id="importBtn" class="menu-btn" style="background-color:#d25a88"><span>导入数据</span></a>\n                                    <a id="exportBtn" class="menu-btn" style="background-color:#85d0a3"><span>导出数据</span></a>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">WebDav备份</span>\n                                <div>\n                                    <a id="webdavBackupListBtn" class="menu-btn" style="background-color:#5d87c2"><span>查看备份</span></a>\n                                    <a id="webdavBackupBtn" class="menu-btn" style="background-color:#64bb69"><span>备份数据</span></a>\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">服务地址:</span>\n                                <div class="form-content">\n                                    <input id="webDavUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">用户名:</span>\n                                <div class="form-content">\n                                    <input id="webDavUsername">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">密码:</span>\n                                <div class="form-content">\n                                    <input id="webDavPassword">\n                                </div>\n                            </div>                      \n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            <div class="setting-item">\n                                <span class="setting-label">清空所有数据</span>\n                                <div>\n                                    <a id="cleanJhsDataBtn" class="menu-btn" style="background-color:#d22020"><span>清空数据</span></a>\n                                </div>\n                            </div>\n                        </div>\n                        \n                        \n                        \x3c!-- 基础设置面板 --\x3e\n                        <div id="base-panel" class="content-panel" style="display: ${"base-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div class="setting-item">\n                                <span class="setting-label">已鉴定标签展示位置:</span>\n                                <div class="form-content">\n                                    <select id="tagPosition">\n                                        <option value="rightTop">右上</option>\n                                        <option value="leftTop">左上</option>\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">已鉴定内容处理方式:</span>\n                                <div class="form-content">\n                                    <select id="movieShowType">\n                                        <option value="hide">隐藏</option>\n                                        <option value="visibility">透明</option>\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    鉴定补录演员信息 <span data-tip="在列表页进行鉴定是获取不到演员名称的, 开启后, 额外解析详情页补录演员名称, 因发请求解析费时, 会被以往慢1秒左右">❓</span>\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableSaveActressCarInfo" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item" style="margin-top:10px">\n                                <span class="setting-label">\n                                    列表页功能按钮\n                                </span>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">按钮-打开待鉴定:</span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="showWaitCheckBtn" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">按钮-打开已收藏:</span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="showWaitDownBtn" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">打开待鉴定|已收藏 窗口数:</span>\n                                <div class="form-content">\n                                    <input type="number" id="waitCheckCount" min="1" max="20" style="width: 100%;">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">随机打开已收藏:</span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="randomOpenWaitDown" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item" style="margin-top:10px">\n                                <span class="setting-label">\n                                    封面快捷按钮\n                                </span>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.screenSvg}长缩略图:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableScreenSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.videoSvg}预览视频:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableVideoSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.handleSvg}鉴定按钮:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableHandleSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.siteSvg}第三方跳转:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableSiteSvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label" style="display:flex; align-items:center; gap:5px">\n                                    ${coverButtonPlugin.copySvg}复制按钮:\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableCopySvg" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                            <div class="setting-item">\n                                <span class="setting-label">预览视频默认画质:</span>\n                                <div class="form-content">\n                                    <select id="videoQuality">\n                                        ${videoQualityHtml}\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">评论区条数:</span>\n                                <div class="form-content">\n                                    <select id="reviewCount">\n                                        <option value="10">10条</option>\n                                        <option value="20">20条</option>\n                                        <option value="30">30条</option>\n                                        <option value="40">40条</option>\n                                        <option value="50">50条</option>\n                                    </select>\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item ${isJavDb ? "" : "do-hide"}">\n                                <span class="setting-label">\n                                    高亮已收藏演员 <span data-tip="详情页, 对已收藏的演员进行边框高亮提醒">❓</span>\n                                </span>\n                                <div class="form-content">\n                                    <input type="checkbox" id="enableFavoriteActresses" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item ${isJavDb ? "" : "do-hide"}">\n                                <span id="highlightedTagLabel" class="setting-label">\n                                    分类标签|高亮演员-边框样式:\n                                </span>\n                                <div class="form-content" style="display: flex; align-items: center;">\n                                    <input type="number" id="highlightedTagNumber" min="0" max="20">\n                                    <input type="color" id="highlightedTagColor">\n                                </div>\n                            </div>\n\n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">请求超时时间(毫秒):</span>\n                                <div class="form-content">\n                                    <input type="number" id="httpTimeout" min="1000" max="10000" style="width: 100%;">\n                                </div>\n                            </div>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">请求失败重试次数:</span>\n                                <div class="form-content">\n                                    <input type="number" id="httpRetryCount" min="0" max="10" style="width: 100%;">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div class="setting-item">\n                                <span class="setting-label">\n                                    启用控制台日志:\n                                </span>\n                                <div class="form-content">\n                                    <select id="enableClog">\n                                        <option value="no">禁用</option>\n                                        <option value="yes">开启</option>\n                                    </select>\n                                </div>\n                            </div>\n\n                            <div class="setting-item">\n                                <span class="setting-label">日志最大行数:</span>\n                                <div class="form-content">\n                                    <input type="number" id="clogMsgCount" min="100" max="3000" style="width: 100%;">\n                                </div>\n                            </div>\n                        </div>\n                        \n                        \x3c!-- 定时任务 --\x3e\n                        <div id="task-panel" class="content-panel" style="display: ${"task-panel" === defaultActivePanel ? "block" : "none"};">\n                        \n                            <div class="setting-item">\n                                <span class="setting-label">请求并发数量:</span>\n                                <div class="form-content">\n                                    <input type="number" id="checkConcurrencyCount" min="2" max="5" style="width: 100%;">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">请求间隔时间(毫秒):</span>\n                                <div class="form-content">\n                                    <input type="number" id="checkRequestSleep" min="0" max="3000" style="width: 100%;">\n                                </div>\n                            </div>\n                        \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                        \n                            <div id="setting-blacklist" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">自动检测屏蔽黑名单演员</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        任务开关: <span data-tip="变更后, 刷新页面生效">❓</span> \n                                    </span>\n                                    <div class="form-content">\n                                        <select id="enableCheckBlacklist">\n                                            <option value="no">禁用</option>\n                                            <option value="yes">开启</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">任务间隔时间:</span>\n                                    <div class="form-content">\n                                         <select id="checkBlacklist_intervalTime">\n                                            <option value="2">每2小时</option>\n                                            <option value="3">每3小时</option>\n                                            <option value="6">每6小时</option>\n                                            <option value="12">每12小时</option>\n                                            <option value="24">每24小时</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">检测规则:</span>\n                                    <div class="form-content">\n                                         <select id="checkBlacklist_ruleTime">\n                                            <option value="0">全部检测</option>\n                                            <option value="8760">不检测停更1年以上</option>\n                                            <option value="17520">不检测停更2年以上</option>\n                                            <option value="26280">不检测停更3年以上</option>\n                                        </select>\n                                    </div>\n                                </div>\n                            </div>\n                        \n                            <div id="setting-checkFavoriteActress" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;" class="${isJavDb ? "" : "do-hide"}">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">自动同步已收藏的演员</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        任务开关: <span data-tip="变更后, 刷新页面生效">❓</span> \n                                    </span>\n                                    <div class="form-content">\n                                        <select id="enableCheckFavoriteActress">\n                                            <option value="no">禁用</option>\n                                            <option value="yes">开启</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">任务间隔时间:</span>\n                                    <div class="form-content">\n                                         <select id="checkFavoriteActress_IntervalTime">\n                                            <option value="12">每12小时</option>\n                                            <option value="24">每24小时</option>\n                                        </select>\n                                    </div>\n                                </div>\n                            </div>\n                        \n                            <div id="setting-checkNewVideo" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;" class="${isJavDb ? "" : "do-hide"}">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">自动检测已收藏演员的最新作品</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        任务开关: <span data-tip="变更后, 刷新页面生效">❓</span> \n                                    </span>\n                                    <div class="form-content">\n                                        <select id="enableCheckNewVideo">\n                                            <option value="no">禁用</option>\n                                            <option value="yes">开启</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">任务间隔时间:</span>\n                                    <div class="form-content">\n                                         <select id="checkNewVideo_intervalTime">\n                                            <option value="2">每2小时</option>\n                                            <option value="3">每3小时</option>\n                                            <option value="6">每6小时</option>\n                                            <option value="12">每12小时</option>\n                                            <option value="24">每24小时</option>\n                                        </select>\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">检测规则:</span>\n                                    <div class="form-content">\n                                         <select id="checkNewVideo_ruleTime">\n                                            <option value="0">全部检测</option>\n                                            <option value="8760">不检测停更1年以上</option>\n                                            <option value="17520">不检测停更2年以上</option>\n                                            <option value="26280">不检测停更3年以上</option>\n                                        </select>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>               \n         \n                        \x3c!-- 域名设置面板 --\x3e\n                        <div id="domain-panel" class="content-panel" style="display: ${"domain-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - MissAv:</span>\n                                <div class="form-content">\n                                    <input id="missAvUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - Jable:</span>\n                                <div class="form-content">\n                                    <input id="jableUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - Avgle:</span>\n                                <div class="form-content">\n                                    <input id="avgleUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - JavTrailer:</span>\n                                <div class="form-content">\n                                    <input id="javTrailersUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - 123Av:</span>\n                                <div class="form-content">\n                                    <input id="av123Url">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - JavDb:</span>\n                                <div class="form-content">\n                                    <input id="javDbUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - JavBus:</span>\n                                <div class="form-content">\n                                    <input id="javBusUrl">\n                                </div>\n                            </div>\n                            <div class="setting-item">\n                                <span class="setting-label">域名 - SupJav:</span>\n                                <div class="form-content">\n                                    <input id="supJavUrl">\n                                </div>\n                            </div>           \n                        </div>\n                         \n                         \x3c!-- 快捷键 --\x3e\n                        <div id="hotkey-panel" class="content-panel" style="display: ${"hotkey-panel" === defaultActivePanel ? "block" : "none"};">\n                            <p style="color: #c62222; font-size: 14px;font-weight: bold;margin-bottom: 10px;">快捷键修改后, 刷新页面生效</p>\n                            <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <div class="setting-item">\n                                    <span class="setting-label">🚫 屏蔽:</span>\n                                    <div class="form-content">\n                                        <input id="filterHotKey" placeholder="录入快捷键" data-default-hotkey="a">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">⭐ 收藏:</span>\n                                    <div class="form-content">\n                                        <input id="favoriteHotKey" placeholder="录入快捷键" data-default-hotkey="s">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">📥️ 已下载:</span>\n                                    <div class="form-content">\n                                        <input id="hasDownHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">🔍 已观看:</span>\n                                    <div class="form-content">\n                                        <input id="hasWatchHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                \n                                <div class="setting-item">\n                                    <span class="setting-label">\n                                        <span data-tip="列表页,鼠标放置图片上时可使用快捷键">❓ </span> 对视频列表页启用快捷键:\n                                    </span>\n                                    <div class="form-content">\n                                        <input type="checkbox" id="enableImageHotKey" class="mini-switch">\n                                    </div>\n                                </div>\n                            </div>\n                            \n                            <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <div class="setting-item">\n                                    <span class="setting-label">⏩ 快进:</span>\n                                    <div class="form-content">\n                                        <input id="speedVideoHotKey" placeholder="录入快捷键" data-default-hotkey="z">\n                                    </div>\n                                </div>\n                                \n                                <div class="setting-item">\n                                    <span class="setting-label">▲ 折叠:</span>\n                                    <div class="form-content">\n                                        <input id="foldCategoryHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                \n                                <div class="setting-item">\n                                    <span class="setting-label">💻 控制台:</span>\n                                    <div class="form-content">\n                                        <input id="clogHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                            </div>\n\n\n                            <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">\n                                <span style="font-size: 14px; font-weight: bold; padding:3px">显示已鉴定内容</span>\n                                <div class="setting-item">\n                                    <span class="setting-label">屏蔽单番号:</span>\n                                    <div class="form-content">\n                                        <input id="showFilterItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">屏蔽演员:</span>\n                                    <div class="form-content">\n                                        <input id="showFilterActorItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">屏蔽关键词:</span>\n                                    <div class="form-content">\n                                        <input id="showFilterKeywordItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">收藏:</span>\n                                    <div class="form-content">\n                                        <input id="showFavoriteItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">已下载:</span>\n                                    <div class="form-content">\n                                        <input id="showHasDownItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">已观看:</span>\n                                    <div class="form-content">\n                                        <input id="showHasWatchItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>\n                                <div class="setting-item">\n                                    <span class="setting-label">显示所有:</span>\n                                    <div class="form-content">\n                                        <input id="showAllItemHotKey" placeholder="录入快捷键">\n                                    </div>\n                                </div>                                \n                            </div>\n\n                        </div>\n                        \n                        \x3c!-- 屏蔽设置面板 --\x3e\n                        <div id="filter-panel" class="content-panel" style="display: ${"filter-panel" === defaultActivePanel ? "block" : "none"};">\n                            <div class="setting-item">\n                                <span class="setting-label">\n                                     启用划词屏蔽 <span data-tip="视频详情页中, 标题或评论区选中文字, 按右键可快捷加入屏蔽词">❓ </span>\n                                </span>\n                                <div style="display: flex">\n                                    <input type="checkbox" id="enableTitleSelectFilter" class="mini-switch">\n                                </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div id="reviewKeywordContainer">\n                                <div class="setting-item">\n                                    <span class="setting-label">评论区屏蔽词:</span>\n                                    <div style="display: flex">\n                                        <input type="text" class="keyword-input" placeholder="添加屏蔽词">\n                                        <button class="add-tag-btn">添加</button>\n                                    </div>\n                                </div>\n                                <div class="tag-box"> </div>\n                            </div>\n                            \n                            <hr style="border: 0; height: 1px; margin:20px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                            \n                            <div id="filterKeywordContainer">\n                                <div class="setting-item">\n                                    <span class="setting-label">视频标题屏蔽词:</span>\n                                    <div style="display: flex">\n                                        <input type="text" class="keyword-input" placeholder="添加屏蔽词">\n                                        <button class="add-tag-btn">添加</button>\n                                    </div>\n                                </div>\n                                <div class="tag-box"> </div>\n                            </div>\n                        </div>\n                        <div id="cache-panel" class="content-panel" style="display: ${"cache-panel" === defaultActivePanel ? "block" : "none"};">\n                            <h1 style="text-align:center;font-size: 20px;font-weight: bold">以下操作, 不会对核心数据造成影响</h1>\n                            <br/>               \n                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px;">\n                                ${buttonsHTML}\n                            </div>    \n                            <div id="cache-data-display" style="margin-top: 20px; display: none;">\n                                <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; max-height: 400px; overflow: auto;"></pre>\n                            </div>\n                        </div>                        \n                        <div id="tip-author-panel" class="content-panel" style="display: ${"tip-author-panel" === defaultActivePanel ? "block" : "none"};">\n                            <p style="color: #666; font-size: 0.9em;">如果JAV-JHS给您带来了便捷和价值，请考虑给予一点支持，您的鼓励是我持续创作的最大动力！感谢您的慷慨支持！</p>\n                            <div>\n                                <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap;">\n                                    <div style="text-align: center; margin: 10px; flex: 1 1 30%; min-width: 150px;">\n                                        <img src="https://imgur.com/AvF0r3r.png" alt="TRC20-USDT二维码" style="width: 350px; height: 350px; border: 1px solid #ddd; padding: 5px; display: block; margin: 0 auto 5px;">\n                                        <p>TRC20-USDT</p>\n                                        <input type="text" readonly value="TYphgzpJ2hoDTa3J7kzj5xaHWbcPAyhbd5" onclick="this.select();document.execCommand('copy');alert('地址已复制！');" \n                                            style="width: 90%; padding: 5px; margin-top: 5px; border: 1px solid #a99087; background-color: #fff; text-align: center; font-size: 0.8em; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">\n                                        <p style="font-size: 0.75em; color: #5a504c; margin-top: 4px;">点击地址可复制</p>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                    \n                    <div style="flex-shrink: 0; padding: 15px 20px; text-align: right; border-top: 1px solid #eee; background: white;display: flex; justify-content: space-between;align-items: baseline;">   \n                        <div>当前版本为3.3.6维护版，往期打赏者，可提供截图，获取最新版本，TG号: <a href="https://t.me/t_19527" target="_blank">https://t.me/t_19527</a></div>\n                        <button id="saveBtn">保存设置</button>\n                        <button id="clean-all" style="display: none">♾️ 清理全部缓存</button>\n                    </div>\n                </div>\n            </div>\n        `;
         layer.open({
             type: 1,
             title: "设置",
@@ -7177,7 +6938,7 @@ class SettingPlugin extends BasePlugin {
     async simpleSetting() {
         let settingObj = await storageManager.getSetting();
         const showFilterItemHotKey = settingObj.showFilterItemHotKey, showFilterActorItemHotKey = settingObj.showFilterActorItemHotKey, showFilterKeywordItemHotKey = settingObj.showFilterKeywordItemHotKey, showFavoriteItemHotKey = settingObj.showFavoriteItemHotKey, showHasDownItemHotKey = settingObj.showHasDownItemHotKey, showHasWatchItemHotKey = settingObj.showHasWatchItemHotKey, showAllItemHotKey = settingObj.showAllItemHotKey;
-        return `\n             <div class="jhs-scrollbar" style="margin-top:20px;max-height:90vh; overflow-y:auto;">\n                <div style="margin: 0 10px;">\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            显示已鉴定内容:\n                        </span>\n                        <div class="form-content" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;">\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">屏蔽单番号${showFilterItemHotKey ? `(${showFilterItemHotKey})` : ""}: </span><input type="checkbox" id="showFilterItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">屏蔽演员${showFilterActorItemHotKey ? `(${showFilterActorItemHotKey})` : ""}: </span><input type="checkbox" id="showFilterActorItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">屏蔽关键词${showFilterKeywordItemHotKey ? `(${showFilterKeywordItemHotKey})` : ""}: </span><input type="checkbox" id="showFilterKeywordItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">收藏${showFavoriteItemHotKey ? `(${showFavoriteItemHotKey})` : ""}: </span><input type="checkbox" id="showFavoriteItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">已下载${showHasDownItemHotKey ? `(${showHasDownItemHotKey})` : ""}: </span><input type="checkbox" id="showHasDownItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">已观看${showHasWatchItemHotKey ? `(${showHasWatchItemHotKey})` : ""}: </span><input type="checkbox" id="showHasWatchItem" class="mini-switch"><br/>\n                        </div>\n                    </div>\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="快速显示所有已鉴定内容,减少对以上开关的频繁操作">❓ </span> 显示所有${showAllItemHotKey ? `(${showAllItemHotKey})` : ""}:\n                        </span>\n                        <div class="form-content" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;">\n                            <input type="checkbox" id="showAllItem" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="点击封面的打开方式,弹窗|新窗口">❓ </span>弹窗方式打开页面:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                             <input type="checkbox" id="dialogOpenDetail" class="mini-switch">\n                        </div>\n                    </div>      \n                    \n                    <div class="setting-item">\n                        <span class="setting-label">鉴定后立即关闭页面:</span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="needClosePage" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                    <div class="setting-item">\n                        <span class="setting-label">\n                             <span data-tip="使用瀑布流模式, 排序方式将调整为默认">❓ </span>瀑布流模式:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="autoPage" class="mini-switch">\n                        </div>\n                    </div>\n       \n                    <div class="setting-item">\n                        <span class="setting-label">启用标题翻译:</span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="translateTitle" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">启用悬浮大图:</span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="hoverBigImg" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                                        \n                    <div class="setting-item">\n                        <span class="setting-label">启用115视频匹配: </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enable115Match" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                    ${isJavDb ? '\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页是否展示女优年龄、三围等信息">❓ </span>加载女优信息:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadActressInfo" class="mini-switch">\n                        </div>\n                    </div>' : ""}\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页第三方资源检测,如missAv,123AV">❓ </span>加载第三方视频资源:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadOtherSite" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页图片区首列位置加载长缩略图">❓ </span>加载长缩略图:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadScreenShot" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                     <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页解析更多更高画质的预览视频">❓ </span>更高画质预览视频:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadPreviewVideo" class="mini-switch">\n                        </div>\n                    </div>\n\n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="列数6以上,建议开启竖图">❓ </span>竖图模式:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableVerticalModel" class="mini-switch">\n                        </div>\n                    </div>\n                                    \n                    <div class="setting-item">\n                        <span class="setting-label">页面列数: <span id="showContainerColumns"></span></span>\n                        <div class="form-content">\n                            <input type="range" id="containerColumns" min="2" max="10" step="1" style="padding:5px 0">\n                        </div>\n                    </div>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">页面宽度: <span id="showContainerWidth"></span></span>\n                        <div class="form-content">\n                            <input type="range" id="containerWidth" min="0" max="30" step="1" style="padding:5px 0">\n                        </div>\n                    </div>\n                </div>\n                <div style="padding: 0 20px 15px; text-align: right; border-top: 1px solid #eee;">   \n                    <button id="helpBtn" style="float:left;">常见问题</button>\n                    <button id="moreBtn">更多设置</button>\n                </div>\n            </div>\n        `;
+        return `\n             <div class="jhs-scrollbar" style="margin-top:20px;max-height:90vh; overflow-y:auto;">\n                <div style="margin: 0 10px;">\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            显示已鉴定内容:\n                        </span>\n                        <div class="form-content" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;">\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">屏蔽单番号${showFilterItemHotKey ? `(${showFilterItemHotKey})` : ""}: </span><input type="checkbox" id="showFilterItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">屏蔽演员${showFilterActorItemHotKey ? `(${showFilterActorItemHotKey})` : ""}: </span><input type="checkbox" id="showFilterActorItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">屏蔽关键词${showFilterKeywordItemHotKey ? `(${showFilterKeywordItemHotKey})` : ""}: </span><input type="checkbox" id="showFilterKeywordItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">收藏${showFavoriteItemHotKey ? `(${showFavoriteItemHotKey})` : ""}: </span><input type="checkbox" id="showFavoriteItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">已下载${showHasDownItemHotKey ? `(${showHasDownItemHotKey})` : ""}: </span><input type="checkbox" id="showHasDownItem" class="mini-switch"><br/>\n                            <span style="display:inline-block; width: 100px; font-size:13px; font-weight:bold; text-align: left">已观看${showHasWatchItemHotKey ? `(${showHasWatchItemHotKey})` : ""}: </span><input type="checkbox" id="showHasWatchItem" class="mini-switch"><br/>\n                        </div>\n                    </div>\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="快速显示所有已鉴定内容,减少对以上开关的频繁操作">❓ </span> 显示所有${showAllItemHotKey ? `(${showAllItemHotKey})` : ""}:\n                        </span>\n                        <div class="form-content" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;">\n                            <input type="checkbox" id="showAllItem" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="点击封面的打开方式,弹窗|新窗口">❓ </span>弹窗方式打开页面:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                             <input type="checkbox" id="dialogOpenDetail" class="mini-switch">\n                        </div>\n                    </div>      \n                    \n                    <div class="setting-item">\n                        <span class="setting-label">鉴定后立即关闭页面:</span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="needClosePage" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                    <div class="setting-item">\n                        <span class="setting-label">\n                             <span data-tip="使用瀑布流模式, 排序方式将调整为默认">❓ </span>瀑布流模式:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="autoPage" class="mini-switch">\n                        </div>\n                    </div>\n       \n                    <div class="setting-item">\n                        <span class="setting-label">启用标题翻译:</span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="translateTitle" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">启用悬浮大图:</span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="hoverBigImg" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                                        \n                    <div class="setting-item">\n                        <span class="setting-label">启用115视频匹配: </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enable115Match" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页是否展示女优年龄、三围等信息">❓ </span>加载女优信息:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadActressInfo" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页第三方资源检测,如missAv,123AV">❓ </span>加载第三方视频资源:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadOtherSite" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页图片区首列位置加载长缩略图">❓ </span>加载长缩略图:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadScreenShot" class="mini-switch">\n                        </div>\n                    </div>\n                    \n                     <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="详情页解析更多更高画质的预览视频">❓ </span>更高画质预览视频:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableLoadPreviewVideo" class="mini-switch">\n                        </div>\n                    </div>\n\n                    <hr style="border: 0; height: 1px; margin:10px 0;background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(159,137,137,0.75), rgba(0,0,0,0));"/>\n\n                    <div class="setting-item">\n                        <span class="setting-label">\n                            <span data-tip="列数6以上,建议开启竖图">❓ </span>竖图模式:\n                        </span>\n                        <div class="form-content" style="text-align: right;">\n                            <input type="checkbox" id="enableVerticalModel" class="mini-switch">\n                        </div>\n                    </div>\n                                    \n                    <div class="setting-item">\n                        <span class="setting-label">页面列数: <span id="showContainerColumns"></span></span>\n                        <div class="form-content">\n                            <input type="range" id="containerColumns" min="2" max="10" step="1" style="padding:5px 0">\n                        </div>\n                    </div>\n                    \n                    <div class="setting-item">\n                        <span class="setting-label">页面宽度: <span id="showContainerWidth"></span></span>\n                        <div class="form-content">\n                            <input type="range" id="containerWidth" min="0" max="30" step="1" style="padding:5px 0">\n                        </div>\n                    </div>\n                </div>\n                <div style="padding: 0 20px 15px; text-align: right; border-top: 1px solid #eee;">   \n                    <button id="helpBtn" style="float:left;">常见问题</button>\n                    <button id="moreBtn">更多设置</button>\n                </div>\n            </div>\n        `;
     }
     async loadForm() {
         let settingObj = await storageManager.getSetting();
@@ -7483,16 +7244,16 @@ class SettingPlugin extends BasePlugin {
         }));
         $("#importBtn").on("click", (event => this.importData(event)));
         $("#exportBtn").on("click", (event => this.exportData(event)));
-        $("#backupBtn").on("click", (event => this.backupData(event)));
-        $("#backupListBtn").on("click", (event => this.backupListBtn(event)));
+        $("#cleanJhsDataBtn").on("click", (event => {
+            utils.q(null, "是否清空所有数据? 即鉴定记录、黑名单数据、配置等...<br/><span style='color: #f40'>此操作不可逆, 请备份好数据</span>", (async () => {
+                await storageManager.importData([]);
+                show.ok("已清空数据, 即将刷新页面...");
+                await utils.sleep(200);
+                window.location.reload();
+            }));
+        }));
         $("#webdavBackupBtn").on("click", (event => this.backupDataByWebDav(event)));
         $("#webdavBackupListBtn").on("click", (event => this.backupListBtnByWebDav(event)));
-        $("#getRefreshTokenBtn").on("click", (event => layer.alert("即将跳转阿里云盘, 请登录后, 点击最右侧悬浮按钮获取refresh_token", {
-            yes: function(index, layero, that) {
-                window.open("https://www.aliyundrive.com/drive/home");
-                layer.close(index);
-            }
-        })));
         $("#saveBtn").on("click", (() => this.saveForm()));
         $(".clean-btn").on("click", (event => {
             const key = $(event.currentTarget).data("key"), cacheItem = this.cacheItems.find((item => item.key === key));
@@ -7663,44 +7424,6 @@ class SettingPlugin extends BasePlugin {
             show.error("导入数据时出错: " + err.message);
         }
     }
-    async backupData(event) {
-        let loadObj = loading();
-        try {
-            const refresh_token = await storageManager.getSetting("refresh_token");
-            if (!refresh_token) {
-                show.error("请填写refresh_token并保存后, 再试此功能");
-                return;
-            }
-            show.info("正在整理数据...");
-            let fileName = utils.getNowStr("_", "_") + ".json", uploadContent = JSON.stringify(await storageManager.exportData());
-            uploadContent = simpleEncrypt(uploadContent);
-            const aliyunApi = new AliyunApi(refresh_token);
-            await aliyunApi.backup(this.folderName, fileName, uploadContent);
-            show.ok("备份完成");
-        } catch (e) {
-            console.error(e);
-            show.error(e.toString());
-        } finally {
-            loadObj.close();
-        }
-    }
-    async backupListBtn(event) {
-        const refresh_token = await storageManager.getSetting("refresh_token");
-        if (!refresh_token) {
-            show.error("请填写refresh_token并保存后, 再试此功能");
-            return;
-        }
-        let loadObj = loading();
-        try {
-            const aliyunApi = new AliyunApi(refresh_token), fileList = await aliyunApi.getBackupList(this.folderName);
-            this.openFileListDialog(fileList, aliyunApi, "阿里云盘");
-        } catch (e) {
-            console.error(e);
-            show.error(`发生错误: ${e ? e.message : e}`);
-        } finally {
-            loadObj.close();
-        }
-    }
     async backupDataByWebDav(event) {
         const settingObj = await storageManager.getSetting(), webDavUrl = settingObj.webDavUrl;
         if (!webDavUrl) {
@@ -7717,9 +7440,7 @@ class SettingPlugin extends BasePlugin {
             show.error("请填写webDav密码并保存后, 再试此功能");
             return;
         }
-        let fileName = utils.getNowStr("_", "_") + ".json", uploadContent = JSON.stringify(await storageManager.exportData());
-        uploadContent = simpleEncrypt(uploadContent);
-        let loadObj = loading();
+        let fileName = utils.getNowStr("_", "_") + ".json", uploadContent = JSON.stringify(await storageManager.exportData()), loadObj = loading();
         try {
             const webDavApi = new WebDavApi(webDavUrl, webDavUsername, webDavPassword);
             await webDavApi.backup(this.folderName, fileName, uploadContent);
@@ -7822,7 +7543,7 @@ class SettingPlugin extends BasePlugin {
                                             await api.deleteFile(item.fileId);
                                             let newFileList = await api.getBackupList(this.folderName);
                                             tableObj.replaceData(newFileList);
-                                            "阿里云盘" === apiType ? utils.alert(e, "已移至回收站, 请到阿里云盘回收站二次删除") : utils.alert(e, "删除成功");
+                                            utils.alert(e, "删除成功");
                                         } catch (e2) {
                                             console.error(e2);
                                             show.error(`发生错误: ${e2 ? e2.message : e2}`);
@@ -7834,18 +7555,8 @@ class SettingPlugin extends BasePlugin {
                                 downButton && downButton.addEventListener("click", (async e => {
                                     let loadObj = loading();
                                     try {
-                                        if ("阿里云盘" === apiType) {
-                                            show.info("获取下载地址...");
-                                            const url = await api.getDownloadUrl(item.fileId);
-                                            show.info("获取文件内容...");
-                                            let content = simpleDecrypt(await gmHttp.downloadFileInChunks(url, {
-                                                Referer: "https://www.aliyundrive.com/"
-                                            }));
-                                            utils.download(content, item.name);
-                                        } else {
-                                            const content = simpleDecrypt(await api.getFileContent(item.fileId));
-                                            utils.download(content, item.name);
-                                        }
+                                        const content = await api.getFileContent(item.fileId);
+                                        utils.download(content, item.name);
                                     } catch (e2) {
                                         clog.error(e2);
                                         show.error("下载失败: " + e2);
@@ -7862,18 +7573,8 @@ class SettingPlugin extends BasePlugin {
                                         layer.close(index);
                                         let loadObj = loading();
                                         try {
-                                            let respData;
-                                            if ("阿里云盘" === apiType) {
-                                                show.info("获取下载地址...");
-                                                const downUrl = await api.getDownloadUrl(item.fileId);
-                                                show.info("获取文件内容...");
-                                                respData = await gmHttp.downloadFileInChunks(downUrl, {
-                                                    Referer: "https://www.aliyundrive.com/"
-                                                });
-                                            } else respData = await api.getFileContent(item.fileId);
-                                            show.info("解密文件内容...");
-                                            const content = simpleDecrypt(respData);
-                                            show.info("解密完成, 开始导入...");
+                                            const content = await api.getFileContent(item.fileId);
+                                            show.info("开始导入...");
                                             const updateJsonData = JSON.parse(content);
                                             await storageManager.importData(updateJsonData);
                                             show.ok("导入成功!");
@@ -7925,22 +7626,6 @@ class SettingPlugin extends BasePlugin {
         this.cacheItems.forEach((item => localStorage.removeItem(item.key)));
         localStorage.removeItem("jhs_other_site_dmm");
     }
-}
-
-const SALT = "x7k9p3";
-
-function simpleEncrypt(str) {
-    return (SALT + str + SALT).split("").map((char => {
-        const code = char.codePointAt(0);
-        return String.fromCodePoint(code + 5);
-    })).join("");
-}
-
-function simpleDecrypt(encryptedStr) {
-    return encryptedStr.split("").map((char => {
-        const code = char.codePointAt(0);
-        return String.fromCodePoint(code - 5);
-    })).join("").slice(SALT.length, -SALT.length);
 }
 
 class BusPreviewVideoPlugin extends BasePlugin {
@@ -8340,7 +8025,7 @@ class RelatedPlugin extends BasePlugin {
 class WantAndWatchedVideosPlugin extends BasePlugin {
     constructor() {
         super(...arguments);
-        __publicField(this, "type", null);
+        __publicField(this, "currentPage", 1);
     }
     getName() {
         return "WantAndWatchedVideosPlugin";
@@ -8349,75 +8034,64 @@ class WantAndWatchedVideosPlugin extends BasePlugin {
         if (window.location.href.includes("/want_watch_videos")) {
             $("h3").append('<a class="a-primary" id="wantWatchBtn" style="padding:10px;">导入至 JHS</a>');
             $("#wantWatchBtn").on("click", (event => {
-                this.type = Status_FAVORITE;
-                this.importWantWatchVideos(event, "是否将 想看的影片 导入到 JHS-收藏?");
+                this.importWantWatchVideos(event, "是否将 想看的影片 导入到 鉴定记录-收藏?", Status_FAVORITE);
             }));
         }
         if (window.location.href.includes("/watched_videos")) {
             $("h3").append('<a class="a-success" id="wantWatchBtn" style="padding:10px;">导入至 JHS</a>');
             $("#wantWatchBtn").on("click", (event => {
-                this.type = Status_HAS_DOWN;
-                this.importWantWatchVideos(event, "是否将 看过的影片 导入到 JHS-已下载?");
+                this.importWantWatchVideos(event, "是否将 看过的影片 导入到 鉴定记录-已观看?", Status_HAS_WATCH);
             }));
         }
     }
-    importWantWatchVideos(event, title) {
-        utils.q(null, `${title} <br/> <span style='color: #f40'>执行此功能前请记得备份数据</span>`, (async () => {
+    importWantWatchVideos(event, title, statusType) {
+        this.currentPage = utils.getUrlParam(currentHref, "page") || 1;
+        let confirmMsg = `${title} <br/> <span style='color: #f40'>执行此功能前请记得备份数据</span>`;
+        this.currentPage > 1 && (confirmMsg += `<br/><br/><strong style="color: #2196F3;">是否从当前页面 (第${this.currentPage}页) 开始追加导入？</strong>`);
+        utils.q(null, confirmMsg, (async () => {
             let loadObj = loading();
             try {
-                await this.parseMovieList();
+                await this.parseMovieList(statusType);
             } catch (e) {
-                console.error(e);
+                clog.error(e);
             } finally {
                 loadObj.close();
             }
         }));
     }
-    async parseMovieList($dom) {
-        let movieList, nextPageLink;
-        if ($dom) {
-            movieList = $dom.find(this.getSelector().itemSelector);
-            nextPageLink = $dom.find(".pagination-next").attr("href");
-        } else {
-            movieList = $(this.getSelector().itemSelector);
-            nextPageLink = $(".pagination-next").attr("href");
+    async parseMovieList(statusType, $dom) {
+        const container = $dom || $("body"), movieList = container.find(this.getSelector().itemSelector), nextPageLink = container.find(".pagination-next").attr("href");
+        if (0 === movieList.length) {
+            show.success("导入结束!");
+            return;
         }
-        for (const element of movieList) {
-            const item = $(element), href = item.find("a").attr("href"), carNum2 = item.find(".video-title strong").text().trim(), publishTime = item.find(".meta").text().trim();
-            if (href && carNum2) try {
-                if (await storageManager.getCar(carNum2)) {
-                    show.info(`${carNum2} 已存在, 跳过`);
-                    continue;
-                }
-                await storageManager.saveCar({
-                    carNum: carNum2,
-                    url: href,
-                    names: null,
-                    actionType: this.type,
-                    publishTime: publishTime
-                });
-            } catch (error) {
-                console.error(`保存失败 [${carNum2}]:`, error);
-            }
-        }
-        if (nextPageLink) {
-            show.info("发现下一页，正在解析:", nextPageLink);
-            await new Promise((resolve => setTimeout(resolve, 1e3)));
-            $.ajax({
-                url: nextPageLink,
-                method: "GET",
-                success: html => {
-                    const parser = new DOMParser, next$dom = $(parser.parseFromString(html, "text/html"));
-                    this.parseMovieList(next$dom);
-                },
-                error: function(err) {
-                    console.error(err);
-                    show.error("加载下一页失败:" + err.message);
-                }
+        show.info(`正在处理第 ${this.currentPage} 页...`);
+        const allLocalCars = await storageManager.getCarList(), carNumCache = new Set(allLocalCars.map((c => c.carNum))), currentPageRecords = [];
+        movieList.each(((i, element) => {
+            const item = $(element), carNum2 = item.find(".video-title strong").text().trim(), href = item.find("a").attr("href"), publishTime = item.find(".meta").text().trim();
+            carNum2 && href && !carNumCache.has(carNum2) && currentPageRecords.push({
+                carNum: carNum2,
+                url: href,
+                names: null,
+                actionType: statusType,
+                publishTime: publishTime
             });
-        } else {
-            show.ok("导入结束!");
-            window.refresh();
+        }));
+        if (currentPageRecords.length > 0) try {
+            await storageManager.saveCarList(currentPageRecords);
+            clog.log(`第 ${this.currentPage} 页：成功写入 ${currentPageRecords.length} 条`);
+        } catch (e) {
+            clog.error("批量保存失败:", e);
+        }
+        this.currentPage++;
+        let nextUrl = nextPageLink || utils.setUrlParam(currentHref, "page", this.currentPage);
+        clog.log(nextUrl);
+        await new Promise((resolve => setTimeout(resolve, 200)));
+        try {
+            const html = await gmHttp.get(nextUrl), next$dom = utils.htmlTo$dom(html);
+            await this.parseMovieList(statusType, next$dom);
+        } catch (e) {
+            clog.error("请求下一页失败", e);
         }
     }
 }
@@ -8427,7 +8101,7 @@ class CoverButtonPlugin extends BasePlugin {
         return "CoverButtonPlugin";
     }
     async initCss() {
-        return `\n            <style>\n                .box .tags {\n                    justify-content: space-between;\n                }\n                .tool-box span{\n                    opacity:.3\n                }\n                .tool-box span:hover{\n                    opacity:1\n                }\n                ${isJavBus ? ".tool-box .icon, .setting-label .icon{ height: 24px; width: 24px; }" : ""}\n                .tool-box svg path {\n                  fill: blue;\n                }\n                [data-theme="dark"] .tool-box svg path {\n                  fill: white;\n                }\n                \n                \n                /* 鼠标移入时的弹性动画 */\n                .elastic-in {\n                    animation: elasticIn 0.2s ease-out forwards;  /* 动画名称 | 时长 | 缓动函数 | 保持最终状态 */\n                }\n                \n                /* 鼠标移出时的弹性动画 */\n                .elastic-out {\n                    animation: elasticOut 0.2s ease-in forwards;\n                }\n                /* 弹性进入动画（像果冻弹入） */\n                @keyframes elasticIn {\n                    0% {\n                        opacity: 0;\n                        transform: scale(0.8);  /* 起始状态：80% 大小 */\n                    }\n                    50% {\n                        opacity: 1;\n                        transform: scale(1.1);  /* 弹到 110%（超调一点） */\n                    }\n                    70% {\n                        transform: scale(0.95); /* 回弹到 95%（模拟弹性阻尼） */\n                    }\n                    100% {\n                        opacity: 1;\n                        transform: scale(1);    /* 最终恢复正常大小 */\n                    }\n                }\n                /* 弹性离开动画（像果冻弹出） */\n                @keyframes elasticOut {\n                    0% {\n                        opacity: 1;\n                        transform: scale(1);    /* 起始状态：正常大小 */\n                    }\n                    30% {\n                        transform: scale(1.05); /* 先弹大一点（105%） */\n                    }\n                    100% {\n                        opacity: 0;\n                        transform: scale(0.8);  /* 最终缩小并消失 */\n                    }\n                }\n                \n                \n                .loading {\n                    opacity: 0.7;\n                    filter: blur(1px);\n                }\n                .loading-spinner {\n                    position: absolute;\n                    top: 50%;\n                    left: 50%;\n                    transform: translate(-50%, -50%);\n                    width: 40px;\n                    height: 40px;\n                    border: 3px solid rgba(255,255,255,.3);\n                    border-radius: 50%;\n                    border-top-color: #fff;\n                    animation: spin 1s ease-in-out infinite;\n                    z-index: 20;\n                }\n                @keyframes spin {\n                    to { transform: translate(-50%, -50%) rotate(360deg); }\n                }\n            </style>\n        `;
+        return `\n            <style>\n                .box .tags {\n                    justify-content: space-between;\n                }\n                .tool-box span{\n                    opacity:.3\n                }\n                .tool-box span:hover{\n                    opacity:1\n                }\n                ${isJavBus ? ".tool-box .icon, .setting-label .icon{ height: 24px; width: 24px; }" : ""}\n                .tool-box svg path {\n                  fill: blue;\n                }\n                [data-theme="dark"] .tool-box svg path {\n                  fill: white;\n                }\n                \n                [data-theme="dark"] .tool-box .copySvg .more-tools svg path {\n                  fill: black;\n                }\n                \n                \n                /* 鼠标移入时的弹性动画 */\n                .elastic-in {\n                    animation: elasticIn 0.2s ease-out forwards;  /* 动画名称 | 时长 | 缓动函数 | 保持最终状态 */\n                }\n                \n                /* 鼠标移出时的弹性动画 */\n                .elastic-out {\n                    animation: elasticOut 0.2s ease-in forwards;\n                }\n                /* 弹性进入动画（像果冻弹入） */\n                @keyframes elasticIn {\n                    0% {\n                        opacity: 0;\n                        transform: scale(0.8);  /* 起始状态：80% 大小 */\n                    }\n                    50% {\n                        opacity: 1;\n                        transform: scale(1.1);  /* 弹到 110%（超调一点） */\n                    }\n                    70% {\n                        transform: scale(0.95); /* 回弹到 95%（模拟弹性阻尼） */\n                    }\n                    100% {\n                        opacity: 1;\n                        transform: scale(1);    /* 最终恢复正常大小 */\n                    }\n                }\n                /* 弹性离开动画（像果冻弹出） */\n                @keyframes elasticOut {\n                    0% {\n                        opacity: 1;\n                        transform: scale(1);    /* 起始状态：正常大小 */\n                    }\n                    30% {\n                        transform: scale(1.05); /* 先弹大一点（105%） */\n                    }\n                    100% {\n                        opacity: 0;\n                        transform: scale(0.8);  /* 最终缩小并消失 */\n                    }\n                }\n                \n                \n                .loading {\n                    opacity: 0.7;\n                    filter: blur(1px);\n                }\n                .loading-spinner {\n                    position: absolute;\n                    top: 50%;\n                    left: 50%;\n                    transform: translate(-50%, -50%);\n                    width: 40px;\n                    height: 40px;\n                    border: 3px solid rgba(255,255,255,.3);\n                    border-radius: 50%;\n                    border-top-color: #fff;\n                    animation: spin 1s ease-in-out infinite;\n                    z-index: 20;\n                }\n                @keyframes spin {\n                    to { transform: translate(-50%, -50%) rotate(360deg); }\n                }\n            </style>\n        `;
     }
     handle() {
         if (window.isListPage) {
@@ -9404,217 +9078,6 @@ class WangPan115TaskPlugin extends BasePlugin {
     }
 }
 
-class WangPan115Plugin extends BasePlugin {
-    constructor() {
-        super(...arguments);
-        __publicField(this, "JHS_115_COOKIE", "jhs_115_cookie");
-        __publicField(this, "JHS_115_MAX_AGE", "jhs_115_max_age");
-    }
-    getName() {
-        return "WangPan115Plugin";
-    }
-    async initCss() {
-        return "\n            <style>\n                .login-box .ltab-office {\n                    border: 1px solid #DEE4EE;\n                }\n                \n                .change-bg::before {\n                    background-color:#F9FAFB !important;\n                }\n                \n                .site-login-wrap {\n                    height: auto;\n                }\n                \n                #jhs-cookie-panel {\n                    width: 200px;\n                    position: fixed;\n                    bottom: 20px;\n                    right: 20px;\n                    z-index: 10000;\n                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n                    cursor: pointer;\n                    background-color: #FFFFFF;\n                    color: #333333;\n                    padding: 0;\n                    border-radius: 6px;\n                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);\n                    transition: all 0.3s ease;\n                    border: 1px solid #E0E0E0;\n                }\n    \n                #jhs-cookie-panel.expanded {\n                    padding: 0;\n                    border-radius: 8px;\n                    background-color: #FFFFFF;\n                    color: #333333;\n                    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);\n                }\n    \n                #jhs-cookie-header {\n                    padding: 10px 15px;\n                    background-color: #0078D4;\n                    color: white;\n                    border-radius: 6px 6px 0 0;\n                    display: flex;\n                    justify-content: space-between;\n                    align-items: center;\n                    font-weight: 600;\n                }\n                \n                #jhs-cookie-panel:not(.expanded) #jhs-cookie-header {\n                    border-radius: 6px;\n                    padding: 8px 15px;\n                }\n    \n                #jhs-cookie-content {\n                    max-height: 0;\n                    overflow: hidden;\n                    transition: max-height 0.3s ease-out;\n                    padding: 0 15px;\n                }\n    \n                #jhs-cookie-panel.expanded #jhs-cookie-content {\n                    max-height: 250px;\n                    padding: 15px;\n                }\n    \n                #jhs-cookie-value {\n                    max-height: 100px;\n                    overflow-y: auto;\n                    white-space: pre-wrap;\n                    word-break: break-all;\n                    margin-bottom: 15px;\n                    padding: 10px;\n                    border: 1px solid #CCCCCC;\n                    background-color: #F8F8F8;\n                    font-size: 12px;\n                    border-radius: 4px;\n                    color: #555;\n                }\n    \n                #jhs-copy-btn {\n                    background-color: #10B981;\n                    color: white;\n                    border: none;\n                    padding: 8px 15px;\n                    text-align: center;\n                    text-decoration: none;\n                    display: inline-block;\n                    font-size: 14px;\n                    margin: 0;\n                    cursor: pointer;\n                    border-radius: 4px;\n                    width: 100%;\n                    font-weight: 600;\n                    transition: background-color 0.2s ease;\n                }\n                \n                #jhs-copy-btn:hover {\n                    background-color: #059669;\n                }\n            </style>\n        ";
-    }
-    async handle() {
-        if (!currentHref.includes("&ac=userfile") && currentHref.includes("115")) {
-            utils.loopDetector((() => $("#js-login-box").length > 0), (() => {
-                if (0 !== $("#js-login-box").length) {
-                    this.reLogin();
-                    this.hookPage();
-                    this.bindClick();
-                }
-            }), 20, 4e3, !0);
-            this.createCookiePanel();
-        }
-    }
-    reLogin() {
-        utils.loopDetector((() => $(".login-finished").length > 0), (() => {
-            if ($(".login-finished").length > 0 || 0 === $("#js-login-box").length) return;
-            const jhs_115_cookie = localStorage.getItem(this.JHS_115_COOKIE), jhs_115_max_age = localStorage.getItem(this.JHS_115_MAX_AGE);
-            document.cookie.includes("SEID") || null === jhs_115_cookie || utils.q(null, "检测到上次登录已有缓存cookie, 是否使用并登录?", (() => {
-                utils.addCookie(jhs_115_cookie, {
-                    maxAge: parseInt(jhs_115_max_age),
-                    domain: ".115.com"
-                });
-                window.location.href = "https://115.com/?cid=0&offset=0&mode=wangpan";
-            }));
-        }), 20, 1500, !0);
-    }
-    hookPage() {
-        const $cookieTab = $('<a id="jhs-cookie"><s>🔰 JHS-扫码</s></a>');
-        $(".ltab-office").after($cookieTab);
-        const $cookieScene = $(`\n            <div id="jhs_cookie_box" style="display: none; padding: 0 20px; max-width: 300px; margin: auto;">\n                <div style="margin-bottom: 15px; text-align: center;">\n                    <span style="font-size: 18px; font-weight: bold; color: #333; display: block; margin-bottom: 10px;"> 使用115App扫码登录 </span>\n                    <div style="text-align: left;">\n                        <select id="login-115-type" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd; font-size: 14px; box-sizing: border-box; background-color: white;">\n                            <option value="" style="color: #999;">请选择登录方式</option>\n                            <option value="wechatmini">微信小程序</option>\n                            <option value="alipaymini">支付宝小程序</option>\n                        </select>\n                    </div>\n                </div>\n                \n                <div style="text-align: left;">\n                    <select id="cookie-expiry-select" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd; font-size: 14px; box-sizing: border-box; background-color: white;">\n                        ${[ {
-            label: "有效期: 会话 (关闭浏览器)",
-            value: 0
-        }, {
-            label: "有效期: 1 天",
-            value: 86400
-        }, {
-            label: "有效期: 7 天",
-            value: 604800
-        }, {
-            label: "有效期: 30 天",
-            value: 2592e3,
-            default: !0
-        }, {
-            label: "有效期: 60 天",
-            value: 5184e3
-        }, {
-            label: "有效期: 180 天",
-            value: 15552e3
-        } ].map((c => `<option value="${c.value}"  ${c.default ? "selected" : ""} > ${c.label} </option>`)).join("")}\n                    </select>\n                </div>\n                \n                <div id="qrcode-box" style="display: none; justify-content:center; min-height: 100px; border: 1px dashed #aaa; padding: 15px; text-align: center; margin-top: 15px; border-radius: 4px; background-color: #fff; line-height: 70px; color: #666;">\n                    二维码占位区域\n                </div>\n                \n                                \n                <div style="margin-bottom: 15px; text-align: center; margin-top:50px">\n                    <span style="font-size: 18px; font-weight: bold; color: #333; display: block; margin-bottom: 10px;">已有Cookie? 在此输入并回车</span>\n                    <div style="text-align: left;">\n                        <input type="text" id="cookie-str-input" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd; font-size: 14px; box-sizing: border-box; background-color: white;">\n                    </div>\n                     <div style="text-align: center;margin-top:5px">\n                        <a class="a-primary" id="submit-cookie-btn">提交</a>\n                    </div>\n                </div>\n            </div>\n        `);
-        $("#js-login_box").find(".login-footer").before($cookieScene);
-    }
-    bindClick() {
-        $("#jhs-cookie").on("click", (() => {
-            const finishedEl = document.querySelector('[lg_rel="finished"]');
-            if (finishedEl) finishedEl.style.display = "none"; else {
-                document.querySelector('[lg_rel="qrcode"]').style.display = "none";
-                document.querySelector(".login-footer").style.display = "none";
-                document.querySelector(".list-other-login").style.display = "none";
-            }
-            document.querySelectorAll("#js-login_way > *").forEach((tab => {
-                tab.classList.remove("current");
-            }));
-            document.querySelector("#jhs_cookie_box").style.display = "block";
-            $("#jhs-cookie").css("background", "#fff");
-            $(".ltab-cloud").addClass("change-bg");
-        }));
-        $(".ltab-cloud").on("click", (() => {
-            document.querySelector("#jhs_cookie_box").style.display = "none";
-            const finishedEl = document.querySelector('[lg_rel="finished"]');
-            if (finishedEl) finishedEl.style.display = "flex"; else {
-                document.querySelector('[lg_rel="qrcode"]').style.display = "block";
-                document.querySelector(".login-footer").style.display = "block";
-                document.querySelector(".list-other-login").style.display = "block";
-            }
-            $("#jhs-cookie").css("background", "#F9FAFB");
-            $(".ltab-cloud").removeClass("change-bg");
-        }));
-        let loginTimeout = null;
-        $("#login-115-type").on("change", (async event => {
-            let login115Type = $("#login-115-type").val();
-            if (!login115Type) return;
-            const loginInfo = (await (async loginType => {
-                let url = `https://qrcodeapi.115.com/api/1.0/${loginType}/1.0/token/`;
-                return await gmHttp.get(url);
-            })(login115Type)).data, qrcode = loginInfo.qrcode, sign = loginInfo.sign, time = loginInfo.time, uid = loginInfo.uid;
-            console.log("生成二维码:", loginInfo);
-            const $qrcodeBox = $("#qrcode-box");
-            $qrcodeBox.css("display", "flex");
-            $qrcodeBox.html("");
-            new QRCode($qrcodeBox[0], {
-                text: qrcode,
-                width: 150,
-                height: 150,
-                correctLevel: QRCode.CorrectLevel.H
-            });
-            loginTimeout && clearTimeout(loginTimeout);
-            const checkLoginRecursive = async () => {
-                try {
-                    const loginResult = await (async (uid, time, sign) => {
-                        let url = `https://qrcodeapi.115.com/get/status/?uid=${uid}&time=${time}&sign=${sign}`;
-                        return await gmHttp.get(url);
-                    })(uid, time, sign);
-                    console.log("已扫码, 正在获取结果:", loginResult);
-                    let data = loginResult.data, msg = data.msg, status = data.status;
-                    if (msg) {
-                        console.log(msg);
-                        show.info(msg);
-                    }
-                    if (2 === status) {
-                        show.ok("扫码登录成功");
-                        const checkResult = await (async (loginType, uid) => {
-                            const data = {
-                                app: loginType,
-                                account: uid
-                            }, url = `https://passportapi.115.com/app/1.0/${loginType}/1.0/login/qrcode/`;
-                            return await gmHttp.postFileFormData(url, data);
-                        })(login115Type, uid);
-                        console.log("扫码登录成功:", checkResult);
-                        if (checkResult.data && checkResult.data.cookie) {
-                            const cookie = checkResult.data.cookie, cookieStr = `UID=${cookie.UID}; CID=${cookie.CID}; SEID=${cookie.SEID}; KID=${cookie.KID}`;
-                            console.log("解析出cookie:", cookieStr);
-                            localStorage.setItem(this.JHS_115_COOKIE, cookieStr);
-                            localStorage.setItem(this.JHS_115_MAX_AGE, $("#cookie-expiry-select").val());
-                            window.location.href = "https://115.com/?cid=0&offset=0&mode=wangpan";
-                        }
-                        return;
-                    }
-                    loginTimeout = setTimeout(checkLoginRecursive, 500);
-                } catch (error) {
-                    console.error("登录检查失败:", error);
-                }
-            };
-            await checkLoginRecursive();
-        }));
-        const handleCookie = () => {
-            const cookieStr = cookieInput.value, expirySelect = document.getElementById("cookie-expiry-select");
-            let maxAge = parseInt(expirySelect.value);
-            utils.addCookie(cookieStr, {
-                maxAge: maxAge,
-                domain: ".115.com"
-            });
-            window.location.href = "https://115.com/?cid=0&offset=0&mode=wangpan";
-        }, cookieInput = document.getElementById("cookie-str-input");
-        cookieInput.addEventListener("keydown", (function(event) {
-            if ("Enter" === event.key) {
-                event.preventDefault();
-                handleCookie();
-            }
-        }));
-        $("#submit-cookie-btn").on("click", (() => {
-            handleCookie();
-        }));
-    }
-    showMessage(message) {
-        const toast = document.createElement("div");
-        toast.textContent = message;
-        toast.style.cssText = "\n            position: fixed;\n            top: 20px;\n            right: 20px;\n            background-color: #333;\n            color: white;\n            padding: 10px 20px;\n            border-radius: 5px;\n            z-index: 20000;\n            opacity: 0;\n            transition: opacity 0.5s ease-in-out;\n        ";
-        document.body.appendChild(toast);
-        setTimeout((() => {
-            toast.style.opacity = "1";
-        }), 10);
-        setTimeout((() => {
-            toast.style.opacity = "0";
-            setTimeout((() => toast.remove()), 500);
-        }), 3e3);
-    }
-    createCookiePanel() {
-        const cookieValue = localStorage.getItem(this.JHS_115_COOKIE);
-        if (!cookieValue) return;
-        const panel = document.createElement("div");
-        panel.id = "jhs-cookie-panel";
-        panel.innerHTML = `\n            <div id="jhs-cookie-header">\n                <span>JHS-115-Cookie</span>\n                <span id="jhs-toggle-icon">▼</span>\n            </div>\n            <div id="jhs-cookie-content">\n                <div id="jhs-cookie-value">${cookieValue}</div>\n                <button id="jhs-copy-btn">复制 Cookie</button>\n            </div>\n        `;
-        document.body.appendChild(panel);
-        const header = document.getElementById("jhs-cookie-header");
-        document.getElementById("jhs-cookie-content");
-        const toggleIcon = document.getElementById("jhs-toggle-icon"), copyButton = document.getElementById("jhs-copy-btn");
-        header.addEventListener("click", (() => {
-            const isExpanded = panel.classList.toggle("expanded");
-            toggleIcon.textContent = isExpanded ? "▲" : "▼";
-        }));
-        copyButton.addEventListener("click", (async e => {
-            e.stopPropagation();
-            try {
-                await navigator.clipboard.writeText(cookieValue);
-                this.showMessage("Cookie 已成功复制到剪贴板!");
-            } catch (err) {
-                console.error("Failed to copy text using clipboard API: ", err);
-                const tempTextArea = document.createElement("textarea");
-                tempTextArea.value = cookieValue;
-                document.body.appendChild(tempTextArea);
-                tempTextArea.select();
-                document.execCommand("copy");
-                document.body.removeChild(tempTextArea);
-                this.showMessage("Cookie 已复制! (回退方案)");
-            }
-        }));
-        panel.classList.remove("expanded");
-    }
-}
-
 const _WangPan115MatchPlugin = class _WangPan115MatchPlugin extends BasePlugin {
     constructor() {
         super(...arguments);
@@ -10152,9 +9615,9 @@ class TaskPlugin extends BasePlugin {
         $("#checkNewVideoMsg").text("同步完成");
         if (actorInfoList.length > 0) {
             await storageManager.addFavoriteActressList(actorInfoList);
-            localStorage.setItem(this.lastCheckFavoriteActressTimeKey, utils.getNowStr());
             this.getBean("NewVideoPlugin").resetBtnTip().then();
         }
+        localStorage.setItem(this.lastCheckFavoriteActressTimeKey, utils.getNowStr());
     }
     async scrapeActorInfo(currentUrl, actorInfoList) {
         clog.log(`正在抓取页面: ${currentUrl}`);
@@ -10447,12 +9910,12 @@ class NewVideoPlugin extends BasePlugin {
     }
     async resetBtnTip() {
         const taskPlugin = this.getBean("TaskPlugin"), settingObj = await storageManager.getSetting(), lastCheckTimeStr = localStorage.getItem(taskPlugin.lastCheckFavoriteActressTimeKey) || "无", checkFavoriteActress_IntervalTime = settingObj.checkFavoriteActress_IntervalTime, lastCheckNewVideoTimeStr = localStorage.getItem(taskPlugin.lastCheckNewVideoTimeKey) || "无", checkNewVideo_intervalTime = settingObj.checkNewVideo_intervalTime;
-        $("#checkFavoriteActress").attr("data-tip", `上次自动同步时间: ${lastCheckTimeStr}; 检测间隔时间: ${checkFavoriteActress_IntervalTime}小时`);
+        $("#checkFavoriteActress").attr("data-tip", `上次同步时间: ${lastCheckTimeStr}; 检测间隔时间: ${checkFavoriteActress_IntervalTime}小时`);
         $("#checkNewVideo").attr("data-tip", `上次检测时间: ${lastCheckNewVideoTimeStr}; 检测间隔时间: ${checkNewVideo_intervalTime}小时`);
     }
     async openDialog() {
         const taskPlugin = this.getBean("TaskPlugin"), settingObj = await storageManager.getSetting(), lastCheckTimeStr = localStorage.getItem(taskPlugin.lastCheckFavoriteActressTimeKey) || "无", checkFavoriteActress_IntervalTime = settingObj.checkFavoriteActress_IntervalTime, lastCheckNewVideoTimeStr = localStorage.getItem(taskPlugin.lastCheckNewVideoTimeKey) || "无", checkNewVideo_intervalTime = settingObj.checkNewVideo_intervalTime;
-        let html = `\n            <div class="newVideoToolBox" style="display: flex; flex-direction: column; height: 100%; overflow: hidden; padding:10px">\n                <div style="margin-bottom: 15px;display: flex; justify-content: space-between;">\n                    <div>\n                        <a class="a-danger" id="checkFavoriteActress" data-tip="上次自动同步时间: ${lastCheckTimeStr}; 检测间隔时间: ${checkFavoriteActress_IntervalTime}小时">${this.actressSvg} &nbsp;&nbsp; 手动同步演员</a>\n                        <a class="a-warning" id="checkNewVideo" data-tip="上次检测时间: ${lastCheckNewVideoTimeStr}; 检测间隔时间: ${checkNewVideo_intervalTime}小时">${this.newSvg} &nbsp;&nbsp; 手动检测最新作品</a>\n                        <a class="a-info" id="toSetting">${this.settingSvg} &nbsp;&nbsp; 配置</a>\n                        <span id="checkNewVideoMsg"></span>\n                    </div>\n                    <div style="display: flex; align-items: flex-start;">\n                        <select id="paramActressType" style="text-align: center; height: 100%; min-width: 150px; border: 1px solid #ddd; margin-right: 10px">\n                            <option value="all" selected>所有</option>\n                            <option value="uncensored">无码</option>\n                            <option value="censored">有码</option>\n                            <option value="">未知</option>\n                        </select>\n                        \n                        <a class="a-normal" id="reLoad">${this.refreshSvg} &nbsp;&nbsp; 刷新</a>\n                    </div>\n\n                </div>\n                <div id="actress-card-container" class="jhs-scrollbar"></div>\n                <div id="actress-pagination"></div>\n            </div>\n        `;
+        let html = `\n            <div class="newVideoToolBox" style="display: flex; flex-direction: column; height: 100%; overflow: hidden; padding:10px">\n                <div style="margin-bottom: 15px;display: flex; justify-content: space-between;">\n                    <div>\n                        <a class="a-danger" id="checkFavoriteActress" data-tip="上次同步时间: ${lastCheckTimeStr}; 检测间隔时间: ${checkFavoriteActress_IntervalTime}小时">${this.actressSvg} &nbsp;&nbsp; 手动同步演员</a>\n                        <a class="a-warning" id="checkNewVideo" data-tip="上次检测时间: ${lastCheckNewVideoTimeStr}; 检测间隔时间: ${checkNewVideo_intervalTime}小时">${this.newSvg} &nbsp;&nbsp; 手动检测最新作品</a>\n                        <a class="a-info" id="toSetting">${this.settingSvg} &nbsp;&nbsp; 配置</a>\n                        <span id="checkNewVideoMsg"></span>\n                    </div>\n                    <div style="display: flex; align-items: flex-start;">\n                        <select id="paramActressType" style="text-align: center; height: 100%; min-width: 150px; border: 1px solid #ddd; margin-right: 10px">\n                            <option value="all" selected>所有</option>\n                            <option value="uncensored">无码</option>\n                            <option value="censored">有码</option>\n                            <option value="">未知</option>\n                        </select>\n                        \n                        <a class="a-normal" id="reLoad">${this.refreshSvg} &nbsp;&nbsp; 刷新</a>\n                    </div>\n\n                </div>\n                <div id="actress-card-container" class="jhs-scrollbar"></div>\n                <div id="actress-pagination"></div>\n            </div>\n        `;
         layer.open({
             type: 1,
             title: '<span style="padding: 0 10px;" data-tip="数据来源: 女优页面首页,含磁链分类">新作品检测 ❓</span>',
@@ -10868,6 +10331,7 @@ const pluginManager = function() {
         pluginManager2.register(DetailPageButtonPlugin);
         pluginManager2.register(ReviewPlugin);
         pluginManager2.register(FilterTitleKeywordPlugin);
+        pluginManager2.register(ActressInfoPlugin);
         pluginManager2.register(HighlightMagnetPlugin);
         pluginManager2.register(BusPreviewVideoPlugin);
         pluginManager2.register(MagnetHubPlugin);
@@ -10880,8 +10344,6 @@ const pluginManager = function() {
     }
     hostname.includes("javtrailers") && pluginManager2.register(JavTrailersPlugin);
     hostname.includes("subtitlecat") && pluginManager2.register(SubTitleCatPlugin);
-    (hostname.includes("aliyundrive") || hostname.includes("alipan")) && pluginManager2.register(AliyunPanPlugin);
-    hostname.includes("115.com") && pluginManager2.register(WangPan115Plugin);
     return pluginManager2;
 }();
 
