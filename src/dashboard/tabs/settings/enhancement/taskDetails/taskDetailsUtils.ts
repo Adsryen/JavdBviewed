@@ -261,7 +261,6 @@ export function buildTaskDetailPageSummaries(tasks: any[], deps: {
     'actorRemarks:run',
     'videoFavoriteRating:init',
     'actorMarks:page',
-    'videoEnhancement:panel',
     'onlineAvailability:check',
   ]);
 

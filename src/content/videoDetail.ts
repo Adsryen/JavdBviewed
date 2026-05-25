@@ -8,18 +8,18 @@ import { STATE, SELECTORS, log, setSuspendEarlyFaviconSync } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
-import { createTaskTimeoutGuard, waitForElement, isDarkTheme } from './utils';
+import { createTaskTimeoutGuard, waitForElement } from './utils';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { updateFaviconForStatus } from './statusManager';
 import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementLoading } from './enhancementLoadingIndicator';
+import { renderDetailSearchLinks } from './detailSearchLinks';
 
 import type { InitPhase } from './initOrchestrator';
 import type { GlobalTaskVisibilityPolicy } from '../shared/taskCenterTypes';
 import { actorManager } from '../services/actorManager';
 import { newWorksManager } from '../services/newWorks';
-import { getSettings, saveSettings } from '../utils/storage';
 import { actorExtraInfoService } from '../services/actorRemarks';
 import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
@@ -443,10 +443,6 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
         blueprints.push({ phase: 'idle', label: 'actorMarks:page', dependsOn: ['videoStatus:initialSync'] });
     }
 
-    if (enableVideoEnhancement) {
-        blueprints.push({ phase: 'idle', label: 'videoEnhancement:panel', dependsOn: ['videoStatus:initialSync'] });
-    }
-
     return blueprints;
 }
 
@@ -575,6 +571,12 @@ export async function handleVideoDetailPage(): Promise<void> {
     if (!videoId) {
         log('Could not find video ID using any method. Aborting.');
         return;
+    }
+
+    try {
+        renderDetailSearchLinks(videoId, STATE.settings?.searchEngines || []);
+    } catch (e) {
+        log('renderDetailSearchLinks failed:', e as any);
     }
 
     setSuspendEarlyFaviconSync(true);
@@ -1226,87 +1228,6 @@ async function upsertWantStatus(videoId: string): Promise<void> {
         showToast('同步失败：出现异常', 'error');
     } finally {
         concurrencyManager.finishProcessingVideo(videoId, opId || undefined);
-    }
-}
-
-// 注入影片页“增强区块”提供两个设置开关
-export async function injectVideoEnhancementPanel(): Promise<void> {
-    try {
-        const PANEL_ID = 'jdb-video-enhance-panel';
-        if (document.getElementById(PANEL_ID)) return;
-
-        // 优先插到评论按钮区域附近
-        const reviewButtons = document.querySelector('.review-buttons');
-        const container = (reviewButtons?.parentElement as HTMLElement) || document.querySelector<HTMLElement>('.column') || document.body;
-        if (!container) return;
-
-        const settings = await getSettings();
-        const ve: any = (settings as any).videoEnhancement || {};
-        const dark = isDarkTheme();
-
-        const panel = document.createElement('div');
-        panel.id = PANEL_ID;
-        panel.style.cssText = `
-          margin-top: 8px;
-          padding: 8px 10px;
-          background: ${dark ? '#2a2a2a' : '#f7f7f7'};
-          border: 1px solid ${dark ? '#444' : '#e6e6e6'};
-          border-radius: 6px;
-          font-size: 13px;
-        `;
-
-        const title = document.createElement('div');
-        title.textContent = '影片页增强';
-        title.style.cssText = `font-weight: bold; margin-bottom: 6px; color: ${dark ? '#ccc' : '#333'};`;
-
-        const line = (labelText: string, checked: boolean, onToggle: (v: boolean) => void) => {
-            const wrap = document.createElement('label');
-            wrap.style.cssText = `display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:${dark ? '#bbb' : 'inherit'};`;
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.checked = !!checked;
-            cb.addEventListener('change', () => onToggle(cb.checked));
-            const txt = document.createElement('span');
-            txt.textContent = labelText;
-            wrap.appendChild(cb);
-            wrap.appendChild(txt);
-            return wrap;
-        };
-
-        const onSave = async (patch: Partial<typeof settings['videoEnhancement']>) => {
-            try {
-                settings.videoEnhancement = { ...settings.videoEnhancement, ...patch } as any;
-                await saveSettings(settings);
-                // 同步内存配置
-                if (STATE.settings) {
-                    STATE.settings.videoEnhancement = { ...settings.videoEnhancement } as any;
-                }
-                showToast('设置已保存', 'success');
-            } catch (e) {
-                showToast('保存设置失败', 'error');
-            }
-        };
-
-        const l1 = line('点击“想看”时同步到番号库', ve.enableWantSync !== false, (v) => onSave({ enableWantSync: v }));
-        const l2 = line('115 推送成功后自动标记“已看”', ve.autoMarkWatchedAfter115 !== false, (v) => onSave({ autoMarkWatchedAfter115: v }));
-        const l3 = line('演员备注（Wiki/xslist）', ve.enableActorRemarks === true, (v) => onSave(({ enableActorRemarks: v } as any)));
-
-        panel.appendChild(title);
-        panel.appendChild(l1);
-        panel.appendChild(l2);
-        panel.appendChild(l3);
-
-        // 插入在 review-buttons 下方；在线可看面板存在时排在它下方
-        const onlineAvailabilityPanel = document.getElementById('jdb-online-availability-panel');
-        if (onlineAvailabilityPanel && onlineAvailabilityPanel.parentElement) {
-            onlineAvailabilityPanel.parentElement.insertBefore(panel, onlineAvailabilityPanel.nextSibling);
-        } else if (reviewButtons && reviewButtons.parentElement) {
-            reviewButtons.parentElement.insertBefore(panel, reviewButtons.nextSibling);
-        } else if (container) {
-            container.appendChild(panel);
-        }
-    } catch (e) {
-        log('injectVideoEnhancementPanel failed:', e as any);
     }
 }
 
