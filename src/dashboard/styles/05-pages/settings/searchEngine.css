@@ -92,10 +92,36 @@
     background: var(--bg-primary);
 }
 
+#search-engine-settings .search-engine-item.is-bundled {
+    background: var(--bg-secondary);
+}
+
 #search-engine-settings .icon-preview {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+#search-engine-settings .search-engine-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+#search-engine-settings .search-engine-name-cell .name-input {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+#search-engine-settings .search-engine-builtin-label {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
 }
 
 #search-engine-settings .engine-icon {
@@ -112,6 +138,13 @@
     border-radius: 4px;
     background: var(--bg-primary);
     color: var(--text-primary);
+}
+
+#search-engine-settings .search-engine-item.is-bundled input:disabled {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    cursor: not-allowed;
+    opacity: 0.85;
 }
 
 #search-engine-settings .actions-container {
@@ -132,4 +165,15 @@
 
 #search-engine-settings .delete-engine:hover {
     background: var(--danger-hover-color);
+}
+
+#search-engine-settings .delete-engine:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+#search-engine-settings .delete-engine:disabled:hover {
+    background: var(--bg-tertiary);
 }

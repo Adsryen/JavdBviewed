@@ -9,6 +9,8 @@ import { logAsync } from '../../../logger';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
+import { dedupeSearchEngines, isBundledSearchEngine, resolveSearchEngineIcon } from '../../../../utils/searchEngines';
+import { showMessage } from '../../../ui/toast';
 
 interface SearchEngine {
     id: string;
@@ -80,7 +82,7 @@ export class SearchEngineSettings extends BaseSettingsPanel {
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
-            this.updateSearchEnginesFromUI();
+            this.updateSearchEnginesFromUI({ notifyDuplicates: true });
 
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
@@ -120,7 +122,7 @@ export class SearchEngineSettings extends BaseSettingsPanel {
                 errors.push(`搜索引擎 "${nameInput.value}" 缺少URL模板`);
             }
 
-            if (urlInput.value && !urlInput.value.includes('{{ID}}')) {
+            if (urlInput.value && !/\{\{\s*id\s*\}\}/i.test(urlInput.value)) {
                 warnings.push(`搜索引擎 "${nameInput.value || '未命名'}" 的URL模板中缺少 {{ID}} 占位符`);
             }
         });
@@ -177,22 +179,30 @@ export class SearchEngineSettings extends BaseSettingsPanel {
                 return;
             }
 
+            const isBundled = isBundledSearchEngine(engine);
+            const readonlyAttr = isBundled ? 'disabled aria-disabled="true"' : '';
+            const bundledLabel = isBundled ? '<span class="search-engine-builtin-label">内置</span>' : '';
             const engineDiv = document.createElement('div');
-            engineDiv.className = 'search-engine-item';
+            engineDiv.className = `search-engine-item${isBundled ? ' is-bundled' : ''}`;
+            engineDiv.dataset.engineId = engine.id || '';
 
-            const iconSrc = engine.icon.startsWith('assets/')
-                ? chrome.runtime.getURL(engine.icon)
-                : engine.icon || 'assets/alternate-search.png';
+            const iconSrc = resolveSearchEngineIcon(engine);
+            const engineName = this.escapeAttr(engine.name || '');
+            const urlTemplate = this.escapeAttr(engine.urlTemplate || '');
+            const iconValue = this.escapeAttr(engine.icon || '');
 
             engineDiv.innerHTML = `
                 <div class="icon-preview">
-                    <img src="${iconSrc}" alt="${engine.name}" class="engine-icon" data-fallback="${chrome.runtime.getURL('assets/alternate-search.png')}">
+                    <img src="${iconSrc}" alt="${engineName}" class="engine-icon" data-fallback="${chrome.runtime.getURL('assets/alternate-search.png')}">
                 </div>
-                <input type="text" value="${engine.name}" class="name-input" data-index="${index}" placeholder="名称">
-                <input type="text" value="${engine.urlTemplate}" class="url-template-input" data-index="${index}" placeholder="URL 模板">
-                <input type="text" value="${engine.icon}" class="icon-url-input" data-index="${index}" placeholder="Icon URL">
+                <div class="search-engine-name-cell">
+                    <input type="text" value="${engineName}" class="name-input" data-index="${index}" placeholder="名称" ${readonlyAttr}>
+                    ${bundledLabel}
+                </div>
+                <input type="text" value="${urlTemplate}" class="url-template-input" data-index="${index}" placeholder="URL 模板" ${readonlyAttr}>
+                <input type="text" value="${iconValue}" class="icon-url-input" data-index="${index}" placeholder="Icon URL" ${readonlyAttr}>
                 <div class="actions-container">
-                    <button class="button-like danger delete-engine" data-index="${index}"><i class="fas fa-trash"></i></button>
+                    <button class="button-like danger delete-engine" data-index="${index}" ${isBundled ? 'disabled title="内置搜索引擎暂不支持删除"' : ''}><i class="fas fa-trash"></i></button>
                 </div>
             `;
 
@@ -211,7 +221,7 @@ export class SearchEngineSettings extends BaseSettingsPanel {
     /**
      * 从UI更新搜索引擎数据
      */
-    private updateSearchEnginesFromUI(): void {
+    private updateSearchEnginesFromUI(options: { notifyDuplicates?: boolean } = {}): void {
         const nameInputs = this.searchEngineList.querySelectorAll<HTMLInputElement>('.name-input');
         const urlInputs = this.searchEngineList.querySelectorAll<HTMLInputElement>('.url-template-input');
         const iconUrlInputs = this.searchEngineList.querySelectorAll<HTMLInputElement>('.icon-url-input');
@@ -222,6 +232,10 @@ export class SearchEngineSettings extends BaseSettingsPanel {
             const iconUrlInput = iconUrlInputs[index];
             if (nameInput.value && urlInput.value) {
                 const originalEngine = STATE.settings.searchEngines[index] || {};
+                if (isBundledSearchEngine(originalEngine)) {
+                    newEngines.push(originalEngine);
+                    return;
+                }
                 newEngines.push({
                     id: originalEngine.id || `engine-${Date.now()}-${index}`,
                     name: nameInput.value,
@@ -230,7 +244,19 @@ export class SearchEngineSettings extends BaseSettingsPanel {
                 });
             }
         });
-        STATE.settings.searchEngines = newEngines;
+
+        const deduped = dedupeSearchEngines(newEngines);
+        STATE.settings.searchEngines = deduped.engines as SearchEngine[];
+
+        if (deduped.duplicates.length > 0) {
+            if (options.notifyDuplicates) {
+                const names = deduped.duplicates
+                    .map(item => `${item.duplicateName} → ${item.keptName}`)
+                    .join('，');
+                showMessage(`已移除重复搜索引擎：${names}`, 'warn', 6000);
+            }
+            this.renderSearchEngines();
+        }
     }
 
     /**
@@ -239,15 +265,17 @@ export class SearchEngineSettings extends BaseSettingsPanel {
     private handleAddSearchEngine(): void {
         const newEngine: SearchEngine = {
             id: `engine-${Date.now()}`,
-            name: 'New Engine',
-            urlTemplate: 'https://www.google.com/search?q={{ID}}',
-            icon: chrome.runtime.getURL('assets/alternate-search.png')
+            name: '',
+            urlTemplate: '',
+            icon: 'assets/alternate-search.png'
         };
 
+        if (!Array.isArray(STATE.settings.searchEngines)) {
+            STATE.settings.searchEngines = [];
+        }
         STATE.settings.searchEngines.push(newEngine);
         logAsync('INFO', '用户添加了一个新的搜索引擎。', { engine: newEngine });
         this.renderSearchEngines();
-        this.scheduleAutoSave();
     }
 
     /**
@@ -259,6 +287,10 @@ export class SearchEngineSettings extends BaseSettingsPanel {
         if (removeButton) {
             const index = parseInt(removeButton.getAttribute('data-index')!, 10);
             const removedEngine = STATE.settings.searchEngines[index];
+            if (isBundledSearchEngine(removedEngine)) {
+                showMessage('内置搜索引擎暂不支持删除', 'warn');
+                return;
+            }
             logAsync('INFO', '用户删除了一个搜索引擎。', { engine: removedEngine });
             STATE.settings.searchEngines.splice(index, 1);
             this.renderSearchEngines();
@@ -277,5 +309,13 @@ export class SearchEngineSettings extends BaseSettingsPanel {
             this.emit('change');
             this.scheduleAutoSave();
         }
+    }
+
+    private escapeAttr(value: string): string {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 }
