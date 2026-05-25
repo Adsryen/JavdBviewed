@@ -10,6 +10,7 @@ import { requestScheduler } from './requestScheduler';
 import { WEBDAV_SYNC_ALARM } from './scheduler';
 import type { UserProfile } from '../types';
 import { globalTaskCenter } from './globalTaskCenter';
+import { fetchJavbusAjaxViaTab } from './javbusTabFetch';
 
 const consoleMap: Record<'INFO' | 'WARN' | 'ERROR' | 'DEBUG', (message?: any, ...optionalParams: any[]) => void> = {
   INFO: console.info,
@@ -97,6 +98,9 @@ export function registerMiscRouter(): void {
         }
         case 'fetch-external-data':
           handleExternalDataFetch(message, sendResponse);
+          return true;
+        case 'FETCH_JAVBUS_AJAX_VIA_TAB':
+          handleFetchJavbusAjaxViaTab(message, sendResponse);
           return true;
         case 'CHECK_VIDEO_URL':
           handleCheckVideoUrl(message, sendResponse);
@@ -465,6 +469,7 @@ async function handleExternalDataFetch(message: any, sendResponse: (response: an
       headers: options.headers || {},
       body: options.body,
       signal: controller.signal,
+      ...(typeof options.referrer === 'string' ? { referrer: options.referrer } : {}),
       // credentials / mode 等保持默认
     };
 
@@ -480,6 +485,23 @@ async function handleExternalDataFetch(message: any, sendResponse: (response: an
   } catch (error: any) {
     console.error('[Background] Failed to fetch external data:', error);
     sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleFetchJavbusAjaxViaTab(message: any, sendResponse: (response: any) => void): Promise<void> {
+  try {
+    const pageUrl = String(message?.pageUrl || '');
+    const timeoutMs = typeof message?.timeoutMs === 'number' ? message.timeoutMs : 15000;
+    if (!/^https:\/\/(?:www\.)?javbus\.com\/[^/?#]+/i.test(pageUrl)) {
+      sendResponse({ success: false, error: 'Invalid JAVBUS page URL' });
+      return;
+    }
+
+    const result = await fetchJavbusAjaxViaTab(pageUrl, timeoutMs);
+    sendResponse({ success: result.success, data: result, error: result.error });
+  } catch (error: any) {
+    console.error('[Background] JAVBUS tab ajax fetch failed:', error);
+    sendResponse({ success: false, error: error?.message || String(error) });
   }
 }
 
