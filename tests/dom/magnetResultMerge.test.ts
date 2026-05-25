@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendMagnetResults } from '../../src/content/magnetResultMerge';
+import { appendMagnetResults, getResultSources } from '../../src/content/magnetResultMerge';
 import type { MagnetResult } from '../../src/content/magnetSearch';
 
 function magnet(name: string, source: string, hash = name.padEnd(40, '0').slice(0, 40)): MagnetResult {
@@ -59,5 +59,22 @@ describe('magnet result merge', () => {
     expect(allResults).toHaveLength(1);
     expect(allResults[0].source).toBe('JavDB / Sukebei');
     expect(allResults[0].sources).toEqual(['JavDB', 'Sukebei']);
+  });
+
+  it('normalizes combined source labels before merging duplicate hashes', () => {
+    const allResults: MagnetResult[] = [];
+    const hash = '285d09c0aa4a8934cf83299fdebc5bf30b6a764c';
+
+    appendMagnetResults(allResults, [{
+      ...magnet('cached-combo', 'BTdig / Sukebei', hash),
+      sources: ['BTdig / Sukebei', 'Sukebei'],
+    }]);
+    appendMagnetResults(allResults, [magnet('fresh-btdig', 'BTdig', hash)]);
+    appendMagnetResults(allResults, [magnet('fresh-sukebei', 'Sukebei', hash)]);
+
+    expect(allResults).toHaveLength(1);
+    expect(allResults[0].source).toBe('BTdig / Sukebei');
+    expect(allResults[0].sources).toEqual(['BTdig', 'Sukebei']);
+    expect(getResultSources(allResults[0])).toEqual(['BTdig', 'Sukebei']);
   });
 });

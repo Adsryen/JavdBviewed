@@ -5,8 +5,42 @@ export function extractMagnetHash(magnet: string): string {
   return match ? match[1].toLowerCase() : magnet;
 }
 
+const CANONICAL_SOURCE_LABELS: Record<string, string> = {
+  javdb: 'JavDB',
+  sukebei: 'Sukebei',
+  btdig: 'BTdig',
+  btsow: 'BTSOW',
+  torrentz2: 'Torrentz2',
+  javbus: 'JAVBUS',
+};
+
+function getSourceKey(source: string): string {
+  return source.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function splitSourceLabel(source: string): string[] {
+  return source
+    .split(/\s*\/\s*/)
+    .map(part => part.trim())
+    .filter(Boolean);
+}
+
 export function getResultSources(result: MagnetResult): string[] {
-  return result.sources?.length ? result.sources : [result.source];
+  const labels = [
+    ...(Array.isArray(result.sources) ? result.sources : []),
+    result.source,
+  ];
+  const seen = new Set<string>();
+  const sources: string[] = [];
+
+  labels.flatMap(label => splitSourceLabel(String(label || ''))).forEach((label) => {
+    const key = getSourceKey(label);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    sources.push(CANONICAL_SOURCE_LABELS[key] || label);
+  });
+
+  return sources;
 }
 
 function mergeSourceLabels(existing: MagnetResult, incoming: MagnetResult): string[] {
@@ -27,7 +61,8 @@ export function appendMagnetResults(target: MagnetResult[], results: MagnetResul
       };
       return;
     }
-    target.push({ ...result, sources: getResultSources(result) });
+    const sources = getResultSources(result);
+    target.push({ ...result, source: sources.join(' / '), sources });
   });
   return target.length;
 }

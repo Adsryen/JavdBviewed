@@ -57,6 +57,41 @@ describe('detail area visual polish', () => {
     expect(sourceTags).toEqual(['JavDB', 'Sukebei']);
   });
 
+  it('filters unified magnet rows by source without losing the complete result set', async () => {
+    const manager = new MagnetSearchManager({ maxResults: 20 }) as any;
+    document.body.innerHTML = '<div id="magnets-content"></div>';
+
+    manager.processAndDisplayAllMagnets([
+      magnet({ name: 'javdb-only', source: 'JavDB' }),
+      magnet({
+        name: 'javdb-sukebei',
+        source: 'JavDB / Sukebei',
+        sources: ['JavDB', 'Sukebei'],
+        magnet: 'magnet:?xt=urn:btih:abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      }),
+      magnet({
+        name: 'javbus-only',
+        source: 'JAVBUS',
+        magnet: 'magnet:?xt=urn:btih:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      }),
+    ], { notify: false });
+
+    await new Promise(resolve => setTimeout(resolve, 180));
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+    const filters = Array.from(document.querySelectorAll<HTMLButtonElement>('.jdb-magnet-source-filter'));
+    expect(filters.map(button => button.textContent)).toEqual(expect.arrayContaining(['全部 3', 'JavDB 2', 'Sukebei 1', 'JAVBUS 1']));
+
+    filters.find(button => button.dataset.jdbMagnetSourceFilter === 'javdb')?.click();
+    await new Promise(resolve => setTimeout(resolve, 180));
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+    const visibleTitles = Array.from(document.querySelectorAll<HTMLElement>('#magnets-content .jdb-magnet-title')).map(item => item.textContent);
+    expect(visibleTitles).toEqual(['javdb-only', 'javdb-sukebei']);
+    expect((manager.currentMagnetResults as MagnetResult[]).map(result => result.name)).toEqual(['javdb-only', 'javdb-sukebei', 'javbus-only']);
+    expect(document.querySelector('.jdb-magnet-source-filter.is-active')?.textContent).toBe('JavDB 2');
+  });
+
   it('summarizes found, deduplicated, and displayed magnet counts in the completion toast', () => {
     const manager = new MagnetSearchManager({ maxResults: 20 }) as any;
     document.body.innerHTML = '<div id="magnets-content"></div>';
