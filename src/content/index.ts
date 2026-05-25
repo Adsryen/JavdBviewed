@@ -4,7 +4,7 @@ import { getSettings, getValue } from '../utils/storage';
 import type { VideoRecord } from '../types';
 import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from './state';
 import { processVisibleItems, setupObserver } from './itemProcessor';
-import { handleVideoDetailPage, cleanupVideoDetailObservers, getVideoDetailTaskBlueprints, injectVideoEnhancementPanel } from './videoDetail';
+import { handleVideoDetailPage, cleanupVideoDetailObservers, getVideoDetailTaskBlueprints } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
 import { initDrive115Features } from './drive115';
@@ -460,11 +460,6 @@ async function initialize(): Promise<void> {
             await initInsightsCollector();
         }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
 
-        if (settings?.videoEnhancement?.enabled === true) {
-            initOrchestrator.add('idle', async () => {
-                await injectVideoEnhancementPanel();
-            }, { label: 'videoEnhancement:panel', idle: true, idleTimeout: 5000, dependsOn: ['videoStatus:initialSync'] });
-        }
     }
 
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）

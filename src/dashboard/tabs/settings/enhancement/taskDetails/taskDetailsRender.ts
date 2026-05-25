@@ -188,7 +188,6 @@ export function renderTaskDetailsTable(controller: TaskDetailsController): void 
                 'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
                 'videoEnhancement:runRelatedLists': '视频增强-相关清单解锁 (videoEnhancement:runRelatedLists)',
                 'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
-                'videoEnhancement:panel': '视频增强-面板注入 (videoEnhancement:panel)',
                 'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
                 'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
                 'onlineAvailability:check': '在线可看性检测 (onlineAvailability:check)',
