@@ -61,6 +61,81 @@ function Show-Success {
     Write-Host "Process finished." -ForegroundColor Green
 }
 
+function Set-NormalAttributes {
+    param([Parameter(Mandatory=$true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    try {
+        Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                try { $_.Attributes = 'Normal' } catch {}
+            }
+        Get-ChildItem -LiteralPath $Path -Force -Recurse -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                try { $_.Attributes = 'Normal' } catch {}
+            }
+    } catch {}
+}
+
+function Remove-DirectoryWithRetries {
+    param(
+        [Parameter(Mandatory=$true)][string]$Path,
+        [int]$Attempts = 3
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $true
+    }
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        Set-NormalAttributes -Path $Path
+
+        try {
+            Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+        } catch {
+            Write-Host "PowerShell removal attempt $attempt failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+
+        if (-not (Test-Path -LiteralPath $Path)) {
+            return $true
+        }
+
+        Write-Host "Trying cmd rmdir fallback (attempt $attempt)..." -ForegroundColor Yellow
+        & cmd.exe /c "rmdir /s /q `"$Path`"" 2>$null | Out-Null
+        if (-not (Test-Path -LiteralPath $Path)) {
+            return $true
+        }
+
+        $robocopy = Get-Command robocopy.exe -ErrorAction SilentlyContinue
+        if ($robocopy) {
+            $emptyDir = Join-Path ([System.IO.Path]::GetTempPath()) ("javdb-empty-{0}" -f ([System.Guid]::NewGuid().ToString("N")))
+            try {
+                New-Item -ItemType Directory -Force -Path $emptyDir | Out-Null
+                & robocopy.exe "$emptyDir" "$Path" /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+                $robocopyExit = $LASTEXITCODE
+                Remove-Item -LiteralPath $emptyDir -Recurse -Force -ErrorAction SilentlyContinue
+
+                if ($robocopyExit -lt 8) {
+                    Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+                    & cmd.exe /c "rmdir /s /q `"$Path`"" 2>$null | Out-Null
+                    if (-not (Test-Path -LiteralPath $Path)) {
+                        return $true
+                    }
+                }
+            } catch {
+                Remove-Item -LiteralPath $emptyDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        Start-Sleep -Milliseconds (500 * $attempt)
+    }
+
+    return (-not (Test-Path -LiteralPath $Path))
+}
+
 function Clear-NodeModules {
     $nodeModulesPath = Join-Path (Get-Location).Path "node_modules"
     if (-not (Test-Path $nodeModulesPath)) {
@@ -69,37 +144,73 @@ function Clear-NodeModules {
 
     Write-Host "Removing existing node_modules for this platform..." -ForegroundColor Gray
 
+    $parent = Split-Path -Parent $nodeModulesPath
+    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $quarantinePath = Join-Path $parent ".node_modules-delete-$stamp"
+
     try {
-        Get-ChildItem -LiteralPath $nodeModulesPath -Force -Recurse -ErrorAction SilentlyContinue |
-            ForEach-Object {
-                try {
-                    $_.Attributes = 'Normal'
-                } catch {}
-            }
-        Remove-Item -LiteralPath $nodeModulesPath -Recurse -Force -ErrorAction Stop
+        Set-NormalAttributes -Path $nodeModulesPath
+        Rename-Item -LiteralPath $nodeModulesPath -NewName (Split-Path -Leaf $quarantinePath) -ErrorAction Stop
+        Write-Host "Moved node_modules to $quarantinePath" -ForegroundColor Gray
+
+        if (-not (Remove-DirectoryWithRetries -Path $quarantinePath -Attempts 3)) {
+            Write-Host "Warning: $quarantinePath is still present. Build can continue because node_modules was moved out of the way." -ForegroundColor Yellow
+        }
         return
     } catch {
-        Write-Host "PowerShell removal failed, trying cmd rmdir fallback..." -ForegroundColor Yellow
+        Write-Host "Could not rename node_modules: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
-    & cmd.exe /c "rmdir /s /q `"$nodeModulesPath`""
-    if ($LASTEXITCODE -ne 0 -or (Test-Path $nodeModulesPath)) {
-        throw "Failed to remove node_modules. Close editors, terminals, and sync tools that may be locking files, then retry."
+    if (-not (Remove-DirectoryWithRetries -Path $nodeModulesPath -Attempts 4)) {
+        throw "Failed to remove node_modules. Close VS Code, terminals, OneDrive sync, antivirus scanners, and any node/pnpm processes that may be locking files, then retry."
+    }
+}
+
+function Invoke-PnpmInstall {
+    param([string]$Label = "pnpm install")
+
+    Write-Host "Running $Label..." -ForegroundColor Gray
+    & pnpm install --frozen-lockfile | Out-Host
+    if ($LASTEXITCODE -eq 0) {
+        return $true
+    }
+
+    Write-Host "$Label with frozen lockfile failed. Retrying without --frozen-lockfile..." -ForegroundColor Yellow
+    & pnpm install | Out-Host
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Invoke-PnpmStorePrune {
+    Write-Host "Pruning pnpm store before retry..." -ForegroundColor Gray
+    & pnpm store prune | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "pnpm store prune failed; continuing with reinstall retry." -ForegroundColor Yellow
     }
 }
 
 function Install-Dependencies {
-    Write-Host "Running pnpm install..." -ForegroundColor Gray
-    & pnpm install
-    if ($LASTEXITCODE -eq 0) {
+    $prevCI = $env:CI
+    $prevOptional = $env:npm_config_optional
+    $env:CI = 'true'
+    $env:npm_config_optional = 'true'
+
+    if (Invoke-PnpmInstall -Label "pnpm install") {
+        if ($null -ne $prevCI) { $env:CI = $prevCI } else { Remove-Item Env:CI -ErrorAction SilentlyContinue }
+        if ($null -ne $prevOptional) { $env:npm_config_optional = $prevOptional } else { Remove-Item Env:npm_config_optional -ErrorAction SilentlyContinue }
         return
     }
 
-    Write-Host "pnpm install failed. Removing node_modules and retrying once..." -ForegroundColor Yellow
-    Clear-NodeModules
-    & pnpm install
-    if ($LASTEXITCODE -ne 0) {
-        throw "pnpm install failed"
+    Write-Host "pnpm install failed. Cleaning pnpm artifacts and retrying once..." -ForegroundColor Yellow
+    try {
+        Clear-NodeModules
+        Invoke-PnpmStorePrune
+
+        if (-not (Invoke-PnpmInstall -Label "pnpm install after cleanup")) {
+            throw "pnpm install failed"
+        }
+    } finally {
+        if ($null -ne $prevCI) { $env:CI = $prevCI } else { Remove-Item Env:CI -ErrorAction SilentlyContinue }
+        if ($null -ne $prevOptional) { $env:npm_config_optional = $prevOptional } else { Remove-Item Env:npm_config_optional -ErrorAction SilentlyContinue }
     }
 }
 
