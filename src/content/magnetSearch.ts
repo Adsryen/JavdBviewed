@@ -8,6 +8,23 @@ import { defaultHttpClient } from '../services/dataAggregator/httpClient';
 import { handlePushToDrive115 } from './drive115';
 import { performanceOptimizer } from './performanceOptimizer';
 import { dbMagnetsQuery, dbMagnetsUpsert } from './dbClient';
+import {
+  buildJavbusAjaxUrl,
+  extractJavbusAjaxParams,
+  getJavbusResponseDiagnostics,
+  parseJavbusFallbackMagnets,
+  parseJavbusMagnetRows,
+} from './javbusMagnetSource';
+import { buildMagnetPaginationState } from './magnetPagination';
+import { appendMagnetResults, getResultSources } from './magnetResultMerge';
+import { fetchJavbusAjaxViaTab } from './javbusTabFetch';
+import {
+  buildMagnetSourceTagView,
+  countUniqueResultsBySource,
+  getMagnetSourceLabel,
+  type MagnetSourceKey,
+  type MagnetSourceSearchState,
+} from './magnetSourceTagState';
 
 // 正则表达式常量
 const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;
@@ -24,6 +41,7 @@ export interface MagnetResult {
   seeders?: number;
   leechers?: number;
   source: string;
+  sources?: string[];
   quality?: string;
   hasSubtitle: boolean;
 }
@@ -39,10 +57,24 @@ export interface MagnetSearchConfig {
     btdig: boolean;
     btsow: boolean;
     torrentz2: boolean;
+    javbus: boolean;
     custom: string[];
   };
   maxResults: number;
   timeout: number;
+}
+
+export interface MagnetSourceRunState {
+  status: MagnetSourceSearchState;
+  resultCount?: number;
+  error?: string;
+}
+
+export interface MagnetExternalSearchResult {
+  discoveredCount: number;
+  duplicateCount: number;
+  uniqueResults: MagnetResult[];
+  sourceStates: Partial<Record<MagnetSourceKey, MagnetSourceRunState>>;
 }
 
 export class MagnetSearchManager {
@@ -50,6 +82,12 @@ export class MagnetSearchManager {
   private isInitialized = false;
   private currentVideoId: string | null = null;
   private baseMagnetWidth = 0;
+  private currentMagnetResults: MagnetResult[] = [];
+  private currentMagnetPage = 1;
+  private nativeMagnetPage = 1;
+  private searchRunId = 0;
+  private sourceTagStates: Partial<Record<MagnetSourceKey, MagnetSourceSearchState>> = {};
+  private sourceTagLatestResultCounts: Partial<Record<MagnetSourceKey, number>> = {};
 
   constructor(config: Partial<MagnetSearchConfig> = {}) {
     this.config = {
@@ -63,6 +101,7 @@ export class MagnetSearchManager {
         btdig: true,
         btsow: true,
         torrentz2: false,
+        javbus: false,
         custom: [],
       },
       maxResults: 20,
@@ -154,9 +193,12 @@ export class MagnetSearchManager {
       // 屏蔽磁力区域广告
       if (this.config.blockMojContent) {
         document.querySelectorAll<HTMLElement>('.moj-content').forEach(el => {
+          el.classList.add('jdb-hidden-moj-content');
           el.style.display = 'none';
         });
       }
+
+      this.applyNativeMagnetPresentation();
 
       // 检查影片是否已看
       const isViewed = await this.checkIfVideoViewed();
@@ -187,17 +229,25 @@ export class MagnetSearchManager {
    */
   async searchMagnets(videoId: string): Promise<void> {
     try {
+      const runId = ++this.searchRunId;
       log(`Searching magnets for: ${videoId}`);
 
       // 收集所有磁力数据（包括JavDB原生 + 搜索结果）
       const allMagnetResults: MagnetResult[] = [];
+      let discoveredCount = 0;
+
+      const appendAndCountResults = (results: MagnetResult[]): number => {
+        discoveredCount += results.length;
+        return appendMagnetResults(allMagnetResults, results);
+      };
 
       // 优先尝试从缓存加载并快速展示
       try {
         const cached = await this.loadCachedMagnets(videoId);
         if (cached.length > 0) {
           log(`Loaded ${cached.length} magnets from cache for ${videoId}`);
-          this.processAndDisplayAllMagnets(cached);
+          appendAndCountResults(cached);
+          this.processAndDisplayAllMagnets(allMagnetResults, { notify: false, discoveredCount });
         }
       } catch (e) {
         log('Load cached magnets failed:', e);
@@ -205,19 +255,16 @@ export class MagnetSearchManager {
 
       // 1. 首先收集JavDB原生磁力数据
       const javdbMagnets = this.collectJavdbMagnets();
-      allMagnetResults.push(...javdbMagnets);
+      appendAndCountResults(javdbMagnets);
       log(`Collected ${javdbMagnets.length} JavDB native magnets`);
 
-      // 提前渲染：若尚未显示任何条目，先用 JavDB 原生磁力填充（包含 115 按钮）
-      try {
-        const magnetContentEl = document.querySelector('#magnets-content');
-        if (magnetContentEl && magnetContentEl.querySelectorAll('.item').length === 0 && javdbMagnets.length > 0) {
-          this.processAndDisplayAllMagnets([...javdbMagnets]);
-        }
-      } catch {}
+      // 提前渲染：JavDB 原生磁力加入缓存结果后立即参与排序显示
+      if (javdbMagnets.length > 0) {
+        this.processAndDisplayAllMagnets(allMagnetResults, { notify: false, discoveredCount });
+      }
 
       // 2. 搜索外部源
-      const searchSources = [];
+      const searchSources: Array<{ name: string; key: MagnetSourceKey; fn: () => Promise<MagnetResult[]> }> = [];
 
       if (this.config.sources.sukebei) {
         searchSources.push({ name: 'Sukebei', key: 'sukebei', fn: () => this.searchSukebei(videoId) });
@@ -235,6 +282,10 @@ export class MagnetSearchManager {
         searchSources.push({ name: 'Torrentz2', key: 'torrentz2', fn: () => this.searchTorrentz2(videoId) });
       }
 
+      if (this.config.sources.javbus) {
+        searchSources.push({ name: 'JAVBUS', key: 'javbus', fn: () => this.searchJavbus(videoId) });
+      }
+
       log(`Starting search on ${searchSources.length} sources: ${searchSources.map(s => s.name).join(', ')}`);
 
       // 4. 如果没有外部搜索源，直接显示JavDB结果
@@ -247,47 +298,124 @@ export class MagnetSearchManager {
       // 5. 使用性能优化器限制并发搜索，避免同时发起过多网络请求
       const searchPromises = searchSources.map(source => {
         // 设置搜索中状态
-        this.updateSourceTagStatus(source.key, 'searching');
+        this.setSourceTagState(source.key, 'searching', allMagnetResults);
 
         // 使用性能优化器调度网络请求，自动限制并发数量
         return performanceOptimizer.scheduleRequest(async () => {
           return source.fn();
         }, 9000) // 适度延长，给外部源更多完成机会
         .then(sourceResults => {
+          if (runId !== this.searchRunId) return sourceResults;
           log(`${source.name} search completed: ${sourceResults.length} results`);
-          this.updateSourceTagStatus(source.key, 'success', sourceResults.length);
+          if (sourceResults.length > 0) {
+            appendAndCountResults(sourceResults);
+            log(`Merged ${source.name} results, total collected: ${allMagnetResults.length}`);
+            this.processAndDisplayAllMagnets(allMagnetResults, { notify: false, discoveredCount });
+            this.upsertMagnetsToCache(videoId, sourceResults).catch(err => log(`${source.name} cache upsert failed:`, err));
+          }
+          this.setSourceTagState(source.key, 'success', allMagnetResults, sourceResults.length);
           return sourceResults;
         }).catch(error => {
+          if (runId !== this.searchRunId) return [];
           log(`${source.name} search failed:`, error);
-          this.updateSourceTagStatus(source.key, 'failed');
+          this.setSourceTagState(source.key, 'failed', allMagnetResults);
           return []; // 返回空数组而不是抛出错误
         });
       });
 
       // 6. 等待所有搜索完成（包括超时的）
-      Promise.all(searchPromises).then(searchResultsArray => {
-        // 合并所有搜索结果
-        searchResultsArray.forEach(results => {
-          allMagnetResults.push(...results);
-        });
-
+      Promise.all(searchPromises).then(() => {
+        if (runId !== this.searchRunId) return;
         log(`All searches completed, total results: ${allMagnetResults.length}`);
 
-        // 统一去重、排序和显示
-        this.processAndDisplayAllMagnets(allMagnetResults);
+        // 最终刷新一次总列表，并给出完成提示
+        this.processAndDisplayAllMagnets(allMagnetResults, { discoveredCount });
 
         // 异步写入缓存（带 TTL）
         this.upsertMagnetsToCache(videoId, allMagnetResults).catch(err => log('Upsert magnets cache failed:', err));
       }).catch(error => {
+        if (runId !== this.searchRunId) return;
         // 这个catch理论上不会被触发，因为我们已经在每个promise中处理了错误
         log('Unexpected error in Promise.all:', error);
-        this.processAndDisplayAllMagnets(allMagnetResults);
+        this.processAndDisplayAllMagnets(allMagnetResults, { discoveredCount });
         this.upsertMagnetsToCache(videoId, allMagnetResults).catch(err => log('Upsert magnets cache failed:', err));
       });
     } catch (error) {
       log('Error searching magnets:', error);
       showToast('搜索磁力链接时发生错误', 'error');
     }
+  }
+
+  /**
+   * 搜索外部磁力源，只返回结果，不读取或写入详情页 DOM。
+   */
+  async searchExternalSources(videoId: string): Promise<MagnetExternalSearchResult> {
+    const allResults: MagnetResult[] = [];
+    const sourceStates: Partial<Record<MagnetSourceKey, MagnetSourceRunState>> = {};
+    const searchSources = this.buildExternalSearchSources(videoId);
+
+    this.currentVideoId = videoId;
+
+    if (searchSources.length === 0) {
+      return {
+        discoveredCount: 0,
+        duplicateCount: 0,
+        uniqueResults: [],
+        sourceStates,
+      };
+    }
+
+    const searchPromises = searchSources.map(async (source) => {
+      sourceStates[source.key] = { status: 'searching' };
+      try {
+        const sourceResults = await performanceOptimizer.scheduleRequest(() => source.fn(), 9000);
+        appendMagnetResults(allResults, sourceResults);
+        sourceStates[source.key] = { status: 'success', resultCount: sourceResults.length };
+        return sourceResults;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log(`${source.name} external search failed:`, error);
+        sourceStates[source.key] = { status: 'failed', resultCount: 0, error: message };
+        return [];
+      }
+    });
+
+    const sourceResults = await Promise.all(searchPromises);
+    const discoveredCount = sourceResults.reduce((total, results) => total + results.length, 0);
+    const uniqueResults = this.sortResults(this.deduplicateResults(allResults));
+
+    return {
+      discoveredCount,
+      duplicateCount: Math.max(0, discoveredCount - uniqueResults.length),
+      uniqueResults,
+      sourceStates,
+    };
+  }
+
+  private buildExternalSearchSources(videoId: string): Array<{ name: string; key: MagnetSourceKey; fn: () => Promise<MagnetResult[]> }> {
+    const searchSources: Array<{ name: string; key: MagnetSourceKey; fn: () => Promise<MagnetResult[]> }> = [];
+
+    if (this.config.sources.sukebei) {
+      searchSources.push({ name: 'Sukebei', key: 'sukebei', fn: () => this.searchSukebei(videoId) });
+    }
+
+    if (this.config.sources.btdig) {
+      searchSources.push({ name: 'BTdig', key: 'btdig', fn: () => this.searchBtdig(videoId) });
+    }
+
+    if (this.config.sources.btsow) {
+      searchSources.push({ name: 'BTSOW', key: 'btsow', fn: () => this.searchBtsow(videoId) });
+    }
+
+    if (this.config.sources.torrentz2) {
+      searchSources.push({ name: 'Torrentz2', key: 'torrentz2', fn: () => this.searchTorrentz2(videoId) });
+    }
+
+    if (this.config.sources.javbus) {
+      searchSources.push({ name: 'JAVBUS', key: 'javbus', fn: () => this.searchJavbus(videoId) });
+    }
+
+    return searchSources;
   }
 
   /**
@@ -308,7 +436,7 @@ export class MagnetSearchManager {
       return results;
     } catch (error) {
       log('Sukebei search failed:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -326,7 +454,7 @@ export class MagnetSearchManager {
       return this.parseBtdigResults(response);
     } catch (error) {
       log('BTdig search failed:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -344,7 +472,7 @@ export class MagnetSearchManager {
       return this.parseBtsowResults(response);
     } catch (error) {
       log('BTSOW search failed:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -361,7 +489,79 @@ export class MagnetSearchManager {
       return this.parseTorrentz2Results(response);
     } catch (error) {
       log('Torrentz2 search failed:', error);
-      return [];
+      throw error;
+    }
+  }
+
+  /**
+   * 搜索JAVBUS
+   */
+  private async searchJavbus(videoId: string): Promise<MagnetResult[]> {
+    try {
+      const pageUrl = `https://www.javbus.com/${encodeURIComponent(videoId)}`;
+      const javbusHeaders = {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        Referer: 'https://www.javbus.com/',
+        Cookie: 'agegate=1; over18=1; existmag=all',
+      };
+      const pageHtml = await defaultHttpClient.get<string>(pageUrl, {
+        timeout: this.config.timeout,
+        retries: 1,
+        responseType: 'text',
+        headers: javbusHeaders,
+      });
+      log(`[JAVBUS] Detail page loaded for ${videoId}: ${pageHtml.length} chars`);
+
+      const ajaxParams = extractJavbusAjaxParams(pageHtml);
+      if (!ajaxParams) {
+        const fallbackResults = parseJavbusFallbackMagnets(pageHtml, videoId);
+        log(`[JAVBUS] Ajax params not found for ${videoId}, fallback parsed ${fallbackResults.length} results`);
+        return fallbackResults;
+      }
+      log(`[JAVBUS] Ajax params found for ${videoId}:`, { gid: ajaxParams.gid, uc: ajaxParams.uc, hasImg: !!ajaxParams.img });
+
+      const ajaxUrl = buildJavbusAjaxUrl(ajaxParams);
+      const ajaxHtml = await defaultHttpClient.get<string>(ajaxUrl, {
+        timeout: this.config.timeout,
+        retries: 1,
+        responseType: 'text',
+        referrer: pageUrl,
+        headers: {
+          ...javbusHeaders,
+          Referer: pageUrl,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      log(`[JAVBUS] Ajax response loaded for ${videoId}: ${ajaxHtml.length} chars`);
+
+      const results = parseJavbusMagnetRows(ajaxHtml, videoId);
+      if (results.length > 0) {
+        log(`[JAVBUS] Ajax parsed ${results.length} results for ${videoId}`);
+        return results;
+      }
+      log(`[JAVBUS] Ajax parsed 0 diagnostics for ${videoId}:`, getJavbusResponseDiagnostics(ajaxHtml));
+
+      try {
+        log(`[JAVBUS] Ajax empty for ${videoId}, retrying in JAVBUS tab context`);
+        const tabAjaxHtml = await fetchJavbusAjaxViaTab(pageUrl, this.config.timeout);
+        log(`[JAVBUS] Tab ajax response loaded for ${videoId}: ${tabAjaxHtml.length} chars`);
+        const tabResults = parseJavbusMagnetRows(tabAjaxHtml, videoId);
+        if (tabResults.length > 0) {
+          log(`[JAVBUS] Tab ajax parsed ${tabResults.length} results for ${videoId}`);
+          return tabResults;
+        }
+        log(`[JAVBUS] Tab ajax parsed 0 diagnostics for ${videoId}:`, getJavbusResponseDiagnostics(tabAjaxHtml));
+      } catch (tabError) {
+        log(`[JAVBUS] Tab ajax retry failed for ${videoId}:`, tabError);
+      }
+
+      const fallbackResults = parseJavbusFallbackMagnets(pageHtml, videoId);
+      log(`[JAVBUS] Ajax parsed 0 results for ${videoId}, fallback parsed ${fallbackResults.length} results`);
+      return fallbackResults;
+    } catch (error) {
+      log('JAVBUS search failed:', error);
+      throw error;
     }
   }
 
@@ -568,15 +768,9 @@ export class MagnetSearchManager {
    * 去重结果（基于磁力链接hash）
    */
   private deduplicateResults(results: MagnetResult[]): MagnetResult[] {
-    const seen = new Set<string>();
-    return results.filter(result => {
-      const hash = this.extractHashFromMagnet(result.magnet);
-      if (seen.has(hash)) {
-        return false;
-      }
-      seen.add(hash);
-      return true;
-    });
+    const uniqueResults: MagnetResult[] = [];
+    appendMagnetResults(uniqueResults, results);
+    return uniqueResults;
   }
 
   /**
@@ -791,32 +985,40 @@ export class MagnetSearchManager {
   /**
    * 统一处理和显示所有磁力数据
    */
-  private processAndDisplayAllMagnets(allResults: MagnetResult[]): void {
+  private processAndDisplayAllMagnets(allResults: MagnetResult[], options: { notify?: boolean; discoveredCount?: number } = {}): void {
     try {
-      log(`Processing ${allResults.length} total magnet results`);
+      const notify = options.notify !== false;
+      const discoveredCount = Math.max(options.discoveredCount ?? allResults.length, allResults.length);
+      log(`Processing ${discoveredCount} discovered magnet results`);
 
       // 显示来源统计
       const sourceStats: Record<string, number> = {};
       allResults.forEach(result => {
-        sourceStats[result.source] = (sourceStats[result.source] || 0) + 1;
+        getResultSources(result).forEach((source) => {
+          sourceStats[source] = (sourceStats[source] || 0) + 1;
+        });
       });
       log('Source statistics:', sourceStats);
 
       // 去重和排序
       const uniqueResults = this.deduplicateResults(allResults);
       const sortedResults = this.sortResults(uniqueResults);
-      const limitedResults = sortedResults.slice(0, this.config.maxResults);
+      const displayLimit = sortedResults.length > 30 ? sortedResults.length : this.config.maxResults;
+      const limitedResults = sortedResults.slice(0, displayLimit);
+      const duplicateCount = Math.max(0, discoveredCount - uniqueResults.length);
 
-      log(`After processing: ${uniqueResults.length} unique, displaying ${limitedResults.length}`);
+      log(`After processing: ${discoveredCount} discovered, ${uniqueResults.length} unique, ${duplicateCount} deduplicated, displaying ${limitedResults.length}`);
 
       // 清空现有磁力列表
       this.clearMagnetList();
 
       // 重新显示所有磁力数据
+      this.currentMagnetResults = limitedResults;
+      this.currentMagnetPage = 1;
       this.displayAllMagnets(limitedResults);
 
       // 更新总数显示
-      this.updateTotalCount();
+      this.updateTotalCount(limitedResults.length);
 
       // 渲染后再次钳制容器宽度，防止新增节点导致回流拉宽
       this.clampMagnetContainerWidth();
@@ -824,7 +1026,9 @@ export class MagnetSearchManager {
       // 检测并标记横向溢出来源
       this.debugOverflow();
 
-      showToast(`共找到 ${limitedResults.length} 个磁力链接`, 'success');
+      if (notify) {
+        showToast(`磁力搜索完成：发现 ${discoveredCount} 条，去重 ${duplicateCount} 条，显示 ${limitedResults.length} 条`, 'success');
+      }
       log(`Successfully displayed ${limitedResults.length} total magnet results`);
     } catch (error) {
       log('Error processing all magnets:', error);
@@ -846,12 +1050,16 @@ export class MagnetSearchManager {
   /**
    * 显示所有磁力数据（统一样式）- 清空与追加在同一个 DOM 批次中执行，避免乱序
    */
-  private displayAllMagnets(results: MagnetResult[]): void {
+  private displayAllMagnets(results: MagnetResult[], scrollToTop = false): void {
+    const pagination = buildMagnetPaginationState(results.length, this.currentMagnetPage);
+    this.currentMagnetPage = pagination.currentPage;
+    const pageResults = results.slice(pagination.startIndex, pagination.endIndex);
+
     // 先同步构建 DocumentFragment，不触及真实 DOM
     const fragment = document.createDocumentFragment();
-    results.forEach((result, index) => {
+    pageResults.forEach((result, index) => {
       try {
-        const magnetItem = this.createUnifiedMagnetItem(result, index);
+        const magnetItem = this.createUnifiedMagnetItem(result, pagination.startIndex + index);
         fragment.appendChild(magnetItem);
         log(`Added unified magnet item ${index + 1}: ${result.name.substring(0, 50)}...`);
       } catch (error) {
@@ -869,8 +1077,131 @@ export class MagnetSearchManager {
       magnetContent.innerHTML = '';
       log('Cleared existing magnet list');
       magnetContent.appendChild(fragment);
-      log(`Successfully displayed ${results.length} unified magnet items`);
+      this.renderMagnetPaginationControls(magnetContent, pagination, results.length);
+      if (scrollToTop && magnetContent instanceof HTMLElement) {
+        magnetContent.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      log(`Successfully displayed ${pageResults.length} unified magnet items`);
     });
+  }
+
+  private renderMagnetPaginationControls(container: Element, pagination: ReturnType<typeof buildMagnetPaginationState>, total: number): void {
+    if (!pagination.enabled) return;
+
+    const controls = document.createElement('div');
+    controls.className = 'jdb-magnet-pagination';
+
+    const prev = document.createElement('button');
+    prev.className = 'button is-small';
+    prev.dataset.jdbMagnetPrev = '1';
+    prev.textContent = '上一页';
+    prev.disabled = pagination.currentPage <= 1;
+    prev.addEventListener('click', () => this.goToMagnetPage(pagination.currentPage - 1));
+
+    const pageInfo = document.createElement('span');
+    pageInfo.className = 'jdb-magnet-page-info';
+    pageInfo.textContent = `${pagination.currentPage}/${pagination.totalPages} · 共 ${total} 条`;
+
+    const next = document.createElement('button');
+    next.className = 'button is-small';
+    next.dataset.jdbMagnetNext = '1';
+    next.textContent = '下一页';
+    next.disabled = pagination.currentPage >= pagination.totalPages;
+    next.addEventListener('click', () => this.goToMagnetPage(pagination.currentPage + 1));
+
+    controls.appendChild(prev);
+    controls.appendChild(pageInfo);
+    controls.appendChild(next);
+    container.appendChild(controls);
+  }
+
+  private goToMagnetPage(page: number): void {
+    if (this.currentMagnetResults.length === 0) return;
+    this.currentMagnetPage = page;
+    this.displayAllMagnets(this.currentMagnetResults, true);
+    this.updateTotalCount(this.currentMagnetResults.length);
+  }
+
+  private applyNativeMagnetPresentation(page = this.nativeMagnetPage): void {
+    const container = document.querySelector('#magnets-content');
+    if (!container) return;
+
+    const rows = Array.from(container.querySelectorAll<HTMLElement>(':scope > .item.columns.is-desktop'));
+    if (rows.length === 0) return;
+
+    this.addUnifiedMagnetStyles();
+    container.querySelector('.jdb-native-magnet-pagination')?.remove();
+
+    const pagination = buildMagnetPaginationState(rows.length, page);
+    this.nativeMagnetPage = pagination.currentPage;
+
+    rows.forEach((row, index) => {
+      this.decorateNativeMagnetRow(row);
+      const isVisible = index >= pagination.startIndex && index < pagination.endIndex;
+      row.classList.toggle('jdb-magnet-page-hidden', !isVisible);
+      row.style.display = '';
+    });
+
+    if (!pagination.enabled) return;
+
+    const controls = document.createElement('div');
+    controls.className = 'jdb-magnet-pagination jdb-native-magnet-pagination';
+
+    const prev = document.createElement('button');
+    prev.className = 'button is-small';
+    prev.dataset.jdbMagnetPrev = '1';
+    prev.textContent = '上一页';
+    prev.disabled = pagination.currentPage <= 1;
+    prev.addEventListener('click', () => this.applyNativeMagnetPresentation(pagination.currentPage - 1));
+
+    const pageInfo = document.createElement('span');
+    pageInfo.className = 'jdb-magnet-page-info';
+    pageInfo.textContent = `${pagination.currentPage}/${pagination.totalPages} · 共 ${rows.length} 条`;
+
+    const next = document.createElement('button');
+    next.className = 'button is-small';
+    next.dataset.jdbMagnetNext = '1';
+    next.textContent = '下一页';
+    next.disabled = pagination.currentPage >= pagination.totalPages;
+    next.addEventListener('click', () => this.applyNativeMagnetPresentation(pagination.currentPage + 1));
+
+    controls.appendChild(prev);
+    controls.appendChild(pageInfo);
+    controls.appendChild(next);
+    container.appendChild(controls);
+  }
+
+  private decorateNativeMagnetRow(row: HTMLElement): void {
+    row.classList.add('jdb-magnet-row', 'jdb-native-magnet-row', 'privacy-protected');
+    row.setAttribute('data-privacy-protected', 'true');
+    row.setAttribute('data-source', row.getAttribute('data-source') || 'JavDB');
+
+    const nameColumn = row.querySelector<HTMLElement>('.magnet-name');
+    nameColumn?.classList.add('jdb-magnet-main');
+
+    const link = row.querySelector<HTMLAnchorElement>('.magnet-name a');
+    link?.classList.add('jdb-magnet-link');
+
+    const name = row.querySelector<HTMLElement>('.magnet-name .name');
+    name?.classList.add('jdb-magnet-title', 'privacy-protected');
+    name?.setAttribute('data-privacy-protected', 'true');
+
+    const meta = row.querySelector<HTMLElement>('.magnet-name .meta');
+    meta?.classList.add('jdb-magnet-meta');
+
+    let tags = row.querySelector<HTMLElement>('.magnet-name .tags');
+    if (!tags && link) {
+      tags = document.createElement('div');
+      tags.className = 'tags';
+      link.appendChild(tags);
+    }
+    tags?.classList.add('jdb-magnet-tags');
+    if (tags && !tags.querySelector('.jdb-native-source-tag')) {
+      const sourceTag = document.createElement('span');
+      sourceTag.className = 'tag is-info is-small jdb-native-source-tag';
+      sourceTag.textContent = 'JavDB';
+      tags.prepend(sourceTag);
+    }
   }
 
   /**
@@ -884,32 +1215,31 @@ export class MagnetSearchManager {
   private createUnifiedMagnetItem(result: MagnetResult, index: number): HTMLElement {
     // 创建主容器
     const item = document.createElement('div');
-    item.className = `item is-desktop ${index % 2 === 0 ? '' : 'odd'} privacy-protected`;
+    item.className = `item is-desktop jdb-magnet-row ${index % 2 === 0 ? '' : 'odd'} privacy-protected`;
+    if (result.source !== 'JavDB') {
+      item.classList.add('is-external-source');
+    }
     item.setAttribute('data-privacy-protected', 'true');
+    item.setAttribute('data-source', result.source);
     // 统一使用弹性布局，避免 Bulma columns 的列宽不一致导致溢出
     item.style.display = 'flex';
     item.style.alignItems = 'center';
     item.style.flexWrap = 'nowrap';
 
-    // 如果是搜索结果，添加特殊样式
-    if (result.source !== 'JavDB') {
-      item.style.backgroundColor = 'rgb(248, 249, 250)';
-      item.style.borderLeft = '4px solid rgb(0, 123, 255)';
-    }
-
     // 创建磁力名称列 - 使用固定宽度以对齐按钮
     const nameColumn = document.createElement('div');
-    nameColumn.className = 'magnet-name';
+    nameColumn.className = 'magnet-name jdb-magnet-main';
     // 自适应宽度，并允许内容被省略号正确截断
     nameColumn.style.flex = '1 1 auto';
     nameColumn.style.minWidth = '0';
 
     const magnetLink = document.createElement('a');
+    magnetLink.className = 'jdb-magnet-link';
     magnetLink.href = result.magnet;
     magnetLink.title = '右键点击并选择「复制链接地址」';
 
     const nameSpan = document.createElement('span');
-    nameSpan.className = 'name privacy-protected';
+    nameSpan.className = 'name jdb-magnet-title privacy-protected';
     nameSpan.setAttribute('data-privacy-protected', 'true');
     nameSpan.textContent = result.name;
     nameSpan.style.display = 'block';
@@ -919,19 +1249,24 @@ export class MagnetSearchManager {
     nameSpan.title = result.name; // 悬停显示完整名称
 
     const metaSpan = document.createElement('span');
-    metaSpan.className = 'meta';
-    metaSpan.innerHTML = `<br>${result.size}${result.source !== 'JavDB' ? `, 来源: ${result.source}` : ''}`;
+    metaSpan.className = 'meta jdb-magnet-meta';
+    const sourceLabels = getResultSources(result);
+    const sourceText = sourceLabels.join(' / ');
+    metaSpan.textContent = result.size
+      ? `${result.size}${sourceText !== 'JavDB' ? ` · 来源 ${sourceText}` : ''}`
+      : `${sourceText !== 'JavDB' ? `来源 ${sourceText}` : 'JavDB'}`;
 
     // 创建标签容器
     const tagsDiv = document.createElement('div');
-    tagsDiv.className = 'tags';
-    tagsDiv.innerHTML = '<br>';
+    tagsDiv.className = 'tags jdb-magnet-tags';
 
     // 添加来源标签
-    const sourceTag = document.createElement('span');
-    sourceTag.className = `tag is-${result.source === 'JavDB' ? 'info' : 'danger'} is-small`;
-    sourceTag.textContent = result.source;
-    tagsDiv.appendChild(sourceTag);
+    sourceLabels.forEach((source) => {
+      const sourceTag = document.createElement('span');
+      sourceTag.className = `tag is-${source === 'JavDB' ? 'info' : 'danger'} is-small jdb-magnet-source-tag`;
+      sourceTag.textContent = source;
+      tagsDiv.appendChild(sourceTag);
+    });
 
     // 添加质量标签
     if (result.quality) {
@@ -991,7 +1326,6 @@ export class MagnetSearchManager {
     const push115Button = document.createElement('button');
     push115Button.className = 'button is-success is-small drive115-push-btn';
     push115Button.title = '推送到115网盘离线下载';
-    push115Button.style.marginLeft = '5px';
     push115Button.innerHTML = '&nbsp;推送115&nbsp;';
     push115Button.addEventListener('click', () => this.push115(push115Button, result.magnet, result.name));
 
@@ -1050,14 +1384,14 @@ export class MagnetSearchManager {
 
       // 创建按钮容器
       const buttonContainer = document.createElement('div');
-      buttonContainer.style.cssText = 'margin-top: 10px; margin-bottom: 10px;';
+      this.addUnifiedMagnetStyles();
+      buttonContainer.className = 'jdb-magnet-manual-search';
 
       // 创建搜索按钮
       const searchButton = document.createElement('button');
       searchButton.id = 'manual-magnet-search-btn';
-      searchButton.className = 'button is-info is-small';
+      searchButton.className = 'button is-info is-small jdb-magnet-manual-button';
       searchButton.innerHTML = '🧲 加载磁力资源';
-      searchButton.style.cssText = 'margin-right: 8px;';
 
       searchButton.addEventListener('click', async () => {
         searchButton.disabled = true;
@@ -1076,7 +1410,7 @@ export class MagnetSearchManager {
 
       // 创建提示文本
       const hintText = document.createElement('span');
-      hintText.className = 'has-text-grey is-size-7';
+      hintText.className = 'has-text-grey is-size-7 jdb-magnet-manual-hint';
       hintText.textContent = isViewed ? '（影片已看，点击按钮加载磁力资源）' : '（点击按钮加载磁力资源）';
 
       buttonContainer.appendChild(searchButton);
@@ -1102,6 +1436,7 @@ export class MagnetSearchManager {
   private addSearchSourceTags(): void {
     const topMeta = document.querySelector('.top-meta');
     if (!topMeta) return;
+    topMeta.classList.add('jdb-magnet-meta-bar');
 
     // 添加动画样式
     this.addSearchTagStyles();
@@ -1113,17 +1448,20 @@ export class MagnetSearchManager {
       tagsContainer.className = 'tags';
       topMeta.insertBefore(tagsContainer, topMeta.firstChild);
     }
+    tagsContainer.classList.add('jdb-magnet-source-tags');
 
     // 为每个启用的搜索源添加标签
-    const sources = [
-      { key: 'sukebei', name: 'SUK', enabled: this.config.sources.sukebei },
-      { key: 'btdig', name: 'BTD', enabled: this.config.sources.btdig },
-      { key: 'btsow', name: 'BTS', enabled: this.config.sources.btsow },
-      { key: 'torrentz2', name: 'TZ2', enabled: this.config.sources.torrentz2 }
+    const sources: Array<{ key: MagnetSourceKey; enabled: boolean }> = [
+      { key: 'sukebei', enabled: this.config.sources.sukebei },
+      { key: 'btdig', enabled: this.config.sources.btdig },
+      { key: 'btsow', enabled: this.config.sources.btsow },
+      { key: 'torrentz2', enabled: this.config.sources.torrentz2 },
+      { key: 'javbus', enabled: this.config.sources.javbus }
     ];
 
     sources.forEach(source => {
       if (!source.enabled) return;
+      this.sourceTagStates[source.key] = this.sourceTagStates[source.key] || 'idle';
 
       // 检查是否已经添加过标签
       if (tagsContainer!.querySelector(`#magnet-${source.key}-tag`)) return;
@@ -1131,7 +1469,7 @@ export class MagnetSearchManager {
       const tag = document.createElement('span');
       tag.id = `magnet-${source.key}-tag`;
       tag.className = 'tag is-light magnet-search-tag';
-      tag.textContent = `${source.name}搜索`;
+      tag.textContent = `${getMagnetSourceLabel(source.key)}搜索`;
       tagsContainer!.appendChild(tag);
     });
   }
@@ -1139,40 +1477,51 @@ export class MagnetSearchManager {
   /**
    * 更新搜索源标签状态
    */
-  private updateSourceTagStatus(sourceKey: string, status: 'searching' | 'success' | 'failed', resultCount?: number): void {
+  private setSourceTagState(
+    sourceKey: MagnetSourceKey,
+    status: MagnetSourceSearchState,
+    currentResults: MagnetResult[],
+    latestResultCount?: number,
+  ): void {
+    this.sourceTagStates[sourceKey] = status;
+    if (typeof latestResultCount === 'number') {
+      this.sourceTagLatestResultCounts[sourceKey] = latestResultCount;
+    }
+    if (status === 'searching' || status === 'failed') {
+      delete this.sourceTagLatestResultCounts[sourceKey];
+    }
+    this.refreshSourceTagStatuses(currentResults);
+  }
+
+  private refreshSourceTagStatuses(currentResults: MagnetResult[]): void {
+    const counts = countUniqueResultsBySource(currentResults);
+    (Object.keys(this.sourceTagStates) as MagnetSourceKey[]).forEach(sourceKey => {
+      this.updateSourceTagStatus(
+        sourceKey,
+        this.sourceTagStates[sourceKey] || 'idle',
+        counts[sourceKey] || 0,
+        this.sourceTagLatestResultCounts[sourceKey],
+      );
+    });
+  }
+
+  private updateSourceTagStatus(
+    sourceKey: MagnetSourceKey,
+    status: MagnetSourceSearchState,
+    currentUniqueCount: number,
+    latestResultCount?: number,
+  ): void {
     const tag = document.querySelector(`#magnet-${sourceKey}-tag`) as HTMLElement;
     if (!tag) return;
 
-    const sourceNames: Record<string, string> = {
-      'sukebei': 'SUK',
-      'btdig': 'BTD',
-      'btsow': 'BTS',
-      'torrentz2': 'TZ2'
-    };
-
-    const sourceName = sourceNames[sourceKey] || sourceKey.toUpperCase();
+    const view = buildMagnetSourceTagView(sourceKey, status, currentUniqueCount, latestResultCount);
 
     // 清除所有状态类
     tag.classList.remove('is-light', 'is-success', 'is-danger', 'is-warning', 'is-loading');
-
-    switch (status) {
-      case 'searching':
-        tag.classList.add('is-warning');
-        tag.innerHTML = `${sourceName}搜索中...`;
-        // 添加加载动画效果
-        tag.style.animation = 'pulse 1.5s infinite';
-        break;
-      case 'success':
-        tag.classList.add('is-success');
-        tag.innerHTML = `${sourceName}✓${resultCount ? `(${resultCount})` : ''}`;
-        tag.style.animation = '';
-        break;
-      case 'failed':
-        tag.classList.add('is-danger');
-        tag.innerHTML = `${sourceName}✗`;
-        tag.style.animation = '';
-        break;
-    }
+    tag.classList.add(view.className);
+    tag.textContent = view.text;
+    tag.title = view.title;
+    tag.style.animation = status === 'searching' ? 'pulse 1.5s infinite' : '';
   }
 
   /**
@@ -1200,10 +1549,111 @@ export class MagnetSearchManager {
       }
 
       /* 避免顶部 meta 区域的 source 标签把页面横向撑宽 */
+      .top-meta.jdb-magnet-meta-bar {
+        --jdb-magnet-meta-bg: #ffffff;
+        --jdb-magnet-meta-border: rgba(15, 23, 42, 0.10);
+        --jdb-magnet-meta-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        --jdb-magnet-meta-muted: #64748b;
+        --jdb-magnet-meta-success-bg: #dcfce7;
+        --jdb-magnet-meta-success-text: #166534;
+        --jdb-magnet-meta-danger-bg: #fee2e2;
+        --jdb-magnet-meta-danger-text: #991b1b;
+        --jdb-magnet-meta-warning-bg: #fef3c7;
+        --jdb-magnet-meta-warning-text: #92400e;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        min-height: 0 !important;
+        margin-bottom: 6px !important;
+        padding: 7px 9px !important;
+        border: 1px solid var(--jdb-magnet-meta-border);
+        border-radius: 10px;
+        background: var(--jdb-magnet-meta-bg);
+        box-shadow: var(--jdb-magnet-meta-shadow);
+      }
+
+      html[data-theme="dark"] .top-meta.jdb-magnet-meta-bar {
+        --jdb-magnet-meta-bg: #1f2937;
+        --jdb-magnet-meta-border: rgba(148, 163, 184, 0.22);
+        --jdb-magnet-meta-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+        --jdb-magnet-meta-muted: #9ca3af;
+        --jdb-magnet-meta-success-bg: rgba(34, 197, 94, 0.18);
+        --jdb-magnet-meta-success-text: #bbf7d0;
+        --jdb-magnet-meta-danger-bg: rgba(239, 68, 68, 0.18);
+        --jdb-magnet-meta-danger-text: #fecaca;
+        --jdb-magnet-meta-warning-bg: rgba(245, 158, 11, 0.18);
+        --jdb-magnet-meta-warning-text: #fde68a;
+      }
+
+      .top-meta.jdb-magnet-meta-bar .tags,
+      .top-meta.jdb-magnet-meta-bar .jdb-magnet-source-tags {
+        display: flex;
+        flex-wrap: wrap !important;
+        align-items: center;
+        gap: 6px;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag {
+        height: 24px;
+        margin: 0 !important;
+        padding: 0 9px;
+        border-radius: 999px;
+        border: 0;
+        color: var(--jdb-magnet-meta-muted);
+        background: rgba(148, 163, 184, 0.14);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 24px;
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-success {
+        color: var(--jdb-magnet-meta-success-text);
+        background: var(--jdb-magnet-meta-success-bg);
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-danger {
+        color: var(--jdb-magnet-meta-danger-text);
+        background: var(--jdb-magnet-meta-danger-bg);
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-warning,
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-loading {
+        color: var(--jdb-magnet-meta-warning-text);
+        background: var(--jdb-magnet-meta-warning-bg);
+      }
+
+      .top-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        min-height: 0 !important;
+        margin-bottom: 6px !important;
+        padding-bottom: 0 !important;
+      }
+
       .top-meta .tags {
         display: flex;
         flex-wrap: wrap !important;
         max-width: 100% !important;
+        overflow: hidden !important;
+        margin-bottom: 0 !important;
+      }
+
+      .top-meta .moj-content.jdb-hidden-moj-content,
+      .top-meta .moj-content[style*="display: none"],
+      .top-meta .moj-content[style*="display:none"] {
+        width: 0 !important;
+        height: 0 !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
         overflow: hidden !important;
       }
     `;
@@ -1219,13 +1669,190 @@ export class MagnetSearchManager {
     const style = document.createElement('style');
     style.id = 'unified-magnet-list-styles';
     style.textContent = `
+      #magnets-content,
+      .jdb-magnet-manual-search {
+        --jdb-magnet-panel-bg: #f7fafc;
+        --jdb-magnet-card-bg: #ffffff;
+        --jdb-magnet-card-border: rgba(15, 23, 42, 0.10);
+        --jdb-magnet-card-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        --jdb-magnet-text: #1f2937;
+        --jdb-magnet-muted: #64748b;
+        --jdb-magnet-title: #0f73a8;
+        --jdb-magnet-accent: #0ea5e9;
+        --jdb-magnet-surface: #eef2f7;
+        --jdb-magnet-button-bg: #e1f5fe;
+        --jdb-magnet-button-hover: #c8ecfb;
+        --jdb-magnet-button-text: #0277bd;
+        --jdb-magnet-success-bg: #dcfce7;
+        --jdb-magnet-success-text: #166534;
+        --jdb-magnet-disabled-bg: #e5e7eb;
+        --jdb-magnet-disabled-text: #94a3b8;
+      }
+
+      html[data-theme="dark"] #magnets-content,
+      html[data-theme="dark"] .jdb-magnet-manual-search {
+        --jdb-magnet-panel-bg: #111827;
+        --jdb-magnet-card-bg: #1f2937;
+        --jdb-magnet-card-border: rgba(148, 163, 184, 0.22);
+        --jdb-magnet-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+        --jdb-magnet-text: #e5e7eb;
+        --jdb-magnet-muted: #9ca3af;
+        --jdb-magnet-title: #7dd3fc;
+        --jdb-magnet-accent: #38bdf8;
+        --jdb-magnet-surface: rgba(148, 163, 184, 0.12);
+        --jdb-magnet-button-bg: rgba(14, 165, 233, 0.18);
+        --jdb-magnet-button-hover: rgba(14, 165, 233, 0.28);
+        --jdb-magnet-button-text: #bae6fd;
+        --jdb-magnet-success-bg: rgba(34, 197, 94, 0.18);
+        --jdb-magnet-success-text: #bbf7d0;
+        --jdb-magnet-disabled-bg: rgba(148, 163, 184, 0.12);
+        --jdb-magnet-disabled-text: #64748b;
+      }
+
       /* 容器级别约束，避免出现横向滚动和超宽 */
       #magnets-content {
         max-width: 100% !important;
+        max-height: 720px !important;
+        overflow-y: auto !important;
         overflow-x: hidden !important;
         box-sizing: border-box !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
+        padding: 12px !important;
+        border-radius: 12px;
+        background: var(--jdb-magnet-panel-bg);
+        scroll-behavior: smooth;
+      }
+
+      .jdb-magnet-manual-search {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 10px;
+        margin: 10px 0;
+        padding: 10px 12px;
+        border: 1px solid var(--jdb-magnet-card-border);
+        border-radius: 10px;
+        color: var(--jdb-magnet-text);
+        background: var(--jdb-magnet-card-bg);
+        box-shadow: var(--jdb-magnet-card-shadow);
+      }
+
+      .jdb-magnet-manual-search .jdb-magnet-manual-button {
+        height: 28px;
+        border-color: transparent;
+        border-radius: 8px;
+        color: var(--jdb-magnet-button-text);
+        background: var(--jdb-magnet-button-bg);
+        font-weight: 700;
+      }
+
+      .jdb-magnet-manual-search .jdb-magnet-manual-hint {
+        color: var(--jdb-magnet-muted) !important;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .top-meta.jdb-magnet-meta-bar {
+        --jdb-magnet-meta-bg: #ffffff;
+        --jdb-magnet-meta-border: rgba(15, 23, 42, 0.10);
+        --jdb-magnet-meta-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        --jdb-magnet-meta-muted: #64748b;
+        --jdb-magnet-meta-success-bg: #dcfce7;
+        --jdb-magnet-meta-success-text: #166534;
+        --jdb-magnet-meta-danger-bg: #fee2e2;
+        --jdb-magnet-meta-danger-text: #991b1b;
+        --jdb-magnet-meta-warning-bg: #fef3c7;
+        --jdb-magnet-meta-warning-text: #92400e;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        min-height: 0 !important;
+        margin-bottom: 6px !important;
+        padding: 7px 9px !important;
+        border: 1px solid var(--jdb-magnet-meta-border);
+        border-radius: 10px;
+        background: var(--jdb-magnet-meta-bg);
+        box-shadow: var(--jdb-magnet-meta-shadow);
+      }
+
+      html[data-theme="dark"] .top-meta.jdb-magnet-meta-bar {
+        --jdb-magnet-meta-bg: #1f2937;
+        --jdb-magnet-meta-border: rgba(148, 163, 184, 0.22);
+        --jdb-magnet-meta-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+        --jdb-magnet-meta-muted: #9ca3af;
+        --jdb-magnet-meta-success-bg: rgba(34, 197, 94, 0.18);
+        --jdb-magnet-meta-success-text: #bbf7d0;
+        --jdb-magnet-meta-danger-bg: rgba(239, 68, 68, 0.18);
+        --jdb-magnet-meta-danger-text: #fecaca;
+        --jdb-magnet-meta-warning-bg: rgba(245, 158, 11, 0.18);
+        --jdb-magnet-meta-warning-text: #fde68a;
+      }
+
+      .top-meta.jdb-magnet-meta-bar .tags,
+      .top-meta.jdb-magnet-meta-bar .jdb-magnet-source-tags {
+        display: flex;
+        flex-wrap: wrap !important;
+        align-items: center;
+        gap: 6px;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag {
+        height: 24px;
+        margin: 0 !important;
+        padding: 0 9px;
+        border-radius: 999px;
+        border: 0;
+        color: var(--jdb-magnet-meta-muted);
+        background: rgba(148, 163, 184, 0.14);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 24px;
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-success {
+        color: var(--jdb-magnet-meta-success-text);
+        background: var(--jdb-magnet-meta-success-bg);
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-danger {
+        color: var(--jdb-magnet-meta-danger-text);
+        background: var(--jdb-magnet-meta-danger-bg);
+      }
+
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-warning,
+      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-loading {
+        color: var(--jdb-magnet-meta-warning-text);
+        background: var(--jdb-magnet-meta-warning-bg);
+      }
+
+      .top-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        min-height: 0 !important;
+        margin-bottom: 6px !important;
+        padding-bottom: 0 !important;
+      }
+
+      .top-meta > .tags {
+        margin-bottom: 0 !important;
+      }
+
+      .top-meta .moj-content.jdb-hidden-moj-content,
+      .top-meta .moj-content[style*="display: none"],
+      .top-meta .moj-content[style*="display:none"] {
+        width: 0 !important;
+        height: 0 !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
       }
 
       /* 恢复 Bulma 在该区域的负边距行为，避免列 padding 叠加导致超宽 */
@@ -1242,7 +1869,7 @@ export class MagnetSearchManager {
         max-width: 100% !important;
         box-sizing: border-box !important;
         overflow: hidden !important; /* 防止内部偶发性溢出 */
-        padding-left: 8px !important;   /* 使用容器内边距提供间距，不依赖列的 padding */
+        padding-left: 8px !important;   /* 兼容原生磁力节点 */
         padding-right: 8px !important;
       }
 
@@ -1250,11 +1877,107 @@ export class MagnetSearchManager {
         min-width: 0 !important;
       }
 
+      #magnets-content .jdb-magnet-row {
+        gap: 12px;
+        margin-bottom: 8px;
+        padding: 9px 12px !important;
+        border: 1px solid var(--jdb-magnet-card-border);
+        border-radius: 10px;
+        color: var(--jdb-magnet-text);
+        background: var(--jdb-magnet-card-bg);
+        box-shadow: var(--jdb-magnet-card-shadow);
+      }
+
+      #magnets-content .jdb-magnet-row.odd {
+        background: var(--jdb-magnet-card-bg);
+      }
+
+      #magnets-content .jdb-native-magnet-row,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row {
+        gap: 10px;
+        padding: 7px 10px !important;
+      }
+
+      #magnets-content .jdb-native-magnet-row br,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row br {
+        display: none !important;
+      }
+
+      #magnets-content .jdb-native-magnet-row .jdb-magnet-title,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-title {
+        line-height: 1.22;
+      }
+
+      #magnets-content .jdb-native-magnet-row .jdb-magnet-meta,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-meta {
+        margin-top: 2px;
+        line-height: 1.18;
+      }
+
+      #magnets-content .jdb-native-magnet-row .jdb-magnet-tags,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-tags {
+        gap: 4px;
+        margin-top: 3px !important;
+      }
+
+      #magnets-content .jdb-native-magnet-row .jdb-magnet-tags .tag,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-tags .tag {
+        height: 18px;
+        font-size: 10.5px;
+        line-height: 18px;
+      }
+
+      #magnets-content .jdb-native-magnet-row .buttons .button,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .buttons .button {
+        height: 24px;
+        line-height: 1;
+      }
+
+      #magnets-content .jdb-native-magnet-row .date .time,
+      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .date .time {
+        min-height: 20px;
+        padding: 1px 6px;
+      }
+
+      #magnets-content > .item.columns.is-desktop {
+        display: flex !important;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 8px !important;
+        padding: 9px 12px !important;
+        border: 1px solid var(--jdb-magnet-card-border);
+        border-radius: 10px;
+        color: var(--jdb-magnet-text);
+        background: var(--jdb-magnet-card-bg);
+        box-shadow: var(--jdb-magnet-card-shadow);
+      }
+
+      #magnets-content > .item.columns.is-desktop.odd {
+        background: var(--jdb-magnet-card-bg);
+      }
+
+      #magnets-content > .item.columns.is-desktop.jdb-magnet-page-hidden {
+        display: none !important;
+      }
+
+      #magnets-content > .item.columns.is-desktop .column {
+        padding: 0 !important;
+      }
+
+      #magnets-content > .item.columns.is-desktop .magnet-name {
+        flex: 1 1 auto !important;
+      }
+
       /* 名称链接与文本本身的宽度约束与省略号 */
       #magnets-content .item .magnet-name a {
         display: block !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
+      }
+
+      #magnets-content .jdb-magnet-link {
+        color: inherit;
+        text-decoration: none;
       }
 
       #magnets-content .item .magnet-name .name {
@@ -1265,6 +1988,72 @@ export class MagnetSearchManager {
         max-width: 100% !important;
       }
 
+      #magnets-content .jdb-magnet-title {
+        color: var(--jdb-magnet-title);
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.3;
+      }
+
+      #magnets-content > .item.columns.is-desktop .magnet-name .name {
+        color: var(--jdb-magnet-title);
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.3;
+      }
+
+      #magnets-content .jdb-magnet-link:hover .jdb-magnet-title {
+        text-decoration: underline;
+      }
+
+      #magnets-content .jdb-magnet-meta {
+        display: block;
+        margin-top: 3px;
+        color: var(--jdb-magnet-muted);
+        font-size: 12px;
+        line-height: 1.25;
+      }
+
+      #magnets-content > .item.columns.is-desktop .meta {
+        display: block;
+        margin-top: 3px;
+        color: var(--jdb-magnet-muted);
+        font-size: 12px;
+        line-height: 1.25;
+      }
+
+      #magnets-content .jdb-magnet-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        margin: 5px 0 0 !important;
+      }
+
+      #magnets-content .jdb-magnet-tags .tag {
+        height: 20px;
+        margin: 0 !important;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 20px;
+      }
+
+      #magnets-content > .item.columns.is-desktop .tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        margin: 5px 0 0 !important;
+      }
+
+      #magnets-content > .item.columns.is-desktop .tags .tag {
+        height: 20px;
+        margin: 0 !important;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 20px;
+      }
+
       #magnets-content .item .buttons {
         display: flex;
         align-items: center;
@@ -1273,9 +2062,162 @@ export class MagnetSearchManager {
         white-space: nowrap !important;
         max-width: 100% !important;
       }
+
+      #magnets-content .jdb-magnet-row .buttons {
+        margin-bottom: 0;
+      }
+
+      #magnets-content .jdb-magnet-row .buttons .button {
+        height: 26px;
+        margin: 0;
+        border-radius: 8px;
+        font-weight: 700;
+      }
+
+      #magnets-content > .item.columns.is-desktop .buttons {
+        margin: 0 !important;
+        flex: 0 0 auto !important;
+      }
+
+      #magnets-content > .item.columns.is-desktop .buttons .button {
+        height: 26px;
+        margin: 0 !important;
+        border-radius: 8px;
+        font-weight: 700;
+      }
+
+      #magnets-content > .item.columns.is-desktop .buttons .button.is-info {
+        border-color: transparent;
+        color: var(--jdb-magnet-button-text);
+        background: var(--jdb-magnet-button-bg);
+      }
+
+      #magnets-content > .item.columns.is-desktop .buttons .button.is-info:hover {
+        background: var(--jdb-magnet-button-hover);
+      }
+
+      #magnets-content > .item.columns.is-desktop .buttons .button.is-success {
+        border-color: transparent;
+        color: var(--jdb-magnet-success-text);
+        background: var(--jdb-magnet-success-bg);
+      }
+
+      #magnets-content .jdb-magnet-row .buttons .button.is-info {
+        border-color: transparent;
+        color: var(--jdb-magnet-button-text);
+        background: var(--jdb-magnet-button-bg);
+      }
+
+      #magnets-content .jdb-magnet-row .buttons .button.is-info:hover {
+        background: var(--jdb-magnet-button-hover);
+      }
+
+      #magnets-content .jdb-magnet-row .buttons .button.is-success {
+        border-color: transparent;
+        color: var(--jdb-magnet-success-text);
+        background: var(--jdb-magnet-success-bg);
+      }
+
       #magnets-content .item .date {
         flex: 0 0 80px !important;
         text-align: center !important;
+      }
+
+      #magnets-content .jdb-magnet-row .date {
+        flex-basis: 96px !important;
+      }
+
+      #magnets-content .jdb-magnet-row .date .time {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 22px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        color: var(--jdb-magnet-muted);
+        background: var(--jdb-magnet-surface);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      #magnets-content > .item.columns.is-desktop .date {
+        flex: 0 0 96px !important;
+      }
+
+      #magnets-content > .item.columns.is-desktop .date .time {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 22px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        color: var(--jdb-magnet-muted);
+        background: var(--jdb-magnet-surface);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      #magnets-content .jdb-magnet-pagination {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px 8px;
+        background: color-mix(in srgb, var(--jdb-magnet-panel-bg) 94%, transparent);
+        border-top: 1px solid var(--jdb-magnet-card-border);
+        box-sizing: border-box;
+      }
+
+      #magnets-content .jdb-magnet-page-info {
+        min-width: 110px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--jdb-magnet-muted);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      #magnets-content .jdb-magnet-pagination .button {
+        flex: 0 0 auto;
+        border-radius: 8px;
+        color: var(--jdb-magnet-button-text);
+        background: var(--jdb-magnet-button-bg);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) #magnets-content,
+        html:not([data-theme="light"]) .jdb-magnet-manual-search {
+          --jdb-magnet-panel-bg: #111827;
+          --jdb-magnet-card-bg: #1f2937;
+          --jdb-magnet-card-border: rgba(148, 163, 184, 0.22);
+          --jdb-magnet-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+          --jdb-magnet-text: #e5e7eb;
+          --jdb-magnet-muted: #9ca3af;
+          --jdb-magnet-title: #7dd3fc;
+          --jdb-magnet-accent: #38bdf8;
+          --jdb-magnet-surface: rgba(148, 163, 184, 0.12);
+          --jdb-magnet-button-bg: rgba(14, 165, 233, 0.18);
+          --jdb-magnet-button-hover: rgba(14, 165, 233, 0.28);
+          --jdb-magnet-button-text: #bae6fd;
+          --jdb-magnet-success-bg: rgba(34, 197, 94, 0.18);
+          --jdb-magnet-success-text: #bbf7d0;
+          --jdb-magnet-disabled-bg: rgba(148, 163, 184, 0.12);
+          --jdb-magnet-disabled-text: #64748b;
+        }
+        #magnets-content .jdb-magnet-pagination {
+          background: color-mix(in srgb, var(--jdb-magnet-panel-bg) 94%, transparent);
+          border-top-color: var(--jdb-magnet-card-border);
+        }
+        #magnets-content .jdb-magnet-page-info {
+          color: var(--jdb-magnet-muted);
+        }
       }
       /* 小屏优化：当空间不足时允许在按钮前换行，避免横向溢出 */
       @media (max-width: 768px) {
@@ -1285,6 +2227,34 @@ export class MagnetSearchManager {
         }
         #magnets-content .item .date {
           order: 3;
+        }
+        #magnets-content .jdb-magnet-row {
+          gap: 10px;
+        }
+        #magnets-content .jdb-magnet-row .buttons {
+          order: 4;
+          flex: 1 1 100% !important;
+          justify-content: flex-start;
+          flex-wrap: wrap;
+        }
+        #magnets-content .jdb-magnet-row .date {
+          flex: 0 0 auto !important;
+          text-align: left !important;
+        }
+        #magnets-content > .item.columns.is-desktop {
+          flex-wrap: wrap;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        #magnets-content > .item.columns.is-desktop .buttons {
+          order: 4;
+          flex: 1 1 100% !important;
+          justify-content: flex-start;
+          flex-wrap: wrap;
+        }
+        #magnets-content > .item.columns.is-desktop .date {
+          flex: 0 0 auto !important;
+          text-align: left !important;
         }
       }
 
@@ -1360,11 +2330,13 @@ export class MagnetSearchManager {
   /**
    * 更新总数显示
    */
-  private updateTotalCount(): void {
+  private updateTotalCount(totalOverride?: number): void {
     const totalElement = document.querySelector('#x-total');
     if (totalElement) {
-      const magnetItems = document.querySelectorAll('#magnets-content .item:not(.search-results-header)');
-      totalElement.textContent = `总数 ${magnetItems.length}`;
+      const count = typeof totalOverride === 'number'
+        ? totalOverride
+        : document.querySelectorAll('#magnets-content .item:not(.search-results-header)').length;
+      totalElement.textContent = `总数 ${count}`;
     }
   }
 
@@ -1445,10 +2417,10 @@ export class MagnetSearchManager {
     try {
       const normalizedName = name.toUpperCase();
       const normalizedVideoId = videoId.toUpperCase();
+      const candidates = this.getVideoIdMatchCandidates(normalizedVideoId);
 
-      // 简化匹配逻辑：只检查是否包含视频ID
-      const isMatch = normalizedName.includes(normalizedVideoId);
-      log(`Validating result: "${name}" contains "${videoId}": ${isMatch}`);
+      const isMatch = candidates.some((candidate) => normalizedName.includes(candidate));
+      log(`Validating result: "${name}" matches "${videoId}": ${isMatch}`);
 
       return isMatch;
     } catch (error) {
@@ -1456,6 +2428,22 @@ export class MagnetSearchManager {
       // 如果匹配失败，返回true以便调试
       return true;
     }
+  }
+
+  private getVideoIdMatchCandidates(normalizedVideoId: string): string[] {
+    const candidates = new Set<string>([normalizedVideoId]);
+    const compact = normalizedVideoId.replace(/[^A-Z0-9]/g, '');
+
+    const fc2Match = compact.match(/^FC2(?:PPV)?(\d+)$/);
+    if (fc2Match) {
+      const numericId = fc2Match[1];
+      candidates.add(`FC2-${numericId}`);
+      candidates.add(`FC2PPV${numericId}`);
+      candidates.add(`FC2-PPV-${numericId}`);
+      candidates.add(`FC2 PPV ${numericId}`);
+    }
+
+    return Array.from(candidates);
   }
 
 
