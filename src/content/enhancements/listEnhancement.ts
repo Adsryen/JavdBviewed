@@ -7,6 +7,10 @@ import { newWorksManager } from '../../services/newWorks';
 import { processVisibleItems } from '../itemProcessor';
 import { activatePreviewVideoPreload, releasePreviewVideoMedia } from '../previewVideoPreload';
 import {
+  appendSuperRankingTop250Page,
+  getSuperRankingTop250PageInfo,
+} from '../superRankingNav';
+import {
   createPreviewCacheEntry,
   getPreviewSourceType,
   isHlsPreviewUrl,
@@ -1827,6 +1831,14 @@ class ListEnhancementManager {
   }
 
   private updatePageInfo(): void {
+    const superRankingPageInfo = getSuperRankingTop250PageInfo();
+    if (superRankingPageInfo) {
+      this.currentPage = superRankingPageInfo.page;
+      this.maxPage = superRankingPageInfo.maxPage;
+      log(`Current super ranking page: ${this.currentPage}, Max page: ${this.maxPage}`);
+      return;
+    }
+
     // 从URL获取当前页码
     const urlParams = new URLSearchParams(window.location.search);
     const pageParam = urlParams.get('page');
@@ -1891,6 +1903,19 @@ class ListEnhancementManager {
       // 🔧 翻页前清除演员缓存，确保使用最新数据
       log('Clearing actor caches before loading next page...');
       this.clearActorCaches();
+
+      const superRankingResult = await appendSuperRankingTop250Page(nextPage);
+      if (superRankingResult.handled) {
+        if (superRankingResult.appended > 0) {
+          this.currentPage = superRankingResult.page;
+          log(`[ScrollPaging] super ranking page ${nextPage} appended ${superRankingResult.appended} items to DOM at ${new Date().toISOString()}`);
+          if (superRankingResult.url) {
+            window.history.pushState({}, '', superRankingResult.url);
+          }
+          processVisibleItems();
+        }
+        return;
+      }
 
       const nextUrl = this.buildNextPageUrl(nextPage);
       const response = await fetch(nextUrl);
