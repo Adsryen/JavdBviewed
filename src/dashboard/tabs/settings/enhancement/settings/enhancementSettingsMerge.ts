@@ -1,6 +1,7 @@
 import type { ExtensionSettings } from '../../../../../types';
 
 type EnhancementSaveHost = {
+  enableSuperRanking?: HTMLInputElement;
   enableListEnhancement?: HTMLInputElement;
   enableClickEnhancement?: HTMLInputElement;
   enableClickEnhancementList?: HTMLInputElement;
@@ -21,6 +22,8 @@ type EnhancementSaveHost = {
   enablePopularityEffects?: HTMLInputElement;
   popularityMinRating?: HTMLInputElement;
   popularityMinRatingCount?: HTMLInputElement;
+  veEnableRelatedLists?: HTMLInputElement;
+  veEnableOnlineAvailability?: HTMLInputElement;
   getPreferredPreviewSource?: () => 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl';
 };
 
@@ -36,9 +39,20 @@ export function mergeEnhancementSettingsForSave(
   const existingListEnhancement = current.listEnhancement || {};
   const existingListDisplayControl = (existingListEnhancement as any).listDisplayControl || {};
   const existingPopularityEffects = (existingListEnhancement as any).popularityEffects || {};
+  const existingVideoEnhancement = (current as any).videoEnhancement || {};
+  const existingUserExperience = (current as any).userExperience || {};
 
   return {
     ...current,
+    userExperience: {
+      ...existingUserExperience,
+      enableSuperRanking: host.enableSuperRanking?.checked ?? existingUserExperience.enableSuperRanking ?? true,
+    },
+    videoEnhancement: {
+      ...existingVideoEnhancement,
+      enableRelatedLists: host.veEnableRelatedLists?.checked ?? existingVideoEnhancement.enableRelatedLists ?? true,
+      enableOnlineAvailability: host.veEnableOnlineAvailability?.checked ?? existingVideoEnhancement.enableOnlineAvailability ?? false,
+    },
     listEnhancement: {
       ...existingListEnhancement,
       enabled: host.enableListEnhancement?.checked ?? existingListEnhancement.enabled,

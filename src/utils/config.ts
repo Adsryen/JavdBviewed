@@ -316,6 +316,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableAnchorOptimization: false,
         enableListEnhancement: true, // 默认启用列表增强
         enableActorEnhancement: false,
+        enableSuperRanking: true,
         showEnhancedTooltips: false, // 开发中，暂时关闭
         enablePasswordHelper: false, // 密码显示助手，默认关闭
     },
@@ -380,6 +381,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             btdig: true,
             btsow: true,
             torrentz2: false,
+            javbus: false,
             custom: [],
         },
         autoSearch: false,
@@ -413,6 +415,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         actorRemarksTaskTimeoutSeconds: 10,
         // 新增：影片页收藏与评分
         enableVideoFavoriteRating: true, // 默认启用
+        enableRelatedLists: true,
+        enableOnlineAvailability: false,
     },
 
     // 新增：内容过滤默认配置

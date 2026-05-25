@@ -56,6 +56,7 @@ export function taskDetailsSearchHandler(controller: TaskDetailsController): voi
         'ux:magnet:autoSearch': '磁力搜索自动检索',
         'privacy:init': '隐私保护初始化',
         'ui:remove-unwanted': '移除不需要的按钮',
+        'superRankingNav:init': '超级排行榜导航初始化',
         'magnetSearch:init': '磁力搜索初始化',
         'anchorOptimization:init': '锚点优化初始化',
         'listEnhancement:init': '列表增强初始化',
@@ -75,10 +76,12 @@ export function taskDetailsSearchHandler(controller: TaskDetailsController): voi
         'videoEnhancement:runCover': '视频增强-封面处理',
         'videoEnhancement:runTitle': '视频增强-标题处理',
         'videoEnhancement:runReviewBreaker': '视频增强-评论破解',
+        'videoEnhancement:runRelatedLists': '视频增强-相关清单解锁',
         'videoEnhancement:runFC2Breaker': '视频增强-FC2破解',
         'videoEnhancement:panel': '视频增强-面板注入',
         'videoEnhancement:finish': '视频增强-完成',
         'videoFavoriteRating:init': '视频收藏评分初始化',
+        'onlineAvailability:check': '在线可看性检测',
       };
       const displayName = (taskNameMap[task.label] || task.label || '').toLowerCase();
 

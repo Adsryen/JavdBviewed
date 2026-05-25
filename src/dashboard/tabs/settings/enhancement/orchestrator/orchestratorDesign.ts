@@ -42,6 +42,10 @@ export function buildDesignTasks(doGetSettings: () => ExtensionSettings): Orches
     pushTask({ phase: 'high', label: 'ux:shortcuts:init', priority: 8, source: 'global', enabled: true });
   }
 
+  if ((settings.userExperience as any)?.enableSuperRanking !== false) {
+    pushTask({ phase: 'critical', label: 'superRankingNav:init', priority: 9, visibilityPolicy: 'background_allowed', source: 'global', enabled: true });
+  }
+
   pushTask({
     phase: 'high',
     label: 'ui:remove-unwanted',
