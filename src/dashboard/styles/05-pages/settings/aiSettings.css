@@ -54,13 +54,13 @@
         rgba(221, 214, 254, 0.08) 100%);
 }
 
-#ai-settings .settings-panel-header {
+#ai-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#ai-settings .settings-panel-header h3 {
+#ai-settings .settings-page-header h3 {
     color: var(--ai-primary);
     display: flex;
     align-items: center;
@@ -72,11 +72,11 @@
     text-shadow: 0 2px 4px rgba(139, 92, 246, 0.1);
 }
 
-[data-theme="dark"] #ai-settings .settings-panel-header h3 {
+[data-theme="dark"] #ai-settings .settings-page-header h3 {
     text-shadow: 0 2px 4px rgba(167, 139, 250, 0.2);
 }
 
-#ai-settings .settings-panel-header h3::before {
+#ai-settings .settings-page-header h3::before {
     content: '🤖';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));

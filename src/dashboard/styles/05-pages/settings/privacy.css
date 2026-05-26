@@ -54,13 +54,13 @@
         rgba(254, 202, 202, 0.08) 100%);
 }
 
-#privacy-settings .settings-panel-header {
+#privacy-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#privacy-settings .settings-panel-header h3 {
+#privacy-settings .settings-page-header h3 {
     color: var(--privacy-primary);
     display: flex;
     align-items: center;
@@ -72,11 +72,11 @@
     text-shadow: 0 2px 4px rgba(239, 68, 68, 0.1);
 }
 
-[data-theme="dark"] #privacy-settings .settings-panel-header h3 {
+[data-theme="dark"] #privacy-settings .settings-page-header h3 {
     text-shadow: 0 2px 4px rgba(248, 113, 113, 0.2);
 }
 
-#privacy-settings .settings-panel-header h3::before {
+#privacy-settings .settings-page-header h3::before {
     content: '🔒';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));

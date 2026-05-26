@@ -50,13 +50,13 @@
     border-radius: 20px;
 }
 
-#display-settings .settings-panel-header {
+#display-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#display-settings .settings-panel-header h3 {
+#display-settings .settings-page-header h3 {
     color: var(--display-primary);
     display: flex;
     align-items: center;
@@ -68,13 +68,13 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#display-settings .settings-panel-header h3::before {
+#display-settings .settings-page-header h3::before {
     content: '🎨';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
-#display-settings .settings-panel-header .settings-description {
+#display-settings .settings-page-header .settings-description {
     color: var(--display-text-muted);
     font-size: 16px;
     margin-bottom: 0;
@@ -85,16 +85,16 @@
 }
 
 /* 面板主体内容左对齐 */
-#display-settings .settings-panel-body {
+#display-settings .settings-page-body {
     text-align: left;
 }
 
-#display-settings .settings-panel-body .settings-description {
+#display-settings .settings-page-body .settings-description {
     text-align: left;
 }
 
 /* 显示设置面板 - 确保所有元素都支持主题切换 */
-#display-settings .settings-panel-body h4 {
+#display-settings .settings-page-body h4 {
     color: var(--display-text) !important;
     margin-top: 1.5rem;
     margin-bottom: 1rem;
@@ -103,17 +103,17 @@
 }
 
 /* 深色主题下的h4颜色 */
-[data-theme="dark"] #display-settings .settings-panel-body h4 {
+[data-theme="dark"] #display-settings .settings-page-body h4 {
     color: #f1f5f9 !important;
 }
 
 /* 浅色主题下的h4颜色 */
-[data-theme="light"] #display-settings .settings-panel-body h4 {
+[data-theme="light"] #display-settings .settings-page-body h4 {
     color: #1e293b !important;
 }
 
 /* 第一个h4不需要上边距 */
-#display-settings .settings-panel-body > h4:first-of-type {
+#display-settings .settings-page-body > h4:first-of-type {
     margin-top: 0.75rem;
 }
 

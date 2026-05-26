@@ -106,6 +106,9 @@
 
 .settings-page-header {
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     margin-bottom: 30px;
     padding-bottom: 20px;
     border-bottom: 2px solid var(--border-primary);
@@ -114,9 +117,11 @@
 .settings-back-btn {
     display: inline-flex;
     align-items: center;
+    align-self: flex-start;
     gap: 8px;
     padding: 8px 16px;
     margin-bottom: 16px;
+    margin-right: auto;
     color: var(--text-secondary);
     text-decoration: none;
     border: none;
@@ -193,241 +198,6 @@
     }
 }
 
-/* ========================================
-   旧架构样式 - 保留用于兼容
-   ======================================== */
-
-/* Settings Container Layout - 充分利用可用高度 */
-.settings-container {
-    display: flex !important;
-    /* 充分利用父容器的高度 */
-    height: 100% !important;
-    /* 设置合理的最小高度，确保内容有足够空间 */
-    min-height: calc(100vh - 200px) !important;
-    background: var(--surface-primary);
-    border-radius: 12px;
-    overflow: visible !important;
-    box-shadow: var(--shadow-md);
-    flex-grow: 1 !important;
-    /* 确保子元素能够拉伸 */
-    align-items: stretch !important;
-}
-
-/* 高度传递链条已在主CSS文件中修复 */
-
-/* Settings Sidebar - 支持主题切换 */
-.settings-sidebar {
-    width: 240px;
-    flex-shrink: 0;
-    background: var(--sidebar-bg);
-    border-right: 1px solid var(--border-primary);
-    padding: 20px 0;
-}
-
-.settings-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.settings-nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: var(--text-secondary);
-    font-weight: 500;
-    border-left: 3px solid transparent;
-}
-
-.settings-nav-item:hover {
-    background: var(--bg-hover);
-    color: var(--primary);
-    border-left-color: var(--primary);
-}
-
-.settings-nav-item.active {
-    background: var(--primary-light);
-    color: var(--primary);
-    border-left-color: var(--primary);
-    font-weight: 600;
-}
-
-.settings-nav-item i {
-    width: 18px;
-    text-align: center;
-    font-size: 16px;
-}
-
-/* Settings Content - 右侧内容区域充分利用容器高度 */
-.settings-content {
-    flex: 1 !important;
-    padding: 25px;
-    overflow-y: auto !important;
-    /* 充分利用父容器的高度 */
-    height: 100% !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    /* 确保完全填充父容器 */
-    flex-basis: auto !important;
-    /* 移除可能影响高度的边距 */
-    margin: 0 !important;
-}
-
-/* 网络测试面板特殊处理 */
-#network-test-settings .settings-panel-body {
-    overflow: visible;
-}
-
-#network-test-settings #ping-results-container {
-    overflow: visible;
-    height: auto;
-}
-
-.settings-panel {
-    display: none;
-}
-
-.settings-panel.active {
-    display: flex !important;
-    flex-direction: column !important;
-    flex-grow: 1 !important;
-    /* 让面板根据内容自动调整高度 */
-    height: auto !important;
-    min-height: calc(100vh - 300px) !important;
-    /* 移除所有可能影响高度的边距和填充 */
-    margin: 0 !important;
-    padding: 0 !important;
-    /* 确保flex布局自适应 */
-    flex-basis: auto !important;
-}
-
-.settings-panel-header {
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid var(--border-secondary);
-    /* 确保头部不影响整体高度计算 */
-    flex-shrink: 0 !important;
-}
-
-.settings-panel-header h3 {
-    font-size: 24px;
-    margin: 0 0 8px 0;
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-.settings-panel-body {
-    max-width: 800px;
-    flex-grow: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    /* 让面板主体根据内容自动调整高度 */
-    height: auto !important;
-    min-height: auto !important;
-    overflow-y: visible !important;
-    /* 让面板主体自适应内容高度 */
-    flex-basis: auto !important;
-    /* 移除可能影响高度的边距 */
-    margin: 0 !important;
-}
-
-/* Mobile Menu Toggle */
-/* Mobile Menu Toggle - 支持主题切换 */
-.settings-menu-toggle {
-    display: none;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 15px;
-    margin-bottom: 20px;
-    background: var(--primary);
-    color: var(--text-inverse);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.3s ease;
-}
-
-.settings-menu-toggle:hover {
-    background: var(--primary-hover);
-}
-
-.settings-menu-toggle i {
-    font-size: 16px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .settings-container {
-        flex-direction: column;
-        min-height: auto;
-    }
-
-    .settings-menu-toggle {
-        display: flex;
-    }
-
-    .settings-sidebar {
-        width: 100%;
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
-        padding: 0;
-        border-right: none;
-        border-bottom: 1px solid var(--border-primary);
-    }
-
-    .settings-sidebar.open {
-        max-height: 300px;
-        padding: 15px 0;
-    }
-
-    .settings-nav {
-        padding: 0 15px;
-    }
-
-    .settings-content {
-        padding: 20px 15px;
-        max-height: none;
-    }
-
-    .settings-panel-header h3 {
-        font-size: 20px;
-    }
-
-    /* Mobile specific adjustments */
-    .search-engine-header {
-        display: none; /* Hide header on mobile for better space usage */
-    }
-
-    .search-engine-item {
-        flex-direction: column;
-        gap: 8px;
-        padding: 15px;
-        border: 1px solid #e8e8e8;
-        border-radius: 8px;
-        margin-bottom: 10px;
-    }
-
-    .search-engine-item input {
-        width: 100%;
-        margin-bottom: 5px;
-    }
-
-    .webdav-controls-container {
-        padding: 15px;
-    }
-
-    .webdav-sub-controls {
-        margin-left: 0;
-        padding: 10px;
-    }
-}
-
 /* Advanced Settings Tab - 现代化重新设计 */
 :root {
     --advanced-primary: #6366f1;
@@ -478,13 +248,13 @@
     border-radius: 20px;
 }
 
-#advanced-settings .settings-panel-header {
+#advanced-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#advanced-settings .settings-panel-header h3 {
+#advanced-settings .settings-page-header h3 {
     color: var(--advanced-primary);
     display: flex;
     align-items: center;
@@ -496,7 +266,7 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#advanced-settings .settings-panel-header h3::before {
+#advanced-settings .settings-page-header h3::before {
     content: '⚙️';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
@@ -2702,7 +2472,7 @@ input:checked + .toggle-slider:before {
 }
 
 /* 重新设计checkbox-label为现代化开关 */
-#enhancement-settings > .settings-panel-body > .form-group > .checkbox-label {
+#enhancement-settings > .settings-page-body > .form-group > .checkbox-label {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -2711,11 +2481,11 @@ input:checked + .toggle-slider:before {
     gap: 15px;
 }
 
-#enhancement-settings > .settings-panel-body > .form-group > .checkbox-label input[type="checkbox"] {
+#enhancement-settings > .settings-page-body > .form-group > .checkbox-label input[type="checkbox"] {
     display: none;
 }
 
-#enhancement-settings > .settings-panel-body > .form-group > .checkbox-label .checkmark {
+#enhancement-settings > .settings-page-body > .form-group > .checkbox-label .checkmark {
     display: none;
 }
 
@@ -2940,7 +2710,7 @@ input:checked + .toggle-slider:before {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-    #enhancement-settings > .settings-panel-body > .form-group > .checkbox-label {
+    #enhancement-settings > .settings-page-body > .form-group > .checkbox-label {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
@@ -2958,45 +2728,6 @@ input:checked + .toggle-slider:before {
         font-size: 18px;
         padding: 12px 0 12px 15px;
     }
-}
-
-/* 确保其他页面不受影响 */
-.settings-panel:not(#enhancement-settings) .form-group {
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    padding: 0;
-    margin-bottom: 15px;
-    transition: none;
-    position: static;
-    overflow: visible;
-}
-
-.settings-panel:not(#enhancement-settings) .form-group::before {
-    display: none;
-}
-
-.settings-panel:not(#enhancement-settings) .form-group:hover {
-    border-color: initial;
-    box-shadow: none;
-    transform: none;
-}
-
-.settings-panel:not(#enhancement-settings) .checkbox-label {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0;
-    cursor: pointer;
-    gap: 8px;
-    justify-content: flex-start;
-}
-
-.settings-panel:not(#enhancement-settings) .checkbox-label input[type="checkbox"] {
-    display: block;
-}
-
-.settings-panel:not(#enhancement-settings) .checkbox-label .checkmark {
-    display: block;
 }
 
 /* ==================== 日志设置样式 ==================== */

@@ -31,13 +31,13 @@
     position: relative;
 }
 
-#update-settings .settings-panel-header {
+#update-settings .settings-page-header {
     position: relative;
     padding: 0 0 24px 0;
     text-align: center;
 }
 
-#update-settings .settings-panel-header h3 {
+#update-settings .settings-page-header h3 {
     color: var(--text-primary);
     display: flex;
     align-items: center;
@@ -48,7 +48,7 @@
     margin-bottom: 8px;
 }
 
-#update-settings .settings-panel-header h3::before {
+#update-settings .settings-page-header h3::before {
     content: '🔄';
     font-size: 1.2em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));

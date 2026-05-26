@@ -85,13 +85,13 @@
     border-radius: 20px;
 }
 
-#enhancement-settings .settings-panel-header {
+#enhancement-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#enhancement-settings .settings-panel-header h3 {
+#enhancement-settings .settings-page-header h3 {
     color: var(--enhancement-primary);
     display: flex;
     align-items: center;
@@ -103,7 +103,7 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#enhancement-settings .settings-panel-header h3::before {
+#enhancement-settings .settings-page-header h3::before {
     content: '🚀';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
