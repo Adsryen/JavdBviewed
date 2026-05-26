@@ -12,7 +12,7 @@ import {
     matchesLabelRecord,
     matchesSeriesRecord,
 } from '../../utils/listRecordHelpers';
-import { buildSearchEngineUrl, resolveSearchEngineIcon } from '../../utils/searchEngines';
+import { buildSearchEngineUrl, getSearchEnginesForVideo, resolveSearchEngineIcon } from '../../utils/searchEngines';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）
 let RECORDS_TAB_INITIALIZED = false;
@@ -1134,7 +1134,11 @@ export function initRecordsTab(): void {
                     iconsContainer.className = 'video-search-icons';
 
                     // 确保 searchEngines 是数组
-                    const searchEngines = Array.isArray(STATE.settings?.searchEngines) ? STATE.settings.searchEngines : [];
+                    const searchEngines = getSearchEnginesForVideo(
+                        Array.isArray(STATE.settings?.searchEngines) ? STATE.settings.searchEngines : [],
+                        record.id,
+                        'records',
+                    );
 
                     searchEngines.forEach(engine => {
                         try {
