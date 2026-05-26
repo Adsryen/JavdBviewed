@@ -26,6 +26,184 @@
     margin: 0;
 }
 
+:root {
+    --settings-search-pulse-ring: #f59e0b;
+    --settings-search-pulse-ring-rgb: 245, 158, 11;
+    --settings-search-pulse-fill: rgba(245, 158, 11, 0.12);
+    --settings-search-pulse-radius: 8px;
+}
+
+[data-theme="dark"] {
+    --settings-search-pulse-ring: #2dd4bf;
+    --settings-search-pulse-ring-rgb: 45, 212, 191;
+    --settings-search-pulse-fill: rgba(45, 212, 191, 0.14);
+}
+
+.jdb-settings-search {
+    max-width: 760px;
+    margin: 0 auto 28px auto;
+    position: relative;
+}
+
+.jdb-settings-search-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 12px 0 16px;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+.jdb-settings-search-input-wrap:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.jdb-settings-search-input-wrap i {
+    color: var(--text-secondary);
+    font-size: 15px;
+}
+
+.jdb-settings-search-input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 15px;
+}
+
+.jdb-settings-search-input::placeholder {
+    color: var(--text-muted, var(--text-secondary));
+}
+
+.jdb-settings-search-clear {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.jdb-settings-search-clear:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.jdb-settings-search-results {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+}
+
+.jdb-settings-search-results[hidden] {
+    display: none !important;
+}
+
+.jdb-settings-search-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+}
+
+.jdb-settings-search-result:hover,
+.jdb-settings-search-result:focus {
+    outline: 0;
+    background: var(--bg-hover);
+}
+
+.jdb-settings-search-result.is-selected,
+.jdb-settings-search-result[aria-selected="true"] {
+    outline: 0;
+    background: color-mix(in srgb, var(--primary) 12%, var(--surface-primary));
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.jdb-settings-search-result-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.jdb-settings-search-result-meta,
+.jdb-settings-search-empty {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.jdb-settings-search-empty {
+    padding: 12px;
+}
+
+.jdb-settings-search-highlight {
+    position: relative;
+    isolation: isolate;
+    outline: none;
+    border-radius: var(--settings-search-pulse-radius);
+    background:
+        linear-gradient(0deg, var(--settings-search-pulse-fill), var(--settings-search-pulse-fill)),
+        var(--surface-primary, transparent);
+}
+
+.jdb-settings-search-highlight::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    z-index: -1;
+    border-radius: var(--settings-search-pulse-radius);
+    pointer-events: none;
+    border: 2px solid rgba(var(--settings-search-pulse-ring-rgb), 0.7);
+    box-shadow: 0 0 0 0 rgba(var(--settings-search-pulse-ring-rgb), 0.34);
+    animation: jdbSettingsSearchPulseHalo 0.82s ease-out 2;
+}
+
+@keyframes jdbSettingsSearchPulseHalo {
+    0% {
+        opacity: 0.82;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(var(--settings-search-pulse-ring-rgb), 0.34);
+    }
+    58% {
+        opacity: 0.2;
+        transform: scale(1.025);
+        box-shadow: 0 0 0 8px rgba(var(--settings-search-pulse-ring-rgb), 0.18);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.045);
+        box-shadow: 0 0 0 12px rgba(var(--settings-search-pulse-ring-rgb), 0);
+    }
+}
+
 /* 设置导航卡片网格 */
 .settings-nav-grid {
     display: grid;
@@ -183,6 +361,15 @@
 
     .settings-nav-card {
         padding: 20px;
+    }
+
+    .jdb-settings-search {
+        margin-bottom: 20px;
+    }
+
+    .jdb-settings-search-results {
+        position: static;
+        margin-top: 8px;
     }
 
     .settings-nav-card i {
@@ -2456,6 +2643,28 @@ input:checked + .toggle-slider:before {
 
 #enhancement-settings .form-group:hover::before {
     opacity: 1;
+}
+
+#enhancement-settings .form-group.jdb-settings-search-highlight {
+    overflow: visible;
+    background:
+        linear-gradient(0deg, var(--settings-search-pulse-fill), var(--settings-search-pulse-fill)),
+        var(--enhancement-card-bg);
+    border-color: var(--settings-search-pulse-ring);
+    box-shadow:
+        0 0 0 3px rgba(var(--settings-search-pulse-ring-rgb), 0.22),
+        var(--enhancement-shadow-hover);
+    transform: translateY(-1px);
+}
+
+#enhancement-settings .form-group.jdb-settings-search-highlight::before {
+    opacity: 1;
+    background: linear-gradient(90deg, var(--settings-search-pulse-ring) 0%, var(--enhancement-info) 100%);
+}
+
+#enhancement-settings .form-group.jdb-settings-search-highlight::after {
+    z-index: 2;
+    border-radius: 12px;
 }
 
 /* 禁用状态的卡片 - 支持主题切换 */
