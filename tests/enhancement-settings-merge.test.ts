@@ -48,4 +48,16 @@ describe('mergeEnhancementSettingsForSave', () => {
     expect(defaultMerged.videoEnhancement?.showOnlineAvailabilityFailures).toBe(false);
     expect(enabledMerged.videoEnhancement?.showOnlineAvailabilityFailures).toBe(true);
   });
+
+  it('persists the detail subtitle search toggle with a default on value', () => {
+    const current = structuredClone(DEFAULT_SETTINGS);
+
+    const defaultMerged = mergeEnhancementSettingsForSave(current, {} as any);
+    const disabledMerged = mergeEnhancementSettingsForSave(current, {
+      veEnableSubtitleSearch: { checked: false },
+    } as any);
+
+    expect(defaultMerged.videoEnhancement?.enableSubtitleSearch).toBe(true);
+    expect(disabledMerged.videoEnhancement?.enableSubtitleSearch).toBe(false);
+  });
 });

@@ -25,6 +25,7 @@ type EnhancementSaveHost = {
   veEnableRelatedLists?: HTMLInputElement;
   veEnableOnlineAvailability?: HTMLInputElement;
   veShowOnlineAvailabilityFailures?: HTMLInputElement;
+  veEnableSubtitleSearch?: HTMLInputElement;
   getPreferredPreviewSource?: () => 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl';
 };
 
@@ -54,6 +55,7 @@ export function mergeEnhancementSettingsForSave(
       enableRelatedLists: host.veEnableRelatedLists?.checked ?? existingVideoEnhancement.enableRelatedLists ?? true,
       enableOnlineAvailability: host.veEnableOnlineAvailability?.checked ?? existingVideoEnhancement.enableOnlineAvailability ?? false,
       showOnlineAvailabilityFailures: host.veShowOnlineAvailabilityFailures?.checked ?? existingVideoEnhancement.showOnlineAvailabilityFailures ?? false,
+      enableSubtitleSearch: host.veEnableSubtitleSearch?.checked ?? existingVideoEnhancement.enableSubtitleSearch ?? true,
     },
     listEnhancement: {
       ...existingListEnhancement,

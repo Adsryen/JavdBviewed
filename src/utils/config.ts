@@ -519,6 +519,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableRelatedLists: true,
         enableOnlineAvailability: false,
         showOnlineAvailabilityFailures: false,
+        enableSubtitleSearch: true,
     },
 
     // 新增：内容过滤默认配置
