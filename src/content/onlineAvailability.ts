@@ -453,12 +453,14 @@ function isDirectDetailPageMatch(site: OnlineAvailabilitySite, doc: Document, vi
     const expectedCid = normalizeCode(site.codeFormatter ? site.codeFormatter(videoId) : formatFanzaCode(videoId));
     if (/年齢認証|age[_ -]?check/i.test(titleText) || /\/age_check\//i.test(requestUrl)) return false;
     if (Array.from(doc.querySelectorAll('script[src]')).some(script => /not-found/i.test(script.getAttribute('src') || ''))) return false;
-    return normalizedText.includes(expectedCid) || normalizedText.includes(normalizedVideoId);
+    if (/お探しの商品は見つかりません|not\s*found|404/i.test(searchableText)) return false;
+    return hasFanzaDetailSignal(doc, expectedCid, normalizedVideoId);
   }
 
   if (site.key === 'jable') {
     if (!doc.querySelector('.info-header')) return false;
-    return normalizedText.includes(normalizedVideoId);
+    if (/not\s*found|404|no\s+videos?\s+found/i.test(searchableText)) return false;
+    return normalizedText.includes(normalizedVideoId) && hasJableDetailSignal(doc, normalizedVideoId);
   }
 
   if (site.key === 'missav' || site.key === 'javbus') {
@@ -466,6 +468,44 @@ function isDirectDetailPageMatch(site: OnlineAvailabilitySite, doc: Document, vi
   }
 
   return true;
+}
+
+function hasFanzaDetailSignal(doc: Document, expectedCid: string, normalizedVideoId: string): boolean {
+  const detailSelectors = [
+    'link[rel="canonical"][href*="/digital/videoa/-/detail/=/cid="]',
+    'meta[property="og:url"][content*="/digital/videoa/-/detail/=/cid="]',
+    '[class*="productTitle"]',
+    '#mu',
+    '[data-pid]',
+  ];
+
+  const detailText = detailSelectors
+    .flatMap(selector => Array.from(doc.querySelectorAll(selector)))
+    .map(element => [
+      element.textContent || '',
+      element.getAttribute('href') || '',
+      element.getAttribute('content') || '',
+      element.getAttribute('data-pid') || '',
+    ].join(' '))
+    .join(' ');
+  const scripts = Array.from(doc.querySelectorAll('script:not([src])'))
+    .map(script => script.textContent || '')
+    .join(' ');
+  const normalizedDetailText = normalizeCode(`${detailText} ${scripts}`);
+
+  return normalizedDetailText.includes(expectedCid) || normalizedDetailText.includes(normalizedVideoId);
+}
+
+function hasJableDetailSignal(doc: Document, normalizedVideoId: string): boolean {
+  const canonical = doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href || '';
+  const ogUrl = doc.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.content || '';
+  const ogType = doc.querySelector<HTMLMetaElement>('meta[property="og:type"]')?.content || '';
+  const urlSignals = normalizeCode(`${canonical} ${ogUrl}`);
+  const hasDetailUrl = urlSignals.includes(normalizedVideoId) && /\/videos\//i.test(`${canonical} ${ogUrl}`);
+
+  return hasDetailUrl
+    || /video/i.test(ogType)
+    || Boolean(doc.querySelector('.video-info, .plyr, video, script[type="application/ld+json"]'));
 }
 
 function buildJableChineseSubtitleUrl(url: string): string | null {
