@@ -25,51 +25,66 @@
 
 ## ⚙️ Dashboard / 设置页
 
-- [ ] 设置搜索：实现类似 Windows 设置的扁平搜索
-  - [ ] 设置首页新增搜索框，搜索设置项标题、描述、关键词
-  - [ ] 搜索结果点击后跳转到对应设置页
-  - [ ] 设置页加载后滚动到具体设置项
-  - [ ] 目标设置项显示短暂高亮动画
-  - [ ] 支持 Enter 进入首个结果
-  - [ ] 支持 Esc 清空搜索
-  - [ ] 支持少量关键词别名：字幕、迅雷、115、WebDAV、在线可看、磁力、FC2、隐私、代理、AI
-  - [ ] 优先使用 DOM 自动索引，减少手工维护
-- [ ] 设置页内搜索增强
-  - [ ] 支持在当前设置页内搜索 `.settings-section`、`label`、`.input-description`
-  - [ ] 搜索时自动展开命中的 section
-  - [ ] 折叠状态按面板 ID 记忆到本地
-- [ ] 搜索引擎设置：隐藏内置项
-  - [ ] 支持用户隐藏内置搜索引擎模板
-  - [ ] 隐藏状态持久化
-  - [ ] 保持内置项只读，避免误改默认模板
+- [x] 设置搜索：实现类似 Windows 设置的扁平搜索
+  - [x] 设置首页新增搜索框，搜索设置项标题、描述、关键词
+  - [x] 搜索结果点击后跳转到对应设置页
+  - [x] 设置页加载后滚动到具体设置项
+  - [x] 目标设置项显示短暂高亮动画
+  - [x] 支持 Enter 进入首个结果
+  - [x] 支持 Esc 清空搜索
+  - [x] 支持少量关键词别名：字幕、迅雷、115、WebDAV、在线可看、磁力、FC2、隐私、代理、AI
+  - [x] 优先使用 DOM 自动索引，减少手工维护
+- [x] 搜索引擎设置：统一启用开关语义
+  - [x] “是否启用”同时控制详情页入口和番号库入口
+  - [x] 内置项保持只读，只允许切换启用状态
+  - [x] 放弃“隐藏内置项”方案，避免与启用开关形成重复概念
 
 ---
 
 ## 🧱 项目结构 / 代码组织
 
-- [ ] 制定 `src` 目录结构规划
-  - [ ] 明确 `content`、`background`、`dashboard`、`services`、`shared`、`utils` 的职责边界
-  - [ ] 确定新增功能优先放入功能域目录，减少根目录平铺文件
-  - [ ] 约定每个功能域使用 `index.ts` 暴露稳定入口
-- [ ] 第一批迁移：`src/content/magnets`
+- [x] 制定 `src` 未来架构规划
+  - [x] 目标分层：`apps / features / platform / shared`
+  - [x] 明确运行入口、业务能力、基础设施、共享协议的职责边界
+  - [x] 约定新功能优先进入 `features/<featureName>`
+  - [x] 约定每个 feature 使用 `index.ts` 暴露稳定入口
+  - [x] 文档：[source-architecture.md](./source-architecture.md)
+- [x] 建立新架构骨架
+  - [x] 新建 `src/apps`
+  - [x] 新建 `src/features`
+  - [x] 新建 `src/platform`
+  - [x] 保留并收敛 `src/shared`
+  - [x] 补充最小 `index.ts` 或 README 说明，避免空目录丢失
+- [x] 第一个试点功能：`features/settingsSearch`
+  - [x] 建立 `domain/aliases.ts`、`domain/types.ts`
+  - [x] 建立 `application/buildSettingsSearchIndex.ts`
+  - [x] 建立 `application/findSettingsResults.ts`
+  - [x] 建立 `application/resolveSettingsTarget.ts`
+  - [x] 建立 `ui/settingsSearchBox.ts`
+  - [x] 建立 `ui/settingsSearchHighlight.ts`
+  - [x] Dashboard 只负责 mount 和路由生命周期
+- [ ] 第二批迁移：字幕与外部搜索
+  - [ ] 建立 `features/subtitles`
+  - [ ] 迁移迅雷字幕弹窗与响应 normalize 逻辑
+  - [ ] 建立 `features/externalSearch`
+  - [ ] 迁移详情页外部搜索渲染和搜索引擎匹配逻辑
+  - [ ] 旧路径保留 re-export 一轮，降低 import 震荡
+- [ ] 第三批迁移：磁力功能域
+  - [ ] 建立 `features/magnets`
   - [ ] 迁移 `magnetSearch.ts`
   - [ ] 迁移 `magnetResultMerge.ts`
   - [ ] 迁移 `magnetPagination.ts`
   - [ ] 迁移 `magnetSourceTagState.ts`
   - [ ] 迁移 `javbusMagnetSource.ts`
-  - [ ] 更新 import 并跑聚焦测试、typecheck、build
-- [ ] 第二批迁移：`src/content/detail`
-  - [ ] 迁移 `detailSearchLinks.ts`
-  - [ ] 迁移 `onlineAvailability.ts`
-  - [ ] 迁移 `videoFavoriteRating.ts`
-  - [ ] 迁移 `videoDetail.ts`
-  - [ ] 迁移 `enhancedVideoDetail.ts`
-- [ ] 第三批迁移：`src/background`
-  - [ ] 拆分 `db/`：`db.ts`、`dbRouter.ts`、`migrations.ts`
-  - [ ] 拆分 `network/`：`netProxy.ts`、`requestScheduler.ts`、`javbusTabFetch.ts`
-  - [ ] 拆分 `tasks/`：`globalTaskCenter.ts`、`taskPolicy.ts`、`taskStateStore.ts`
-  - [ ] 拆分 `sync/`：`sync.ts`、`webdav.ts`
-- [ ] 清理源码目录历史备份文件
+  - [ ] 旧路径保留 re-export 一轮，降低 import 震荡
+- [ ] 第四批迁移：基础设施
+  - [ ] 建立 `platform/network`
+  - [ ] 建立 `platform/storage`
+  - [ ] 建立 `platform/tasks`
+  - [ ] 建立 `platform/logging`
+  - [ ] 建立 `platform/browser`
+  - [ ] 迁移 background DB、request scheduler、task center、logger 等基础设施
+- [ ] 清理旧目录和历史备份文件
   - [ ] 处理 `src/background/*.bak`
   - [ ] 处理 `src/background/background.ts.step*`
   - [ ] 确认无构建引用后移动到归档目录或删除
