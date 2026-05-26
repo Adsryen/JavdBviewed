@@ -574,8 +574,11 @@ export async function handleVideoDetailPage(): Promise<void> {
     }
 
     try {
+        const videoEnhancement = (STATE.settings as any)?.videoEnhancement || {};
         renderDetailSearchLinks(videoId, STATE.settings?.searchEngines || [], {
-            showSubtitleSearch: (STATE.settings as any)?.videoEnhancement?.enableSubtitleSearch !== false,
+            enabled: videoEnhancement.enableExternalEntryPanel !== false,
+            showExternalSearch: videoEnhancement.enableExternalSearch !== false,
+            showSubtitleSearch: videoEnhancement.enableSubtitleSearch !== false,
         });
     } catch (e) {
         log('renderDetailSearchLinks failed:', e as any);

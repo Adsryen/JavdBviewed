@@ -610,13 +610,18 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('deferred', () => anchorOptimizationManager.initialize(), { label: 'anchorOptimization:init', idle: true, delayMs: 1000 });
     }
 
-    if (isVideoPage && (settings as any)?.videoEnhancement?.enableOnlineAvailability === true) {
+    const videoEnhancement = (settings as any)?.videoEnhancement || {};
+    if (
+        isVideoPage
+        && videoEnhancement.enableExternalEntryPanel !== false
+        && videoEnhancement.enableOnlineAvailability !== false
+    ) {
         initOrchestrator.add('idle', async () => {
             onlineAvailabilityManager.updateConfig({
                 enabled: true,
                 autoCheck: true,
-                showUnavailable: (settings as any)?.videoEnhancement?.showOnlineAvailabilityFailures === true,
-                timeoutMs: Number((settings as any)?.videoEnhancement?.onlineAvailabilityTimeoutMs || 8000),
+                showUnavailable: videoEnhancement.showOnlineAvailabilityFailures === true,
+                timeoutMs: Number(videoEnhancement.onlineAvailabilityTimeoutMs || 8000),
             } as any);
             await onlineAvailabilityManager.initialize();
         }, { label: 'onlineAvailability:check', idle: true, idleTimeout: 8000, delayMs: 1800 });

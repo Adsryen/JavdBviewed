@@ -70,7 +70,7 @@ export const DEFAULT_ONLINE_AVAILABILITY_SITES: OnlineAvailabilitySite[] = [
     fetchType: 'get',
     enabled: true,
     domQuery: {
-      subQuery: '.space-y-2 a.text-nord13[href*="chinese-subtitle"]',
+      subQuery: '.space-y-2 a.text-nord13[href*="chinese-subtitle"], a[href*="chinese-subtitle"]',
       leakQuery: '.order-first div.rounded-md a[href]:last-child',
     },
   },
@@ -399,7 +399,7 @@ function findParserMatch(site: OnlineAvailabilitySite, doc: Document, videoId: s
   const links = Array.from(doc.querySelectorAll<HTMLAnchorElement>(linkQuery));
   for (const link of links) {
     const text = `${link.textContent || ''} ${link.getAttribute('title') || ''} ${link.getAttribute('href') || ''}`;
-    if (!normalizeCode(text).includes(normalizedCode)) continue;
+    if (!containsExactVideoCode(text, videoId)) continue;
     const href = link.getAttribute('href') || requestUrl;
     return {
       url: new URL(href, requestUrl).toString(),
@@ -410,7 +410,7 @@ function findParserMatch(site: OnlineAvailabilitySite, doc: Document, videoId: s
   const titleQuery = site.domQuery?.titleQuery;
   if (titleQuery) {
     const title = Array.from(doc.querySelectorAll<HTMLElement>(titleQuery))
-      .find(item => normalizeCode(item.textContent || item.getAttribute('title') || '').includes(normalizedCode));
+      .find(item => containsExactVideoCode(`${item.textContent || ''} ${item.getAttribute('title') || ''} ${item.getAttribute('href') || ''}`, videoId));
     if (title) {
       const anchor = title.matches('a[href]')
         ? title as HTMLAnchorElement
@@ -442,6 +442,18 @@ function normalizeCode(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
+function containsExactVideoCode(text: string, videoId: string): boolean {
+  const target = normalizeCode(videoId);
+  if (!target) return false;
+
+  const tokens = String(text || '').match(/[A-Z]{2,12}[-_\s]?\d{2,7}/gi) || [];
+  if (tokens.length > 0) {
+    return tokens.some(token => normalizeCode(token) === target);
+  }
+
+  return normalizeCode(text) === target;
+}
+
 function isDirectDetailPageMatch(site: OnlineAvailabilitySite, doc: Document, videoId: string, requestUrl: string): boolean {
   const normalizedVideoId = normalizeCode(videoId);
   const titleText = doc.title || '';
@@ -463,11 +475,23 @@ function isDirectDetailPageMatch(site: OnlineAvailabilitySite, doc: Document, vi
     return normalizedText.includes(normalizedVideoId) && hasJableDetailSignal(doc, normalizedVideoId);
   }
 
-  if (site.key === 'missav' || site.key === 'javbus') {
-    return normalizedText.includes(normalizedVideoId);
+  if (site.key === 'missav') {
+    if (isSoftMissingPage(searchableText)) return false;
+    const hasDetailSignal = hasMissavDetailSignal(doc, normalizedVideoId);
+    if (!hasDetailSignal && isMissavSearchShell(doc, requestUrl)) return false;
+    return normalizedText.includes(normalizedVideoId) && hasDetailSignal;
+  }
+
+  if (site.key === 'javbus') {
+    if (isSoftMissingPage(searchableText)) return false;
+    return normalizedText.includes(normalizedVideoId) && hasJavBusDetailSignal(doc, normalizedVideoId);
   }
 
   return true;
+}
+
+function isSoftMissingPage(text: string): boolean {
+  return /not\s*found|404|no\s+videos?\s+found|access\s+denied|forbidden|captcha|cloudflare|error/i.test(text || '');
 }
 
 function hasFanzaDetailSignal(doc: Document, expectedCid: string, normalizedVideoId: string): boolean {
@@ -506,6 +530,48 @@ function hasJableDetailSignal(doc: Document, normalizedVideoId: string): boolean
   return hasDetailUrl
     || /video/i.test(ogType)
     || Boolean(doc.querySelector('.video-info, .plyr, video, script[type="application/ld+json"]'));
+}
+
+function hasMissavDetailSignal(doc: Document, normalizedVideoId: string): boolean {
+  const canonical = doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href || '';
+  const ogUrl = doc.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.content || '';
+  const titleText = [
+    doc.title || '',
+    doc.querySelector('h1')?.textContent || '',
+    doc.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.content || '',
+  ].join(' ');
+  const urlSignals = normalizeCode(`${canonical} ${ogUrl}`);
+  const hasDetailUrl = urlSignals.includes(normalizedVideoId) && !/\/search/i.test(`${canonical} ${ogUrl}`);
+  const hasExactTitle = containsExactVideoCode(titleText, normalizedVideoId);
+  const hasDetailMetadata = /發行日期|发行日期|release\s*date|番號|番号|品番|導演|导演|類別|类别|maker|studio/i
+    .test(doc.body?.textContent || '');
+
+  return hasDetailUrl || (hasExactTitle && hasDetailMetadata) || Boolean(doc.querySelector('video, [data-plyr-provider], .plyr'));
+}
+
+function isMissavSearchShell(doc: Document, requestUrl: string): boolean {
+  const title = doc.title || '';
+  const canonical = doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href || '';
+  const ogUrl = doc.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.content || '';
+  const combinedUrl = `${requestUrl} ${canonical} ${ogUrl}`;
+
+  if (/\/search(?:\/|\?|$)/i.test(combinedUrl)) return true;
+  if (/搜尋|搜索|\bsearch\b/i.test(title)) return true;
+  return Boolean(doc.querySelector('input[type="search"], form[action*="/search"], [href*="/search/"]'));
+}
+
+function hasJavBusDetailSignal(doc: Document, normalizedVideoId: string): boolean {
+  const canonical = doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href || '';
+  const ogUrl = doc.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.content || '';
+  const headingText = Array.from(doc.querySelectorAll('h3, .movie h3, .container h3'))
+    .map(item => item.textContent || '')
+    .join(' ');
+  const urlSignals = normalizeCode(`${canonical} ${ogUrl}`);
+  const hasDetailUrl = urlSignals.includes(normalizedVideoId);
+  const hasExactHeading = containsExactVideoCode(headingText, normalizedVideoId);
+  const hasDetailNode = Boolean(doc.querySelector('a.bigImage, #sample-waterfall, .movie, .movie-box, [class*="movie"]'));
+
+  return hasDetailUrl || (hasExactHeading && hasDetailNode);
 }
 
 function buildJableChineseSubtitleUrl(url: string): string | null {

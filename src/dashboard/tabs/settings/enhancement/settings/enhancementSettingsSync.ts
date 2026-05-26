@@ -35,7 +35,9 @@ export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<Extens
     } as any,
     videoEnhancement: {
       enableRelatedLists: host.veEnableRelatedLists?.checked !== false,
-      enableOnlineAvailability: host.veEnableOnlineAvailability?.checked === true,
+      enableExternalEntryPanel: host.veEnableExternalEntryPanel?.checked !== false,
+      enableExternalSearch: host.veEnableExternalSearch?.checked !== false,
+      enableOnlineAvailability: host.veEnableOnlineAvailability?.checked !== false,
       showOnlineAvailabilityFailures: host.veShowOnlineAvailabilityFailures?.checked === true,
       enableSubtitleSearch: host.veEnableSubtitleSearch?.checked !== false,
     } as any,
@@ -118,6 +120,8 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') host.veEnableActorRemarks.checked = ve.enableActorRemarks;
       if (host.veEnableActorNameMarks && typeof ve.enableActorNameMarks === 'boolean') host.veEnableActorNameMarks.checked = ve.enableActorNameMarks;
       if (host.veEnableRelatedLists && typeof ve.enableRelatedLists === 'boolean') host.veEnableRelatedLists.checked = ve.enableRelatedLists;
+      if (host.veEnableExternalEntryPanel && typeof ve.enableExternalEntryPanel === 'boolean') host.veEnableExternalEntryPanel.checked = ve.enableExternalEntryPanel;
+      if (host.veEnableExternalSearch && typeof ve.enableExternalSearch === 'boolean') host.veEnableExternalSearch.checked = ve.enableExternalSearch;
       if (host.veEnableOnlineAvailability && typeof ve.enableOnlineAvailability === 'boolean') host.veEnableOnlineAvailability.checked = ve.enableOnlineAvailability;
       if (host.veShowOnlineAvailabilityFailures && typeof ve.showOnlineAvailabilityFailures === 'boolean') host.veShowOnlineAvailabilityFailures.checked = ve.showOnlineAvailabilityFailures;
       if (host.veEnableSubtitleSearch && typeof ve.enableSubtitleSearch === 'boolean') host.veEnableSubtitleSearch.checked = ve.enableSubtitleSearch;

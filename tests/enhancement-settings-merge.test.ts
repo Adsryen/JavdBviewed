@@ -60,4 +60,19 @@ describe('mergeEnhancementSettingsForSave', () => {
     expect(defaultMerged.videoEnhancement?.enableSubtitleSearch).toBe(true);
     expect(disabledMerged.videoEnhancement?.enableSubtitleSearch).toBe(false);
   });
+
+  it('persists the detail external entry toggles with default on values', () => {
+    const current = structuredClone(DEFAULT_SETTINGS);
+
+    const defaultMerged = mergeEnhancementSettingsForSave(current, {} as any);
+    const disabledMerged = mergeEnhancementSettingsForSave(current, {
+      veEnableExternalEntryPanel: { checked: false },
+      veEnableExternalSearch: { checked: false },
+    } as any);
+
+    expect(defaultMerged.videoEnhancement?.enableExternalEntryPanel).toBe(true);
+    expect(defaultMerged.videoEnhancement?.enableExternalSearch).toBe(true);
+    expect(disabledMerged.videoEnhancement?.enableExternalEntryPanel).toBe(false);
+    expect(disabledMerged.videoEnhancement?.enableExternalSearch).toBe(false);
+  });
 });

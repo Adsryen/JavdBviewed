@@ -20,6 +20,8 @@ export interface DetailSearchInsertionTarget {
 }
 
 export interface RenderDetailSearchLinksOptions {
+  enabled?: boolean;
+  showExternalSearch?: boolean;
   showSubtitleSearch?: boolean;
 }
 
@@ -82,8 +84,11 @@ export function renderDetailSearchLinks(
   document.getElementById('jdb-external-search-panel')?.remove();
   document.getElementById('jdb-subtitle-search-panel')?.remove();
 
+  if (options.enabled === false) return null;
+
   const allLinks = buildDetailSearchLinks(videoId, searchEngines);
-  const externalLinks = allLinks.filter(link => link.category !== 'subtitle');
+  const showExternalSearch = options.showExternalSearch !== false;
+  const externalLinks = showExternalSearch ? allLinks.filter(link => link.category !== 'subtitle') : [];
   const subtitleLinks = allLinks.filter(link => link.category === 'subtitle');
   const showSubtitleSearch = options.showSubtitleSearch !== false;
 
