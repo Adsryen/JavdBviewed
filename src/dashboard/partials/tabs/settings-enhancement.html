@@ -58,6 +58,7 @@
                                     <input type="checkbox" id="veEnableRelatedLists">
                                     <input type="checkbox" id="veEnableOnlineAvailability">
                                     <input type="checkbox" id="veShowOnlineAvailabilityFailures">
+                                    <input type="checkbox" id="veEnableSubtitleSearch">
                                     <!-- 新增：影片页增强 - 本地同步类子项（隐藏 checkbox 作为状态源） -->
                                     <input type="checkbox" id="veEnableWantSync">
                                     <input type="checkbox" id="veAutoMarkWatchedAfter115">
@@ -331,6 +332,26 @@
                                         </div>
                                     </div>
                                     <!-- 在线可看性检测 结束 -->
+
+                                    <!-- 字幕搜索 -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">💬 字幕搜索</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableSubtitleSearch"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>功能：</strong>在影片详情页单独显示 SubTitleCat、迅雷字幕等字幕入口。<br>
+                                            <strong>说明：</strong>入口来源来自搜索引擎设置中的“字幕”分类，可在搜索引擎设置页调整自定义项分类。
+                                        </p>
+                                    </div>
+                                    <!-- 字幕搜索 结束 -->
 
                                     <!-- 相关清单解锁 -->
                                     <div class="form-group" data-subtab="video">

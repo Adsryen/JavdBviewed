@@ -574,7 +574,9 @@ export async function handleVideoDetailPage(): Promise<void> {
     }
 
     try {
-        renderDetailSearchLinks(videoId, STATE.settings?.searchEngines || []);
+        renderDetailSearchLinks(videoId, STATE.settings?.searchEngines || [], {
+            showSubtitleSearch: (STATE.settings as any)?.videoEnhancement?.enableSubtitleSearch !== false,
+        });
     } catch (e) {
         log('renderDetailSearchLinks failed:', e as any);
     }

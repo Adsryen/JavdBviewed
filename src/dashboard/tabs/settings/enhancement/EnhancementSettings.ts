@@ -69,6 +69,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableRelatedLists!: HTMLInputElement;
     private veEnableOnlineAvailability!: HTMLInputElement;
     private veShowOnlineAvailabilityFailures!: HTMLInputElement;
+    private veEnableSubtitleSearch!: HTMLInputElement;
     private veActorRemarksMode!: HTMLSelectElement;
     private veActorRemarksTTL!: HTMLInputElement;
     private veActorRemarksTaskTimeout!: HTMLInputElement;
@@ -774,6 +775,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableRelatedLists: this.veEnableRelatedLists?.checked !== false,
                     enableOnlineAvailability: this.veEnableOnlineAvailability?.checked === true,
                     showOnlineAvailabilityFailures: this.veShowOnlineAvailabilityFailures?.checked === true,
+                    enableSubtitleSearch: this.veEnableSubtitleSearch?.checked !== false,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
                     actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '10', 10) || 10,
