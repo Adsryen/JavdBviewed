@@ -245,6 +245,10 @@ export function getCreatedTabs(): chrome.tabs.CreateProperties[] {
   return clone(createdTabs);
 }
 
+export function dispatchRuntimeInstalled(details: chrome.runtime.InstalledDetails): void {
+  runtimeInstalledEvent.dispatch(details);
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   resetChromeMock();
