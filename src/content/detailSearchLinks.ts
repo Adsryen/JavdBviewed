@@ -170,6 +170,9 @@ interface XunleiSubtitleItem {
   url?: string;
   language?: string;
   rate?: number | string;
+  duration?: number | string;
+  sourceLabel?: string;
+  hash?: string;
 }
 
 interface XunleiSubtitleResponse {
@@ -193,7 +196,7 @@ function openXunleiSubtitleModal(videoId: string, apiUrl: string): void {
     <div class="jdb-xunlei-subtitle-dialog" role="dialog" aria-modal="true" aria-labelledby="jdb-xunlei-subtitle-title">
       <div class="jdb-xunlei-subtitle-header">
         <div>
-          <h3 id="jdb-xunlei-subtitle-title">迅雷字幕</h3>
+          <h3 id="jdb-xunlei-subtitle-title" data-video-id="${escapeHtml(videoId)}">迅雷字幕</h3>
           <p>${escapeHtml(videoId)}</p>
         </div>
         <button type="button" class="jdb-xunlei-subtitle-close" data-jdb-xunlei-close aria-label="关闭">×</button>
@@ -229,6 +232,11 @@ async function loadXunleiSubtitleResults(modal: HTMLElement, apiUrl: string): Pr
       responseType: 'json',
     });
     const items = normalizeXunleiSubtitleItems(response);
+    const title = modal.querySelector<HTMLElement>('#jdb-xunlei-subtitle-title');
+    if (title) {
+      title.textContent = `迅雷字幕 · ${title.dataset.videoId || '影片'} · ${items.length} 条`;
+    }
+
     if (items.length === 0) {
       body.innerHTML = '<div class="jdb-xunlei-subtitle-state">暂无字幕</div>';
       return;
@@ -246,23 +254,37 @@ async function loadXunleiSubtitleResults(modal: HTMLElement, apiUrl: string): Pr
       title.className = 'jdb-xunlei-subtitle-name';
       title.textContent = item.name || '未命名字幕';
 
-      const meta = document.createElement('div');
-      meta.className = 'jdb-xunlei-subtitle-meta';
-      meta.textContent = [
-        item.ext ? item.ext.toUpperCase() : '',
-        item.language || '',
-        item.rate ? `匹配 ${item.rate}` : '',
-      ].filter(Boolean).join(' · ');
+      const meta = createXunleiSubtitleMeta(item);
 
       const actions = document.createElement('div');
       actions.className = 'jdb-xunlei-subtitle-actions';
       if (item.url) {
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'jdb-xunlei-subtitle-copy';
+        copy.textContent = '复制链接';
+        copy.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(item.url || '');
+            copy.textContent = '已复制';
+            window.setTimeout(() => {
+              copy.textContent = '复制链接';
+            }, 1200);
+          } catch {
+            copy.textContent = '复制失败';
+            window.setTimeout(() => {
+              copy.textContent = '复制链接';
+            }, 1200);
+          }
+        });
+
         const download = document.createElement('a');
         download.href = item.url;
         download.target = '_blank';
         download.rel = 'noopener noreferrer';
         download.className = 'jdb-xunlei-subtitle-download';
         download.textContent = '下载';
+        actions.appendChild(copy);
         actions.appendChild(download);
       }
 
@@ -291,10 +313,71 @@ function normalizeXunleiSubtitleItems(response: XunleiSubtitleResponse): XunleiS
       name: String(item.name || item.sname || item.title || '').trim(),
       ext: String(item.ext || item.type || '').trim(),
       url: String(item.url || item.surl || item.download_url || '').trim(),
-      language: String(item.language || item.lang || '').trim(),
-      rate: item.rate as number | string | undefined,
+      language: normalizeXunleiSubtitleLanguage(item.language || item.lang || item.languages),
+      rate: normalizeXunleiSubtitleRate(item.rate ?? item.score ?? item.fingerprintf_score),
+      duration: item.duration as number | string | undefined,
+      sourceLabel: normalizeXunleiSubtitleSource(item.extra_name || item.source_name || item.source),
+      hash: normalizeXunleiSubtitleHash(item.gcid || item.cid || item.hash),
     }))
     .filter(item => item.name || item.url);
+}
+
+function createXunleiSubtitleMeta(item: XunleiSubtitleItem): HTMLElement {
+  const meta = document.createElement('div');
+  meta.className = 'jdb-xunlei-subtitle-meta';
+
+  [
+    item.ext ? item.ext.toUpperCase() : '',
+    item.language || '未知语言',
+    item.sourceLabel || '',
+    formatXunleiSubtitleDuration(item.duration),
+    item.hash ? `Hash ${item.hash}` : '',
+    item.rate ? `匹配 ${item.rate}` : '',
+  ].filter(Boolean).forEach((text) => {
+    const tag = document.createElement('span');
+    tag.className = 'jdb-xunlei-subtitle-tag';
+    tag.textContent = text;
+    meta.appendChild(tag);
+  });
+
+  return meta;
+}
+
+function normalizeXunleiSubtitleLanguage(value: unknown): string {
+  const raw = Array.isArray(value)
+    ? value.find(item => String(item || '').trim())
+    : value;
+  return String(raw || '').trim().toUpperCase();
+}
+
+function normalizeXunleiSubtitleRate(value: unknown): number | string | undefined {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw === '0') return undefined;
+  return raw;
+}
+
+function normalizeXunleiSubtitleSource(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw === '0') return '';
+  return raw.replace(/[（）()]/g, '').trim();
+}
+
+function normalizeXunleiSubtitleHash(value: unknown): string {
+  const raw = String(value ?? '').trim().replace(/[^a-f0-9]/gi, '').toUpperCase();
+  return raw ? raw.slice(0, 8) : '';
+}
+
+function formatXunleiSubtitleDuration(value: unknown): string {
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw <= 0) return '';
+
+  const totalSeconds = Math.floor(raw > 100000 ? raw / 1000 : raw);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds]
+    .map(item => String(item).padStart(2, '0'))
+    .join(':');
 }
 
 function escapeHtml(value: string): string {
@@ -449,8 +532,8 @@ function injectDetailSearchStyles(): void {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
+      gap: 8px;
+      padding: 8px 10px;
       border: 1px solid var(--jdb-xunlei-border);
       border-radius: 7px;
       background: var(--jdb-xunlei-panel);
@@ -465,17 +548,40 @@ function injectDetailSearchStyles(): void {
     }
 
     .jdb-xunlei-subtitle-meta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 4px;
       color: var(--jdb-xunlei-muted);
       font-size: 12px;
+      min-width: 0;
+    }
+
+    .jdb-xunlei-subtitle-tag {
+      display: inline-flex;
+      align-items: center;
+      max-width: 9rem;
+      min-height: 22px;
+      padding: 0 7px;
+      border: 1px solid var(--jdb-xunlei-border);
+      border-radius: 999px;
+      background: var(--jdb-xunlei-bg);
+      color: var(--jdb-xunlei-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .jdb-xunlei-subtitle-actions {
       display: inline-flex;
+      align-items: center;
       justify-content: flex-end;
+      gap: 6px;
     }
 
-    .jdb-xunlei-subtitle-download {
+    .jdb-xunlei-subtitle-download,
+    .jdb-xunlei-subtitle-copy {
       display: inline-flex;
       align-items: center;
       height: 28px;
@@ -486,6 +592,13 @@ function injectDetailSearchStyles(): void {
       text-decoration: none !important;
       font-size: 12px;
       font-weight: 600;
+    }
+
+    .jdb-xunlei-subtitle-copy {
+      border: 1px solid var(--jdb-xunlei-border);
+      cursor: pointer;
+      background: var(--jdb-xunlei-bg);
+      color: var(--jdb-xunlei-text) !important;
     }
 
     @media (max-width: 640px) {
@@ -501,6 +614,7 @@ function injectDetailSearchStyles(): void {
       .jdb-xunlei-subtitle-meta {
         grid-column: 1 / -1;
         order: 3;
+        justify-content: flex-start;
       }
     }
   `;
