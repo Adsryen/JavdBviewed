@@ -7,9 +7,20 @@
         <p class="settings-description">自定义点击番号后跳转的搜索网站。使用 <code>{{ID}}</code> 作为番号占位符。</p>
     </div>
     <div class="settings-page-body">
+        <div class="search-engine-toolbar" aria-label="搜索引擎筛选">
+            <label for="search-engine-category-filter">分类</label>
+            <select id="search-engine-category-filter" class="search-engine-category-filter">
+                <option value="all">全部</option>
+                <option value="search">搜索</option>
+                <option value="resource">资源站</option>
+                <option value="subtitle">字幕</option>
+            </select>
+        </div>
         <div class="search-engine-header">
             <div class="engine-icon">图标</div>
+            <div class="engine-enabled">是否启用</div>
             <div class="engine-name">搜索引擎名称</div>
+            <div class="engine-category">分类</div>
             <div class="engine-url">URL模板</div>
             <div class="engine-icon-url">图标地址</div>
             <div class="engine-actions">操作</div>
