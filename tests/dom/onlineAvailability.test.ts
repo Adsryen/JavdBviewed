@@ -221,6 +221,65 @@ describe('online availability helpers', () => {
     expect(result.url).toBe('https://supjav.com/ssis-795/');
   });
 
+  it('matches 123AV only when a visible result title carries the exact code', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === '123av')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="detail">
+        <a href="/zh/v/ssis-795">SSIS-795 Sample Video</a>
+      </div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://123av.com/zh/search?keyword=ssis-795', 200);
+
+    expect(result.available).toBe(true);
+    expect(result.url).toBe('https://123av.com/zh/v/ssis-795');
+  });
+
+  it('rejects 123AV parser shell links that only carry the code in href', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === '123av')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="detail">
+        <a href="/zh/v/ssis-795"><span>Open result</span></a>
+      </div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://123av.com/zh/search?keyword=ssis-795', 200);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('matches NETFLAV result cards through the card title text', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'netflav')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="grid_0_cell">
+        <a href="/video?id=abc123">
+          <span class="grid_0_title">SSIS-795 Chinese Subtitle</span>
+        </a>
+      </div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://netflav5.com/search?type=title&keyword=ssis-795', 200);
+
+    expect(result.available).toBe(true);
+    expect(result.url).toBe('https://netflav5.com/video?id=abc123');
+    expect(result.tags).toContain('字幕');
+  });
+
+  it('rejects NETFLAV links that only carry the code in href', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'netflav')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="grid_0_cell">
+        <a href="/video?keyword=ssis-795">
+          <span class="grid_0_title">Random Recommendation</span>
+        </a>
+      </div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://netflav5.com/search?type=title&keyword=ssis-795', 200);
+
+    expect(result.available).toBe(false);
+  });
+
   it('returns the matched parser result link when the title selector is the matching anchor', () => {
     const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'javguru')!;
     const doc = new DOMParser().parseFromString(`
@@ -234,6 +293,20 @@ describe('online availability helpers', () => {
 
     expect(result.available).toBe(true);
     expect(result.url).toBe('https://jav.guru/ssis-795/');
+  });
+
+  it('rejects Jav.Guru cover links when the paired title belongs to another code', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'javguru')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="inside-article">
+        <div class="grid1"><a title="ABCD-123 Different Video" href="https://jav.guru/abcd-123/">ABCD-123</a></div>
+      </div>
+      <div class="imgg"><a href="https://jav.guru/ssis-795/">cover</a></div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://jav.guru/?s=SSIS-795', 200);
+
+    expect(result.available).toBe(false);
   });
 
   it('rejects parser results whose code only contains the requested code as a prefix', () => {
