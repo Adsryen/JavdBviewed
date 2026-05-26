@@ -7,7 +7,7 @@ export default defineConfig({
     clearMocks: true,
     environment: 'jsdom',
     include: ['tests/dom/**/*.test.ts'],
-    setupFiles: ['tests/setup/dom.ts'],
+    setupFiles: ['tests/setup/proxy.ts', 'tests/setup/dom.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

@@ -413,10 +413,9 @@ function findParserMatch(site: OnlineAvailabilitySite, doc: Document, videoId: s
   const linkQuery = site.domQuery?.linkQuery;
   if (!linkQuery) return null;
 
-  const normalizedCode = normalizeCode(videoId);
   const links = Array.from(doc.querySelectorAll<HTMLAnchorElement>(linkQuery));
   for (const link of links) {
-    const text = `${link.textContent || ''} ${link.getAttribute('title') || ''} ${link.getAttribute('href') || ''}`;
+    const text = getParserCandidateText(link);
     if (!containsExactVideoCode(text, videoId)) continue;
     const href = link.getAttribute('href') || requestUrl;
     return {
@@ -428,7 +427,7 @@ function findParserMatch(site: OnlineAvailabilitySite, doc: Document, videoId: s
   const titleQuery = site.domQuery?.titleQuery;
   if (titleQuery) {
     const title = Array.from(doc.querySelectorAll<HTMLElement>(titleQuery))
-      .find(item => containsExactVideoCode(`${item.textContent || ''} ${item.getAttribute('title') || ''} ${item.getAttribute('href') || ''}`, videoId));
+      .find(item => containsExactVideoCode(getParserCandidateText(item), videoId));
     if (title) {
       const anchor = title.matches('a[href]')
         ? title as HTMLAnchorElement
@@ -436,12 +435,24 @@ function findParserMatch(site: OnlineAvailabilitySite, doc: Document, videoId: s
       const href = anchor?.getAttribute('href');
       return {
         url: href ? new URL(href, requestUrl).toString() : requestUrl,
-        text: title.textContent || title.getAttribute('title') || '',
+        text: getParserCandidateText(title),
       };
     }
   }
 
   return null;
+}
+
+function getParserCandidateText(element: HTMLElement): string {
+  const imageText = Array.from(element.querySelectorAll<HTMLImageElement>('img[alt], img[title]'))
+    .map(img => `${img.getAttribute('alt') || ''} ${img.getAttribute('title') || ''}`)
+    .join(' ');
+  return [
+    element.textContent || '',
+    element.getAttribute('title') || '',
+    element.getAttribute('aria-label') || '',
+    imageText,
+  ].join(' ');
 }
 
 function extractTags(doc: Document, query?: OnlineAvailabilitySite['domQuery'], extraText = ''): string[] {
