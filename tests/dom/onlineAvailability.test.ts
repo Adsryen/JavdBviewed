@@ -34,7 +34,12 @@ describe('online availability helpers', () => {
 
   it('marks direct detail pages available when the response is successful', () => {
     const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'jable')!;
-    const doc = new DOMParser().parseFromString('<div class="info-header">SSIS-795</div>', 'text/html');
+    const doc = new DOMParser().parseFromString(`
+      <link rel="canonical" href="https://jable.tv/videos/ssis-795/">
+      <meta property="og:type" content="video.movie">
+      <div class="video-info"><div class="info-header">SSIS-795</div></div>
+      <video src="preview.mp4"></video>
+    `, 'text/html');
 
     const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://jable.tv/videos/ssis-795/', 200);
 
@@ -56,6 +61,35 @@ describe('online availability helpers', () => {
     expect(result.available).toBe(false);
   });
 
+  it('marks FANZA unavailable when the requested cid only appears in an empty shell', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'fanza')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>FANZA動画</title>
+      <meta name="keywords" content="JUR-730">
+      <input name="searchstr" value="JUR-730">
+      <div id="root"></div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=JUR00730/', 200);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('marks FANZA available when the detail page carries a product cid signal', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'fanza')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>JUR-730 - FANZA動画</title>
+      <link rel="canonical" href="https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=JUR00730/">
+      <meta property="og:url" content="https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=JUR00730/">
+      <h1 class="productTitle">JUR-730</h1>
+      <script>window.dataLayer = [{ product_id: "JUR00730" }]</script>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=JUR00730/', 200);
+
+    expect(result.available).toBe(true);
+  });
+
   it('marks FANZA unavailable for age-check or empty shell pages without the requested cid', () => {
     const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'fanza')!;
     const doc = new DOMParser().parseFromString(`
@@ -65,6 +99,19 @@ describe('online availability helpers', () => {
     `, 'text/html');
 
     const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=JUR00730/', 200);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('marks Jable unavailable when info-header appears on a generic shell', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'jable')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>Jable 搜索</title>
+      <div class="info-header">JUR-730</div>
+      <main class="search-results">No videos found for JUR-730</main>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://jable.tv/videos/jur-730/', 200);
 
     expect(result.available).toBe(false);
   });
@@ -285,7 +332,11 @@ describe('online availability helpers', () => {
       if (String(url).endsWith('/ssis-795/')) {
         throw new Error('HTTP 404');
       }
-      return new DOMParser().parseFromString('<div class="info-header">SSIS-795</div>', 'text/html');
+      return new DOMParser().parseFromString(`
+        <link rel="canonical" href="https://jable.tv/videos/ssis-795-c/">
+        <meta property="og:type" content="video.movie">
+        <div class="video-info"><div class="info-header">SSIS-795</div></div>
+      `, 'text/html');
     });
     document.body.innerHTML = `
       <h2 class="title is-4"><strong>SSIS-795</strong></h2>
