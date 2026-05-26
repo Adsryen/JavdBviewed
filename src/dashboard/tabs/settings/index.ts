@@ -19,6 +19,16 @@ export { settingsPanelManager } from './base/SettingsPanelManager';
 
 // 注意：设置子模块现在通过动态导入加载，避免循环依赖和构建冲突
 
+async function mountSettingsSearchOnIndex(): Promise<void> {
+    const { mountDashboardSettingsSearch } = await import('../../../apps/dashboard/settingsSearchBootstrap');
+    await mountDashboardSettingsSearch();
+}
+
+async function revealSettingsSearchTargetOnPage(): Promise<void> {
+    const { revealDashboardSettingsSearchTarget } = await import('../../../apps/dashboard/settingsSearchBootstrap');
+    await revealDashboardSettingsSearchTarget();
+}
+
 /**
  * 初始化所有设置面板
  *
@@ -127,6 +137,7 @@ export async function initSettingsPage(): Promise<void> {
         // 如果是设置导航页，不需要初始化任何模块
         if (hash === 'tab-settings') {
             console.log('[Settings] 设置导航页，无需初始化模块');
+            await mountSettingsSearchOnIndex();
             return;
         }
         
@@ -220,6 +231,7 @@ export async function initSettingsPage(): Promise<void> {
         if (initFn) {
             console.log(`[Settings] 初始化设置模块: ${subSection}`);
             await initFn();
+            await revealSettingsSearchTargetOnPage();
         } else {
             console.log(`[Settings] 未找到对应的设置模块: ${subSection}`);
         }
@@ -245,6 +257,7 @@ export async function initSettingsTab(): Promise<void> {
         // 如果没有子路径，说明是在设置导航页，不需要初始化任何面板
         if (!subSection) {
             console.debug('设置导航页，无需初始化面板');
+            await mountSettingsSearchOnIndex();
             return;
         }
         
@@ -334,6 +347,7 @@ export async function initSettingsTab(): Promise<void> {
         if (initFn) {
             console.debug(`初始化单个设置模块: ${subSection}`);
             await initFn();
+            await revealSettingsSearchTargetOnPage();
         } else {
             console.warn(`未找到对应的设置模块: ${subSection}`);
         }
