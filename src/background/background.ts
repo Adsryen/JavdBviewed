@@ -22,10 +22,12 @@ import { registerMonthlyAlarm, handleAlarmAsync, compensateOnStartup, INSIGHTS_A
 import { getSettings, saveSettings } from '../utils/storage';
 import { normalizeDrive115Settings, isDrive115EnabledState, hasDrive115V2Credentials } from '../services/drive115App';
 import { globalTaskCenter } from './globalTaskCenter';
+import { registerReleaseAnnouncementEvents } from '../apps/background/releaseAnnouncementEvents';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
 ensureMigrationsStart();
+registerReleaseAnnouncementEvents();
 
 // P1 FIX: Service Worker 启动时从 chrome.storage 恢复任务状态
 globalTaskCenter.restoreFromStorage().catch(console.warn);

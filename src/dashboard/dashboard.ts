@@ -38,6 +38,7 @@ import { getSettings } from '../utils/storage';
 import { getDisplayVersionInfo } from '../utils/versionInfo';
 import { normalizeDrive115Settings, isDrive115EnabledState } from '../services/drive115App';
 import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
+import { mountDashboardReleaseAnnouncement } from '../apps/dashboard/releaseAnnouncementBootstrap';
 // 主题系统
 import { themeManager } from './services/themeManager';
 import { ThemeSwitcher } from './components/themeSwitcher';
@@ -378,6 +379,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         (window as any).initDrive115QuotaSidebar?.();
     }
     updateSyncStatusModule();
+    mountDashboardReleaseAnnouncement().catch(error => {
+        console.warn('[Dashboard] 发布提示弹窗挂载失败:', error);
+    });
     // 监听来自设置页的配额刷新事件
     window.addEventListener('drive115:refreshQuota' as any, () => {
         (window as any).initDrive115QuotaSidebar?.();
@@ -513,4 +517,3 @@ function initInfoContainer(): void {
         </div>${buildLine}${commitLine}${stateLine}${builtAtLine}${deviceIdLine}
     `;
 }
-
