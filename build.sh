@@ -108,6 +108,12 @@ read_build() {
   echo "$b"
 }
 
+assert_release_notes_ready() {
+  local version="$1"
+  info "检查发布提示文案: $version"
+  node "$root_dir/scripts/assert-release-notes.cjs" "$version"
+}
+
 artifact_version() {
   local version="$1"
   local build="${2:-}"
@@ -452,6 +458,7 @@ get_commit_template() {
 tag_and_push() {
   local tag="$1"
   if ! have git; then warn "未检测到 git，跳过打 tag"; return 0; fi
+  assert_release_notes_ready "${tag#v}"
   if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
     warn "标签已存在：$tag（跳过创建）"
   else
@@ -546,6 +553,7 @@ menu_main() {
       doRel="${doRel:-N}"
       local tag="v${v}"
       if [[ "$doRel" =~ ^[Yy]$ ]]; then
+        assert_release_notes_ready "$v"
         local dirty; dirty=$(git_dirty)
         if [[ -n "$dirty" ]]; then
           warn "检测到未提交的改动，这些改动不会包含在标签 $tag 中。"
@@ -574,6 +582,7 @@ menu_main() {
       doRel="${doRel:-N}"
       if [[ "$doRel" =~ ^[Yy]$ ]]; then
         local tag="v${v}"
+        assert_release_notes_ready "$v"
         local dirty; dirty=$(git_dirty)
         if [[ -n "$dirty" ]]; then
           warn "检测到未提交的改动，这些改动不会包含在标签 $tag 中。"
@@ -622,6 +631,7 @@ menu_main() {
         cp -f "$asset_tgz_nv" "$asset_tgz_v" && asset="$asset_tgz_v"
       fi
       local dirty; dirty=$(git_dirty)
+      assert_release_notes_ready "$v"
       if [[ -n "$dirty" ]]; then
         warn "检测到未提交的改动，这些改动不会包含在标签 $tag 中。"
         local conf; conf=$(ask "仍要创建标签并发布吗？(y/n) [N]:")

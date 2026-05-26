@@ -214,6 +214,16 @@ function Install-Dependencies {
     }
 }
 
+function Assert-ReleaseNotesReady {
+    param([Parameter(Mandatory=$true)][string]$Version)
+
+    Write-Host "Checking release announcement notes for $Version..." -ForegroundColor Gray
+    & node "scripts/assert-release-notes.cjs" $Version | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release announcement notes are not ready for $Version"
+    }
+}
+
 
 # Main loop
 while ($true) {
@@ -458,6 +468,13 @@ if (-not (Test-Path $zipPath)) {
         Show-Error
         exit 1
     }
+}
+
+try {
+    Assert-ReleaseNotesReady -Version $releaseVersionStr
+} catch {
+    Show-Error
+    exit 1
 }
 
 # Fast path: Create release with custom notes (prev tag..current tag)
