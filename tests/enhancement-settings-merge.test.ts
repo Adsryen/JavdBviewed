@@ -75,4 +75,20 @@ describe('mergeEnhancementSettingsForSave', () => {
     expect(disabledMerged.videoEnhancement?.enableExternalEntryPanel).toBe(false);
     expect(disabledMerged.videoEnhancement?.enableExternalSearch).toBe(false);
   });
+
+  it('persists online availability site enabled states from checkbox controls', () => {
+    const current = structuredClone(DEFAULT_SETTINGS);
+
+    const merged = mergeEnhancementSettingsForSave(current, {
+      onlineAvailabilitySiteInputs: [
+        { dataset: { siteKey: 'missav' }, checked: false },
+        { dataset: { siteKey: 'jable' }, checked: true },
+      ],
+    } as any);
+
+    expect(merged.videoEnhancement?.onlineAvailabilitySites).toEqual({
+      missav: false,
+      jable: true,
+    });
+  });
 });

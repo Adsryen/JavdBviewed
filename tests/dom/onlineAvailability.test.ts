@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultHttpClient } from '../../src/services/dataAggregator/httpClient';
 import {
+  applyOnlineAvailabilitySitePreferences,
   buildOnlineAvailabilityUrl,
   DEFAULT_ONLINE_AVAILABILITY_SITES,
   findOnlineAvailabilityInsertionTarget,
@@ -30,6 +31,19 @@ describe('online availability helpers', () => {
     expect(buildOnlineAvailabilityUrl(DEFAULT_ONLINE_AVAILABILITY_SITES.find(site => site.key === '123av')!, 'SSIS-795')).toBe(
       'https://123av.com/zh/search?keyword=ssis-795',
     );
+  });
+
+  it('applies saved site enabled preferences without mutating the built-in site rules', () => {
+    const configured = applyOnlineAvailabilitySitePreferences(DEFAULT_ONLINE_AVAILABILITY_SITES, {
+      missav: false,
+      jable: true,
+      unknown: false,
+    });
+
+    expect(configured.find(site => site.key === 'missav')?.enabled).toBe(false);
+    expect(configured.find(site => site.key === 'jable')?.enabled).toBe(true);
+    expect(configured.find(site => site.key === 'fanza')?.enabled).toBe(true);
+    expect(DEFAULT_ONLINE_AVAILABILITY_SITES.find(site => site.key === 'missav')?.enabled).toBe(true);
   });
 
   it('marks direct detail pages available when the response is successful', () => {

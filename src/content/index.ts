@@ -34,7 +34,11 @@ import { installTaskVisibilityReporter } from './taskVisibilityReporter';
 import { getActiveManagedTaskIds } from './taskRuntime';
 import { installTaskHeartbeatReporter } from './taskHeartbeat';
 import { showEnhancementLoading } from './enhancementLoadingIndicator';
-import { onlineAvailabilityManager } from './onlineAvailability';
+import {
+    applyOnlineAvailabilitySitePreferences,
+    DEFAULT_ONLINE_AVAILABILITY_SITES,
+    onlineAvailabilityManager,
+} from './onlineAvailability';
 import { destroySuperRankingNav, initializeSuperRankingNav, isSuperRankingSupportedHost } from './superRankingNav';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
@@ -622,6 +626,10 @@ async function initialize(): Promise<void> {
                 autoCheck: true,
                 showUnavailable: videoEnhancement.showOnlineAvailabilityFailures === true,
                 timeoutMs: Number(videoEnhancement.onlineAvailabilityTimeoutMs || 8000),
+                sites: applyOnlineAvailabilitySitePreferences(
+                    DEFAULT_ONLINE_AVAILABILITY_SITES,
+                    videoEnhancement.onlineAvailabilitySites,
+                ),
             } as any);
             await onlineAvailabilityManager.initialize();
         }, { label: 'onlineAvailability:check', idle: true, idleTimeout: 8000, delayMs: 1800 });

@@ -437,6 +437,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableExternalSearch: true,
                 enableOnlineAvailability: true,
                 showOnlineAvailabilityFailures: false,
+                onlineAvailabilitySites: {},
                 enableSubtitleSearch: true,
             } as any;
         } else if (section === 'actor') {
@@ -782,6 +783,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableExternalSearch: this.veEnableExternalSearch?.checked !== false,
                     enableOnlineAvailability: this.veEnableOnlineAvailability?.checked !== false,
                     showOnlineAvailabilityFailures: this.veShowOnlineAvailabilityFailures?.checked === true,
+                    onlineAvailabilitySites: (mergedEnhancementSettings.videoEnhancement as any)?.onlineAvailabilitySites ?? {},
                     enableSubtitleSearch: this.veEnableSubtitleSearch?.checked !== false,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
