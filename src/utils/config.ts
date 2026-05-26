@@ -521,6 +521,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableExternalSearch: true,
         enableOnlineAvailability: true,
         showOnlineAvailabilityFailures: false,
+        onlineAvailabilitySites: {},
         enableSubtitleSearch: true,
     },
 

@@ -1,4 +1,5 @@
 import type { ExtensionSettings } from '../../../../../types';
+import { collectOnlineAvailabilitySiteStates } from './onlineAvailabilitySites';
 
 type EnhancementSaveHost = {
   enableSuperRanking?: HTMLInputElement;
@@ -28,6 +29,7 @@ type EnhancementSaveHost = {
   veEnableOnlineAvailability?: HTMLInputElement;
   veShowOnlineAvailabilityFailures?: HTMLInputElement;
   veEnableSubtitleSearch?: HTMLInputElement;
+  onlineAvailabilitySiteInputs?: ArrayLike<HTMLInputElement>;
   getPreferredPreviewSource?: () => 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl';
 };
 
@@ -45,6 +47,7 @@ export function mergeEnhancementSettingsForSave(
   const existingPopularityEffects = (existingListEnhancement as any).popularityEffects || {};
   const existingVideoEnhancement = (current as any).videoEnhancement || {};
   const existingUserExperience = (current as any).userExperience || {};
+  const onlineAvailabilitySites = collectOnlineAvailabilitySiteStates(host.onlineAvailabilitySiteInputs);
 
   return {
     ...current,
@@ -59,6 +62,7 @@ export function mergeEnhancementSettingsForSave(
       enableExternalSearch: host.veEnableExternalSearch?.checked ?? existingVideoEnhancement.enableExternalSearch ?? true,
       enableOnlineAvailability: host.veEnableOnlineAvailability?.checked ?? existingVideoEnhancement.enableOnlineAvailability ?? true,
       showOnlineAvailabilityFailures: host.veShowOnlineAvailabilityFailures?.checked ?? existingVideoEnhancement.showOnlineAvailabilityFailures ?? false,
+      onlineAvailabilitySites: onlineAvailabilitySites ?? existingVideoEnhancement.onlineAvailabilitySites ?? {},
       enableSubtitleSearch: host.veEnableSubtitleSearch?.checked ?? existingVideoEnhancement.enableSubtitleSearch ?? true,
     },
     listEnhancement: {

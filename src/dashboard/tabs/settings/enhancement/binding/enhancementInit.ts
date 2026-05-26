@@ -1,4 +1,5 @@
 import { TaskDetailsController } from '../taskDetails/taskDetailsController';
+import { renderOnlineAvailabilitySiteOptions } from '../settings/onlineAvailabilitySites';
 
 export type EnhancementInitHost = any;
 
@@ -108,6 +109,10 @@ export function initializeElements(host: EnhancementInitHost): void {
   ids.forEach(([id, key]) => {
     host[key] = document.getElementById(id) as any;
   });
+
+  host.onlineAvailabilitySiteList = document.getElementById('onlineAvailabilitySiteList') as HTMLElement | null;
+  renderOnlineAvailabilitySiteOptions(host.onlineAvailabilitySiteList);
+  host.onlineAvailabilitySiteInputs = document.querySelectorAll('.online-availability-site-input') as NodeListOf<HTMLInputElement>;
 
   host.enableAutoApplyTags = document.getElementById('enableAutoApplyTags') as HTMLInputElement;
   host.actorDefaultTagInputs = document.querySelectorAll('#actorDefaultTagsGroup input[name="actorDefaultTag"]') as NodeListOf<HTMLInputElement>;

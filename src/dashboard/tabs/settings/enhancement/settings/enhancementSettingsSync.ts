@@ -1,5 +1,6 @@
 import { getDefaultTags } from '../../../../config/actorFilterTags';
 import type { ExtensionSettings } from '../../../../../types';
+import { applyOnlineAvailabilitySiteStates, collectOnlineAvailabilitySiteStates } from './onlineAvailabilitySites';
 
 export type EnhancementSettingsSyncHost = any;
 
@@ -39,6 +40,7 @@ export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<Extens
       enableExternalSearch: host.veEnableExternalSearch?.checked !== false,
       enableOnlineAvailability: host.veEnableOnlineAvailability?.checked !== false,
       showOnlineAvailabilityFailures: host.veShowOnlineAvailabilityFailures?.checked === true,
+      onlineAvailabilitySites: collectOnlineAvailabilitySiteStates(host.onlineAvailabilitySiteInputs) ?? {},
       enableSubtitleSearch: host.veEnableSubtitleSearch?.checked !== false,
     } as any,
     contentFilter: {
@@ -124,6 +126,7 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.veEnableExternalSearch && typeof ve.enableExternalSearch === 'boolean') host.veEnableExternalSearch.checked = ve.enableExternalSearch;
       if (host.veEnableOnlineAvailability && typeof ve.enableOnlineAvailability === 'boolean') host.veEnableOnlineAvailability.checked = ve.enableOnlineAvailability;
       if (host.veShowOnlineAvailabilityFailures && typeof ve.showOnlineAvailabilityFailures === 'boolean') host.veShowOnlineAvailabilityFailures.checked = ve.showOnlineAvailabilityFailures;
+      applyOnlineAvailabilitySiteStates(host.onlineAvailabilitySiteInputs, ve.onlineAvailabilitySites);
       if (host.veEnableSubtitleSearch && typeof ve.enableSubtitleSearch === 'boolean') host.veEnableSubtitleSearch.checked = ve.enableSubtitleSearch;
       if (host.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') host.veActorRemarksMode.value = ve.actorRemarksMode === 'inline' ? 'inline' : 'panel';
       if (host.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') host.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);

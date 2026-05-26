@@ -1,5 +1,6 @@
 import { STATE } from '../../../../state';
 import { getDefaultTags } from '../../../../config/actorFilterTags';
+import { applyOnlineAvailabilitySiteStates } from './onlineAvailabilitySites';
 
 export type EnhancementLoadHost = any;
 
@@ -95,6 +96,7 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.veEnableExternalSearch) host.veEnableExternalSearch.checked = (ve as any).enableExternalSearch !== false;
   if (host.veEnableOnlineAvailability) host.veEnableOnlineAvailability.checked = (ve as any).enableOnlineAvailability !== false;
   if (host.veShowOnlineAvailabilityFailures) host.veShowOnlineAvailabilityFailures.checked = (ve as any).showOnlineAvailabilityFailures === true;
+  applyOnlineAvailabilitySiteStates(host.onlineAvailabilitySiteInputs, (ve as any).onlineAvailabilitySites);
   if (host.veEnableSubtitleSearch) host.veEnableSubtitleSearch.checked = (ve as any).enableSubtitleSearch !== false;
   if (host.translateCurrentTitleChk) host.translateCurrentTitleChk.checked = settings?.translation?.targets ? settings.translation.targets.currentTitle !== false : true;
   if (host.veActorRemarksMode) host.veActorRemarksMode.value = ((ve as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';

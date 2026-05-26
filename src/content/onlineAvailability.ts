@@ -36,6 +36,8 @@ export interface OnlineAvailabilityConfig {
   sites: OnlineAvailabilitySite[];
 }
 
+export type OnlineAvailabilitySitePreferences = Record<string, boolean>;
+
 export interface OnlineAvailabilityInsertionTarget {
   parent: Element;
   before: ChildNode | null;
@@ -157,6 +159,22 @@ const DEFAULT_CONFIG: OnlineAvailabilityConfig = {
   timeoutMs: 8000,
   sites: DEFAULT_ONLINE_AVAILABILITY_SITES,
 };
+
+export function applyOnlineAvailabilitySitePreferences(
+  sites: OnlineAvailabilitySite[],
+  preferences: unknown,
+): OnlineAvailabilitySite[] {
+  const sitePreferences = preferences && typeof preferences === 'object'
+    ? preferences as Record<string, unknown>
+    : {};
+
+  return sites.map(site => ({
+    ...site,
+    enabled: typeof sitePreferences[site.key] === 'boolean'
+      ? sitePreferences[site.key] as boolean
+      : site.enabled,
+  }));
+}
 
 export class OnlineAvailabilityManager {
   private config: OnlineAvailabilityConfig = DEFAULT_CONFIG;
