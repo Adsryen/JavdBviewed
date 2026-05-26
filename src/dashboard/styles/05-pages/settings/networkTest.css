@@ -680,13 +680,13 @@
     border-radius: 20px;
 }
 
-#network-test-settings .settings-panel-header {
+#network-test-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#network-test-settings .settings-panel-header h3 {
+#network-test-settings .settings-page-header h3 {
     color: var(--primary);
     display: flex;
     align-items: center;
@@ -698,7 +698,7 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#network-test-settings .settings-panel-header h3::before {
+#network-test-settings .settings-page-header h3::before {
     content: '🌐';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));

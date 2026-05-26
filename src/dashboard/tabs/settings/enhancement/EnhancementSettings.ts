@@ -1143,8 +1143,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         // 控制所有带 data-subtab 的元素显示/隐藏
-        // 选择 .settings-panel-body 下的所有 .form-group[data-subtab]
-        const subtabElements = document.querySelectorAll('#enhancement-settings .settings-panel-body .form-group[data-subtab]');
+        // 选择 .settings-page-body 下的所有 .form-group[data-subtab]
+        const subtabElements = document.querySelectorAll('#enhancement-settings .settings-page-body .form-group[data-subtab]');
         console.log('[Enhancement] Found subtab elements:', subtabElements.length);
         
         subtabElements.forEach(el => {

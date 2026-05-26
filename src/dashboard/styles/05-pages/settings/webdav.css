@@ -310,13 +310,13 @@
         rgba(160, 132, 92, 0.08) 100%);
 }
 
-#webdav-settings .settings-panel-header {
+#webdav-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#webdav-settings .settings-panel-header h3 {
+#webdav-settings .settings-page-header h3 {
     color: var(--webdav-primary);
     display: flex;
     align-items: center;
@@ -328,11 +328,11 @@
     text-shadow: 0 2px 4px rgba(139, 90, 43, 0.1);
 }
 
-[data-theme="dark"] #webdav-settings .settings-panel-header h3 {
+[data-theme="dark"] #webdav-settings .settings-page-header h3 {
     text-shadow: 0 2px 4px rgba(212, 165, 116, 0.2);
 }
 
-#webdav-settings .settings-panel-header h3::before {
+#webdav-settings .settings-page-header h3::before {
     content: '📁';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));

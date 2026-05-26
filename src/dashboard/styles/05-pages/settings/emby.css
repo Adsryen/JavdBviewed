@@ -159,13 +159,13 @@
         rgba(186, 230, 253, 0.08) 100%);
 }
 
-#emby-settings .settings-panel-header {
+#emby-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#emby-settings .settings-panel-header h3 {
+#emby-settings .settings-page-header h3 {
     color: var(--emby-primary);
     display: flex;
     align-items: center;
@@ -177,11 +177,11 @@
     text-shadow: 0 2px 4px rgba(0, 164, 220, 0.1);
 }
 
-[data-theme="dark"] #emby-settings .settings-panel-header h3 {
+[data-theme="dark"] #emby-settings .settings-page-header h3 {
     text-shadow: 0 2px 4px rgba(82, 196, 232, 0.2);
 }
 
-#emby-settings .settings-panel-header h3::before {
+#emby-settings .settings-page-header h3::before {
     content: '📺';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));

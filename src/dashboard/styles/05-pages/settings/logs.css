@@ -308,7 +308,7 @@ html[data-theme="dark"] #tab-logs .card:first-child .settings-section:first-chil
     width: 100%;
 }
 
-#log-settings .settings-panel-body {
+#log-settings .settings-page-body {
     padding: 1.5rem;
     display: flex;
     flex-direction: column;

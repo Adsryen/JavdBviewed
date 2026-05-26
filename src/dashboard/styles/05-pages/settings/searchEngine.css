@@ -36,13 +36,13 @@
     border-radius: 20px;
 }
 
-#search-engine-settings .settings-panel-header {
+#search-engine-settings .settings-page-header {
     position: relative;
     padding: 20px 0;
     text-align: center;
 }
 
-#search-engine-settings .settings-panel-header h3 {
+#search-engine-settings .settings-page-header h3 {
     color: var(--search-primary);
     display: flex;
     align-items: center;
@@ -54,7 +54,7 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#search-engine-settings .settings-panel-header h3::before {
+#search-engine-settings .settings-page-header h3::before {
     content: '🔍';
     font-size: 1.3em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
