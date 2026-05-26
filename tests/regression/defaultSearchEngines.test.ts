@@ -18,6 +18,12 @@ describe('default search engine templates', () => {
       'missav',
       '123av',
       'google',
+      'dmm',
+      'sukebei',
+      'subtitlecat',
+      'xunlei-subtitle',
+      'fc2ppvdb',
+      'fc2db',
     ]));
 
     const byId = new Map(engines.map((engine: any) => [engine.id, engine]));
@@ -26,6 +32,18 @@ describe('default search engine templates', () => {
     expect(byId.get('javlib')?.urlTemplate).toContain('javlibrary');
     expect(byId.get('123av')?.urlTemplate).toContain('123av.com');
     expect(byId.get('google')?.urlTemplate).toContain('google.com/search');
+    expect(byId.get('dmm')?.urlTemplate).toContain('dmm.co.jp');
+    expect(byId.get('sukebei')?.urlTemplate).toContain('sukebei.nyaa.si');
+    expect(byId.get('subtitlecat')?.urlTemplate).toContain('subtitlecat.com');
+    expect(byId.get('xunlei-subtitle')?.urlTemplate).toContain('api-shoulei-ssl.xunlei.com');
+    expect(byId.get('fc2ppvdb')?.urlTemplate).toContain('{{FC2_ID}}');
+    expect(byId.get('fc2ppvdb')?.match).toBe('fc2');
+    expect(byId.get('fc2db')?.urlTemplate).toContain('{{FC2_ID}}');
+    expect(byId.get('fc2db')?.match).toBe('fc2');
+    expect(byId.get('javdb')?.category).toBe('search');
+    expect(byId.get('jable')?.category).toBe('resource');
+    expect(byId.get('subtitlecat')?.category).toBe('subtitle');
+    expect(byId.get('xunlei-subtitle')?.category).toBe('subtitle');
 
     expect(byId.get('sehuatang')?.icon).toBe('assets/sehuatang.ico');
     expect(byId.get('btsow')?.icon).toBe('assets/btsow.png');
@@ -34,6 +52,12 @@ describe('default search engine templates', () => {
     expect(byId.get('missav')?.icon).toBe('assets/missav.ico');
     expect(byId.get('123av')?.icon).toBe('assets/123av.png');
     expect(byId.get('google')?.icon).toBe('assets/google.ico');
+    expect(byId.get('dmm')?.icon).toBe('assets/dmm.ico');
+    expect(byId.get('sukebei')?.icon).toBe('assets/sukebei.png');
+    expect(byId.get('subtitlecat')?.icon).toBe('assets/subtitlecat.ico');
+    expect(byId.get('xunlei-subtitle')?.icon).toBe('assets/xunlei.png');
+    expect(byId.get('fc2ppvdb')?.icon).toBe('assets/fc2ppvdb.ico');
+    expect(byId.get('fc2db')?.icon).toBe('assets/fc2db.png');
   });
 
   it('adds missing default templates while preserving custom user engines', () => {
@@ -79,6 +103,26 @@ describe('default search engine templates', () => {
     expect(javbusLike[0].name).toBe('Javbus');
   });
 
+  it('preserves bundled search engine visibility overrides during default template merge', () => {
+    const merged = mergeSearchEngineTemplates([
+      {
+        id: 'javdb',
+        icon: 'assets/javdb.ico',
+        name: 'Renamed JavDB',
+        urlTemplate: 'https://custom.invalid/search?q={{ID}}',
+        enabled: false,
+      },
+    ]);
+
+    const javdb = merged.find((engine: any) => engine.id === 'javdb');
+    expect(javdb).toEqual(expect.objectContaining({
+      id: 'javdb',
+      name: 'JavDB',
+      urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all',
+      enabled: false,
+    }));
+  });
+
   it('upgrades old fallback icons for bundled search engines', () => {
     const merged = mergeSearchEngineTemplates([
       {
@@ -114,6 +158,76 @@ describe('default search engine templates', () => {
     expect(buildSearchEngineUrl('https://example.test/search/{{ id }}', 'FC2-123 456')).toBe(
       'https://example.test/search/FC2-123%20456',
     );
+  });
+
+  it('builds FC2 portal URLs from numeric FC2 placeholders', async () => {
+    const { buildSearchEngineUrl } = await import('../../src/utils/searchEngines');
+
+    expect(buildSearchEngineUrl('https://fc2ppvdb.com/articles/{{FC2_ID}}', 'FC2-4903984')).toBe(
+      'https://fc2ppvdb.com/articles/4903984',
+    );
+    expect(buildSearchEngineUrl('https://fc2db.net/work/{{ fc2_id }}/', 'FC2-PPV-4903984')).toBe(
+      'https://fc2db.net/work/4903984/',
+    );
+  });
+
+  it('filters detail-only and FC2-only search engines by context and video id', async () => {
+    const { getSearchEnginesForVideo } = await import('../../src/utils/searchEngines');
+    const engines = [
+      { id: 'javdb', name: 'JavDB', urlTemplate: 'https://javdb.com/search?q={{ID}}' },
+      { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/?search={{ID}}', category: 'subtitle', contexts: ['detail'] },
+      { id: 'fc2ppvdb', name: 'FC2PPVDB', urlTemplate: 'https://fc2ppvdb.com/articles/{{FC2_ID}}', match: 'fc2', contexts: ['detail'] },
+    ];
+
+    expect(getSearchEnginesForVideo(engines, 'SSIS-795', 'detail').map(engine => engine.id)).toEqual([
+      'javdb',
+      'subtitlecat',
+    ]);
+    expect(getSearchEnginesForVideo(engines, 'FC2-4903984', 'detail').map(engine => engine.id)).toEqual([
+      'javdb',
+      'subtitlecat',
+      'fc2ppvdb',
+    ]);
+    expect(getSearchEnginesForVideo(engines, 'FC2-4903984', 'records').map(engine => engine.id)).toEqual([
+      'javdb',
+    ]);
+  });
+
+  it('treats missing search engine enabled state as visible and filters disabled engines', async () => {
+    const { getSearchEnginesForVideo } = await import('../../src/utils/searchEngines');
+    const engines = [
+      { id: 'javdb', name: 'JavDB', urlTemplate: 'https://javdb.com/search?q={{ID}}' },
+      { id: 'javbus', name: 'JavBus', urlTemplate: 'https://javbus.com/search/{{ID}}', enabled: false },
+      { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/?search={{ID}}', enabled: true },
+    ];
+
+    expect(getSearchEnginesForVideo(engines, 'SSIS-795', 'detail').map(engine => engine.id)).toEqual([
+      'javdb',
+      'subtitlecat',
+    ]);
+  });
+
+  it('normalizes search engine categories for legacy and custom engines', async () => {
+    const {
+      getSearchEngineCategory,
+      getSearchEngineCategoryLabel,
+      filterSearchEnginesByCategory,
+    } = await import('../../src/utils/searchEngines');
+    const engines = [
+      { id: 'javdb', name: 'JavDB' },
+      { id: 'missav', name: 'MISSAV' },
+      { id: 'subtitlecat', name: 'SubTitleCat' },
+      { id: 'custom', name: 'Custom', category: 'subtitle' },
+    ];
+
+    expect(getSearchEngineCategory(engines[0])).toBe('search');
+    expect(getSearchEngineCategory(engines[1])).toBe('resource');
+    expect(getSearchEngineCategory(engines[2])).toBe('subtitle');
+    expect(getSearchEngineCategoryLabel('subtitle')).toBe('字幕');
+    expect(filterSearchEnginesByCategory(engines, 'subtitle').map(engine => engine.id)).toEqual([
+      'subtitlecat',
+      'custom',
+    ]);
   });
 
   it('reports duplicate search engines so the settings page can prompt the user', () => {

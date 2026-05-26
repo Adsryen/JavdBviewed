@@ -253,9 +253,23 @@ export function mergeSearchEngineTemplates(searchEngines: any[] | undefined | nu
     : [];
   const userEngines = Array.isArray(searchEngines) ? searchEngines : [];
   const merged: any[] = [];
+  const bundledOverrides = new Map<string, { enabled?: boolean }>();
+
+  userEngines.forEach((engine) => {
+    if (!engine || typeof engine !== 'object') return;
+    const id = String(engine.id || '').trim().toLowerCase();
+    if (!id || typeof engine.enabled !== 'boolean') return;
+    if (defaultEngines.some((defaultEngine: any) => String(defaultEngine.id || '').trim().toLowerCase() === id)) {
+      bundledOverrides.set(id, { enabled: engine.enabled });
+    }
+  });
 
   defaultEngines.forEach((engine: any) => {
-    merged.push(migrateSearchEngineTemplateIcon({ ...engine }));
+    const id = String(engine.id || '').trim().toLowerCase();
+    merged.push(migrateSearchEngineTemplateIcon({
+      ...engine,
+      ...bundledOverrides.get(id),
+    }));
   });
 
   userEngines.forEach((engine) => {

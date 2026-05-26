@@ -247,55 +247,114 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             id: 'javdb',
             icon: 'assets/javdb.ico',
             name: 'JavDB',
-            urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all'
+            urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all',
+            category: 'search'
         },
         {
             id: 'javbus',
             icon: 'assets/javbus.ico',
             name: 'Javbus',
-            urlTemplate: 'https://www.javbus.com/search/{{ID}}&type=&parent=ce'
+            urlTemplate: 'https://www.javbus.com/search/{{ID}}&type=&parent=ce',
+            category: 'search'
         },
         {
             id: 'sehuatang',
             icon: 'assets/sehuatang.ico',
             name: '98堂',
-            urlTemplate: 'https://sehuatang.net/search.php?mod=forum&srchtxt={{ID}}'
+            urlTemplate: 'https://sehuatang.net/search.php?mod=forum&srchtxt={{ID}}',
+            category: 'search'
         },
         {
             id: 'btsow',
             icon: 'assets/btsow.png',
             name: 'BTSOW',
-            urlTemplate: 'https://btsow.com/search/{{ID}}'
+            urlTemplate: 'https://btsow.com/search/{{ID}}',
+            category: 'search'
         },
         {
             id: 'javlib',
             icon: 'assets/javlibrary.ico',
             name: 'JAVLib',
-            urlTemplate: 'https://www.javlibrary.com/cn/vl_searchbyid.php?keyword={{ID}}'
+            urlTemplate: 'https://www.javlibrary.com/cn/vl_searchbyid.php?keyword={{ID}}',
+            category: 'search'
         },
         {
             id: 'jable',
             icon: 'assets/jable.ico',
             name: 'Jable',
-            urlTemplate: 'https://jable.tv/search/{{ID}}/'
+            urlTemplate: 'https://jable.tv/search/{{ID}}/',
+            category: 'resource'
         },
         {
             id: 'missav',
             icon: 'assets/missav.ico',
             name: 'MISSAV',
-            urlTemplate: 'https://missav.ws/search/{{ID}}'
+            urlTemplate: 'https://missav.ws/search/{{ID}}',
+            category: 'resource'
         },
         {
             id: '123av',
             icon: 'assets/123av.png',
             name: '123AV',
-            urlTemplate: 'https://123av.com/zh/search?keyword={{ID}}'
+            urlTemplate: 'https://123av.com/zh/search?keyword={{ID}}',
+            category: 'resource'
         },
         {
             id: 'google',
             icon: 'assets/google.ico',
             name: 'Google',
-            urlTemplate: 'https://www.google.com/search?q={{ID}}'
+            urlTemplate: 'https://www.google.com/search?q={{ID}}',
+            category: 'search'
+        },
+        {
+            id: 'dmm',
+            icon: 'assets/dmm.ico',
+            name: 'FANZA/DMM',
+            urlTemplate: 'https://www.dmm.co.jp/search/=/searchstr={{ID}}',
+            category: 'resource',
+            contexts: ['detail']
+        },
+        {
+            id: 'sukebei',
+            icon: 'assets/sukebei.png',
+            name: 'Sukebei',
+            urlTemplate: 'https://sukebei.nyaa.si/?f=0&c=0_0&q={{ID}}',
+            category: 'resource',
+            contexts: ['detail']
+        },
+        {
+            id: 'subtitlecat',
+            icon: 'assets/subtitlecat.ico',
+            name: 'SubTitleCat',
+            urlTemplate: 'https://subtitlecat.com/index.php?search={{ID}}',
+            category: 'subtitle',
+            contexts: ['detail']
+        },
+        {
+            id: 'xunlei-subtitle',
+            icon: 'assets/xunlei.png',
+            name: '迅雷字幕',
+            urlTemplate: 'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?gcid=&cid=&name={{ID}}',
+            category: 'subtitle',
+            contexts: ['detail']
+        },
+        {
+            id: 'fc2ppvdb',
+            icon: 'assets/fc2ppvdb.ico',
+            name: 'FC2PPVDB',
+            urlTemplate: 'https://fc2ppvdb.com/articles/{{FC2_ID}}',
+            category: 'resource',
+            match: 'fc2',
+            contexts: ['detail']
+        },
+        {
+            id: 'fc2db',
+            icon: 'assets/fc2db.png',
+            name: 'FC2DB',
+            urlTemplate: 'https://fc2db.net/work/{{FC2_ID}}/',
+            category: 'resource',
+            match: 'fc2',
+            contexts: ['detail']
         }
     ],
     logging: {
