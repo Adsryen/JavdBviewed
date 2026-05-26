@@ -9,7 +9,14 @@ import { logAsync } from '../../../logger';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
-import { dedupeSearchEngines, isBundledSearchEngine, resolveSearchEngineIcon } from '../../../../utils/searchEngines';
+import {
+    SEARCH_ENGINE_CATEGORY_OPTIONS,
+    dedupeSearchEngines,
+    filterSearchEnginesByCategory,
+    getSearchEngineCategory,
+    isBundledSearchEngine,
+    resolveSearchEngineIcon
+} from '../../../../utils/searchEngines';
 import { showMessage } from '../../../ui/toast';
 
 interface SearchEngine {
@@ -17,6 +24,8 @@ interface SearchEngine {
     name: string;
     urlTemplate: string;
     icon: string;
+    enabled?: boolean;
+    category?: string;
 }
 
 /**
@@ -25,6 +34,8 @@ interface SearchEngine {
 export class SearchEngineSettings extends BaseSettingsPanel {
     private searchEngineList!: HTMLDivElement;
     private addSearchEngineBtn!: HTMLButtonElement;
+    private categoryFilter?: HTMLSelectElement;
+    private addSearchEngineModal?: HTMLElement;
 
     constructor() {
         super({
@@ -42,6 +53,8 @@ export class SearchEngineSettings extends BaseSettingsPanel {
     protected initializeElements(): void {
         this.searchEngineList = document.getElementById('search-engine-list') as HTMLDivElement;
         this.addSearchEngineBtn = document.getElementById('add-search-engine') as HTMLButtonElement;
+        const categoryFilter = document.getElementById('search-engine-category-filter');
+        this.categoryFilter = categoryFilter instanceof HTMLSelectElement ? categoryFilter : undefined;
 
         if (!this.searchEngineList || !this.addSearchEngineBtn) {
             throw new Error('搜索引擎设置相关的DOM元素未找到');
@@ -56,6 +69,11 @@ export class SearchEngineSettings extends BaseSettingsPanel {
         this.addSearchEngineBtn.addEventListener('click', this.handleAddSearchEngine.bind(this), { signal });
         this.searchEngineList.addEventListener('click', this.handleSearchEngineListClick.bind(this), { signal });
         this.searchEngineList.addEventListener('input', this.handleSearchEngineListInput.bind(this), { signal });
+        this.searchEngineList.addEventListener('change', this.handleSearchEngineListInput.bind(this), { signal });
+        this.categoryFilter?.addEventListener('change', () => {
+            this.updateSearchEnginesFromUI();
+            this.renderSearchEngines();
+        }, { signal });
     }
 
     /**
@@ -122,8 +140,8 @@ export class SearchEngineSettings extends BaseSettingsPanel {
                 errors.push(`搜索引擎 "${nameInput.value}" 缺少URL模板`);
             }
 
-            if (urlInput.value && !/\{\{\s*id\s*\}\}/i.test(urlInput.value)) {
-                warnings.push(`搜索引擎 "${nameInput.value || '未命名'}" 的URL模板中缺少 {{ID}} 占位符`);
+            if (urlInput.value && !/\{\{\s*(?:id|fc2_id)\s*\}\}/i.test(urlInput.value)) {
+                warnings.push(`搜索引擎 "${nameInput.value || '未命名'}" 的URL模板中缺少 {{ID}} 或 {{FC2_ID}} 占位符`);
             }
         });
 
@@ -162,9 +180,15 @@ export class SearchEngineSettings extends BaseSettingsPanel {
 
         this.searchEngineList.innerHTML = ''; // Clear existing entries
 
-        STATE.settings.searchEngines?.forEach((engine: SearchEngine, index: number) => {
+        const fullEngines = Array.isArray(STATE.settings.searchEngines)
+            ? STATE.settings.searchEngines
+            : [];
+        const category = this.categoryFilter?.value || 'all';
+        const visibleEngines = filterSearchEnginesByCategory(fullEngines, category);
+
+        visibleEngines.forEach((engine: SearchEngine, visibleIndex: number) => {
             if (!engine) {
-                console.warn('Skipping invalid search engine entry at index:', index, engine);
+                console.warn('Skipping invalid search engine entry at index:', visibleIndex, engine);
                 return;
             }
 
@@ -182,23 +206,37 @@ export class SearchEngineSettings extends BaseSettingsPanel {
             const isBundled = isBundledSearchEngine(engine);
             const readonlyAttr = isBundled ? 'disabled aria-disabled="true"' : '';
             const bundledLabel = isBundled ? '<span class="search-engine-builtin-label">内置</span>' : '';
+            const index = fullEngines.indexOf(engine);
             const engineDiv = document.createElement('div');
             engineDiv.className = `search-engine-item${isBundled ? ' is-bundled' : ''}`;
             engineDiv.dataset.engineId = engine.id || '';
+            engineDiv.dataset.index = String(index);
 
             const iconSrc = resolveSearchEngineIcon(engine);
             const engineName = this.escapeAttr(engine.name || '');
             const urlTemplate = this.escapeAttr(engine.urlTemplate || '');
             const iconValue = this.escapeAttr(engine.icon || '');
+            const currentCategory = getSearchEngineCategory(engine);
+            const categoryOptions = SEARCH_ENGINE_CATEGORY_OPTIONS
+                .map(item => `<option value="${item.value}"${item.value === currentCategory ? ' selected' : ''}>${item.label}</option>`)
+                .join('');
+            const enabledChecked = engine.enabled !== false ? 'checked' : '';
 
             engineDiv.innerHTML = `
                 <div class="icon-preview">
                     <img src="${iconSrc}" alt="${engineName}" class="engine-icon" data-fallback="${chrome.runtime.getURL('assets/alternate-search.png')}">
                 </div>
+                <label class="enabled-cell" title="控制该搜索引擎是否在详情页和番号库显示">
+                    <input type="checkbox" class="enabled-input" data-index="${index}" ${enabledChecked}>
+                    <span class="enabled-slider" aria-hidden="true"></span>
+                </label>
                 <div class="search-engine-name-cell">
                     <input type="text" value="${engineName}" class="name-input" data-index="${index}" placeholder="名称" ${readonlyAttr}>
                     ${bundledLabel}
                 </div>
+                <select class="category-select" data-index="${index}" ${readonlyAttr}>
+                    ${categoryOptions}
+                </select>
                 <input type="text" value="${urlTemplate}" class="url-template-input" data-index="${index}" placeholder="URL 模板" ${readonlyAttr}>
                 <input type="text" value="${iconValue}" class="icon-url-input" data-index="${index}" placeholder="Icon URL" ${readonlyAttr}>
                 <div class="actions-container">
@@ -222,30 +260,44 @@ export class SearchEngineSettings extends BaseSettingsPanel {
      * 从UI更新搜索引擎数据
      */
     private updateSearchEnginesFromUI(options: { notifyDuplicates?: boolean } = {}): void {
-        const nameInputs = this.searchEngineList.querySelectorAll<HTMLInputElement>('.name-input');
-        const urlInputs = this.searchEngineList.querySelectorAll<HTMLInputElement>('.url-template-input');
-        const iconUrlInputs = this.searchEngineList.querySelectorAll<HTMLInputElement>('.icon-url-input');
+        const rows = this.searchEngineList.querySelectorAll<HTMLElement>('.search-engine-item');
+        const newEngines: SearchEngine[] = Array.isArray(STATE.settings.searchEngines)
+            ? [...STATE.settings.searchEngines]
+            : [];
 
-        const newEngines: SearchEngine[] = [];
-        nameInputs.forEach((nameInput, index) => {
-            const urlInput = urlInputs[index];
-            const iconUrlInput = iconUrlInputs[index];
+        rows.forEach((row) => {
+            const index = parseInt(row.dataset.index || '-1', 10);
+            if (!Number.isInteger(index) || index < 0) return;
+
+            const nameInput = row.querySelector<HTMLInputElement>('.name-input');
+            const urlInput = row.querySelector<HTMLInputElement>('.url-template-input');
+            const iconUrlInput = row.querySelector<HTMLInputElement>('.icon-url-input');
+            const categorySelect = row.querySelector<HTMLSelectElement>('.category-select');
+            const enabledInput = row.querySelector<HTMLInputElement>('.enabled-input');
+            if (!nameInput || !urlInput) return;
+
             if (nameInput.value && urlInput.value) {
                 const originalEngine = STATE.settings.searchEngines[index] || {};
+                const enabled = enabledInput?.checked !== false;
                 if (isBundledSearchEngine(originalEngine)) {
-                    newEngines.push(originalEngine);
+                    newEngines[index] = {
+                        ...originalEngine,
+                        enabled,
+                    };
                     return;
                 }
-                newEngines.push({
+                newEngines[index] = {
                     id: originalEngine.id || `engine-${Date.now()}-${index}`,
                     name: nameInput.value,
                     urlTemplate: urlInput.value,
-                    icon: iconUrlInput.value || ''
-                });
+                    icon: iconUrlInput?.value || '',
+                    enabled,
+                    category: categorySelect?.value || getSearchEngineCategory(originalEngine),
+                };
             }
         });
 
-        const deduped = dedupeSearchEngines(newEngines);
+        const deduped = dedupeSearchEngines(newEngines.filter(Boolean));
         STATE.settings.searchEngines = deduped.engines as SearchEngine[];
 
         if (deduped.duplicates.length > 0) {
@@ -263,19 +315,136 @@ export class SearchEngineSettings extends BaseSettingsPanel {
      * 处理添加搜索引擎
      */
     private handleAddSearchEngine(): void {
+        this.openAddSearchEngineModal();
+    }
+
+    private openAddSearchEngineModal(): void {
+        this.closeAddSearchEngineModal();
+
+        const defaultCategory = this.categoryFilter?.value && this.categoryFilter.value !== 'all'
+            ? this.categoryFilter.value
+            : 'search';
+        const categoryOptions = SEARCH_ENGINE_CATEGORY_OPTIONS
+            .map(item => `<option value="${item.value}"${item.value === defaultCategory ? ' selected' : ''}>${item.label}</option>`)
+            .join('');
+
+        const modal = document.createElement('div');
+        modal.className = 'search-engine-add-modal';
+        modal.innerHTML = `
+            <div class="search-engine-modal-backdrop" data-action="close-add-search-engine"></div>
+            <div class="search-engine-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="search-engine-modal-title">
+                <div class="search-engine-modal-header">
+                    <div>
+                        <h3 id="search-engine-modal-title">新增搜索引擎</h3>
+                        <p>填写后点击确认写入设置列表</p>
+                    </div>
+                    <button type="button" class="search-engine-modal-close" data-action="close-add-search-engine" aria-label="关闭">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="search-engine-modal-body">
+                    <label>
+                        <span>名称</span>
+                        <input type="text" class="search-engine-modal-name" placeholder="例如：字幕站">
+                    </label>
+                    <label>
+                        <span>分类</span>
+                        <select class="search-engine-modal-category">${categoryOptions}</select>
+                    </label>
+                    <label class="search-engine-modal-wide">
+                        <span>URL 模板</span>
+                        <input type="text" class="search-engine-modal-url" placeholder="https://example.com/search?q={{ID}}">
+                    </label>
+                    <label class="search-engine-modal-wide">
+                        <span>图标地址</span>
+                        <input type="text" class="search-engine-modal-icon" value="assets/alternate-search.png" placeholder="assets/alternate-search.png">
+                    </label>
+                </div>
+                <div class="search-engine-modal-footer">
+                    <button type="button" class="button-like search-engine-modal-cancel" data-action="close-add-search-engine">取消</button>
+                    <button type="button" class="button-like search-engine-modal-confirm" title="确认新增">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        modal.addEventListener('click', (event) => {
+            const target = event.target as HTMLElement;
+            if (target.closest('[data-action="close-add-search-engine"]')) {
+                this.closeAddSearchEngineModal();
+                return;
+            }
+
+            if (target.closest('.search-engine-modal-confirm')) {
+                this.confirmAddSearchEngine(modal);
+            }
+        });
+
+        modal.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.closeAddSearchEngineModal();
+            }
+            if (event.key === 'Enter' && (event.target as HTMLElement).tagName !== 'TEXTAREA') {
+                event.preventDefault();
+                this.confirmAddSearchEngine(modal);
+            }
+        });
+
+        document.body.appendChild(modal);
+        this.addSearchEngineModal = modal;
+        modal.querySelector<HTMLInputElement>('.search-engine-modal-name')?.focus();
+    }
+
+    private closeAddSearchEngineModal(): void {
+        this.addSearchEngineModal?.remove();
+        this.addSearchEngineModal = undefined;
+        document.querySelector('.search-engine-add-modal')?.remove();
+    }
+
+    private confirmAddSearchEngine(modal: HTMLElement): void {
+        const name = modal.querySelector<HTMLInputElement>('.search-engine-modal-name')?.value.trim() || '';
+        const urlTemplate = modal.querySelector<HTMLInputElement>('.search-engine-modal-url')?.value.trim() || '';
+        const icon = modal.querySelector<HTMLInputElement>('.search-engine-modal-icon')?.value.trim() || 'assets/alternate-search.png';
+        const category = modal.querySelector<HTMLSelectElement>('.search-engine-modal-category')?.value || 'search';
+
+        if (!name || !urlTemplate) {
+            showMessage('请填写搜索引擎名称和 URL 模板', 'warn');
+            return;
+        }
+
+        if (!/\{\{\s*(?:id|fc2_id)\s*\}\}/i.test(urlTemplate)) {
+            showMessage('URL 模板需要包含 {{ID}} 或 {{FC2_ID}} 占位符', 'warn');
+            return;
+        }
+
         const newEngine: SearchEngine = {
             id: `engine-${Date.now()}`,
-            name: '',
-            urlTemplate: '',
-            icon: 'assets/alternate-search.png'
+            name,
+            urlTemplate,
+            icon,
+            category,
         };
 
-        if (!Array.isArray(STATE.settings.searchEngines)) {
-            STATE.settings.searchEngines = [];
+        const existingEngines = Array.isArray(STATE.settings.searchEngines)
+            ? STATE.settings.searchEngines
+            : [];
+        const deduped = dedupeSearchEngines([...existingEngines, newEngine]);
+        STATE.settings.searchEngines = deduped.engines as SearchEngine[];
+
+        if (deduped.duplicates.length > 0) {
+            const duplicate = deduped.duplicates.find(item => item.removed === newEngine);
+            if (duplicate) {
+                showMessage(`已存在相同搜索引擎：${duplicate.keptName}`, 'warn', 6000);
+                return;
+            }
         }
-        STATE.settings.searchEngines.push(newEngine);
+
         logAsync('INFO', '用户添加了一个新的搜索引擎。', { engine: newEngine });
+        this.closeAddSearchEngineModal();
         this.renderSearchEngines();
+        this.emit('change');
+        this.scheduleAutoSave();
     }
 
     /**
@@ -305,7 +474,9 @@ export class SearchEngineSettings extends BaseSettingsPanel {
         const target = event.target as HTMLInputElement;
         if (target.classList.contains('name-input') ||
             target.classList.contains('url-template-input') ||
-            target.classList.contains('icon-url-input')) {
+            target.classList.contains('icon-url-input') ||
+            target.classList.contains('enabled-input') ||
+            target.classList.contains('category-select')) {
             this.emit('change');
             this.scheduleAutoSave();
         }
