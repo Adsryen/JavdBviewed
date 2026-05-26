@@ -67,10 +67,6 @@ clear_node_modules() {
 install_dependencies() {
   info "Installing dependencies (pnpm install --frozen-lockfile)"
   configure_pnpm_virtual_store
-  if [[ -n "$pnpm_virtual_store_dir" && -d "$root_dir/node_modules/.pnpm" ]]; then
-    warn "Removing project-local pnpm virtual store before using Linux virtual store..."
-    rm -rf "$root_dir/node_modules/.pnpm"
-  fi
 
   if pnpm_install --frozen-lockfile; then
     return 0
