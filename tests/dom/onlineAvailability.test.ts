@@ -116,6 +116,80 @@ describe('online availability helpers', () => {
     expect(result.available).toBe(false);
   });
 
+  it('marks MISSAV available only when the response carries detail-page signals', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'missav')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>JUR-730 - MissAV</title>
+      <h1>JUR-730 Sample Title</h1>
+      <nav>詳情 女優消息 磁力下載</nav>
+      <div>發行日期: 2026-05-22</div>
+      <div>番號: JUR-730</div>
+      <a class="text-nord13" href="https://missav.ws/chinese-subtitle">中文字幕</a>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://missav.ws/jur-730/', 200);
+
+    expect(result.available).toBe(true);
+    expect(result.tags).toContain('字幕');
+  });
+
+  it('keeps MISSAV detail pages available when global search controls are present', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'missav')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>JUR-730 - MissAV</title>
+      <form action="/search"><input type="search" value=""></form>
+      <h1>JUR-730 Sample Title</h1>
+      <div>發行日期: 2026-05-22</div>
+      <div>番號: JUR-730</div>
+      <a class="text-nord13" href="https://missav.ws/chinese-subtitle">中文字幕</a>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://missav.ws/jur-730/', 200);
+
+    expect(result.available).toBe(true);
+  });
+
+  it('marks MISSAV unavailable when a search or shell page only echoes the requested code', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'missav')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>搜尋 JUR-730 - MissAV</title>
+      <input type="search" value="JUR-730">
+      <nav>最近更新 新作上市 中文字幕 女優一覽</nav>
+      <main>搜尋 JUR-730</main>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://missav.ws/jur-730/', 200);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('marks JavBus unavailable when a soft error page only echoes the requested code', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'javbus')!;
+    const doc = new DOMParser().parseFromString(`
+      <title>JavBus</title>
+      <form><input value="JUR-730"></form>
+      <div class="error">Access denied for JUR-730</div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://javbus.com/JUR-730', 200);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('marks JavBus available when detail-page structure and exact code are present', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'javbus')!;
+    const doc = new DOMParser().parseFromString(`
+      <h3>JUR-730 Sample Title</h3>
+      <a class="bigImage" href="/pics/cover.jpg"></a>
+      <div id="sample-waterfall"></div>
+      <p>識別碼: JUR-730</p>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://javbus.com/JUR-730', 200);
+
+    expect(result.available).toBe(true);
+  });
+
   it('checks parser pages by matching the result title or link against the code', () => {
     const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'supjav')!;
     const doc = new DOMParser().parseFromString(`
@@ -146,6 +220,19 @@ describe('online availability helpers', () => {
 
     expect(result.available).toBe(true);
     expect(result.url).toBe('https://jav.guru/ssis-795/');
+  });
+
+  it('rejects parser results whose code only contains the requested code as a prefix', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === '123av')!;
+    const doc = new DOMParser().parseFromString(`
+      <div class="detail">
+        <a href="https://123av.com/zh/v/ssis-7950">SSIS-7950 Similar Video</a>
+      </div>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'SSIS-795', 'https://123av.com/zh/search?keyword=ssis-795', 200);
+
+    expect(result.available).toBe(false);
   });
 
   it('places the panel after review buttons when enhancement panel is absent', () => {

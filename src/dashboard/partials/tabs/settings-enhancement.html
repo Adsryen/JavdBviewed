@@ -56,6 +56,8 @@
                                     <input type="checkbox" id="veEnableActorRemarks">
                                     <input type="checkbox" id="veEnableActorNameMarks">
                                     <input type="checkbox" id="veEnableRelatedLists">
+                                    <input type="checkbox" id="veEnableExternalEntryPanel">
+                                    <input type="checkbox" id="veEnableExternalSearch">
                                     <input type="checkbox" id="veEnableOnlineAvailability">
                                     <input type="checkbox" id="veShowOnlineAvailabilityFailures">
                                     <input type="checkbox" id="veEnableSubtitleSearch">
@@ -295,63 +297,95 @@
                                     </div>
                                     <!-- 影片页收藏与评分 结束 -->
 
-                                    <!-- 在线可看性检测 -->
+                                    <!-- 影片页外部入口 -->
                                     <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">📺 在线可看性检测</h6>
+                                                    <h6 class="enhancement-feature-name">🧭 影片页外部入口</h6>
                                                     <span class="enhancement-feature-status available">可用</span>
                                                 </div>
                                             </div>
                                             <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="veEnableOnlineAvailability"></button>
+                                                <button class="enhancement-toggle" data-target="veEnableExternalEntryPanel"></button>
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>功能：</strong>在影片详情页检测 FANZA、Jable、MISSAV、Supjav、JavBus、123AV、NETFLAV 等站点是否有在线资源。<br>
-                                            <strong>说明：</strong>命中后会在页面顶部显示可点击站点标签，并标记字幕/无码信息。
+                                            <strong>功能：</strong>统一管理影片详情页的在线可看、外部搜索和字幕搜索入口。<br>
+                                            <strong>说明：</strong>外部搜索和字幕搜索入口来源于搜索引擎设置中的分类，可在搜索引擎设置页调整自定义项分类。
                                         </p>
-                                        <div class="sub-settings" id="onlineAvailabilityConfig" style="display: none;">
+                                        <div class="sub-settings" id="externalEntryConfig" style="display: none;">
                                             <div class="form-group">
                                                 <label class="checkbox-label">
                                                     <div class="enhancement-feature-info">
                                                         <div class="enhancement-feature-title">
-                                                            <h6 class="enhancement-feature-name">显示失败站点</h6>
+                                                            <h6 class="enhancement-feature-name">在线可看</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veEnableOnlineAvailability"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    检测 FANZA、Jable、MISSAV、Supjav、JavBus、123AV、NETFLAV 等站点是否有在线资源，命中后显示可点击站点标签。
+                                                </p>
+                                                <div class="sub-settings" id="onlineAvailabilityConfig" style="display: none;">
+                                                    <div class="form-group">
+                                                        <label class="checkbox-label">
+                                                            <div class="enhancement-feature-info">
+                                                                <div class="enhancement-feature-title">
+                                                                    <h6 class="enhancement-feature-name">显示失败站点</h6>
+                                                                    <span class="enhancement-feature-status available">可选</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="enhancement-toggle-wrapper">
+                                                                <button class="enhancement-toggle" data-target="veShowOnlineAvailabilityFailures"></button>
+                                                            </div>
+                                                        </label>
+                                                        <p class="input-description">
+                                                            开启后，检测失败或未命中的站点会以红色标签显示；默认只显示命中的可看站点。
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">外部搜索</h6>
                                                             <span class="enhancement-feature-status available">可选</span>
                                                         </div>
                                                     </div>
                                                     <div class="enhancement-toggle-wrapper">
-                                                        <button class="enhancement-toggle" data-target="veShowOnlineAvailabilityFailures"></button>
+                                                        <button class="enhancement-toggle" data-target="veEnableExternalSearch"></button>
                                                     </div>
                                                 </label>
                                                 <p class="input-description">
-                                                    开启后，检测失败或未命中的站点会以红色标签显示；默认只显示命中的可看站点。
+                                                    在影片详情页显示 JavDB、JavBus、98堂、BTSOW、JAVLib、Jable、MISSAV、123AV、Google、FANZA/DMM、Sukebei 等搜索入口。
+                                                </p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">字幕搜索</h6>
+                                                            <span class="enhancement-feature-status available">可选</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veEnableSubtitleSearch"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    在影片详情页单独显示 SubTitleCat、迅雷字幕等字幕入口。
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- 在线可看性检测 结束 -->
-
-                                    <!-- 字幕搜索 -->
-                                    <div class="form-group" data-subtab="video">
-                                        <label class="checkbox-label">
-                                            <div class="enhancement-feature-info">
-                                                <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">💬 字幕搜索</h6>
-                                                    <span class="enhancement-feature-status available">可用</span>
-                                                </div>
-                                            </div>
-                                            <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="veEnableSubtitleSearch"></button>
-                                            </div>
-                                        </label>
-                                        <p class="input-description">
-                                            <strong>功能：</strong>在影片详情页单独显示 SubTitleCat、迅雷字幕等字幕入口。<br>
-                                            <strong>说明：</strong>入口来源来自搜索引擎设置中的“字幕”分类，可在搜索引擎设置页调整自定义项分类。
-                                        </p>
-                                    </div>
-                                    <!-- 字幕搜索 结束 -->
+                                    <!-- 影片页外部入口 结束 -->
 
                                     <!-- 相关清单解锁 -->
                                     <div class="form-group" data-subtab="video">

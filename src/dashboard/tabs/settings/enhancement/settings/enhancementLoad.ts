@@ -91,7 +91,9 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.veEnableActorRemarks) host.veEnableActorRemarks.checked = (ve as any).enableActorRemarks === true;
   if (host.veEnableActorNameMarks) host.veEnableActorNameMarks.checked = (ve as any).enableActorNameMarks !== false;
   if (host.veEnableRelatedLists) host.veEnableRelatedLists.checked = (ve as any).enableRelatedLists !== false;
-  if (host.veEnableOnlineAvailability) host.veEnableOnlineAvailability.checked = (ve as any).enableOnlineAvailability === true;
+  if (host.veEnableExternalEntryPanel) host.veEnableExternalEntryPanel.checked = (ve as any).enableExternalEntryPanel !== false;
+  if (host.veEnableExternalSearch) host.veEnableExternalSearch.checked = (ve as any).enableExternalSearch !== false;
+  if (host.veEnableOnlineAvailability) host.veEnableOnlineAvailability.checked = (ve as any).enableOnlineAvailability !== false;
   if (host.veShowOnlineAvailabilityFailures) host.veShowOnlineAvailabilityFailures.checked = (ve as any).showOnlineAvailabilityFailures === true;
   if (host.veEnableSubtitleSearch) host.veEnableSubtitleSearch.checked = (ve as any).enableSubtitleSearch !== false;
   if (host.translateCurrentTitleChk) host.translateCurrentTitleChk.checked = settings?.translation?.targets ? settings.translation.targets.currentTitle !== false : true;

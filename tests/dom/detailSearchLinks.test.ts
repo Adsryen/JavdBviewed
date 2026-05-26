@@ -139,6 +139,43 @@ describe('detail search links', () => {
     expect(document.getElementById('jdb-subtitle-search-panel')).toBeNull();
   });
 
+  it('hides external search panel while keeping subtitle search when the external search option is disabled', () => {
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">SSIS-795</div>
+      </nav>
+    `;
+
+    renderDetailSearchLinks('SSIS-795', [
+      { id: 'javbus', name: 'JavBus', urlTemplate: 'https://javbus.com/search/{{ID}}', icon: 'assets/javbus.ico', category: 'search' },
+      { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/search?q={{ID}}', icon: 'assets/subtitlecat.ico', category: 'subtitle', contexts: ['detail'] },
+    ], { showExternalSearch: false });
+
+    expect(document.getElementById('jdb-external-search-panel')).toBeNull();
+    expect(document.getElementById('jdb-subtitle-search-panel')?.textContent).toContain('SubTitleCat');
+  });
+
+  it('removes detail external entry panels when the unified panel option is disabled', () => {
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">SSIS-795</div>
+      </nav>
+    `;
+
+    renderDetailSearchLinks('SSIS-795', [
+      { id: 'javbus', name: 'JavBus', urlTemplate: 'https://javbus.com/search/{{ID}}', icon: 'assets/javbus.ico', category: 'search' },
+      { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/search?q={{ID}}', icon: 'assets/subtitlecat.ico', category: 'subtitle', contexts: ['detail'] },
+    ]);
+
+    renderDetailSearchLinks('SSIS-795', [
+      { id: 'javbus', name: 'JavBus', urlTemplate: 'https://javbus.com/search/{{ID}}', icon: 'assets/javbus.ico', category: 'search' },
+      { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/search?q={{ID}}', icon: 'assets/subtitlecat.ico', category: 'subtitle', contexts: ['detail'] },
+    ], { enabled: false });
+
+    expect(document.getElementById('jdb-external-search-panel')).toBeNull();
+    expect(document.getElementById('jdb-subtitle-search-panel')).toBeNull();
+  });
+
   it('hides disabled search engines from detail panels', () => {
     document.body.innerHTML = `
       <nav class="panel movie-panel-info">

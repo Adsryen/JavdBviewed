@@ -67,6 +67,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableActorRemarks!: HTMLInputElement;
     private veEnableActorNameMarks!: HTMLInputElement;
     private veEnableRelatedLists!: HTMLInputElement;
+    private veEnableExternalEntryPanel!: HTMLInputElement;
+    private veEnableExternalSearch!: HTMLInputElement;
     private veEnableOnlineAvailability!: HTMLInputElement;
     private veShowOnlineAvailabilityFailures!: HTMLInputElement;
     private veEnableSubtitleSearch!: HTMLInputElement;
@@ -431,8 +433,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableTranslation: true,
                 showLoadingIndicator: true,
                 enableRelatedLists: true,
-                enableOnlineAvailability: false,
+                enableExternalEntryPanel: true,
+                enableExternalSearch: true,
+                enableOnlineAvailability: true,
                 showOnlineAvailabilityFailures: false,
+                enableSubtitleSearch: true,
             } as any;
         } else if (section === 'actor') {
             s.actorEnhancement = {
@@ -773,7 +778,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                     enableActorNameMarks: this.veEnableActorNameMarks?.checked !== false,
                     enableRelatedLists: this.veEnableRelatedLists?.checked !== false,
-                    enableOnlineAvailability: this.veEnableOnlineAvailability?.checked === true,
+                    enableExternalEntryPanel: this.veEnableExternalEntryPanel?.checked !== false,
+                    enableExternalSearch: this.veEnableExternalSearch?.checked !== false,
+                    enableOnlineAvailability: this.veEnableOnlineAvailability?.checked !== false,
                     showOnlineAvailabilityFailures: this.veShowOnlineAvailabilityFailures?.checked === true,
                     enableSubtitleSearch: this.veEnableSubtitleSearch?.checked !== false,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
