@@ -543,6 +543,30 @@ font-size: 18px;
     border-color: rgba(59, 130, 246, 0.22);
 }
 
+.user-profile-container .user-profile-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px 0;
+    padding: 0;
+    border: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.user-profile-container .user-profile-card-title::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--primary), var(--info));
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+    flex-shrink: 0;
+}
+
 .user-profile-container .user-profile-info {
     gap: 14px;
 }
