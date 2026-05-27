@@ -120,6 +120,7 @@ function ensureReleaseAnnouncementStyles(): void {
       align-items: center;
       justify-content: center;
       padding: 24px;
+      overflow: auto;
       background:
         radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--primary, #3b82f6) 18%, transparent), transparent 34%),
         color-mix(in srgb, var(--surface-primary, #ffffff) 18%, rgba(15, 23, 42, 0.68));
@@ -129,6 +130,7 @@ function ensureReleaseAnnouncementStyles(): void {
     .jdb-release-announcement-shell {
       position: relative;
       width: min(520px, calc(100vw - 32px));
+      max-height: calc(100vh - 48px);
       padding: 28px 30px 24px;
       border: 1px solid color-mix(in srgb, var(--border-primary, #d8dee8) 78%, transparent);
       border-radius: 14px;
@@ -136,7 +138,7 @@ function ensureReleaseAnnouncementStyles(): void {
         linear-gradient(145deg, color-mix(in srgb, var(--surface-primary, #ffffff) 94%, #fff 6%), var(--surface-secondary, #f7f8fb));
       color: var(--text-primary, #172033);
       box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
-      overflow: hidden;
+      overflow: auto;
       animation: jdbReleaseEnter 220ms ease-out both;
     }
 

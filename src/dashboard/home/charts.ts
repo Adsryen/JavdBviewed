@@ -138,6 +138,76 @@ function getChartBody(shell: HTMLElement | null): HTMLElement | null {
   return shell?.querySelector('.chart-card-body') as HTMLElement | null;
 }
 
+export interface HomeTagsBarTheme {
+  text: string;
+  muted: string;
+  border: string;
+}
+
+export interface HomeTagsBarDatum {
+  name: string;
+  value: number;
+  color: string;
+}
+
+const HOME_TAGS_BAR_COLORS = ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f59e0b','#ef4444','#06b6d4','#84cc16','#fb7185'];
+
+export function buildHomeTagsBarData(
+  tags: Array<{ name: string; count: number }>,
+  page: number,
+  pageSize: number,
+): HomeTagsBarDatum[] {
+  const start = Math.max(0, page) * Math.max(1, pageSize);
+  return (Array.isArray(tags) ? tags : [])
+    .slice(start, start + Math.max(1, pageSize))
+    .map((tag, index) => ({
+      name: String(tag.name || '').trim(),
+      value: Number(tag.count || 0),
+      color: HOME_TAGS_BAR_COLORS[index % HOME_TAGS_BAR_COLORS.length],
+    }))
+    .filter(tag => tag.name && Number.isFinite(tag.value));
+}
+
+export function buildHomeTagsBarOptions(data: HomeTagsBarDatum[], theme: HomeTagsBarTheme): any {
+  return {
+    data,
+    xField: 'value',
+    yField: 'name',
+    legend: false,
+    autoFit: true,
+    barStyle: { radius: [0, 6, 6, 0] },
+    label: {
+      position: 'right',
+      style: { fill: theme.text, fontWeight: 700 },
+    },
+    tooltip: { showTitle: false },
+    xAxis: {
+      min: 0,
+      nice: true,
+      label: { style: { fill: theme.muted } },
+      line: { style: { stroke: theme.border } },
+      tickLine: { style: { stroke: theme.border } },
+      grid: { line: { style: { stroke: theme.border, lineDash: [4, 4] } } },
+    },
+    yAxis: {
+      label: { autoHide: true, autoEllipsis: true, style: { fill: theme.muted } },
+      line: { style: { stroke: theme.border } },
+      tickLine: null,
+      grid: null,
+    },
+    color: (datum: HomeTagsBarDatum) => datum.color,
+  };
+}
+
+function renderChartEmptyState(el: HTMLElement, text: string): void {
+  el.innerHTML = `<div class="chart-empty-state">${text}</div>`;
+}
+
+function clearChartEmptyState(el: HTMLElement): void {
+  const empty = el.querySelector('.chart-empty-state');
+  if (empty) empty.remove();
+}
+
 let homeChartsThemeListenerBound = false;
 let homeOverviewRefreshPromise: Promise<void> | null = null;
 function bindHomeChartsThemeListener(): void {
@@ -630,18 +700,26 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
         const pageSize = 10;
         const totalPages = Math.max(1, Math.ceil(full.length / pageSize));
         const pageText = document.getElementById('homeTagsPageText') as HTMLSpanElement | null;
-        const color = (idx: number) => ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f59e0b','#ef4444','#06b6d4','#84cc16','#fb7185'][idx % 10];
         const pager = document.getElementById('homeTagsPager') as HTMLDivElement | null;
         const prevBtn = document.getElementById('homeTagsPrevBtn') as HTMLButtonElement | null;
         const nextBtn = document.getElementById('homeTagsNextBtn') as HTMLButtonElement | null;
+        const tagTheme = { text: COLORS.text, muted: COLORS.muted, border: COLORS.border };
 
         const ctrl: any = {
           page: 0,
           isFirstRender: true,
           render() {
-            const start = this.page * pageSize;
-            const list = full.slice(start, start + pageSize).map((d, i) => ({ name: d.name, value: d.count, color: color(i) }));
+            const list = buildHomeTagsBarData(full, this.page, pageSize);
             try {
+              if (list.length === 0) {
+                if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
+                HC['tagsTop'] = null;
+                hideLoading(tagsEl);
+                renderChartEmptyState(tagsEl, '暂无标签数据');
+                this.updatePager();
+                return;
+              }
+              clearChartEmptyState(tagsEl);
               if (HC['tagsTop'] && typeof HC['tagsTop'].changeData === 'function') {
                 HC['tagsTop'].changeData(list);
               } else {
@@ -653,12 +731,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
                   this.isFirstRender = false;
                 }
                 
-                const plot = new Bar(tagsEl, {
-                  data: list, xField: 'value', yField: 'name', legend: false, autoFit: true,
-                  barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
-                  xAxis: { min: 0, nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
-                  color: (d: any) => d.color,
-                });
+                const plot = new Bar(tagsEl, buildHomeTagsBarOptions(list, tagTheme));
                 plot.render();
                 HC['tagsTop'] = plot;
               }
@@ -671,12 +744,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
                 this.isFirstRender = false;
               }
               
-              const plot = new Bar(tagsEl, {
-                data: list, xField: 'value', yField: 'name', legend: false, autoFit: true,
-                barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
-                xAxis: { min: 0, nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
-                color: (d: any) => d.color,
-              });
+              const plot = new Bar(tagsEl, buildHomeTagsBarOptions(list, tagTheme));
               plot.render();
               HC['tagsTop'] = plot;
             }

@@ -65,9 +65,37 @@ describe('release announcement modal', () => {
     const styleText = document.getElementById('jdb-release-announcement-style')?.textContent;
     expect(styleText).toContain('infinite');
     expect(styleText).toContain('width: 10px');
+    expect(styleText).toContain('max-height: calc(100vh - 48px)');
+    expect(styleText).toContain('overflow: auto');
     expect(styleText).not.toContain('jdbReleaseBurstRing');
 
     modal?.querySelector<HTMLButtonElement>('[data-action="release-announcement-close"]')?.click();
+    await flushMicrotasks();
+
+    expect(document.querySelector('.jdb-release-announcement-modal')).toBeNull();
+    expect(storageState[RELEASE_ANNOUNCEMENT_STORAGE_KEY]).toEqual({
+      lastSeenAnnouncementKey: '1.20.2',
+      lastSeenAt: expect.any(Number),
+    });
+  });
+
+  it('keeps close idempotent when the primary button is clicked repeatedly', async () => {
+    installChromeStorageMock();
+    storageState[RELEASE_ANNOUNCEMENT_STORAGE_KEY] = {
+      pending: {
+        type: 'update',
+        version: '1.20.2',
+        previousVersion: '1.20.1',
+        createdAt: 1000,
+      },
+    };
+
+    await mountReleaseAnnouncementModal();
+
+    const closeButton = document.querySelector<HTMLButtonElement>('[data-action="release-announcement-close"]');
+    expect(closeButton).toBeTruthy();
+    closeButton?.click();
+    closeButton?.click();
     await flushMicrotasks();
 
     expect(document.querySelector('.jdb-release-announcement-modal')).toBeNull();
@@ -127,6 +155,24 @@ describe('release announcement modal', () => {
         type: 'install',
         version: '1.20.2',
       }),
+    });
+  });
+
+  it('does not remount after closing a debug-triggered announcement and removing the debug query', async () => {
+    installChromeStorageMock();
+    window.history.replaceState({}, '', '/dashboard/dashboard.html?debugReleaseAnnouncement=update#tab-home');
+
+    await mountDashboardReleaseAnnouncement();
+    document.querySelector<HTMLButtonElement>('[data-action="release-announcement-close"]')?.click();
+    await flushMicrotasks();
+
+    window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-home');
+    await mountDashboardReleaseAnnouncement();
+
+    expect(document.querySelector('.jdb-release-announcement-modal')).toBeNull();
+    expect(storageState[RELEASE_ANNOUNCEMENT_STORAGE_KEY]).toEqual({
+      lastSeenAnnouncementKey: '1.20.2',
+      lastSeenAt: expect.any(Number),
     });
   });
 });

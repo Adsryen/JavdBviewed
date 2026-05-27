@@ -1,7 +1,37 @@
 // src/background/dbRouter.ts
 // 抽离 DB 相关消息路由
 
-import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedGet as idbViewedGet, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetPushLogsAdd as idbMagnetPushLogsAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, magnetPushLogsQuery as idbMagnetPushLogsQuery, magnetPushLogsClear as idbMagnetPushLogsClear, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, insViewsPut, insViewsBulkPut, insViewsRange, insReportsPut, insReportsGet, insReportsList, insReportsDelete, insReportsExportJSON, insReportsImportJSON, trendsRecordsRange, trendsActorsRange, trendsNewWorksRange, listsBulkPut as idbListsBulkPut, listsPut as idbListsPut, listsDelete as idbListsDelete, listsGetAll as idbListsGetAll, listsGetAllNormalized as idbListsGetAllNormalized, listsClear as idbListsClear, viewedPatchListIds as idbViewedPatchListIds, viewedBulkPatchListIds as idbViewedBulkPatchListIds, newWorksDailyStatRefreshToday as idbNewWorksDailyStatRefreshToday } from './db';
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedGet as idbViewedGet, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedTagIndexGetAll as idbViewedTagIndexGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetPushLogsAdd as idbMagnetPushLogsAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, magnetPushLogsQuery as idbMagnetPushLogsQuery, magnetPushLogsClear as idbMagnetPushLogsClear, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, insViewsPut, insViewsBulkPut, insViewsRange, insReportsPut, insReportsGet, insReportsList, insReportsDelete, insReportsExportJSON, insReportsImportJSON, trendsRecordsRange, trendsActorsRange, trendsNewWorksRange, listsBulkPut as idbListsBulkPut, listsPut as idbListsPut, listsDelete as idbListsDelete, listsGetAll as idbListsGetAll, listsGetAllNormalized as idbListsGetAllNormalized, listsClear as idbListsClear, viewedPatchListIds as idbViewedPatchListIds, viewedBulkPatchListIds as idbViewedBulkPatchListIds, newWorksDailyStatRefreshToday as idbNewWorksDailyStatRefreshToday } from './db';
+import { STORAGE_KEYS } from '../utils/config';
+import { buildViewedRecordSourceFromTagIndexRows, buildViewedTagStatsFromSources } from './viewedTagStats';
+
+const storageChunkPrefixFor = (key: string) => `__chunk__:${key}::`;
+const storageChunkMetaFor = (key: string) => `__chunks_meta__:${key}`;
+
+export async function getLegacyViewedRecordsFromStorage(): Promise<Record<string, unknown>> {
+  const key = STORAGE_KEYS.VIEWED_RECORDS;
+  const prefix = storageChunkPrefixFor(key);
+  const metaKey = storageChunkMetaFor(key);
+  const metaResult = await chrome.storage.local.get([metaKey]) as Record<string, any>;
+  const meta = metaResult?.[metaKey];
+
+  if (meta && typeof meta.chunks === 'number') {
+    const count = Math.max(0, Number(meta.chunks || 0));
+    if (count <= 0) return {};
+    const chunkKeys = Array.from({ length: count }, (_value, index) => `${prefix}${index + 1}`);
+    const chunks = await chrome.storage.local.get(chunkKeys) as Record<string, any>;
+    const records: Record<string, unknown> = {};
+    for (const chunkKey of chunkKeys) {
+      const chunk = chunks?.[chunkKey];
+      if (chunk && typeof chunk === 'object') Object.assign(records, chunk);
+    }
+    return records;
+  }
+
+  const direct = await chrome.storage.local.get([key]) as Record<string, any>;
+  const value = direct?.[key];
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
 
 export function registerDbMessageRouter(): void {
   try { initDB().catch(() => {}); } catch {}
@@ -443,50 +473,17 @@ export function registerDbMessageRouter(): void {
       if (message.type === 'DB:GET_ALL_TAGS') {
         // 优化：在后台直接统计标签，只返回统计结果
         const limit = Number(message?.payload?.limit ?? 50);
-        idbViewedGetAll().then((records) => {
-          const totals: Record<string, number> = {};
-          
-          // 动态导入标签过滤工具
-          import('../utils/tagFilter').then(({ isValueableTag }) => {
-            for (const r of records) {
-              const arr = Array.isArray(r?.tags) ? r.tags : [];
-              for (const t of arr) {
-                const name = String(t || '').trim();
-                if (!name) continue;
-                // 使用通用过滤函数
-                if (!isValueableTag(name)) continue;
-                totals[name] = (totals[name] ?? 0) + 1;
-              }
-            }
-            
-            const result = Object.entries(totals)
-              .map(([name, count]) => ({ name, count }))
-              .sort((a, b) => b.count - a.count)
-              .slice(0, Math.max(1, limit));
-            
-            sendResponse({ success: true, tags: result });
-          }).catch(() => {
-            // 如果导入失败，使用原有逻辑
-            for (const r of records) {
-              const arr = Array.isArray(r?.tags) ? r.tags : [];
-              for (const t of arr) {
-                const name = String(t || '').trim();
-                if (!name) continue;
-                const low = name.toLowerCase();
-                // 原有过滤逻辑作为后备
-                if (name.includes('影片') || low.includes('import') || name.includes('單體作品')) continue;
-                totals[name] = (totals[name] ?? 0) + 1;
-              }
-            }
-            
-            const result = Object.entries(totals)
-              .map(([name, count]) => ({ name, count }))
-              .sort((a, b) => b.count - a.count)
-              .slice(0, Math.max(1, limit));
-            
-            sendResponse({ success: true, tags: result });
-          });
-        }).catch((e) => sendResponse({ success: false, error: e?.message || 'get tags failed', tags: [] }));
+        Promise.all([
+          idbViewedGetAll().catch(() => []),
+          idbViewedTagIndexGetAll().catch(() => []),
+          getLegacyViewedRecordsFromStorage().catch(() => ({})),
+        ])
+          .then(([idbRecords, tagIndexRows, legacyRecords]) => {
+            const tagIndexRecords = buildViewedRecordSourceFromTagIndexRows(tagIndexRows);
+            const tags = buildViewedTagStatsFromSources([idbRecords, tagIndexRecords, legacyRecords], limit);
+            sendResponse({ success: true, tags });
+          })
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'get tags failed', tags: [] }));
         return true;
       }
       return false;
