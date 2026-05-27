@@ -1,0 +1,414 @@
+# Source Architecture Plan
+
+日期：2026-05-26
+
+本文定义 `src` 的长期目录结构和迁移规则。目标是让功能增长后仍然能快速定位代码、控制依赖方向，并让新功能自然落到稳定边界内。
+
+## 目标
+
+- 新功能优先按业务能力组织，避免继续堆在 `src/content`、`src/background`、`src/utils` 根目录。
+- 页面入口、后台入口、Dashboard 入口只负责装配和运行环境适配。
+- 外部站点、API、UI、业务规则在功能域内部收拢。
+- 基础设施沉到 `platform`，跨功能纯类型和协议沉到 `shared`。
+- 迁移采用增量方式，新功能先走新结构，旧模块按功能域逐批迁移。
+
+## 目标目录
+
+```text
+src/
+  apps/
+    content/
+    background/
+    dashboard/
+    popup/
+
+  features/
+    actorRemarks/
+    contentFilter/
+    drive115/
+    externalSearch/
+    fc2Breaker/
+    insights/
+    magnets/
+    newWorks/
+    onlineAvailability/
+    previews/
+    privacy/
+    relatedLists/
+    reviewUnlock/
+    settingsSearch/
+    subtitles/
+    videoStatus/
+    webdavSync/
+
+  platform/
+    browser/
+    logging/
+    network/
+    storage/
+    tasks/
+
+  shared/
+    constants/
+    protocols/
+    types/
+    utils/
+```
+
+## 分层职责
+
+### `apps`
+
+`apps` 是运行入口层。它知道当前运行环境，也负责把页面、后台、Dashboard、Popup 的生命周期接起来。
+
+职责：
+
+- 读取当前页面或路由上下文。
+- 初始化对应 feature。
+- 连接 Chrome runtime、DOM、Dashboard partial、popup HTML。
+- 做最薄的一层 orchestration。
+
+限制：
+
+- 不放业务算法。
+- 不放外站解析规则。
+- 不直接操作复杂存储模型。
+- 不承载可复用 UI 逻辑。
+
+示例：
+
+```text
+apps/content/bootstrap.ts
+apps/content/pageRouter.ts
+apps/content/detailPage.ts
+apps/background/messageRouter.ts
+apps/dashboard/routes.ts
+```
+
+### `features`
+
+`features` 是业务能力层。一个功能域应尽量拥有自己的 domain、application、adapters、ui 和 tests。
+
+职责：
+
+- 实现业务规则。
+- 管理功能域内部状态。
+- 适配外部 API 或站点 HTML。
+- 提供 UI 组件或 DOM 渲染逻辑。
+- 暴露少量稳定入口给 `apps` 调用。
+
+限制：
+
+- 不直接依赖另一个 feature 的内部文件。
+- 跨 feature 复用能力通过 `index.ts` 暴露。
+- Chrome API、IndexedDB、HTTP 细节优先通过 `platform` 注入或封装。
+
+功能域模板：
+
+```text
+features/<featureName>/
+  domain/
+    types.ts
+    normalize.ts
+  application/
+    service.ts
+  adapters/
+    apiClient.ts
+    domParser.ts
+  ui/
+    panel.ts
+    modal.ts
+    styles.css
+  tests/
+    service.test.ts
+    ui.test.ts
+  index.ts
+```
+
+小功能可以先保持精简结构：
+
+```text
+features/settingsSearch/
+  index.ts
+  searchIndex.ts
+  navigation.ts
+  highlight.ts
+  settingsSearch.test.ts
+```
+
+### `platform`
+
+`platform` 是基础设施层。它承载浏览器扩展 API、网络请求、日志、存储和任务调度。
+
+职责：
+
+- Chrome runtime/tabs/storage 包装。
+- HTTP client、代理、重试、错误分类。
+- IndexedDB、Chrome Storage 的基础封装。
+- 全局任务中心、scheduler、visibility。
+- 日志和 console proxy。
+
+限制：
+
+- 不包含 JavDB、磁力、字幕、115 等业务规则。
+- 不 import `features`。
+
+示例：
+
+```text
+platform/browser/messaging.ts
+platform/browser/tabs.ts
+platform/network/httpClient.ts
+platform/network/proxy.ts
+platform/storage/indexedDb.ts
+platform/tasks/taskCenter.ts
+platform/logging/logger.ts
+```
+
+### `shared`
+
+`shared` 是跨层共享层。它保持纯净，放类型、协议、常量和无副作用工具函数。
+
+职责：
+
+- 跨 app/feature/platform 的消息协议。
+- 纯类型定义。
+- 纯函数工具。
+- 业务无关常量。
+
+限制：
+
+- 不访问 DOM。
+- 不访问 Chrome API。
+- 不发网络请求。
+- 不读写存储。
+
+## 依赖方向
+
+推荐依赖方向：
+
+```text
+apps -> features -> platform
+apps -> platform
+features -> shared
+platform -> shared
+apps -> shared
+```
+
+禁止方向：
+
+```text
+platform -> features
+shared -> platform
+shared -> features
+features/<A>/internal -> features/<B>/internal
+```
+
+跨 feature 调用必须走目标 feature 的 `index.ts`。
+
+## 现有目录的未来定位
+
+### `src/content`
+
+逐步收敛为 `apps/content`。现有内容脚本里的业务逻辑迁到 `features`。
+
+未来职责：
+
+- 页面识别。
+- 页面生命周期。
+- DOM mount point 查找。
+- 调用 feature 初始化。
+
+### `src/background`
+
+逐步收敛为 `apps/background` + `platform`。
+
+未来职责：
+
+- service worker bootstrap。
+- message router。
+- 定时任务入口。
+
+数据库、网络代理、任务中心等迁入 `platform`。
+
+### `src/dashboard`
+
+短期保留现状，新增 Dashboard 业务能力优先进入 `features`，Dashboard 入口和 partial 仍在 `dashboard`。
+
+设置搜索作为第一个试点：
+
+```text
+features/settingsSearch/
+apps/dashboard/
+```
+
+### `src/services`
+
+现有 `services` 按业务域迁入 `features`，按基础设施迁入 `platform`。
+
+示例：
+
+- `services/reviewBreaker` -> `features/reviewUnlock`
+- `services/relatedLists` -> `features/relatedLists`
+- `services/fc2Breaker` -> `features/fc2Breaker`
+- `services/privacy` -> `features/privacy` + `platform/browser`
+- `services/dataAggregator` -> 评估后归入 `features` 或 `platform/network`
+
+### `src/utils`
+
+`utils` 逐步瘦身，只保留真正小而纯的工具。当前业务配置和存储封装应迁走。
+
+建议迁移：
+
+- `config.ts` -> `shared/config` 或拆入各 feature config
+- `searchEngines.ts` -> `features/externalSearch/domain`
+- `domainConfig.ts` -> `shared/config`
+- `storage.ts` -> `platform/storage`
+- `net.ts`、`ipLookup.ts` -> `platform/network`
+- `statusPriority.ts`、`listRecordHelpers.ts` -> `features/videoStatus/domain`
+- `webdavDiagnostic.ts` -> `features/webdavSync/diagnostics`
+
+## 新功能落点规则
+
+新增功能先问三个问题：
+
+1. 这是用户可感知的业务能力吗？
+   - 是：进入 `features/<featureName>`。
+2. 这是浏览器、网络、存储、任务、日志等基础能力吗？
+   - 是：进入 `platform/<area>`。
+3. 这是跨模块纯类型、协议、常量或纯函数吗？
+   - 是：进入 `shared/<area>`。
+
+只有运行入口、页面装配、路由装配进入 `apps`。
+
+## 设置搜索试点
+
+设置搜索是第一批按新结构开发的新功能。
+
+目标结构：
+
+```text
+src/features/settingsSearch/
+  domain/
+    types.ts
+    aliases.ts
+  application/
+    buildSettingsSearchIndex.ts
+    findSettingsResults.ts
+    resolveSettingsTarget.ts
+  ui/
+    settingsSearchBox.ts
+    settingsSearchHighlight.ts
+  index.ts
+```
+
+Dashboard 接入点：
+
+```text
+src/apps/dashboard/settingsSearchBootstrap.ts
+```
+
+如果短期仍沿用现有 `src/dashboard` 入口，也应让 Dashboard 文件只调用：
+
+```ts
+import { mountSettingsSearch } from '../../features/settingsSearch';
+```
+
+试点规则：
+
+- 搜索索引优先从 DOM 自动生成。
+- 少量别名放在 `features/settingsSearch/domain/aliases.ts`。
+- 跳转、滚动、高亮逻辑放在 feature 内部。
+- Dashboard 只提供 mount 容器和路由生命周期。
+
+## 迁移路线
+
+### 阶段 1：建立新架构骨架
+
+- 新建 `apps/`、`features/`、`platform/` 子目录。
+- 设置搜索按新结构实现。
+- 新功能使用新结构。
+
+当前状态：
+
+- `src/apps`、`src/features`、`src/platform` 已建立 README 骨架。
+- `src/shared` 已补充子目录骨架，并保留现有 task center 协议文件。
+- `features/settingsSearch` 已建立 `domain`、`application`、`ui` 骨架，作为第一个试点落点。
+
+验收：
+
+```bash
+pnpm run typecheck
+pnpm run build
+```
+
+### 阶段 2：迁移高增长功能域
+
+优先迁移：
+
+```text
+features/magnets
+features/subtitles
+features/onlineAvailability
+features/externalSearch
+features/videoStatus
+```
+
+迁移方式：
+
+- 每次只迁一个 feature。
+- 保留旧路径 re-export 一轮，降低 import 震荡。
+- 更新测试路径。
+- 跑聚焦测试、typecheck、build。
+
+### 阶段 3：收敛基础设施
+
+迁移：
+
+```text
+platform/network
+platform/storage
+platform/tasks
+platform/logging
+platform/browser
+```
+
+重点处理：
+
+- background DB 和 migrations。
+- request scheduler。
+- task center。
+- console proxy 和 logger。
+
+### 阶段 4：清理旧目录
+
+- 删除旧路径 re-export。
+- 清理 `src/background/*.bak` 和 `src/background/background.ts.step*`。
+- 更新开发文档和 import 规则。
+
+## 迁移验收标准
+
+每个迁移批次必须满足：
+
+- `pnpm run typecheck` 通过。
+- 相关 DOM/unit 测试通过。
+- `pnpm run build` 通过。
+- 外部行为保持一致。
+- 新目录有 `index.ts` 作为稳定入口。
+- 旧路径保留或统一替换，避免混用。
+
+## 命名规则
+
+- feature 目录使用 camelCase：`onlineAvailability`、`settingsSearch`。
+- domain 文件使用业务名词：`types.ts`、`normalizer.ts`、`matcher.ts`。
+- adapter 文件体现外部依赖：`xunleiApi.ts`、`javbusParser.ts`。
+- UI 文件体现组件：`subtitleModal.ts`、`settingsSearchBox.ts`。
+- app 文件体现运行职责：`bootstrap.ts`、`messageRouter.ts`、`pageRouter.ts`。
+
+## 当前优先级
+
+1. 设置搜索按新结构实现，验证 `features/settingsSearch` 的开发体验。
+2. 迁移字幕和外部搜索相关代码，形成 `features/subtitles` 与 `features/externalSearch`。
+3. 迁移磁力功能域，形成 `features/magnets`。
+4. 迁移 background 基础设施到 `platform`。
+5. 清理历史备份文件和旧路径。

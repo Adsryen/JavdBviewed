@@ -58,6 +58,7 @@ export function initUserProfileSection(): void {
     // 添加登录按钮和用户信息显示区域
     container.innerHTML = `
         <div class="user-profile-container">
+            <h4 class="user-profile-card-title">账号信息</h4>
             <div id="user-profile-info" class="user-profile-info" style="display: none;">
                 <div class="user-basic-info">
                     <div class="user-avatar">
