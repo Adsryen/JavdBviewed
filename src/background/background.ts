@@ -23,11 +23,18 @@ import { getSettings, saveSettings } from '../utils/storage';
 import { normalizeDrive115Settings, isDrive115EnabledState, hasDrive115V2Credentials } from '../services/drive115App';
 import { globalTaskCenter } from './globalTaskCenter';
 import { registerReleaseAnnouncementEvents } from '../apps/background/releaseAnnouncementEvents';
+import {
+  handleTelemetryAlarm,
+  handleTelemetryRuntimeMessage,
+  initializeTelemetryReporter,
+  syncTelemetryHeartbeatAlarm,
+} from '../features/telemetry';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
 ensureMigrationsStart();
 registerReleaseAnnouncementEvents();
+initializeTelemetryReporter().catch(() => {});
 
 // P1 FIX: Service Worker 启动时从 chrome.storage 恢复任务状态
 globalTaskCenter.restoreFromStorage().catch(console.warn);
@@ -42,6 +49,9 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (handleTelemetryRuntimeMessage(message, sendResponse)) {
+    return true;
+  }
   if (typeof message?.type === 'string' && message.type.startsWith('task-center:')) {
     globalTaskCenter.handleMessage(message, sender, sendResponse);
     return globalTaskCenter.isAsyncMessage(message.type) || undefined;
@@ -416,7 +426,10 @@ try {
     }, 20000);
     const done = () => clearInterval(keepAlive);
     try {
-      const p = (async () => { await handleAlarmAsync(alarm?.name || ''); })();
+      const p = (async () => {
+        if (await handleTelemetryAlarm(alarm?.name || '')) return;
+        await handleAlarmAsync(alarm?.name || '');
+      })();
       p.then(done).catch(done);
     } catch { done(); }
   });
@@ -435,6 +448,7 @@ try {
         } else {
           try { chrome.alarms?.clear?.(INSIGHTS_ALARM); } catch {}
         }
+        syncTelemetryHeartbeatAlarm(settings);
 
         // 如果线路配置发生变化，重新注册动态内容脚本
         const oldSettings = changes['settings']?.oldValue as any;

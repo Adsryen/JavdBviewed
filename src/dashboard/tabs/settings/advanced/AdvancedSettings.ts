@@ -7,6 +7,7 @@ import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
+import { saveSettings } from '../../../../utils/storage';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 
@@ -21,6 +22,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
     private exportJsonBtn!: HTMLButtonElement;
     private viewRawLogsBtn!: HTMLButtonElement;
     private testLogBtn!: HTMLButtonElement;
+    private telemetryEnabledToggle!: HTMLInputElement;
 
     constructor() {
         super({
@@ -44,13 +46,15 @@ export class AdvancedSettings extends BaseSettingsPanel {
         this.exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
         this.viewRawLogsBtn = document.getElementById('viewRawLogsBtn') as HTMLButtonElement;
         this.testLogBtn = document.getElementById('testLogBtn') as HTMLButtonElement;
+        this.telemetryEnabledToggle = document.getElementById('telemetryEnabled') as HTMLInputElement;
 
         console.log('[AdvancedSettings] DOM元素查找结果:', {
             viewJsonBtn: !!this.viewJsonBtn,
             editJsonBtn: !!this.editJsonBtn,
             exportJsonBtn: !!this.exportJsonBtn,
             viewRawLogsBtn: !!this.viewRawLogsBtn,
-            testLogBtn: !!this.testLogBtn
+            testLogBtn: !!this.testLogBtn,
+            telemetryEnabledToggle: !!this.telemetryEnabledToggle
         });
 
         if (!this.viewJsonBtn || !this.editJsonBtn || !this.exportJsonBtn) {
@@ -82,6 +86,10 @@ export class AdvancedSettings extends BaseSettingsPanel {
             this.testLogBtn.addEventListener('click', this.handleTestLog.bind(this), { signal });
             console.log('[AdvancedSettings] testLogBtn 事件已绑定');
         }
+        if (this.telemetryEnabledToggle) {
+            this.telemetryEnabledToggle.addEventListener('change', this.handleTelemetryToggleChange.bind(this), { signal });
+            console.log('[AdvancedSettings] telemetryEnabledToggle 事件已绑定');
+        }
         
         console.log('[AdvancedSettings] 事件监听器绑定完成');
     }
@@ -97,7 +105,9 @@ export class AdvancedSettings extends BaseSettingsPanel {
      * 加载设置到UI
      */
     protected async doLoadSettings(): Promise<void> {
-        // 高级配置不需要加载设置，所有操作都是按需执行
+        if (this.telemetryEnabledToggle) {
+            this.telemetryEnabledToggle.checked = STATE.settings?.telemetry?.enabled !== false;
+        }
     }
 
     /**
@@ -128,7 +138,9 @@ export class AdvancedSettings extends BaseSettingsPanel {
      * 设置数据到UI
      */
     protected doSetSettings(_settings: Partial<ExtensionSettings>): void {
-        // 高级配置不需要设置数据到UI
+        if (this.telemetryEnabledToggle) {
+            this.telemetryEnabledToggle.checked = _settings?.telemetry?.enabled !== false;
+        }
     }
 
     // ===== 基于原始advanced.ts的事件处理方法 =====
@@ -312,5 +324,25 @@ export class AdvancedSettings extends BaseSettingsPanel {
         }
     }
 
+    private async handleTelemetryToggleChange(): Promise<void> {
+        if (!this.telemetryEnabledToggle) return;
+        try {
+            const newSettings = {
+                ...STATE.settings,
+                telemetry: {
+                    ...(STATE.settings?.telemetry || {}),
+                    enabled: this.telemetryEnabledToggle.checked,
+                },
+            } as ExtensionSettings;
+
+            await saveSettings(newSettings);
+            STATE.settings = newSettings;
+            showMessage(this.telemetryEnabledToggle.checked ? '使用情况统计已启用' : '使用情况统计已关闭', 'success');
+        } catch (error) {
+            console.error('保存使用情况统计设置失败:', error);
+            this.telemetryEnabledToggle.checked = STATE.settings?.telemetry?.enabled !== false;
+            showMessage('保存使用情况统计设置失败', 'error');
+        }
+    }
 
 }

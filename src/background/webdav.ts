@@ -7,6 +7,7 @@ import { STORAGE_KEYS } from '../utils/config';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
 import { logsGetAll as idbLogsGetAll, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear } from './db';
 import type { WebDAVClientProfile, WebDAVUploadIndex, WebDAVUploadIndexItem } from '../types';
+import { TELEMETRY_CLIENT_STATE_KEY } from '../features/telemetry';
 
 // 背景日志封装：转发到 background 的 log-message 处理
 function bgLog(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): void {
@@ -663,7 +664,7 @@ async function collectBackupData(): Promise<any> {
       .map(([k, v]) => ({ key: k, bytes: byteSizeOf(v) }))
       .sort((a, b) => b.bytes - a.bytes)
       .slice(0, 50);
-    storageAll = all;
+    storageAll = omitLocalOnlyStorageKeys(all);
   } catch {}
 
   const stats = {
@@ -741,6 +742,12 @@ async function collectBackupData(): Promise<any> {
   });
 
   return snapshot;
+}
+
+function omitLocalOnlyStorageKeys(value: Record<string, any>): Record<string, any> {
+  const next = { ...(value || {}) };
+  delete next[TELEMETRY_CLIENT_STATE_KEY];
+  return next;
 }
 
 interface WebDAVFile {

@@ -39,6 +39,7 @@ import { getDisplayVersionInfo } from '../utils/versionInfo';
 import { normalizeDrive115Settings, isDrive115EnabledState } from '../services/drive115App';
 import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
 import { mountDashboardReleaseAnnouncement } from '../apps/dashboard/releaseAnnouncementBootstrap';
+import { reportDashboardOpenTelemetry } from '../apps/dashboard/telemetryDashboardOpen';
 // 主题系统
 import { themeManager } from './services/themeManager';
 import { ThemeSwitcher } from './components/themeSwitcher';
@@ -270,6 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
 
     await initializeGlobalState();
+    reportDashboardOpenTelemetry();
 
     try {
         if (!(window as any).__SETTINGS_ON_CHANGED_BOUND__) {

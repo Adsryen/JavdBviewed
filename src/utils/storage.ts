@@ -247,6 +247,21 @@ function normalizeSettingsForSave<T extends Partial<ExtensionSettings>>(settings
   } as T;
 }
 
+function mergeTelemetrySettings(storedTelemetry: any): Record<string, any> {
+  const defaults = ((DEFAULT_SETTINGS as any).telemetry || {}) as Record<string, any>;
+  const stored = storedTelemetry && typeof storedTelemetry === 'object' ? storedTelemetry : {};
+  const merged = {
+    ...defaults,
+    ...stored,
+  };
+
+  if (!String(merged.endpoint || '').trim()) {
+    merged.endpoint = defaults.endpoint;
+  }
+
+  return merged;
+}
+
 export function mergeSearchEngineTemplates(searchEngines: any[] | undefined | null): any[] {
   const defaultEngines = Array.isArray((DEFAULT_SETTINGS as any).searchEngines)
     ? (DEFAULT_SETTINGS as any).searchEngines
@@ -389,6 +404,9 @@ export async function getSettings(): Promise<ExtensionSettings> {
     ai: {
       ...DEFAULT_SETTINGS.ai,
       ...(storedSettings.ai || {}),
+    },
+    telemetry: {
+      ...mergeTelemetrySettings((storedSettings as any).telemetry),
     },
     insights: {
       ...DEFAULT_SETTINGS.insights,

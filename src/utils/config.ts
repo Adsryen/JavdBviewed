@@ -3,6 +3,9 @@ import { PrivacyConfig } from '../types/privacy';
 import { normalizeDrive115Settings } from '../services/drive115App';
 import { DEFAULT_AI_SETTINGS } from '../types/ai';
 
+export const SERVER_API_BASE_URL = 'https://jbd-server.we-together.club';
+export const TELEMETRY_REPORT_ENDPOINT = `${SERVER_API_BASE_URL}/v1/telemetry/report`;
+
 export const STORAGE_KEYS = {
     // A single key for all viewed records, which is an object
     // where keys are video IDs and values are objects with { title, status, timestamp }.
@@ -381,6 +384,12 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             storage: true,
             general: true,
         },
+    },
+
+    telemetry: {
+        enabled: true,
+        endpoint: TELEMETRY_REPORT_ENDPOINT,
+        channel: 'stable',
     },
 
     drive115: normalizeDrive115Settings({}),

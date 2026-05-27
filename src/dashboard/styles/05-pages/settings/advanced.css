@@ -149,6 +149,12 @@
         var(--advanced-card-bg);
 }
 
+#advanced-settings .telemetry-tool {
+    background:
+        radial-gradient(circle at top right, rgba(6, 182, 212, 0.12), transparent 36%),
+        var(--advanced-card-bg);
+}
+
 #advanced-settings .advanced-tool-header {
     display: flex;
     gap: 14px;
@@ -297,6 +303,74 @@
 
 [data-theme="dark"] #advanced-settings .advanced-note-list span {
     background: rgba(15, 23, 42, 0.24);
+}
+
+#advanced-settings .advanced-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 2px 0 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(6, 182, 212, 0.24);
+    border-radius: 14px;
+    background: rgba(238, 242, 255, 0.58);
+    cursor: pointer;
+}
+
+[data-theme="dark"] #advanced-settings .advanced-toggle-row {
+    background: rgba(15, 23, 42, 0.24);
+}
+
+#advanced-settings .advanced-toggle-text {
+    color: var(--advanced-text);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+#advanced-settings .advanced-toggle-switch {
+    position: relative;
+    display: inline-flex;
+    width: 48px;
+    height: 26px;
+    flex: 0 0 48px;
+}
+
+#advanced-settings .advanced-toggle-switch input {
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+#advanced-settings .advanced-toggle-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: rgba(100, 116, 139, 0.34);
+    transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+#advanced-settings .advanced-toggle-slider::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
+    transition: transform 0.18s ease;
+}
+
+#advanced-settings .advanced-toggle-switch input:checked + .advanced-toggle-slider {
+    background: linear-gradient(135deg, #06b6d4 0%, #2563eb 100%);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.14);
+}
+
+#advanced-settings .advanced-toggle-switch input:checked + .advanced-toggle-slider::before {
+    transform: translateX(22px);
 }
 
 #advanced-settings button:disabled {
