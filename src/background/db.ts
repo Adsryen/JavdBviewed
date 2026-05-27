@@ -1418,6 +1418,11 @@ export async function viewedGetAll(): Promise<VideoRecord[]> {
   return db.getAll('viewedRecords');
 }
 
+export async function viewedTagIndexGetAll(): Promise<ViewedTagIndexRecord[]> {
+  const db = await initDB();
+  return db.getAll('viewedByTag');
+}
+
 export async function viewedCountByStatus(status?: VideoRecord['status']): Promise<number> {
   const db = await initDB();
   if (!status) return db.count('viewedRecords');

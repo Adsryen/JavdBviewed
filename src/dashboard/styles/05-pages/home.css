@@ -432,6 +432,18 @@
   min-height: 0;
 }
 
+.home-charts .chart-empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
 .home-charts #homeRecordsTrend::after { background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.04) 38%, transparent 72%); }
 .home-charts #homeActorsTrend::after { background: radial-gradient(circle, rgba(34, 197, 94, 0.10) 0%, rgba(34, 197, 94, 0.04) 38%, transparent 72%); }
 .home-charts #homeNewWorksTrend::after { background: radial-gradient(circle, rgba(20, 184, 166, 0.10) 0%, rgba(20, 184, 166, 0.04) 38%, transparent 72%); }
