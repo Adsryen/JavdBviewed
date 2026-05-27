@@ -5,7 +5,7 @@
  */
 
 import type { ExtensionSettings } from '../types';
-import { DEFAULT_SETTINGS } from './config';
+import { DEFAULT_SETTINGS, SERVER_API_BASE_URL } from './config';
 
 export type ServiceType = 'javdb' | 'javbus';
 
@@ -41,6 +41,25 @@ interface RemoteRoutesConfig {
             }>;
         };
     };
+}
+
+interface ServerRemoteConfig {
+    schemaVersion: 1;
+    updatedAt: string;
+    routes: Record<string, {
+        primary: string;
+        alternatives: Array<{
+            url: string;
+            status: 'active' | 'degraded' | 'disabled' | string;
+            description?: string;
+        }>;
+    }>;
+    updatePolicy?: {
+        latestVersion?: string;
+        minimumVersion?: string;
+        releaseUrl?: string;
+    };
+    featureFlags?: Record<string, boolean>;
 }
 
 /**
@@ -219,6 +238,27 @@ export class RouteManager {
                 lastCheckTime: Date.now()
             });
 
+            const serverConfig = await this.fetchServerRemoteConfig();
+            if (serverConfig) {
+                const remoteConfig = this.convertServerConfigToRoutesConfig(serverConfig);
+                if (updateStatus.currentVersion === remoteConfig.version) {
+                    console.debug('[RouteManager] 已是最新版本:', remoteConfig.version);
+                    return false;
+                }
+
+                console.info('[RouteManager] 发现服务端线路配置:', remoteConfig.version, '当前版本:', updateStatus.currentVersion);
+                await this.mergeRemoteRoutes(remoteConfig);
+                await this.saveUpdateStatus({
+                    lastCheckTime: Date.now(),
+                    lastUpdateTime: Date.now(),
+                    currentVersion: remoteConfig.version,
+                    remoteVersion: remoteConfig.version
+                });
+                this.clearCache();
+                console.info('[RouteManager] 线路配置已从服务端更新到版本:', remoteConfig.version);
+                return true;
+            }
+
             // 获取远程配置
             console.info('[RouteManager] 正在从 GitHub 获取最新线路配置...');
             const response = await fetch(REMOTE_URL, {
@@ -264,6 +304,100 @@ export class RouteManager {
             console.error('[RouteManager] 更新线路配置失败:', error);
             return false;
         }
+    }
+
+    private async fetchServerRemoteConfig(): Promise<ServerRemoteConfig | null> {
+        try {
+            const url = this.buildServerConfigUrl();
+            const response = await fetch(url, {
+                cache: 'no-cache',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.warn('[RouteManager] 获取服务端远程配置失败:', response.status);
+                return null;
+            }
+
+            const config = await response.json() as ServerRemoteConfig;
+            if (!config || config.schemaVersion !== 1 || !config.routes || typeof config.routes !== 'object') {
+                console.warn('[RouteManager] 服务端远程配置格式无效');
+                return null;
+            }
+            return config;
+        } catch (error) {
+            console.warn('[RouteManager] 获取服务端远程配置异常:', error);
+            return null;
+        }
+    }
+
+    private buildServerConfigUrl(): string {
+        const manifest = chrome.runtime.getManifest();
+        const version = encodeURIComponent(String(manifest?.version || 'unknown'));
+        const platform = encodeURIComponent(this.detectPlatform());
+        const locale = encodeURIComponent(this.getLocale());
+        return `${SERVER_API_BASE_URL}/v1/config?channel=stable&version=${version}&platform=${platform}&locale=${locale}`;
+    }
+
+    private detectPlatform(): string {
+        try {
+            const platform = String((navigator as any).userAgentData?.platform || navigator.platform || '').toLowerCase();
+            if (platform.includes('win')) return 'windows';
+            if (platform.includes('mac')) return 'macos';
+            if (platform.includes('linux')) return 'linux';
+            if (platform.includes('android')) return 'android';
+            if (platform.includes('iphone') || platform.includes('ipad') || platform.includes('ios')) return 'ios';
+            return platform || 'unknown';
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    private getLocale(): string {
+        try {
+            return navigator.language || 'en-US';
+        } catch {
+            return 'en-US';
+        }
+    }
+
+    private convertServerConfigToRoutesConfig(config: ServerRemoteConfig): RemoteRoutesConfig {
+        const javdbRoutes = config.routes.javdb || {};
+        const javbusRoutes = config.routes.javbus || {};
+        return {
+            version: config.updatedAt || String(config.updatePolicy?.latestVersion || Date.now()),
+            lastUpdated: config.updatedAt || new Date().toISOString(),
+            updateInterval: 24 * 60 * 60 * 1000,
+            remoteUrl: `${SERVER_API_BASE_URL}/v1/config`,
+            services: {
+                javdb: this.convertServerRouteGroup('JavDB', javdbRoutes, DEFAULT_SETTINGS.routes!.javdb.primary),
+                javbus: this.convertServerRouteGroup('JavBus', javbusRoutes, DEFAULT_SETTINGS.routes!.javbus.primary),
+            },
+        };
+    }
+
+    private convertServerRouteGroup(
+        name: string,
+        routeGroup: ServerRemoteConfig['routes'][string],
+        fallbackPrimary: string,
+    ): RemoteRoutesConfig['services']['javdb'] {
+        return {
+            name,
+            primary: typeof routeGroup.primary === 'string' && routeGroup.primary ? routeGroup.primary : fallbackPrimary,
+            alternatives: Array.isArray(routeGroup.alternatives)
+                ? routeGroup.alternatives
+                    .filter(route => route && typeof route.url === 'string' && route.url && route.status !== 'disabled')
+                    .map(route => ({
+                        url: route.url,
+                        region: 'global',
+                        status: route.status || 'active',
+                        addedAt: new Date().toISOString(),
+                        description: route.description || '服务端线路',
+                    }))
+                : [],
+        };
     }
 
     /**
