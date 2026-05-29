@@ -38,6 +38,12 @@
   - [x] “是否启用”同时控制详情页入口和番号库入口
   - [x] 内置项保持只读，只允许切换启用状态
   - [x] 放弃“隐藏内置项”方案，避免与启用开关形成重复概念
+- [ ] 客户端遥测设备 ID 对齐
+  - [ ] 核实 `buildTelemetryPayload.ts` 当前 `deviceId` 来源为 `telemetry_client_state.installId`
+  - [ ] 改为优先上报设置页显示的 `settings.webdav.clientId`
+  - [ ] 保留 `installId` 作为遥测安装归并标识，避免混用为管理端设备 ID
+  - [ ] 补充测试：设置页 Device ID 变化后，payload 的 `deviceId` 使用最新 `webdav.clientId`
+  - [ ] 补充兼容测试：无 `webdav.clientId` 时仍能用 telemetry install state 完成内部归并
 
 ---
 
@@ -63,31 +69,122 @@
   - [x] 建立 `ui/settingsSearchBox.ts`
   - [x] 建立 `ui/settingsSearchHighlight.ts`
   - [x] Dashboard 只负责 mount 和路由生命周期
-- [ ] 第二批迁移：字幕与外部搜索
-  - [ ] 建立 `features/subtitles`
-  - [ ] 迁移迅雷字幕弹窗与响应 normalize 逻辑
-  - [ ] 建立 `features/externalSearch`
-  - [ ] 迁移详情页外部搜索渲染和搜索引擎匹配逻辑
-  - [ ] 旧路径保留 re-export 一轮，降低 import 震荡
-- [ ] 第三批迁移：磁力功能域
-  - [ ] 建立 `features/magnets`
-  - [ ] 迁移 `magnetSearch.ts`
-  - [ ] 迁移 `magnetResultMerge.ts`
-  - [ ] 迁移 `magnetPagination.ts`
-  - [ ] 迁移 `magnetSourceTagState.ts`
-  - [ ] 迁移 `javbusMagnetSource.ts`
-  - [ ] 旧路径保留 re-export 一轮，降低 import 震荡
+- [x] 第二批迁移：字幕与外部搜索
+  - [x] 迁移前测试基线
+    - [x] 外部搜索：链接生成、重复模板去重、FC2 专用入口、禁用引擎过滤
+    - [x] 外部搜索：详情页插入位置优先跟随“在线可看”面板
+    - [x] 外部搜索：统一入口关闭时移除详情页外部搜索与字幕搜索面板
+    - [x] 字幕搜索：分类独立显示，支持单独关闭字幕搜索或外部搜索
+    - [x] 迅雷字幕：点击入口打开弹窗并请求 API
+    - [x] 迅雷字幕：真实 `MKMP-577` 响应字段、元信息 tag、复制和下载动作
+    - [x] 迅雷字幕：空结果、请求失败、关闭弹窗、样式注入、图标回退
+  - [x] 建立 `features/subtitles`
+  - [x] 迁移迅雷字幕弹窗与响应 normalize 逻辑
+  - [x] 建立 `features/externalSearch`
+  - [x] 迁移详情页外部搜索渲染和搜索引擎匹配逻辑
+  - [x] 旧路径保留 re-export 一轮，降低 import 震荡
+- [x] 第三批迁移：磁力功能域
+  - [x] 迁移前测试基线
+    - [x] `magnetResultMerge`：缓存结果追加、按 hash 去重、跨来源 source 合并、复合来源标签规范化
+    - [x] `magnetPagination`：10 条阈值、超过 10 条分页、页码边界夹取
+    - [x] `magnetSourceTagState`：唯一结果按来源计数、成功/失败/缓存保留 tag 文案
+    - [x] `javbusMagnetSource`：Ajax 参数提取、Ajax URL、表格解析、完整 HTML fallback、raw magnet fallback、诊断信息
+    - [x] `magnetSearch`：主搜索管理器只保留旧路径兼容，本批不拆运行时大类
+  - [x] 建立 `features/magnets`
+  - [x] 迁移 `magnetSearch.ts`
+  - [x] 迁移 `magnetResultMerge.ts`
+  - [x] 迁移 `magnetPagination.ts`
+  - [x] 迁移 `magnetSourceTagState.ts`
+  - [x] 迁移 `javbusMagnetSource.ts`
+  - [x] 旧路径保留 re-export 一轮，降低 import 震荡
 - [ ] 第四批迁移：基础设施
-  - [ ] 建立 `platform/network`
-  - [ ] 建立 `platform/storage`
-  - [ ] 建立 `platform/tasks`
-  - [ ] 建立 `platform/logging`
-  - [ ] 建立 `platform/browser`
-  - [ ] 迁移 background DB、request scheduler、task center、logger 等基础设施
-- [ ] 清理旧目录和历史备份文件
-  - [ ] 处理 `src/background/*.bak`
-  - [ ] 处理 `src/background/background.ts.step*`
-  - [ ] 确认无构建引用后移动到归档目录或删除
+  - [x] 迁移前测试基线
+    - [x] `HttpClient`：background fetch 返回 HTTP 错误状态时抛出 `NetworkError`
+    - [x] `ChromeStorage`：普通值读写、空值 fallback、大对象分片、IDB 迁移读取、旧 `utils/storage` 导出兼容
+    - [x] `Tasks`：分片任务批处理、内容脚本任务消息协议、任务调度依赖重试
+    - [x] `Browser`：runtime callback 消息 Promise 化、lastError/runtime 缺失处理、JAVBUS tab fetch fallback
+    - [x] `Logging`：日志级别开关、重要日志持久化钩子、控制台输出抑制、旧 `utils/logController` 兼容
+    - [x] `RequestScheduler`：in-flight 去重、同 host 并发限制
+    - [x] `GlobalTaskCenter`：任务租约调度、bucket 策略、状态存储、跨页面完成状态
+  - [x] 建立 `platform/network`
+  - [x] 迁移 `services/dataAggregator/httpClient.ts` 到 `platform/network/httpClient.ts`
+  - [x] 沉淀 `FetchOptions`、`NetworkError` 到 `platform/network/types.ts`
+  - [x] 旧 `services/dataAggregator/httpClient.ts` 保留 re-export 兼容
+  - [x] 建立 `platform/storage`
+  - [x] 迁移 Chrome Storage 通用读写、分片存储和运行时迁移读取到 `platform/storage/chromeStorage.ts`
+  - [x] 旧 `utils/storage.ts` 保留设置合并、搜索引擎合并和 `getValue`/`setValue` 兼容导出
+  - [x] 建立 `platform/tasks`
+  - [x] 迁移 `runChunkedWork`、`yieldToMainThread` 到 `platform/tasks/chunking.ts`
+  - [x] 迁移任务中心 register/lease/progress/active tracking 到 `platform/tasks/runtimeMessaging.ts`
+  - [x] 旧 `content/taskChunking.ts`、`content/taskRuntime.ts` 保留 re-export 和页面上下文兼容
+  - [x] 建立 `platform/logging`
+  - [x] 迁移纯日志控制器到 `platform/logging/logController.ts`
+  - [x] 旧 `utils/logController.ts` 保留设置读取、consoleProxy 同步和后台日志持久化装配
+  - [x] 建立 `platform/browser`
+  - [x] 迁移通用 runtime callback 消息封装到 `platform/browser/runtimeMessages.ts`
+  - [x] 接入 `content/javbusTabFetch.ts`，保留业务响应校验
+  - [x] 迁移 `background/requestScheduler.ts` 到 `platform/network/requestScheduler.ts`
+  - [x] 旧 `background/requestScheduler.ts` 保留 re-export 兼容
+  - [x] 迁移 `background/globalTaskCenter.ts` 到 `platform/tasks/globalTaskCenter.ts`
+  - [x] 迁移 `taskPolicy`、`taskStateStore`、`taskCenterPolicyRuntime` 到 `platform/tasks`
+  - [x] 旧 `background/globalTaskCenter.ts` 与任务策略文件保留 re-export 兼容
+  - [x] 迁移 background DB 等基础设施
+    - [x] 迁移 IndexedDB 核心到 `platform/storage/indexedDb.ts`
+    - [x] 迁移 trend helper 到 `platform/storage/trendUtils.ts`
+    - [x] 旧 `background/db.ts` 与 `background/trendUtils.ts` 保留 re-export 兼容
+    - [x] background DB 路由、迁移、WebDAV、调度与新作品采集改用 `platform/storage/indexedDb.ts`
+- [x] 第五批迁移：新作品功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/newWorks` 只能作为兼容出口
+  - [x] 建立 `features/newWorks`
+  - [x] 迁移 `collector.ts`、`manager.ts`、`scheduler.ts`、`types.ts`
+  - [x] `services/newWorks/*` 保留 re-export 兼容
+  - [x] background、content、dashboard 调用方改用 `features/newWorks`
+- [x] 第六批迁移：演员库功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/actorManager.ts` 与 `services/actorSync.ts` 只能作为兼容出口
+  - [x] 建立 `features/actors`
+  - [x] 迁移 `actorManager.ts` 与 `actorSync.ts`
+  - [x] `services/actorManager.ts` 与 `services/actorSync.ts` 保留 re-export 兼容
+  - [x] content、dashboard、newWorks 调用方改用 `features/actors`
+- [x] 第七批迁移：相关清单功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/relatedLists` 只能作为兼容出口
+  - [x] 建立 `features/relatedLists`
+  - [x] 迁移相关清单 API 映射与分页响应逻辑
+  - [x] `services/relatedLists` 保留 re-export 兼容
+  - [x] 影片页增强与 DOM 测试调用方改用 `features/relatedLists`
+- [x] 第八批迁移：评论解锁功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/reviewBreaker` 只能作为兼容出口
+  - [x] 建立 `features/reviewUnlock`
+  - [x] 迁移评论 API、签名生成与过滤关键词逻辑
+  - [x] `services/reviewBreaker` 保留 re-export 兼容
+  - [x] 影片页增强、超级排行榜、FC2 与相关清单调用方改用 `features/reviewUnlock`
+- [x] 第九批迁移：FC2 破解功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/fc2Breaker` 只能作为兼容出口
+  - [x] 建立 `features/fc2Breaker`
+  - [x] 迁移 FC2 API、弹窗、磁力区与 115 推送联动逻辑
+  - [x] `services/fc2Breaker` 保留 re-export 兼容
+  - [x] 影片页增强、列表增强与 FC2 DOM 测试调用方改用 `features/fc2Breaker`
+- [x] 第十批迁移：演员备注功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/actorRemarks` 只能作为兼容出口
+  - [x] 建立 `features/actorRemarks`
+  - [x] 迁移 Wikipedia/xslist 聚合、缓存与请求去重逻辑
+  - [x] `services/actorRemarks` 保留 re-export 兼容
+  - [x] 影片页、演员页、演员增强与演员库调用方改用 `features/actorRemarks`
+- [x] 第十一批迁移：Insights 报告功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/insights` 只能作为兼容出口
+  - [x] 建立 `features/insights`
+  - [x] 迁移月度聚合、对比聚合、报告模板、提示词、人设与生成追踪逻辑
+  - [x] `services/insights` 保留 re-export 兼容
+  - [x] background scheduler、Dashboard 报告页与首页图表改用 `features/insights`
+- [x] 第十二批迁移：数据聚合功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/dataAggregator` 只能作为兼容出口
+  - [x] 建立 `features/dataAggregator`
+  - [x] 迁移数据聚合器、类型定义、BlogJav/JavLibrary/Translator/AITranslator source 与单元测试
+  - [x] `services/dataAggregator` 保留 re-export 兼容，HTTP client 继续归属 `platform/network`
+  - [x] 影片页增强、内容入口、在线可看、演员备注、字幕 API 与相关测试改用新路径
+- [x] 清理旧目录和历史备份文件
+  - [x] 处理 `src/background/*.bak`
+  - [x] 处理 `src/background/background.ts.step*`
+  - [x] 确认无构建引用后移动到归档目录或删除
 
 ---
 
