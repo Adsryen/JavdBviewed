@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { javbusPageAjaxFetchScript } from '../../src/background/javbusTabFetch';
 import { fetchJavbusAjaxViaTab } from '../../src/content/javbusTabFetch';
+import { sendRuntimeMessage } from '../../src/platform/browser/runtimeMessages';
 
 describe('JAVBUS tab ajax fetch fallback', () => {
   const originalSendMessage = (globalThis as any).chrome.runtime.sendMessage;
@@ -34,6 +35,44 @@ describe('JAVBUS tab ajax fetch fallback', () => {
       },
       expect.any(Function),
     );
+  });
+
+  it('wraps callback-based runtime messages as promises', async () => {
+    const sendMessage = vi.fn((message, callback) => {
+      callback({ success: true, data: { value: 1 } });
+    });
+    (globalThis as any).chrome.runtime.lastError = undefined;
+    (globalThis as any).chrome.runtime.sendMessage = sendMessage;
+
+    await expect(sendRuntimeMessage({ type: 'demo', payload: { id: 1 } })).resolves.toEqual({
+      success: true,
+      data: { value: 1 },
+    });
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'demo', payload: { id: 1 } }, expect.any(Function));
+  });
+
+  it('rejects runtime messages when Chrome reports lastError', async () => {
+    (globalThis as any).chrome.runtime.lastError = { message: 'receiver missing' };
+    (globalThis as any).chrome.runtime.sendMessage = vi.fn((_message, callback) => {
+      callback(undefined);
+    });
+
+    await expect(sendRuntimeMessage({ type: 'demo' })).rejects.toThrow('receiver missing');
+  });
+
+  it('rejects runtime messages when runtime is unavailable', async () => {
+    const originalChrome = (globalThis as any).chrome;
+    Object.defineProperty(globalThis, 'chrome', {
+      value: undefined,
+      configurable: true,
+    });
+
+    await expect(sendRuntimeMessage({ type: 'demo' })).rejects.toThrow('Chrome runtime is not available');
+
+    Object.defineProperty(globalThis, 'chrome', {
+      value: originalChrome,
+      configurable: true,
+    });
   });
 
   it('runs same-origin ajax from the JAVBUS page context', async () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { VideoDetailEnhancer } from '../../src/content/enhancedVideoDetail';
-import { MagnetSearchManager, type MagnetResult } from '../../src/content/magnetSearch';
+import { MagnetSearchManager, type MagnetResult } from '../../src/features/magnets';
 
 function magnet(overrides: Partial<MagnetResult> = {}): MagnetResult {
   return {
