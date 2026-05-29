@@ -432,4 +432,19 @@ describe('source architecture cleanup', () => {
       expect(source, `${relative} should re-export from features/privacy/utils`).toMatch(/features\/privacy\/utils/);
     }
   });
+
+  it('keeps the background service worker entry thin and boots through apps/background', () => {
+    const bootstrapPath = 'src/apps/background/bootstrap.ts';
+    expect(fs.existsSync(path.resolve(root, bootstrapPath)), `${bootstrapPath} should exist`).toBe(true);
+
+    const entryPath = 'src/background/background.ts';
+    const source = fs.readFileSync(path.resolve(root, entryPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${entryPath} should stay a thin manifest entry`).toBeLessThanOrEqual(8);
+    expect(source, `${entryPath} should import apps/background/bootstrap`).toMatch(/apps\/background\/bootstrap/);
+  });
 });
