@@ -9,7 +9,7 @@ import {
     getUnreadBatchOpenCooldownSeconds,
     pickUnreadBatchOpenTargets,
 } from './newWorksBatchOpenPolicy';
-import type { NewWorkRecord } from '../../services/newWorks/types';
+import type { NewWorkRecord } from '../../types';
 
 function makeWork(index: number, isRead: boolean): NewWorkRecord {
     return {

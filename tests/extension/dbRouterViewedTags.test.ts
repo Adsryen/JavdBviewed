@@ -6,7 +6,7 @@ describe('DB:GET_ALL_TAGS route', () => {
   });
 
   afterEach(() => {
-    vi.doUnmock('../../src/background/db');
+    vi.doUnmock('../../src/platform/storage/indexedDb');
   });
 
   it('builds tag stats from the viewedByTag index when viewed records have no tag fields', async () => {
@@ -19,8 +19,8 @@ describe('DB:GET_ALL_TAGS route', () => {
       { key: '巨乳::SSIS-002', tag: '巨乳', videoId: 'SSIS-002' },
     ]);
 
-    vi.doMock('../../src/background/db', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/background/db')>();
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB: vi.fn(() => Promise.resolve({})),

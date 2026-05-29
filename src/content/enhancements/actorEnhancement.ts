@@ -6,9 +6,9 @@
 import { getValue, setValue } from '../../utils/storage';
 import { showToast } from '../toast';
 import type { ActorRecord } from '../../types';
-import { actorManager } from '../../services/actorManager';
-import { newWorksManager } from '../../services/newWorks';
-import { actorExtraInfoService } from '../../services/actorRemarks';
+import { actorManager } from '../../features/actors';
+import { newWorksManager } from '../../features/newWorks';
+import { actorExtraInfoService } from '../../features/actorRemarks';
 import { getSettings } from '../../utils/storage';
 import { completeManagedTask, createManagedTaskDescriptor, ensureManagedTaskRegistered, failManagedTask, requestTaskLease, trackActiveManagedTask, untrackActiveManagedTask } from '../taskRuntime';
 import { showEnhancementDone, showEnhancementLoading } from '../enhancementLoadingIndicator';

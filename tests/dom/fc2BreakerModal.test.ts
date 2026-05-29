@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FC2BreakerService, type FC2VideoInfo } from '../../src/services/fc2Breaker';
-import { MagnetSearchManager, type MagnetResult } from '../../src/content/magnetSearch';
+import { FC2BreakerService, type FC2VideoInfo } from '../../src/features/fc2Breaker';
+import { MagnetSearchManager, type MagnetResult } from '../../src/features/magnets';
 
 vi.mock('../../src/content/dbClient', () => ({
   dbViewedPut: vi.fn().mockResolvedValue(undefined),

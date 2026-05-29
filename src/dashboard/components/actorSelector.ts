@@ -1,7 +1,7 @@
 // src/dashboard/components/actorSelector.ts
 // 演员选择器组件
 
-import { actorManager } from '../../services/actorManager';
+import { actorManager } from '../../features/actors';
 import { showMessage } from '../ui/toast';
 import type { ActorRecord } from '../../types';
 

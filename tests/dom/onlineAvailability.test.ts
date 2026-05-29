@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultHttpClient } from '../../src/services/dataAggregator/httpClient';
+import { defaultHttpClient } from '../../src/platform/network/httpClient';
 import {
   applyOnlineAvailabilitySitePreferences,
   buildOnlineAvailabilityUrl,

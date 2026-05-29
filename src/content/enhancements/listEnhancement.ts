@@ -2,8 +2,8 @@
 
 import { log } from '../state';
 import { showToast } from '../toast';
-import { actorManager } from '../../services/actorManager';
-import { newWorksManager } from '../../services/newWorks';
+import { actorManager } from '../../features/actors';
+import { newWorksManager } from '../../features/newWorks';
 import { processVisibleItems } from '../itemProcessor';
 import { activatePreviewVideoPreload, releasePreviewVideoMedia } from '../previewVideoPreload';
 import {
@@ -1243,7 +1243,7 @@ class ListEnhancementManager {
           
           // 动态导入FC2破解服务
           try {
-            const { fc2BreakerService } = await import('../../services/fc2Breaker');
+            const { fc2BreakerService } = await import('../../features/fc2Breaker');
             await fc2BreakerService.showFC2Dialog(movieId, videoInfo.code, videoInfo.url);
           } catch (error) {
             log('[ListEnhancement] Failed to open FC2 dialog:', error);

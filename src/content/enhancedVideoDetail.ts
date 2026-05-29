@@ -1,15 +1,15 @@
 ﻿// src/content/enhancedVideoDetail.ts
 // 视频详情页增强功能
 
-import { defaultDataAggregator } from '../services/dataAggregator';
+import { defaultDataAggregator } from '../features/dataAggregator';
 import { aiService } from '../services/ai/aiService';
 import { showToast } from './toast';
-import { VideoMetadata, ImageData } from '../services/dataAggregator/types';
+import { VideoMetadata, ImageData } from '../features/dataAggregator/types';
 import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
-import { reviewBreakerService, ReviewData } from '../services/reviewBreaker';
-import { relatedListsService, RelatedListItem } from '../services/relatedLists';
-import { fc2BreakerService, FC2VideoInfo } from '../services/fc2Breaker';
+import { reviewBreakerService, ReviewData } from '../features/reviewUnlock';
+import { relatedListsService, RelatedListItem } from '../features/relatedLists';
+import { fc2BreakerService, FC2VideoInfo } from '../features/fc2Breaker';
 import { yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { initOrchestrator } from './initOrchestrator';

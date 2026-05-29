@@ -1,10 +1,9 @@
 // src/dashboard/dbClient.ts
 // Dashboard 到后台 Service Worker 的 DB 消息封装
 
-import type { LogEntry, VideoRecord, ListRecord } from '../types';
+import type { LogEntry, VideoRecord, ListRecord, NewWorkRecord } from '../types';
 import type { ViewsDaily, ReportMonthly } from '../types/insights';
 import type { ActorRecord } from '../types';
-import type { NewWorkRecord } from '../services/newWorks/types';
 
 export interface MagnetsQueryParams {
   videoId: string;

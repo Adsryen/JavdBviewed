@@ -1,7 +1,7 @@
 // src/dashboard/tabs/newWorks.ts
 // 新作品标签页实现
 
-import { newWorksManager } from '../../services/newWorks';
+import { newWorksManager } from '../../features/newWorks';
 // 移除未使用的 actorManager 与 newWorksCollector 引用
 import { actorSelector } from '../components/actorSelector';
 import { newWorksConfigModal } from '../components/newWorks/configModal';
@@ -14,8 +14,7 @@ import {
     getUnreadBatchOpenCooldownSeconds,
     pickUnreadBatchOpenTargets,
 } from './newWorksBatchOpenPolicy';
-import type { ActorRecord } from '../../types';
-import type { NewWorkRecord, ActorSubscription } from '../../services/newWorks';
+import type { ActorRecord, NewWorkRecord, ActorSubscription } from '../../types';
 
 export class NewWorksTab {
     public isInitialized: boolean = false;

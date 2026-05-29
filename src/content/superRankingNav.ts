@@ -1,7 +1,7 @@
 import { log } from './state';
 import { getJavdbTheme, type JavdbTheme } from './utils';
 import { bgFetchJSON } from '../utils/net';
-import { ReviewBreakerService } from '../services/reviewBreaker';
+import { ReviewBreakerService } from '../features/reviewUnlock';
 
 export const SUPER_RANKING_PLAYBACK_URL = '/advanced_search?handlePlayback=1&period=daily';
 export const SUPER_RANKING_TOP250_URL = '/advanced_search?handleTop=1&handleType=all&type_value=&page=1';
