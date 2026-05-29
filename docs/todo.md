@@ -205,6 +205,12 @@
   - [x] 迁移 115 设置归一化、统一应用服务、推送日志、路由、v2 API、PKCE 和文件搜索
   - [x] `services/drive115*` 保留 re-export 兼容
   - [x] content、background、Dashboard、FC2 推送和 115 相关测试改用新路径
+- [x] 第十七批迁移：隐私工具收口
+  - [x] 迁移前使用架构回归测试约束旧 `utils/privacy` 只能作为兼容出口
+  - [x] 建立 `features/privacy/utils`
+  - [x] 迁移隐私加密、存储和验证工具
+  - [x] `utils/privacy/*` 保留 re-export 兼容
+  - [x] 隐私功能域和密码恢复弹窗改用新路径
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`

@@ -9,8 +9,8 @@ import {
     hashPassword, 
     verifyPassword, 
     validatePasswordStrength 
-} from '../../utils/privacy/crypto';
-import { getPasswordValidator } from '../../utils/privacy/validation';
+} from './utils/crypto';
+import { getPasswordValidator } from './utils/validation';
 import { getSettings, saveSettings } from '../../utils/storage';
 import { getPrivacyManager } from './PrivacyManager';
 

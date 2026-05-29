@@ -408,4 +408,28 @@ describe('source architecture cleanup', () => {
       }
     }
   });
+
+  it('keeps privacy utilities under the privacy feature and utils path as compatibility exports', () => {
+    const expectedFeatureFiles = [
+      'src/features/privacy/utils/crypto.ts',
+      'src/features/privacy/utils/storage.ts',
+      'src/features/privacy/utils/validation.ts',
+    ];
+
+    for (const file of expectedFeatureFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    for (const file of listSourceFiles('src/utils/privacy')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      const source = fs.readFileSync(file, 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${relative} should re-export from features/privacy/utils`).toMatch(/features\/privacy\/utils/);
+    }
+  });
 });

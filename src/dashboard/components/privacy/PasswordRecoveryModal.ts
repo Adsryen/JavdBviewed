@@ -604,7 +604,7 @@ async function handleBackupFileVerification(
         }
         
         // 导入解密函数
-        const { decryptData } = await import('../../../utils/privacy/crypto');
+        const { decryptData } = await import('../../../features/privacy/utils/crypto');
         
         // 使用备份文件中的密钥解密备份码配置
         const decrypted = decryptData(encryptedRecoveryConfig, encryptionKey);

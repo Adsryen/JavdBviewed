@@ -9,15 +9,15 @@ import {
     PasswordRecoveryConfig 
 } from '../../types/privacy';
 import { getPasswordService } from './PasswordService';
-import { getPrivacyStorage } from '../../utils/privacy/storage';
+import { getPrivacyStorage } from './utils/storage';
 import { 
     generateBackupCode, 
     generateSecureId 
-} from '../../utils/privacy/crypto';
+} from './utils/crypto';
 import { 
     getPasswordValidator, 
     InputValidator 
-} from '../../utils/privacy/validation';
+} from './utils/validation';
 
 export class RecoveryService implements IRecoveryService {
     private static instance: RecoveryService;
