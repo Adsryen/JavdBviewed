@@ -447,4 +447,19 @@ describe('source architecture cleanup', () => {
     expect(nonEmptyLines.length, `${entryPath} should stay a thin manifest entry`).toBeLessThanOrEqual(8);
     expect(source, `${entryPath} should import apps/background/bootstrap`).toMatch(/apps\/background\/bootstrap/);
   });
+
+  it('keeps the main content script entry thin and boots through apps/content', () => {
+    const bootstrapPath = 'src/apps/content/bootstrap.ts';
+    expect(fs.existsSync(path.resolve(root, bootstrapPath)), `${bootstrapPath} should exist`).toBe(true);
+
+    const entryPath = 'src/content/index.ts';
+    const source = fs.readFileSync(path.resolve(root, entryPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${entryPath} should stay a thin manifest entry`).toBeLessThanOrEqual(8);
+    expect(source, `${entryPath} should import apps/content/bootstrap`).toMatch(/apps\/content\/bootstrap/);
+  });
 });

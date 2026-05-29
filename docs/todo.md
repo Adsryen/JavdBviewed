@@ -217,6 +217,12 @@
   - [x] 迁移 service worker 初始化、消息监听、alarm、动态内容脚本和后台刷新装配逻辑
   - [x] `background/background.ts` 保留 manifest service worker 入口
   - [x] 保持 `src/manifest.json` 的 service worker 路径不变
+- [x] 第十九批迁移：Content 主入口层
+  - [x] 迁移前使用架构回归测试约束 manifest 内容脚本入口保持薄加载器
+  - [x] 建立 `apps/content/bootstrap.ts`
+  - [x] 迁移 JavDB/JavBus 主内容脚本初始化、orchestrator、列表/详情增强和页面监听装配逻辑
+  - [x] `content/index.ts` 保留 manifest content script 入口
+  - [x] 保持 `src/manifest.json` 的主内容脚本路径不变
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`
