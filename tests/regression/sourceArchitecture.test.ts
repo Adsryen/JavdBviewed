@@ -504,4 +504,19 @@ describe('source architecture cleanup', () => {
     expect(nonEmptyLines.length, `${entryPath} should stay a thin page entry`).toBeLessThanOrEqual(8);
     expect(source, `${entryPath} should import apps/dashboard/bootstrap`).toMatch(/apps\/dashboard\/bootstrap/);
   });
+
+  it('keeps the popup page entry thin and boots through apps/popup', () => {
+    const bootstrapPath = 'src/apps/popup/bootstrap.ts';
+    expect(fs.existsSync(path.resolve(root, bootstrapPath)), `${bootstrapPath} should exist`).toBe(true);
+
+    const entryPath = 'src/popup/popup.ts';
+    const source = fs.readFileSync(path.resolve(root, entryPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${entryPath} should stay a thin popup entry`).toBeLessThanOrEqual(8);
+    expect(source, `${entryPath} should import apps/popup/bootstrap`).toMatch(/apps\/popup\/bootstrap/);
+  });
 });
