@@ -187,6 +187,12 @@
   - [x] 迁移 GitHub Releases 更新检查、版本比较、检查策略和缓存结果逻辑
   - [x] `services/update/checker.ts` 保留 re-export 兼容
   - [x] Dashboard 顶栏版本检查与更新设置页改用新路径
+- [x] 第十四批迁移：AI 服务功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/ai` 只能作为兼容出口
+  - [x] 建立 `features/ai`
+  - [x] 迁移 AI 设置、模型管理、New API 客户端、速率限制和提示词配置
+  - [x] `services/ai/*` 保留 re-export 兼容
+  - [x] 影片页增强、数据聚合、Insights 和 Dashboard AI 设置改用新路径
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`

@@ -5,7 +5,7 @@
 
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { showMessage } from '../../../ui/toast';
-import { aiService } from '../../../../services/ai/aiService';
+import { aiService } from '../../../../features/ai';
 import type { ExtensionSettings } from '../../../../types';
 import type { AISettings, AIModel } from '../../../../types/ai';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';

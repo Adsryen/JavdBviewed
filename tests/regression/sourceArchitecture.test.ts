@@ -313,4 +313,32 @@ describe('source architecture cleanup', () => {
     expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
     expect(source, `${relative} should re-export from features/updateChecker`).toMatch(/features\/updateChecker/);
   });
+
+  it('keeps AI service implementation under features and services as compatibility exports', () => {
+    const expectedFeatureFiles = [
+      'src/features/ai/index.ts',
+      'src/features/ai/aiService.ts',
+      'src/features/ai/config.ts',
+      'src/features/ai/modelManager.ts',
+      'src/features/ai/newApiClient.ts',
+      'src/features/ai/rateLimiter.ts',
+      'src/features/ai/types.ts',
+    ];
+
+    for (const file of expectedFeatureFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    for (const file of listSourceFiles('src/services/ai')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      const source = fs.readFileSync(file, 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${relative} should re-export from features/ai`).toMatch(/features\/ai/);
+    }
+  });
 });

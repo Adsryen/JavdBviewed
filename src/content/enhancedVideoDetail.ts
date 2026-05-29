@@ -2,7 +2,7 @@
 // 视频详情页增强功能
 
 import { defaultDataAggregator } from '../features/dataAggregator';
-import { aiService } from '../services/ai/aiService';
+import { aiService } from '../features/ai';
 import { showToast } from './toast';
 import { VideoMetadata, ImageData } from '../features/dataAggregator/types';
 import { STATE, log } from './state';

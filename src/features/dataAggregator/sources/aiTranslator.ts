@@ -2,7 +2,7 @@
 // AI翻译服务 - 使用AI进行翻译
 
 import { ApiResponse, TranslationResult, DataSourceError } from '../types';
-import { AI_PROMPTS } from '../../../services/ai/config';
+import { AI_PROMPTS } from '../../ai';
 
 export interface AITranslatorConfig {
   enabled: boolean;
@@ -92,7 +92,7 @@ export class AITranslatorService {
       console.log('[AITranslator] Starting AI translation for text:', text);
       
       // 动态导入AI服务以避免循环依赖
-      const { aiService } = await import('../../../services/ai/aiService');
+      const { aiService } = await import('../../ai');
       console.log('[AITranslator] AI service imported successfully');
 
       // 构建翻译提示词
@@ -168,7 +168,7 @@ export class AITranslatorService {
    */
   async isAvailable(): Promise<boolean> {
     try {
-      const { aiService } = await import('../../../services/ai/aiService');
+      const { aiService } = await import('../../ai');
       const aiSettings = aiService.getSettings();
       if (!aiSettings.enabled || !aiSettings.apiKey) {
         return false;
