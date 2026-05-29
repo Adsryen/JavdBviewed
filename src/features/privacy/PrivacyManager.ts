@@ -16,7 +16,7 @@ import { getSessionManager } from './SessionManager';
 import { getBlurController } from './BlurController';
 import { getLockScreen } from './LockScreen';
 import { log } from '../../utils/logController';
-import { getPrivacyStorage } from '../../utils/privacy/storage';
+import { getPrivacyStorage } from './utils/storage';
 
 export class PrivacyManager implements IPrivacyManager {
     private static instance: PrivacyManager;

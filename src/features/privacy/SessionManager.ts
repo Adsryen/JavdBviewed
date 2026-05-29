@@ -3,8 +3,8 @@
  */
 
 import { ISessionManager, SessionInfo, PrivacyEvent, PrivacyEventType } from '../../types/privacy';
-import { getPrivacyStorage } from '../../utils/privacy/storage';
-import { SessionValidator } from '../../utils/privacy/validation';
+import { getPrivacyStorage } from './utils/storage';
+import { SessionValidator } from './utils/validation';
 
 export class SessionManager implements ISessionManager {
     private static instance: SessionManager;

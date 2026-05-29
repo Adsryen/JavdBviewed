@@ -12,9 +12,9 @@ export { LockScreen, getLockScreen } from './LockScreen';
 export { RecoveryService, getRecoveryService } from './RecoveryService';
 
 // 导出工具函数
-export { getPrivacyStorage } from '../../utils/privacy/storage';
-export { getPasswordValidator, InputValidator, SessionValidator } from '../../utils/privacy/validation';
-export * from '../../utils/privacy/crypto';
+export { getPrivacyStorage } from './utils/storage';
+export { getPasswordValidator, InputValidator, SessionValidator } from './utils/validation';
+export * from './utils/crypto';
 
 // 导出类型定义
 export * from '../../types/privacy';
