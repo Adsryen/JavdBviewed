@@ -211,6 +211,12 @@
   - [x] 迁移隐私加密、存储和验证工具
   - [x] `utils/privacy/*` 保留 re-export 兼容
   - [x] 隐私功能域和密码恢复弹窗改用新路径
+- [x] 第十八批迁移：Background 入口层
+  - [x] 迁移前使用架构回归测试约束 manifest 入口保持薄加载器
+  - [x] 建立 `apps/background/bootstrap.ts`
+  - [x] 迁移 service worker 初始化、消息监听、alarm、动态内容脚本和后台刷新装配逻辑
+  - [x] `background/background.ts` 保留 manifest service worker 入口
+  - [x] 保持 `src/manifest.json` 的 service worker 路径不变
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`
