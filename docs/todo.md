@@ -97,7 +97,7 @@
   - [x] 迁移 `magnetSourceTagState.ts`
   - [x] 迁移 `javbusMagnetSource.ts`
   - [x] 旧路径保留 re-export 一轮，降低 import 震荡
-- [ ] 第四批迁移：基础设施
+- [x] 第四批迁移：基础设施
   - [x] 迁移前测试基线
     - [x] `HttpClient`：background fetch 返回 HTTP 错误状态时抛出 `NetworkError`
     - [x] `ChromeStorage`：普通值读写、空值 fallback、大对象分片、IDB 迁移读取、旧 `utils/storage` 导出兼容
@@ -241,6 +241,92 @@
   - [x] 迁移 Popup 设置读取、主题、筛选开关、音量和页面跳转装配逻辑
   - [x] `popup/popup.ts` 保留 HTML module script 入口
   - [x] 保持 `popup/popup.html` 的脚本路径不变
+- [x] 第二十三批迁移：在线可看功能域
+  - [x] 迁移前使用架构回归测试约束旧 `content/onlineAvailability.ts` 只能作为兼容出口
+  - [x] 建立 `features/onlineAvailability`
+  - [x] 迁移在线站点配置、URL 构造、响应解析、面板渲染和检查调度逻辑
+  - [x] `content/onlineAvailability.ts` 保留 re-export 兼容
+  - [x] content bootstrap 与在线可看 DOM 测试改用新路径
+- [x] 第二十四批迁移：影片状态功能域
+  - [x] 迁移前使用架构回归测试约束旧 `content/statusManager.ts` 与 `utils/statusPriority.ts` 只能作为兼容出口
+  - [x] 建立 `features/videoStatus`
+  - [x] 迁移详情页标题、favicon 状态同步逻辑
+  - [x] 迁移状态优先级工具
+  - [x] content bootstrap 与详情页状态更新改用新路径
+- [x] 第二十五批迁移：列表记录共享工具
+  - [x] 迁移前使用架构回归测试约束旧 `utils/listRecordHelpers.ts` 只能作为兼容出口
+  - [x] 迁移列表记录归一化、系列/标签匹配工具到 `shared/utils`
+  - [x] Dashboard 列表、番号库和数据同步改用共享路径
+  - [x] platform storage 改用共享路径，保持 platform 不依赖 utils 业务目录
+- [ ] 第二十六批迁移：Background 小型模块瘦身
+  - [ ] 迁移前使用架构回归测试约束目标旧 `background/*` 只能作为兼容出口
+  - [ ] 迁移 `background/consoleConfig.ts` 到 `platform/logging/backgroundConsole.ts`
+  - [ ] 迁移 `background/netProxy.ts` 到 `platform/network/backgroundFetchRouter.ts`
+  - [ ] 迁移 `background/javbusTabFetch.ts` 到 `platform/browser/javbusTabFetch.ts`
+  - [ ] 迁移 `background/viewedTagStats.ts` 到 `features/records/tagStats.ts`
+  - [ ] 更新 `apps/background/bootstrap.ts` 与相关测试导入到新路径
+  - [ ] 旧 `background/*` 文件保留 re-export 兼容
+- [ ] 第二十七批迁移：Background 装配层拆分
+  - [ ] 为 `apps/background/bootstrap.ts` 增加架构回归约束，限制入口只做装配
+  - [ ] 拆出 `apps/background/dynamicContentScripts.ts`
+  - [ ] 拆出 `apps/background/dnrRules.ts`
+  - [ ] 拆出 `apps/background/routeAutoUpdate.ts`
+  - [ ] 拆出 `apps/background/drive115UserRefresh.ts`
+  - [ ] 拆出 `apps/background/alarmRouter.ts`
+  - [ ] 拆出 `apps/background/errorHandlers.ts`
+  - [ ] 保持 `background/background.ts` 作为 manifest 薄入口
+- [ ] 第二十八批迁移：WebDAV 解耦测试基线
+  - [ ] 统计并锁定当前 `background/webdav.ts`、`background/sync.ts` 对外消息类型
+  - [ ] 补充 WebDAV URL 归一化、路径拼接、上传 ID、设备名清洗测试
+  - [ ] 补充 PROPFIND XML 解析与备份文件过滤测试
+  - [ ] 补充上传索引追加、去重、保留数量测试
+  - [ ] 补充导入设置清洗、local-only key 过滤测试
+  - [ ] 补充恢复预览、对象 map 转数组、批量写入边界测试
+  - [ ] 补充连接诊断参数映射测试
+- [ ] 第二十九批迁移：WebDAV 基础设施与设备档案
+  - [ ] 建立 `features/webdavSync`
+  - [ ] 建立 `features/webdavSync/domain/types.ts`
+  - [ ] 建立 `features/webdavSync/domain/paths.ts`
+  - [ ] 建立 `features/webdavSync/infrastructure/webdavClient.ts`
+  - [ ] 建立 `features/webdavSync/infrastructure/propfindParser.ts`
+  - [ ] 建立 `features/webdavSync/application/clientIdentity.ts`
+  - [ ] 建立 `features/webdavSync/application/clientRegistry.ts`
+  - [ ] `background/webdav.ts` 继续保留 router 入口，内部逐步改用新模块
+- [ ] 第三十批迁移：WebDAV 备份上传链路拆分
+  - [ ] 建立 `features/webdavSync/application/backupCollector.ts`
+  - [ ] 建立 `features/webdavSync/application/uploadIndex.ts`
+  - [ ] 建立 `features/webdavSync/application/uploadService.ts`
+  - [ ] 建立 `features/webdavSync/application/cleanupService.ts`
+  - [ ] 迁移备份数据采集、zip/json 生成、上传与保留数量清理
+  - [ ] 保持手动备份、自动备份、上传索引和设备档案行为一致
+- [ ] 第三十一批迁移：WebDAV 恢复与诊断链路拆分
+  - [ ] 建立 `features/webdavSync/application/restorePreview.ts`
+  - [ ] 建立 `features/webdavSync/application/restoreService.ts`
+  - [ ] 建立 `features/webdavSync/application/importSanitizer.ts`
+  - [ ] 建立 `features/webdavSync/application/diagnostics.ts`
+  - [ ] 建立 `features/webdavSync/background/router.ts`
+  - [ ] 迁移备份预览、恢复设置、恢复记录、恢复日志、恢复 IDB 数据逻辑
+  - [ ] `background/webdav.ts` 收缩为 `features/webdavSync` 兼容导出
+- [ ] 第三十二批迁移：番号详情刷新功能域
+  - [ ] 为 `background/sync.ts` 增加刷新流程和解析器测试
+  - [ ] 建立 `features/records/refresh`
+  - [ ] 迁移 JavDB 搜索页解析、详情页解析、Cloudflare 验证请求、FC2 刷新逻辑
+  - [ ] `background/sync.ts` 保留 re-export 兼容
+  - [ ] `background/dbRouter.ts` 和 WebDAV 恢复链路改用 `features/records/refresh`
+- [ ] 第三十三批迁移：`src/utils` 继续瘦身
+  - [ ] 迁移 `utils/searchEngines.ts` 到 `features/externalSearch/domain`
+  - [ ] 迁移 `utils/net.ts` 到 `platform/network`
+  - [ ] 迁移 `utils/ipLookup.ts` 到 `platform/network`
+  - [ ] 迁移 `utils/webdavDiagnostic.ts` 到 `features/webdavSync/application`
+  - [ ] 评估 `utils/config.ts` 拆分为 `shared/config` 与各 feature config
+  - [ ] 旧 `utils/*` 路径保留兼容导出一轮
+- [ ] 第三十四批迁移：Content 功能域继续瘦身
+  - [ ] 评估 `content/previewVideoPreload.ts` 与 `nativeJavdbPreview.ts` 迁入 `features/previews`
+  - [ ] 迁移前修复 `tests/dom/previewVideoPreload.test.ts` 当前失败断言
+  - [ ] 评估 `content/contentFilter.ts` 迁入 `features/contentFilter`
+  - [ ] 评估 `content/superRankingNav.ts` 迁入 `features/rankings`
+  - [ ] 评估 `content/enhancements/*` 迁入 `features/listEnhancement` 与 `features/actorEnhancement`
+  - [ ] 保持 manifest content 入口和 `apps/content/bootstrap.ts` 只做装配
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`

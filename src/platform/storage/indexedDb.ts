@@ -5,7 +5,7 @@ import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { VideoRecord, ActorRecord, LogEntry, ListRecord, NewWorkRecord } from '../../types';
 import { buildNewWorksTrendPointsFromDailyMap, mergeNewWorksDailyStatForTrend } from './trendUtils';
 import { getSettings } from '../../utils/storage';
-import { normalizeListRecordForUse } from '../../utils/listRecordHelpers';
+import { normalizeListRecordForUse } from '../../shared/utils/listRecordHelpers';
 import type { ViewsDaily, ReportMonthly } from '../../types/insights';
 
 // 日志持久化存储结构（扩展原 LogEntry，增加数值时间戳与自增键）

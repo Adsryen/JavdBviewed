@@ -5,7 +5,7 @@ import type { VideoRecord } from '../../types';
 import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from '../../content/state';
 import { processVisibleItems, setupObserver } from '../../content/itemProcessor';
 import { handleVideoDetailPage, cleanupVideoDetailObservers, getVideoDetailTaskBlueprints } from '../../content/videoDetail';
-import { checkAndUpdateVideoStatus } from '../../content/statusManager';
+import { checkAndUpdateVideoStatus } from '../../features/videoStatus';
 import { initExportFeature } from '../../content/export';
 import { initDrive115Features } from '../../content/drive115';
 import { defaultDataAggregator } from '../../features/dataAggregator';
@@ -38,7 +38,7 @@ import {
     applyOnlineAvailabilitySitePreferences,
     DEFAULT_ONLINE_AVAILABILITY_SITES,
     onlineAvailabilityManager,
-} from '../../content/onlineAvailability';
+} from '../../features/onlineAvailability';
 import { destroySuperRankingNav, initializeSuperRankingNav, isSuperRankingSupportedHost } from '../../content/superRankingNav';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {

@@ -10,6 +10,10 @@ import type {
     SyncConfig
 } from './types';
 import { SyncCancelledError } from './types';
+import {
+    type CollectionListType,
+    normalizeCollectionRecord,
+} from '../../shared/utils/listRecordHelpers';
 import { getSettings, getValue, setValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 import { dbViewedPut } from '../dbClient';
@@ -17,10 +21,6 @@ import { isCloudflareChallenge, handleCloudflareVerification } from './cloudflar
 import { saveSyncProgress, getSavedSyncProgress, clearSyncProgress } from './progressManager';
 import type { SavedSyncProgress } from '../config/syncConfig';
 import { getJavDBRoute } from '../../utils/routeManager';
-import {
-    type CollectionListType,
-    normalizeCollectionRecord,
-} from '../../utils/listRecordHelpers';
 
 /**
  * 视频数据接口

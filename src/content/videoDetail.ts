@@ -2,7 +2,7 @@
 
 // import { setValue } from '../utils/storage'; // 不再直接使用，改用storageManager
 import { VIDEO_STATUS } from '../utils/config';
-import { safeUpdateStatus } from '../utils/statusPriority';
+import { safeUpdateStatus } from '../features/videoStatus';
 import type { VideoRecord } from '../types';
 import { STATE, SELECTORS, log, setSuspendEarlyFaviconSync } from './state';
 import { extractVideoIdFromPage } from './videoId';
@@ -11,7 +11,7 @@ import { showToast } from './toast';
 import { createTaskTimeoutGuard, waitForElement } from './utils';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
-import { updateFaviconForStatus } from './statusManager';
+import { updateFaviconForStatus } from '../features/videoStatus';
 import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementLoading } from './enhancementLoadingIndicator';
 import { renderDetailSearchLinks } from './detailSearchLinks';
