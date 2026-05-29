@@ -11,7 +11,7 @@ import {
     checkForUpdatesWithPolicy,
     getCurrentVersion,
     LAST_UPDATE_CHECK_KEY,
-} from '../../../../services/update/checker';
+} from '../../../../features/updateChecker';
 import { log } from '../../../../utils/logController';
 import type { ExtensionSettings } from '../../../../types';
 

@@ -181,6 +181,12 @@
   - [x] 迁移数据聚合器、类型定义、BlogJav/JavLibrary/Translator/AITranslator source 与单元测试
   - [x] `services/dataAggregator` 保留 re-export 兼容，HTTP client 继续归属 `platform/network`
   - [x] 影片页增强、内容入口、在线可看、演员备注、字幕 API 与相关测试改用新路径
+- [x] 第十三批迁移：更新检查功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/update/checker.ts` 只能作为兼容出口
+  - [x] 建立 `features/updateChecker`
+  - [x] 迁移 GitHub Releases 更新检查、版本比较、检查策略和缓存结果逻辑
+  - [x] `services/update/checker.ts` 保留 re-export 兼容
+  - [x] Dashboard 顶栏版本检查与更新设置页改用新路径
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`
