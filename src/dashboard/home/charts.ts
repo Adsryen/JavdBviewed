@@ -1,7 +1,7 @@
 // src/dashboard/home/charts.ts
 
 import { dbViewedStats, dbNewWorksStats, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange, dbNewWorksDailyStatRefresh, ensureBackgroundReady } from '../dbClient';
-import { aggregateMonthly } from '../../services/insights/aggregator';
+import { aggregateMonthly } from '../../features/insights';
 import { initStatsOverview, initHomeSectionsOverview } from './overview';
 import { themeManager } from '../services/themeManager';
 

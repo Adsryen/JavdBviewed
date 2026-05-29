@@ -1,6 +1,5 @@
-import { insViewsRange, insReportsGet, insReportsPut } from './db';
-import { aggregateMonthly } from '../services/insights/aggregator';
-import { buildInsightsVisualFields, generateReportHTML } from '../services/insights/reportGenerator';
+import { insViewsRange, insReportsGet, insReportsPut } from '../platform/storage/indexedDb';
+import { aggregateMonthly, buildInsightsVisualFields, generateReportHTML } from '../features/insights';
 import { getSettings } from '../utils/storage';
 import { triggerWebDAVAutoUpload } from './webdav';
 
