@@ -462,4 +462,31 @@ describe('source architecture cleanup', () => {
     expect(nonEmptyLines.length, `${entryPath} should stay a thin manifest entry`).toBeLessThanOrEqual(8);
     expect(source, `${entryPath} should import apps/content/bootstrap`).toMatch(/apps\/content\/bootstrap/);
   });
+
+  it('keeps drive115 content script entries thin and boots through apps/content', () => {
+    const expectedBootstraps = [
+      'src/apps/content/drive115Content.ts',
+      'src/apps/content/drive115Verify.ts',
+    ];
+
+    for (const file of expectedBootstraps) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const entries = [
+      { path: 'src/content/drive115-content.ts', pattern: /apps\/content\/drive115Content/ },
+      { path: 'src/content/drive115-verify.ts', pattern: /apps\/content\/drive115Verify/ },
+    ];
+
+    for (const entry of entries) {
+      const source = fs.readFileSync(path.resolve(root, entry.path), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${entry.path} should stay a thin manifest entry`).toBeLessThanOrEqual(8);
+      expect(source, `${entry.path} should import its apps/content bootstrap`).toMatch(entry.pattern);
+    }
+  });
 });

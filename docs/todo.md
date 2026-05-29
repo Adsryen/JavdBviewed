@@ -223,6 +223,12 @@
   - [x] 迁移 JavDB/JavBus 主内容脚本初始化、orchestrator、列表/详情增强和页面监听装配逻辑
   - [x] `content/index.ts` 保留 manifest content script 入口
   - [x] 保持 `src/manifest.json` 的主内容脚本路径不变
+- [x] 第二十批迁移：115 Content 专用入口层
+  - [x] 迁移前使用架构回归测试约束 115 content script 入口保持薄加载器
+  - [x] 建立 `apps/content/drive115Content.ts` 与 `apps/content/drive115Verify.ts`
+  - [x] 迁移 115 网盘页面推送处理和验证码页面验证监听逻辑
+  - [x] `content/drive115-content.ts` 与 `content/drive115-verify.ts` 保留 manifest content script 入口
+  - [x] 保持 `src/manifest.json` 的 115 content script 路径不变
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`
