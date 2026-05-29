@@ -1,7 +1,7 @@
 // src/background/migrations.ts
 // 迁移与周期任务（如磁链清理）
 
-import { initDB, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, magnetsClearExpired as idbMagnetsClearExpired, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, actorsBulkPut as idbActorsBulkPut } from './db';
+import { initDB, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, magnetsClearExpired as idbMagnetsClearExpired, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, actorsBulkPut as idbActorsBulkPut } from '../platform/storage/indexedDb';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 

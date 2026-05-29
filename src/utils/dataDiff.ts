@@ -1,8 +1,7 @@
 // src/utils/dataDiff.ts
 // 数据差异分析模块
 
-import type { VideoRecord, ActorRecord, ExtensionSettings } from '../types';
-import type { ActorSubscription, NewWorkRecord, NewWorksGlobalConfig } from '../services/newWorks/types';
+import type { VideoRecord, ActorRecord, ExtensionSettings, ActorSubscription, NewWorkRecord, NewWorksGlobalConfig } from '../types';
 
 // 数据差异分析结果
 export interface DataDiffResult {

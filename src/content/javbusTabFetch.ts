@@ -1,35 +1,20 @@
+import { sendRuntimeMessage } from '../platform/browser/runtimeMessages';
+
 export function fetchJavbusAjaxViaTab(pageUrl: string, timeoutMs: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
-      reject(new Error('Chrome runtime is not available'));
-      return;
+  return sendRuntimeMessage({
+    type: 'FETCH_JAVBUS_AJAX_VIA_TAB',
+    pageUrl,
+    timeoutMs,
+  }).then((response) => {
+    if (!response?.success) {
+      throw new Error(response?.error || 'JAVBUS tab fetch failed');
     }
 
-    chrome.runtime.sendMessage(
-      {
-        type: 'FETCH_JAVBUS_AJAX_VIA_TAB',
-        pageUrl,
-        timeoutMs,
-      },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
+    const ajaxHtml = response?.data?.ajaxHtml;
+    if (typeof ajaxHtml !== 'string') {
+      throw new Error('JAVBUS tab fetch returned invalid html');
+    }
 
-        if (!response?.success) {
-          reject(new Error(response?.error || 'JAVBUS tab fetch failed'));
-          return;
-        }
-
-        const ajaxHtml = response?.data?.ajaxHtml;
-        if (typeof ajaxHtml !== 'string') {
-          reject(new Error('JAVBUS tab fetch returned invalid html'));
-          return;
-        }
-
-        resolve(ajaxHtml);
-      },
-    );
+    return ajaxHtml;
   });
 }

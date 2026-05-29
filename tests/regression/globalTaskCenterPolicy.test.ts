@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeTaskDisposition, getEffectiveBucketLimit } from '../../src/background/taskCenterPolicyRuntime';
+import { computeTaskDisposition, getEffectiveBucketLimit } from '../../src/platform/tasks/taskCenterPolicyRuntime';
 
 describe('global task center policy runtime', () => {
   it('computes bucket limits for visibility policies', () => {
