@@ -7,7 +7,7 @@ import {
   checkForUpdatesWithPolicy,
   getCurrentVersion,
   compareSemver,
-} from '../../services/update/checker';
+} from '../../features/updateChecker';
 import { getSettings } from '../../utils/storage';
 
 interface VersionInfo {

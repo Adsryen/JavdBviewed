@@ -292,4 +292,25 @@ describe('source architecture cleanup', () => {
       }
     }
   });
+
+  it('keeps update checker implementation under features and service path as a compatibility export', () => {
+    const expectedFeatureFiles = [
+      'src/features/updateChecker/index.ts',
+      'src/features/updateChecker/checker.ts',
+    ];
+
+    for (const file of expectedFeatureFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const relative = 'src/services/update/checker.ts';
+    const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(source, `${relative} should re-export from features/updateChecker`).toMatch(/features\/updateChecker/);
+  });
 });
