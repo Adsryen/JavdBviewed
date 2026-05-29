@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.type === 'privacy-lock-trigger') {
             try {
-                const { getPrivacyManager } = require('../services/privacy');
+                const { getPrivacyManager } = require('../features/privacy');
                 const privacyManager = getPrivacyManager();
                 privacyManager.lock().catch((error: any) => {
                     console.error('Failed to lock from message:', error);
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 初始化隐私保护系统
     try {
         log.privacy('Initializing privacy system for Dashboard...');
-        const { initializePrivacySystem } = await import('../services/privacy');
+        const { initializePrivacySystem } = await import('../features/privacy');
         await initializePrivacySystem();
         log.privacy('Privacy system initialized successfully for Dashboard');
 

@@ -193,6 +193,12 @@
   - [x] 迁移 AI 设置、模型管理、New API 客户端、速率限制和提示词配置
   - [x] `services/ai/*` 保留 re-export 兼容
   - [x] 影片页增强、数据聚合、Insights 和 Dashboard AI 设置改用新路径
+- [x] 第十五批迁移：隐私保护功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/privacy` 只能作为兼容出口
+  - [x] 建立 `features/privacy`
+  - [x] 迁移隐私管理、密码、会话、模糊控制、锁屏和恢复服务
+  - [x] `services/privacy/*` 保留 re-export 兼容
+  - [x] content 隐私入口、Dashboard 隐私组件、同步和全局操作改用新路径
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`

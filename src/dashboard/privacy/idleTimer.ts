@@ -2,7 +2,7 @@
  * 私密模式无操作倒计时显示
  */
 
-import { getPrivacyManager } from '../../services/privacy';
+import { getPrivacyManager } from '../../features/privacy';
 import { log } from '../../utils/logController';
 
 export class IdleTimerDisplay {

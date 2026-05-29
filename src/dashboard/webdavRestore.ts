@@ -7,7 +7,7 @@ import { analyzeDataDifferences, type DataDiffResult, type MergeOptions } from '
 import { mergeData, type MergeResult } from '../utils/dataMerge';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
-import { requireAuthIfRestricted } from '../services/privacy';
+import { requireAuthIfRestricted } from '../features/privacy';
 import { dbActorsBulkPut } from './dbClient';
 import { dbMagnetPushLogsBulkAdd, dbMagnetPushLogsClear } from './dbClient';
 import { showConfirm } from './components/confirmModal';

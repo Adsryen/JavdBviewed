@@ -2,7 +2,7 @@
  * 页面元素保护器
  */
 
-import { getPrivacyManager } from '../../services/privacy';
+import { getPrivacyManager } from '../../features/privacy';
 
 export class ElementProtector {
     private static instance: ElementProtector;

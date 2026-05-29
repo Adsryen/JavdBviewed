@@ -3,7 +3,7 @@
  * 提供安全问题验证和备份码验证两种恢复方式
  */
 
-import { getRecoveryService } from '../../../services/privacy';
+import { getRecoveryService } from '../../../features/privacy';
 import { showMessage } from '../../ui/toast';
 
 interface RecoveryResult {

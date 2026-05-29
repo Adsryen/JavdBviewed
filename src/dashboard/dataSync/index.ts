@@ -12,7 +12,7 @@ import type { SyncMode } from '../config/syncConfig';
 import { SyncCancelledError } from './types';
 import { userService } from '../services/userService';
 import { on } from '../services/eventBus';
-import { requireAuthIfRestricted } from '../../services/privacy';
+import { requireAuthIfRestricted } from '../../features/privacy';
 
 // 全局初始化标志
 let isDataSyncInitialized = false;
