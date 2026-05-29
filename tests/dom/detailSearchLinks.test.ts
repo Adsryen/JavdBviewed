@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultHttpClient } from '../../src/services/dataAggregator/httpClient';
+import { defaultHttpClient } from '../../src/platform/network/httpClient';
 import {
   buildDetailSearchLinks,
   findDetailSearchInsertionTarget,
@@ -9,6 +9,7 @@ import {
 describe('detail search links', () => {
   afterEach(() => {
     document.body.innerHTML = '';
+    vi.restoreAllMocks();
   });
 
   it('builds links from configured search engines and removes duplicate templates', () => {
@@ -356,5 +357,128 @@ describe('detail search links', () => {
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://subtitle.v.geilijiasu.com/71/72/7172AEEC50DD7ACBACC6D0EBEA4EB1734629AB91.srt');
     expect(copyButton?.textContent).toContain('已复制');
+  });
+
+  it('renders an empty state when 迅雷字幕 returns no results', async () => {
+    vi.spyOn(defaultHttpClient, 'getJson').mockResolvedValue({ data: [] });
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">MKMP-577</div>
+      </nav>
+    `;
+
+    renderDetailSearchLinks('MKMP-577', [
+      { id: 'xunlei-subtitle', name: '迅雷字幕', urlTemplate: 'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?gcid=&cid=&name={{ID}}', icon: 'assets/xunlei.png', category: 'subtitle', contexts: ['detail'] },
+    ]);
+
+    document.querySelector<HTMLAnchorElement>('#jdb-subtitle-search-panel a')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const modal = document.querySelector('.jdb-xunlei-subtitle-modal');
+
+    expect(modal?.querySelector('#jdb-xunlei-subtitle-title')?.textContent).toBe('迅雷字幕 · MKMP-577 · 0 条');
+    expect(modal?.textContent).toContain('暂无字幕');
+  });
+
+  it('renders an error state when 迅雷字幕 request fails', async () => {
+    vi.spyOn(defaultHttpClient, 'getJson').mockRejectedValue(new Error('Request timeout'));
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">MKMP-577</div>
+      </nav>
+    `;
+
+    renderDetailSearchLinks('MKMP-577', [
+      { id: 'xunlei-subtitle', name: '迅雷字幕', urlTemplate: 'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?gcid=&cid=&name={{ID}}', icon: 'assets/xunlei.png', category: 'subtitle', contexts: ['detail'] },
+    ]);
+
+    document.querySelector<HTMLAnchorElement>('#jdb-subtitle-search-panel a')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const modal = document.querySelector('.jdb-xunlei-subtitle-modal');
+    const state = modal?.querySelector('.jdb-xunlei-subtitle-state.is-error');
+
+    expect(state?.textContent).toContain('加载失败：Request timeout');
+  });
+
+  it('closes the 迅雷字幕 modal from the close button and Escape key', async () => {
+    vi.spyOn(defaultHttpClient, 'getJson').mockResolvedValue({ data: [] });
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">MKMP-577</div>
+      </nav>
+    `;
+
+    renderDetailSearchLinks('MKMP-577', [
+      { id: 'xunlei-subtitle', name: '迅雷字幕', urlTemplate: 'https://api-shoulei-ssl.xunlei.com/oracle/subtitle?gcid=&cid=&name={{ID}}', icon: 'assets/xunlei.png', category: 'subtitle', contexts: ['detail'] },
+    ]);
+
+    document.querySelector<HTMLAnchorElement>('#jdb-subtitle-search-panel a')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    document.querySelector<HTMLButtonElement>('.jdb-xunlei-subtitle-close')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(document.querySelector('.jdb-xunlei-subtitle-modal')).toBeNull();
+
+    document.querySelector<HTMLAnchorElement>('#jdb-subtitle-search-panel a')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    document.querySelector<HTMLElement>('.jdb-xunlei-subtitle-modal')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    expect(document.querySelector('.jdb-xunlei-subtitle-modal')).toBeNull();
+  });
+
+  it('injects detail search styles once and keeps dark-theme subtitle variables', () => {
+    document.documentElement.dataset.theme = 'dark';
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">SSIS-795</div>
+      </nav>
+    `;
+
+    renderDetailSearchLinks('SSIS-795', [
+      { id: 'javbus', name: 'JavBus', urlTemplate: 'https://javbus.com/search/{{ID}}', icon: 'assets/javbus.ico', category: 'search' },
+      { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/search?q={{ID}}', icon: 'assets/subtitlecat.ico', category: 'subtitle', contexts: ['detail'] },
+    ]);
+    renderDetailSearchLinks('SSIS-795', [
+      { id: 'javbus', name: 'JavBus', urlTemplate: 'https://javbus.com/search/{{ID}}', icon: 'assets/javbus.ico', category: 'search' },
+      { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/search?q={{ID}}', icon: 'assets/subtitlecat.ico', category: 'subtitle', contexts: ['detail'] },
+    ]);
+
+    const externalStyles = document.querySelectorAll('#jdb-external-search-styles');
+    const subtitleStyles = document.querySelectorAll('#jdb-xunlei-subtitle-styles');
+    const externalStyleText = externalStyles[0]?.textContent || '';
+    const subtitleStyleText = subtitleStyles[0]?.textContent || '';
+
+    expect(externalStyles).toHaveLength(1);
+    expect(subtitleStyles).toHaveLength(1);
+    expect(externalStyleText).toContain('.jdb-external-search-links');
+    expect(subtitleStyleText).toContain('html[data-theme="dark"] .jdb-xunlei-subtitle-modal');
+    expect(subtitleStyleText).toContain('--jdb-xunlei-bg: #1f2937');
+
+    delete document.documentElement.dataset.theme;
+  });
+
+  it('falls back to the generic search icon when a configured icon fails to load', () => {
+    document.body.innerHTML = `
+      <nav class="panel movie-panel-info">
+        <div class="panel-block first-block">SSIS-795</div>
+      </nav>
+    `;
+
+    renderDetailSearchLinks('SSIS-795', [
+      { id: 'custom-site', name: 'Custom', urlTemplate: 'https://example.test/search/{{ID}}', icon: 'assets/custom-missing.png', category: 'search' },
+    ]);
+
+    const icon = document.querySelector<HTMLImageElement>('.jdb-external-search-icon')!;
+    icon.dispatchEvent(new Event('error'));
+
+    expect(icon.src).toBe('chrome-extension://test-runtime/assets/alternate-search.png');
   });
 });
