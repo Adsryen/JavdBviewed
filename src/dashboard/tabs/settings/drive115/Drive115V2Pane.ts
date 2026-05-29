@@ -5,11 +5,11 @@ interface IDrive115Pane {
   hide(): void;
   validate?(): string[];
 }
-import { getDrive115V2Service, type Drive115V2UserInfo } from '../../../../services/drive115v2';
+import { getDrive115V2Service, type Drive115V2UserInfo } from '../../../../features/drive115/v2';
 import { getSettings, saveSettings } from '../../../../utils/storage';
-import { describe115Error } from '../../../../services/drive115v2/errorCodes';
+import { describe115Error } from '../../../../features/drive115/v2/errorCodes';
 import { showToast } from '../../../../content/toast';
-import { addLogV2 } from '../../../../services/drive115v2/logs';
+import { addLogV2 } from '../../../../features/drive115/v2/logs';
 import { openDrive115FolderPicker } from '../../../components/drive115FolderPicker';
 import {
   buildDrive115QrImageUrl,
@@ -17,7 +17,7 @@ import {
   generateDrive115PkcePair,
   pollDrive115DeviceStatus,
   requestDrive115DeviceCode,
-} from '../../../../services/drive115v2/pkce';
+} from '../../../../features/drive115/v2/pkce';
 
 const OPENLIST_MANUAL_URL = 'https://api.oplist.org/';
 

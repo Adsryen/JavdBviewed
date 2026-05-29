@@ -370,4 +370,42 @@ describe('source architecture cleanup', () => {
       expect(source, `${relative} should re-export from features/privacy`).toMatch(/features\/privacy/);
     }
   });
+
+  it('keeps drive115 implementation under features and services as compatibility exports', () => {
+    const expectedFeatureFiles = [
+      'src/features/drive115/index.ts',
+      'src/features/drive115/legacy/index.ts',
+      'src/features/drive115/legacy/config.ts',
+      'src/features/drive115/legacy/types.ts',
+      'src/features/drive115/app/index.ts',
+      'src/features/drive115/app/adapters.ts',
+      'src/features/drive115/app/logger.ts',
+      'src/features/drive115/app/runtime.ts',
+      'src/features/drive115/app/types.ts',
+      'src/features/drive115/router/index.ts',
+      'src/features/drive115/v2/index.ts',
+      'src/features/drive115/v2/errorCodes.ts',
+      'src/features/drive115/v2/logs.ts',
+      'src/features/drive115/v2/pkce.ts',
+      'src/features/drive115/v2/search.ts',
+    ];
+
+    for (const file of expectedFeatureFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    for (const serviceDir of ['src/services/drive115', 'src/services/drive115App', 'src/services/drive115Router', 'src/services/drive115v2']) {
+      for (const file of listSourceFiles(serviceDir)) {
+        const relative = path.relative(root, file).replace(/\\/g, '/');
+        const source = fs.readFileSync(file, 'utf8');
+        const nonEmptyLines = source
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+        expect(source, `${relative} should re-export from features/drive115`).toMatch(/features\/drive115/);
+      }
+    }
+  });
 });

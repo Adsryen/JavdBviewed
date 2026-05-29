@@ -5,7 +5,7 @@ describe('magnet push log architecture', () => {
   it('keeps 115 push logs in an independent retention path', async () => {
     const dbSource = await fs.readFile(new URL('../../src/platform/storage/indexedDb.ts', import.meta.url), 'utf8');
     const logsTabSource = await fs.readFile(new URL('../../src/dashboard/tabs/logs.ts', import.meta.url), 'utf8');
-    const drive115LoggerSource = await fs.readFile(new URL('../../src/services/drive115App/logger.ts', import.meta.url), 'utf8');
+    const drive115LoggerSource = await fs.readFile(new URL('../../src/features/drive115/app/logger.ts', import.meta.url), 'utf8');
     const configSource = await fs.readFile(new URL('../../src/utils/config.ts', import.meta.url), 'utf8');
 
     expect(configSource).toMatch(/maxMagnetPushEntries:\s*10000/);

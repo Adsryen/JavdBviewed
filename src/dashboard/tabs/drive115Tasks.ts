@@ -1,4 +1,4 @@
-﻿import { getDrive115V2Service, Drive115V2Task } from '../../services/drive115v2';
+﻿import { getDrive115V2Service, Drive115V2Task } from '../../features/drive115/v2';
 import { getSettings, saveSettings } from '../../utils/storage';
 import { openDrive115FolderPicker } from '../components/drive115FolderPicker';
 

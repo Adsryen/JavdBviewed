@@ -2,8 +2,8 @@
  * 115网盘内容脚本集成
  */
 
-import { isDrive115Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
-import { addLogV2 } from '../services/drive115v2/logs';
+import { isDrive115Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../features/drive115/router';
+import { addLogV2 } from '../features/drive115/v2/logs';
 // getDrive115V2Service 已移除，配额功能已迁移至dashboard
 import { waitForElement } from './utils';
 // extractVideoIdFromPage 已集成到推送按钮逻辑中

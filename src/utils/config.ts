@@ -1,6 +1,6 @@
 ﻿import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
 import { PrivacyConfig } from '../types/privacy';
-import { normalizeDrive115Settings } from '../services/drive115App';
+import { normalizeDrive115Settings } from '../features/drive115/app';
 import { DEFAULT_AI_SETTINGS } from '../types/ai';
 
 export const SERVER_API_BASE_URL = 'https://jbd-server.we-together.club';

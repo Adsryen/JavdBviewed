@@ -199,6 +199,12 @@
   - [x] 迁移隐私管理、密码、会话、模糊控制、锁屏和恢复服务
   - [x] `services/privacy/*` 保留 re-export 兼容
   - [x] content 隐私入口、Dashboard 隐私组件、同步和全局操作改用新路径
+- [x] 第十六批迁移：115 功能域
+  - [x] 迁移前使用架构回归测试约束旧 `services/drive115*` 只能作为兼容出口
+  - [x] 建立 `features/drive115/legacy`、`app`、`router`、`v2`
+  - [x] 迁移 115 设置归一化、统一应用服务、推送日志、路由、v2 API、PKCE 和文件搜索
+  - [x] `services/drive115*` 保留 re-export 兼容
+  - [x] content、background、Dashboard、FC2 推送和 115 相关测试改用新路径
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`

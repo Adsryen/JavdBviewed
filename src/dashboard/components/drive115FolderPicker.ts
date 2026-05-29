@@ -1,4 +1,4 @@
-import { getDrive115V2Service, type Drive115V2FileListItem, type Drive115V2PathItem } from '../../services/drive115v2';
+import { getDrive115V2Service, type Drive115V2FileListItem, type Drive115V2PathItem } from '../../features/drive115/v2';
 
 export type Drive115FolderSelection = {
   cid: string;

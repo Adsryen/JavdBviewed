@@ -1102,7 +1102,7 @@ export class FC2BreakerService {
     button.classList.add('is-loading');
 
     try {
-      const { isDrive115Enabled, addTaskUrlsV2 } = await import('../../services/drive115Router');
+      const { isDrive115Enabled, addTaskUrlsV2 } = await import('../drive115/router');
       const { showToast } = await import('../../content/toast');
       const { getSettings } = await import('../../utils/storage');
 
