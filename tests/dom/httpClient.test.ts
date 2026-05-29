@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HttpClient } from '../../src/services/dataAggregator/httpClient';
+import { HttpClient } from '../../src/platform/network/httpClient';
 
 describe('HttpClient background fetch handling', () => {
   afterEach(() => {

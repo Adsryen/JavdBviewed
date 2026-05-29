@@ -5,7 +5,7 @@ import JSZip from 'jszip';
 import { getSettings, setValue, getValue, saveSettings } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
-import { logsGetAll as idbLogsGetAll, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear } from './db';
+import { logsGetAll as idbLogsGetAll, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear } from '../platform/storage/indexedDb';
 import type { WebDAVClientProfile, WebDAVUploadIndex, WebDAVUploadIndexItem } from '../types';
 import { TELEMETRY_CLIENT_STATE_KEY } from '../features/telemetry';
 

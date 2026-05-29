@@ -16,7 +16,7 @@ import { registerWebDAVRouter } from './webdav';
 import { registerDbMessageRouter } from './dbRouter';
 import { registerMiscRouter } from './miscHandlers';
 import { ensureMigrationsStart } from './migrations';
-import { newWorksScheduler } from '../services/newWorks';
+import { newWorksScheduler } from '../features/newWorks';
 import { registerNetProxyRouter } from './netProxy';
 import { registerMonthlyAlarm, handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
 import { getSettings, saveSettings } from '../utils/storage';

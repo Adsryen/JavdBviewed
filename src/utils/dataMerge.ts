@@ -1,9 +1,8 @@
 // src/utils/dataMerge.ts
 // 数据智能合并模块
 
-import type { VideoRecord, ActorRecord, ExtensionSettings, VideoStatus } from '../types';
+import type { VideoRecord, ActorRecord, ExtensionSettings, VideoStatus, ActorSubscription, NewWorkRecord } from '../types';
 import { mergeKeyedMap } from './mergeKeyedMap';
-import type { ActorSubscription, NewWorkRecord } from '../services/newWorks/types';
 import type { DataDiffResult, MergeOptions } from './dataDiff';
 
 // 合并结果

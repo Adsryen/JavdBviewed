@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GlobalTaskDescriptor } from '../src/shared/taskCenterTypes.ts';
-import { GlobalTaskCenter } from '../src/background/globalTaskCenter.ts';
+import { GlobalTaskCenter } from '../src/platform/tasks/globalTaskCenter.ts';
 
 function createDescriptor(overrides: Partial<GlobalTaskDescriptor> & Pick<GlobalTaskDescriptor, 'taskId' | 'label'>): GlobalTaskDescriptor {
   const now = Date.now();

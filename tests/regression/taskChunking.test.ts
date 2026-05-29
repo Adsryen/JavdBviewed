@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runChunkedWork } from '../../src/content/taskChunking';
+import { runChunkedWork } from '../../src/platform/tasks/chunking';
 
 describe('task chunking regression behavior', () => {
   it('processes items in configured batches', async () => {

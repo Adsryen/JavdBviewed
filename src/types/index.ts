@@ -339,10 +339,85 @@ export interface UserProfile {
 }
 
 // ============================================================
+// 新作品相关类型
+// ============================================================
+
+export interface ActorSubscription {
+  actorId: string;
+  actorName: string;
+  avatarUrl?: string;
+  subscribedAt: number;
+  lastCheckTime?: number;
+  enabled: boolean;
+}
+
+export interface NewWorksGlobalConfig {
+  checkInterval: number;
+  requestInterval: number;
+  autoCheckEnabled?: boolean;
+  concurrency?: number;
+  showActorPageScanButton?: boolean;
+  filters: {
+    excludeViewed: boolean;
+    excludeBrowsed: boolean;
+    excludeWant: boolean;
+    dateRange: number;
+    categoryFilters?: string[];
+    excludeAR?: boolean;
+    applyContentFilter?: boolean;
+  };
+  maxWorksPerCheck: number;
+  autoCleanup: boolean;
+  cleanupDays: number;
+  lastGlobalCheck?: number;
+}
+
+export interface NewWorkRecord {
+  id: string;
+  actorId: string;
+  actorName: string;
+  title: string;
+  releaseDate?: string;
+  javdbUrl: string;
+  coverImage?: string;
+  tags: string[];
+  discoveredAt: number;
+  isRead: boolean;
+  status?: 'new' | 'viewed' | 'browsed' | 'want';
+}
+
+export interface NewWorksStats {
+  totalSubscriptions: number;
+  activeSubscriptions: number;
+  totalNewWorks: number;
+  unreadWorks: number;
+  todayDiscovered: number;
+  lastCheckTime?: number;
+}
+
+export interface NewWorksSearchResult {
+  works: NewWorkRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  stats: NewWorksStats;
+}
+
+export interface CollectionResult {
+  discovered: number;
+  errors: string[];
+}
+
+export interface ManualCheckResult {
+  discovered: number;
+  errors: string[];
+}
+
+// ============================================================
 // 导出其他类型模块
 // ============================================================
 
 export * from './ai';
 export * from './insights';
 export * from './privacy';
-export type { NewWorksGlobalConfig } from '../services/newWorks/types';

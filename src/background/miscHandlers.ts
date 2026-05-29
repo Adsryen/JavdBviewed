@@ -4,8 +4,8 @@
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config';
 import { refreshRecordById } from './sync';
-import { viewedPut as idbViewedPut, logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from './db';
-import { newWorksScheduler, newWorksManager, newWorksCollector } from '../services/newWorks';
+import { viewedPut as idbViewedPut, logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from '../platform/storage/indexedDb';
+import { newWorksScheduler, newWorksManager, newWorksCollector } from '../features/newWorks';
 import { requestScheduler } from './requestScheduler';
 import { WEBDAV_SYNC_ALARM } from './scheduler';
 import type { UserProfile } from '../types';

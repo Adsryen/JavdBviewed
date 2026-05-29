@@ -3,7 +3,7 @@
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import type { VideoRecord } from '../types';
-import { viewedPut as idbViewedPut } from './db';
+import { viewedPut as idbViewedPut } from '../platform/storage/indexedDb';
 import { md5Hex } from '../utils/md5';
 
 const log = (...args: any[]) => console.log('[Sync]', ...args);

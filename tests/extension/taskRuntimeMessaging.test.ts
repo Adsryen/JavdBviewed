@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createManagedTaskDescriptor } from '../../src/content/taskRuntime';
 import {
   completeManagedTask,
-  createManagedTaskDescriptor,
   failManagedTask,
   progressManagedTask,
   registerManagedTask,
   requestTaskLease,
-} from '../../src/content/taskRuntime';
+} from '../../src/platform/tasks/runtimeMessaging';
 import { TASK_CENTER_MESSAGE } from '../../src/shared/taskCenterProtocol';
 import type { GlobalTaskDescriptor } from '../../src/shared/taskCenterTypes';
 import { getRuntimeMessages, resetChromeMock, setRuntimeMessageHandler } from '../setup/chrome';
