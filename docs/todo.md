@@ -235,6 +235,12 @@
   - [x] 迁移 Dashboard 初始化、主题、侧栏、标签页、用户信息、隐私和遥测装配逻辑
   - [x] `dashboard/dashboard.ts` 保留 HTML module script 入口
   - [x] 保持 `dashboard/dashboard.html` 的脚本路径不变
+- [x] 第二十二批迁移：Popup 入口层
+  - [x] 迁移前使用架构回归测试约束 Popup 页面入口保持薄加载器
+  - [x] 建立 `apps/popup/bootstrap.ts`
+  - [x] 迁移 Popup 设置读取、主题、筛选开关、音量和页面跳转装配逻辑
+  - [x] `popup/popup.ts` 保留 HTML module script 入口
+  - [x] 保持 `popup/popup.html` 的脚本路径不变
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`
