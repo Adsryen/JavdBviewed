@@ -7,7 +7,7 @@ import {
   findOnlineAvailabilityInsertionTarget,
   OnlineAvailabilityManager,
   parseOnlineAvailabilityDocument,
-} from '../../src/content/onlineAvailability';
+} from '../../src/features/onlineAvailability';
 
 describe('online availability helpers', () => {
   afterEach(() => {

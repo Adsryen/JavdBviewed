@@ -11,7 +11,7 @@ import {
     isVideoListRecord,
     matchesLabelRecord,
     matchesSeriesRecord,
-} from '../../utils/listRecordHelpers';
+} from '../../shared/utils/listRecordHelpers';
 import { buildSearchEngineUrl, getSearchEnginesForVideo, resolveSearchEngineIcon } from '../../utils/searchEngines';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）

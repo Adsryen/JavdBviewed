@@ -265,7 +265,8 @@ apps/dashboard/
 - `domainConfig.ts` -> `shared/config`
 - `storage.ts` -> `platform/storage`
 - `net.ts`、`ipLookup.ts` -> `platform/network`
-- `statusPriority.ts`、`listRecordHelpers.ts` -> `features/videoStatus/domain`
+- `statusPriority.ts` -> `features/videoStatus/domain`
+- `listRecordHelpers.ts` -> `shared/utils`
 - `webdavDiagnostic.ts` -> `features/webdavSync/diagnostics`
 
 ## 新功能落点规则

@@ -7,7 +7,7 @@ import {
     getCollectionExternalId,
     matchesLabelRecord,
     matchesSeriesRecord,
-} from '../../utils/listRecordHelpers';
+} from '../../shared/utils/listRecordHelpers';
 import { renderListSourceLinkButton } from './listsSourceLinks';
 
 type SubTab = 'lists' | 'series' | 'labels';

@@ -461,6 +461,7 @@ describe('source architecture cleanup', () => {
 
     expect(nonEmptyLines.length, `${entryPath} should stay a thin manifest entry`).toBeLessThanOrEqual(8);
     expect(source, `${entryPath} should import apps/content/bootstrap`).toMatch(/apps\/content\/bootstrap/);
+    expect(source, `${entryPath} should re-export onExecute for the CRX loader`).toMatch(/export\s+\{\s*onExecute\s*\}/);
   });
 
   it('keeps drive115 content script entries thin and boots through apps/content', () => {
@@ -518,5 +519,63 @@ describe('source architecture cleanup', () => {
 
     expect(nonEmptyLines.length, `${entryPath} should stay a thin popup entry`).toBeLessThanOrEqual(8);
     expect(source, `${entryPath} should import apps/popup/bootstrap`).toMatch(/apps\/popup\/bootstrap/);
+  });
+
+  it('keeps online availability implementation under features and content path as a compatibility export', () => {
+    const featurePath = 'src/features/onlineAvailability/index.ts';
+    expect(fs.existsSync(path.resolve(root, featurePath)), `${featurePath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/onlineAvailability.ts';
+    const source = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(source, `${legacyPath} should re-export from features/onlineAvailability`).toMatch(/features\/onlineAvailability/);
+  });
+
+  it('keeps video status implementation under features and legacy paths as compatibility exports', () => {
+    const expectedFeatureFiles = [
+      'src/features/videoStatus/index.ts',
+      'src/features/videoStatus/statusManager.ts',
+      'src/features/videoStatus/statusPriority.ts',
+    ];
+
+    for (const file of expectedFeatureFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyFiles = [
+      'src/content/statusManager.ts',
+      'src/utils/statusPriority.ts',
+    ];
+
+    for (const relative of legacyFiles) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${relative} should re-export from features/videoStatus`).toMatch(/features\/videoStatus/);
+    }
+  });
+
+  it('keeps shared list record helpers under shared utils with utils path as a compatibility export', () => {
+    const sharedPath = 'src/shared/utils/listRecordHelpers.ts';
+    expect(fs.existsSync(path.resolve(root, sharedPath)), `${sharedPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/utils/listRecordHelpers.ts';
+    const source = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(source, `${legacyPath} should re-export from shared/utils/listRecordHelpers`).toMatch(/shared\/utils\/listRecordHelpers/);
   });
 });
