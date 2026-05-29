@@ -1,14 +1,21 @@
-﻿import { buildInsightsVisualFields, renderTemplate, generateReportHTML } from "../../services/insights/reportGenerator";
+﻿import {
+  addTrace,
+  aggregateCompareFromRecords,
+  aggregateMonthly,
+  buildInsightsVisualFields,
+  buildPrompts,
+  generateReportHTML,
+  getAllPersonas,
+  getLastGenerationTrace,
+  getPersonaName,
+  renderTemplate,
+  type PersonaId,
+} from "../../features/insights";
 import { aiService } from "../../services/ai/aiService";
 import { dbInsReportsPut, dbInsReportsList, dbInsReportsGet, dbInsReportsDelete, dbInsReportsExport, dbInsReportsImport } from "../dbClient";
 import type { ReportMonthly } from "../../types/insights";
 import { dbInsViewsRange, dbViewedPage } from "../dbClient";
-import { aggregateMonthly } from "../../services/insights/aggregator";
 import { getSettings, saveSettings } from "../../utils/storage";
-import { buildPrompts } from "../../services/insights/prompts";
-import { getAllPersonas, getPersonaName, type PersonaId } from "../../services/insights/personas";
-import { getLastGenerationTrace, addTrace } from "../../services/insights/generationTrace";
-import { aggregateCompareFromRecords } from "../../services/insights/compareAggregator";
 import type { VideoRecord } from "../../types";
 import { showMessage } from "../ui/toast";
 import { initInsightsMonthPicker } from "../components/MonthRangePickerIntegration";
