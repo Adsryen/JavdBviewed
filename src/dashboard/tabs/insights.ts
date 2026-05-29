@@ -11,7 +11,7 @@
   renderTemplate,
   type PersonaId,
 } from "../../features/insights";
-import { aiService } from "../../services/ai/aiService";
+import { aiService } from "../../features/ai";
 import { dbInsReportsPut, dbInsReportsList, dbInsReportsGet, dbInsReportsDelete, dbInsReportsExport, dbInsReportsImport } from "../dbClient";
 import type { ReportMonthly } from "../../types/insights";
 import { dbInsViewsRange, dbViewedPage } from "../dbClient";

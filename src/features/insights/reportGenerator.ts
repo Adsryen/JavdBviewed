@@ -1,5 +1,5 @@
 import { ReportStats } from "../../types/insights";
-import { aiService } from "../../services/ai/aiService";
+import { aiService } from "../ai";
 import { startGenerationTrace, addTrace, endGenerationTrace } from './generationTrace';
 import type { ChatMessage } from "../../types/ai";
 import { buildPrompts, type PromptPersona } from './prompts';
