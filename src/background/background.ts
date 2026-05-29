@@ -20,7 +20,7 @@ import { newWorksScheduler } from '../features/newWorks';
 import { registerNetProxyRouter } from './netProxy';
 import { registerMonthlyAlarm, handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
 import { getSettings, saveSettings } from '../utils/storage';
-import { normalizeDrive115Settings, isDrive115EnabledState, hasDrive115V2Credentials } from '../services/drive115App';
+import { normalizeDrive115Settings, isDrive115EnabledState, hasDrive115V2Credentials } from '../features/drive115/app';
 import { globalTaskCenter } from './globalTaskCenter';
 import { registerReleaseAnnouncementEvents } from '../apps/background/releaseAnnouncementEvents';
 import {
@@ -357,7 +357,7 @@ async function backgroundRefreshDrive115UserInfo(): Promise<void> {
 
     console.info('[Background] 115 后台自动刷新用户信息开始');
 
-    const { getDrive115V2Service } = await import('../services/drive115v2');
+    const { getDrive115V2Service } = await import('../features/drive115/v2');
     const svc = getDrive115V2Service();
 
     const result = await svc.fetchUserInfoAuto({ forceAutoRefresh: true });

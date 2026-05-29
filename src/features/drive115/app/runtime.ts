@@ -1,0 +1,72 @@
+import { getSettings } from '../../../utils/storage';
+import type { NormalizedDrive115Settings } from './types';
+
+const DEFAULT_DRIVE115_RUNTIME_SETTINGS: NormalizedDrive115Settings = {
+  enabled: false,
+  downloadDir: '',
+  verifyCount: 5,
+  maxFailures: 5,
+  v2ApiBaseUrl: 'https://proapi.115.com',
+  v2AuthMode: 'openlist_manual',
+  v2ClientId: '',
+  v2AccessToken: '',
+  v2RefreshToken: '',
+  v2TokenExpiresAt: null,
+  v2AutoRefresh: true,
+  v2AutoRefreshSkewSec: 60,
+  v2RefreshTokenStatus: 'unknown',
+  v2RefreshTokenLastError: undefined,
+  v2RefreshTokenLastErrorCode: undefined,
+  v2AccessTokenStatus: 'unknown',
+  v2AccessTokenLastError: undefined,
+  v2AccessTokenLastErrorCode: undefined,
+  quotaCache: null,
+  v2UserInfo: undefined,
+  v2UserInfoUpdatedAt: undefined,
+  v2UserInfoExpired: false,
+};
+
+export function normalizeDrive115Settings(raw: any): NormalizedDrive115Settings {
+  return {
+    ...DEFAULT_DRIVE115_RUNTIME_SETTINGS,
+    enabled: !!(raw?.enabled ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.enabled),
+    downloadDir: String(raw?.downloadDir ?? raw?.defaultWpPathId ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.downloadDir),
+    verifyCount: Number(raw?.verifyCount ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.verifyCount) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.verifyCount,
+    maxFailures: Number(raw?.maxFailures ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures,
+    v2ApiBaseUrl: String(raw?.v2ApiBaseUrl ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.v2ApiBaseUrl),
+    v2AuthMode: raw?.v2AuthMode === 'self_app'
+      ? 'self_app'
+      : raw?.v2AuthMode === 'openlist_scan'
+        ? 'openlist_scan'
+        : 'openlist_manual',
+    v2ClientId: String(raw?.v2ClientId ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.v2ClientId ?? ''),
+    v2AccessToken: String(raw?.v2AccessToken ?? ''),
+    v2RefreshToken: String(raw?.v2RefreshToken ?? ''),
+    v2TokenExpiresAt: typeof raw?.v2TokenExpiresAt === 'number' ? raw.v2TokenExpiresAt : null,
+    v2AutoRefresh: raw?.v2AutoRefresh !== false,
+    v2AutoRefreshSkewSec: Number(raw?.v2AutoRefreshSkewSec ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.v2AutoRefreshSkewSec) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.v2AutoRefreshSkewSec,
+    v2RefreshTokenStatus: raw?.v2RefreshTokenStatus ?? 'unknown',
+    v2RefreshTokenLastError: raw?.v2RefreshTokenLastError,
+    v2RefreshTokenLastErrorCode: typeof raw?.v2RefreshTokenLastErrorCode === 'number' ? raw.v2RefreshTokenLastErrorCode : undefined,
+    v2AccessTokenStatus: raw?.v2AccessTokenStatus ?? 'unknown',
+    v2AccessTokenLastError: raw?.v2AccessTokenLastError,
+    v2AccessTokenLastErrorCode: typeof raw?.v2AccessTokenLastErrorCode === 'number' ? raw.v2AccessTokenLastErrorCode : undefined,
+    quotaCache: raw?.quotaCache ?? null,
+    v2UserInfo: raw?.v2UserInfo,
+    v2UserInfoUpdatedAt: typeof raw?.v2UserInfoUpdatedAt === 'number' ? raw.v2UserInfoUpdatedAt : undefined,
+    v2UserInfoExpired: !!raw?.v2UserInfoExpired,
+  };
+}
+
+export async function getDrive115RuntimeState(): Promise<NormalizedDrive115Settings> {
+  const settings: any = await getSettings();
+  return normalizeDrive115Settings(settings?.drive115 || {});
+}
+
+export function isDrive115EnabledState(state: NormalizedDrive115Settings): boolean {
+  return !!state.enabled;
+}
+
+export function hasDrive115V2Credentials(state: NormalizedDrive115Settings): boolean {
+  return !!state.v2RefreshToken || !!state.v2AccessToken;
+}

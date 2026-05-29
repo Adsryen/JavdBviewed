@@ -15,7 +15,7 @@ import { saveSubtaskDetail } from './taskDetailReporter';
 import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementDone } from './enhancementLoadingIndicator';
 import { getJavdbTheme, isDarkTheme, type JavdbTheme } from './utils';
-import { addTaskUrlsV2 } from '../services/drive115Router';
+import { addTaskUrlsV2 } from '../features/drive115/router';
 import {
   createPreviewCacheEntry,
   getPreviewSourceType,

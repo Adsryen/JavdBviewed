@@ -21,7 +21,7 @@ vi.mock('../../src/dashboard/services/userService', () => ({
   },
 }));
 
-vi.mock('../../src/services/drive115v2', () => ({
+vi.mock('../../src/features/drive115/v2', () => ({
   getDrive115V2Service: vi.fn(() => ({
     getCachedUserInfo: vi.fn().mockResolvedValue(null),
     getCachedQuotaInfo: vi.fn().mockResolvedValue(null),

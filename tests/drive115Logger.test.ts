@@ -23,7 +23,7 @@ describe('Drive115AppLogger', () => {
   };
 
   try {
-    const { Drive115AppLogger } = await import('../src/services/drive115App/logger.ts');
+    const { Drive115AppLogger } = await import('../src/features/drive115/app/logger.ts');
     const logger = new Drive115AppLogger();
 
     await logger.logPushSuccess({

@@ -19,7 +19,7 @@ import { log } from '../utils/logController';
 import { initUserProfileSection } from './userProfile';
 // import { initDataSyncSection } from './dataSync';
 import './ui/dataViewModal'; // 确保 dataViewModal 被初始化
-import { getDrive115V2Service } from '../services/drive115v2';
+import { getDrive115V2Service } from '../features/drive115/v2';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { ensureMounted } from './loaders/partialsLoader';
 import { ensureStylesLoaded } from './loaders/stylesLoader';
@@ -36,7 +36,7 @@ import { refreshHomeOverview, bindHomeChartsRangeControls, bindHomeRefreshButton
 import { STORAGE_KEYS } from '../utils/config';
 import { getSettings } from '../utils/storage';
 import { getDisplayVersionInfo } from '../utils/versionInfo';
-import { normalizeDrive115Settings, isDrive115EnabledState } from '../services/drive115App';
+import { normalizeDrive115Settings, isDrive115EnabledState } from '../features/drive115/app';
 import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
 import { mountDashboardReleaseAnnouncement } from '../apps/dashboard/releaseAnnouncementBootstrap';
 import { reportDashboardOpenTelemetry } from '../apps/dashboard/telemetryDashboardOpen';
