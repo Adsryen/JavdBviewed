@@ -2,7 +2,7 @@
  * 手动锁定按钮管理
  */
 
-import { getPrivacyManager } from '../../services/privacy';
+import { getPrivacyManager } from '../../features/privacy';
 import { getSettings } from '../../utils/storage';
 import { log } from '../../utils/logController';
 

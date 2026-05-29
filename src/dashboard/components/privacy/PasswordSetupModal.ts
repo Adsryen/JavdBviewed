@@ -3,7 +3,7 @@
  * 用于设置密码、修改密码、设置安全问题等
  */
 
-import { getPrivacyManager, getPasswordService, getRecoveryService } from '../../../services/privacy';
+import { getPrivacyManager, getPasswordService, getRecoveryService } from '../../../features/privacy';
 import { showMessage } from '../../ui/toast';
 
 type ModalMode = 'set-password' | 'change-password' | 'security-questions';

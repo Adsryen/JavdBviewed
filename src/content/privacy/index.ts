@@ -4,7 +4,7 @@
 
 import { getElementProtector } from './elementProtector';
 import { getPrivacyStateListener } from './stateListener';
-import { initializePrivacySystem } from '../../services/privacy';
+import { initializePrivacySystem } from '../../features/privacy';
 import { createManagedTaskDescriptor, runManagedTask } from '../taskRuntime';
 
 /**
@@ -79,4 +79,4 @@ export { getElementProtector } from './elementProtector';
 export { getPrivacyStateListener } from './stateListener';
 
 // 导出隐私服务
-export * from '../../services/privacy';
+export * from '../../features/privacy';

@@ -2,7 +2,7 @@
  * 密码验证弹窗组件
  */
 
-import { getPrivacyManager, getRecoveryService } from '../../../services/privacy';
+import { getPrivacyManager, getRecoveryService } from '../../../features/privacy';
 import { showMessage } from '../../ui/toast';
 
 export class PasswordModal {

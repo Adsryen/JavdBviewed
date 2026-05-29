@@ -6,7 +6,7 @@
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { showMessage } from '../../../ui/toast';
 import { getSettings, saveSettings } from '../../../../utils/storage';
-import { getPrivacyManager, getPasswordService, getRecoveryService } from '../../../../services/privacy';
+import { getPrivacyManager, getPasswordService, getRecoveryService } from '../../../../features/privacy';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 

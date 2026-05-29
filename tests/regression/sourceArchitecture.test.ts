@@ -341,4 +341,33 @@ describe('source architecture cleanup', () => {
       expect(source, `${relative} should re-export from features/ai`).toMatch(/features\/ai/);
     }
   });
+
+  it('keeps privacy service implementation under features and services as compatibility exports', () => {
+    const expectedFeatureFiles = [
+      'src/features/privacy/index.ts',
+      'src/features/privacy/BlurController.ts',
+      'src/features/privacy/LockScreen.ts',
+      'src/features/privacy/PasswordService.ts',
+      'src/features/privacy/PrivacyManager.ts',
+      'src/features/privacy/RecoveryService.ts',
+      'src/features/privacy/SessionManager.ts',
+      'src/features/privacy/blurAreaMapper.ts',
+    ];
+
+    for (const file of expectedFeatureFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    for (const file of listSourceFiles('src/services/privacy')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      const source = fs.readFileSync(file, 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${relative} should re-export from features/privacy`).toMatch(/features\/privacy/);
+    }
+  });
 });

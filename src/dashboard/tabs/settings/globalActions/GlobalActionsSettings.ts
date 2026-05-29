@@ -8,7 +8,7 @@ import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
-import { requireAuthIfRestricted } from '../../../../services/privacy';
+import { requireAuthIfRestricted } from '../../../../features/privacy';
 
 /**
  * 全局操作设置面板类
