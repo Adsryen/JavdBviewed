@@ -4,7 +4,7 @@
 
 import { logAsync } from '../../logger';
 import { userService } from '../../services/userService';
-import { actorSyncService } from '../../../services/actorSync';
+import { actorSyncService } from '../../../features/actors';
 import { log } from '../../../utils/logController';
 import type { SyncProgress, SyncResult } from '../types';
 import type { SyncMode } from '../../config/syncConfig';

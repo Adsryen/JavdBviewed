@@ -1,4 +1,4 @@
-// src/services/dataAggregator/__tests__/dataAggregator.test.ts
+// src/features/dataAggregator/__tests__/dataAggregator.test.ts
 // 数据聚合器测试
 
 import { beforeEach, describe, expect, it, vi, type Mocked, type MockedClass } from 'vitest';
@@ -6,22 +6,38 @@ import { DataAggregator } from '../index';
 import { BlogJavSource } from '../sources/blogJav';
 import { TranslatorService } from '../sources/translator';
 import { JavLibrarySource } from '../sources/javLibrary';
+import { AITranslatorService } from '../sources/aiTranslator';
+
+const cacheMocks = vi.hoisted(() => ({
+  getVideoDetail: vi.fn(),
+  clearAll: vi.fn(),
+  getStats: vi.fn(),
+}));
 
 // Mock dependencies
-vi.mock('../../../utils/cache');
+vi.mock('../../../utils/cache', () => ({
+  globalCache: {
+    getVideoDetail: cacheMocks.getVideoDetail,
+    clearAll: cacheMocks.clearAll,
+    getStats: cacheMocks.getStats,
+  },
+}));
 vi.mock('../sources/blogJav');
 vi.mock('../sources/translator');
 vi.mock('../sources/javLibrary');
+vi.mock('../sources/aiTranslator');
 
 const MockedBlogJavSource = BlogJavSource as MockedClass<typeof BlogJavSource>;
 const MockedTranslatorService = TranslatorService as MockedClass<typeof TranslatorService>;
 const MockedJavLibrarySource = JavLibrarySource as MockedClass<typeof JavLibrarySource>;
+const MockedAITranslatorService = AITranslatorService as MockedClass<typeof AITranslatorService>;
 
 describe('DataAggregator', () => {
   let dataAggregator: DataAggregator;
   let mockBlogJav: Mocked<BlogJavSource>;
   let mockTranslator: Mocked<TranslatorService>;
   let mockJavLibrary: Mocked<JavLibrarySource>;
+  let mockAITranslator: Mocked<AITranslatorService>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -44,10 +60,18 @@ describe('DataAggregator', () => {
       getVideoInfo: vi.fn(),
     } as any;
 
+    mockAITranslator = {
+      translate: vi.fn(),
+      updateConfig: vi.fn(),
+      isAvailable: vi.fn().mockResolvedValue(false),
+      getConfig: vi.fn(() => ({})),
+    } as any;
+
     // Mock构造函数
     MockedBlogJavSource.mockImplementation(() => mockBlogJav);
     MockedTranslatorService.mockImplementation(() => mockTranslator);
     MockedJavLibrarySource.mockImplementation(() => mockJavLibrary);
+    MockedAITranslatorService.mockImplementation(() => mockAITranslator);
 
     dataAggregator = new DataAggregator({
       enableCache: false, // 禁用缓存以简化测试
@@ -84,16 +108,9 @@ describe('DataAggregator', () => {
         data: {
           id: videoId,
           title: 'Test Video Title',
-          ratings: [{
-            source: 'JavLibrary',
-            score: 8.5,
-            total: 10,
-            count: 100,
-          }],
-          actors: [{
-            name: 'Test Actor',
-            profileUrl: 'https://example.com/actor',
-          }],
+          releaseDate: '2026-01-01',
+          studio: { name: 'Test Studio' },
+          genre: ['Test Genre'],
           lastUpdated: Date.now(),
         },
         source: 'JavLibrary',
@@ -119,10 +136,10 @@ describe('DataAggregator', () => {
       expect(result.id).toBe(videoId);
       expect(result.images).toHaveLength(1);
       expect(result.images![0].url).toBe('https://example.com/cover.jpg');
-      expect(result.ratings).toHaveLength(1);
-      expect(result.ratings![0].score).toBe(8.5);
-      expect(result.actors).toHaveLength(1);
-      expect(result.actors![0].name).toBe('Test Actor');
+      expect(result.title).toBe('Test Video Title');
+      expect(result.releaseDate).toBe('2026-01-01');
+      expect(result.studio?.name).toBe('Test Studio');
+      expect(result.genre).toEqual(['Test Genre']);
       expect(result.translatedTitle).toBe('测试视频标题');
     });
 

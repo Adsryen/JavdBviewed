@@ -1,4 +1,4 @@
-import type { NewWorkRecord } from '../../services/newWorks/types';
+import type { NewWorkRecord } from '../../types';
 
 export const DEFAULT_NEW_WORKS_PAGE_SIZE = 20;
 export const UNREAD_NEW_WORKS_PAGE_SIZE = 10;

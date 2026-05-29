@@ -17,7 +17,7 @@ vi.mock('../../src/utils/cache', () => ({
   },
 }));
 
-vi.mock('../../src/services/dataAggregator/sources/blogJav', () => ({
+vi.mock('../../src/features/dataAggregator/sources/blogJav', () => ({
   DEFAULT_BLOGJAV_CONFIG: {
     enabled: true,
     baseUrl: 'https://blogjav.example',
@@ -30,7 +30,7 @@ vi.mock('../../src/services/dataAggregator/sources/blogJav', () => ({
   })),
 }));
 
-vi.mock('../../src/services/dataAggregator/sources/javLibrary', () => ({
+vi.mock('../../src/features/dataAggregator/sources/javLibrary', () => ({
   DEFAULT_JAVLIBRARY_CONFIG: {
     enabled: true,
     baseUrl: 'https://javlibrary.example',
@@ -43,7 +43,7 @@ vi.mock('../../src/services/dataAggregator/sources/javLibrary', () => ({
   })),
 }));
 
-vi.mock('../../src/services/dataAggregator/sources/translator', () => ({
+vi.mock('../../src/features/dataAggregator/sources/translator', () => ({
   DEFAULT_TRANSLATOR_CONFIG: {
     enabled: true,
     service: 'google',
@@ -57,7 +57,7 @@ vi.mock('../../src/services/dataAggregator/sources/translator', () => ({
   })),
 }));
 
-vi.mock('../../src/services/dataAggregator/sources/aiTranslator', () => ({
+vi.mock('../../src/features/dataAggregator/sources/aiTranslator', () => ({
   DEFAULT_AI_TRANSLATOR_CONFIG: {
     enabled: false,
     provider: 'openai',
@@ -116,7 +116,7 @@ describe('DataAggregator default behavior', () => {
   });
 
   it('keeps enhanced-video cache disabled by default', async () => {
-    const { DataAggregator } = await import('../../src/services/dataAggregator/index');
+    const { DataAggregator } = await import('../../src/features/dataAggregator');
     const aggregator = new DataAggregator();
 
     expect(aggregator.getConfig().enableCache).toBe(false);

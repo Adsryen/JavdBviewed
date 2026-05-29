@@ -1,5 +1,5 @@
 import { extractVideoIdFromPage } from './videoId';
-import { defaultHttpClient } from '../services/dataAggregator/httpClient';
+import { defaultHttpClient } from '../platform/network/httpClient';
 import { log } from './state';
 
 export type OnlineAvailabilityFetchType = 'get' | 'parser';

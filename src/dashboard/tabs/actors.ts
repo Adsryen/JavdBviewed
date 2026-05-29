@@ -1,8 +1,8 @@
 ﻿// src/dashboard/tabs/actors.ts
 // 演员库标签页
 
-import { actorManager } from '../../services/actorManager';
-import { newWorksManager } from '../../services/newWorks';
+import { actorManager } from '../../features/actors';
+import { newWorksManager } from '../../features/newWorks';
 import { SimpleActorAvatar } from '../../components/SimpleActorAvatar';
 import { showMessage } from '../ui/toast';
 import { getSettings } from '../../utils/storage';
@@ -1641,7 +1641,7 @@ export class ActorsTab {
             let wikiData: any = undefined;
             try {
                 logAsync('INFO', '开始获取Wiki数据', { actorName: name });
-                const { actorExtraInfoService } = await import('../../services/actorRemarks/index');
+                const { actorExtraInfoService } = await import('../../features/actorRemarks');
                 const remarks = await actorExtraInfoService.getActorRemarks(name);
                 if (remarks) {
                     wikiData = {

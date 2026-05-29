@@ -2,7 +2,7 @@
 // 新作品全局配置弹窗组件
 
 import { showMessage } from '../../ui/toast';
-import type { NewWorksGlobalConfig } from '../../../services/newWorks/types';
+import type { NewWorksGlobalConfig } from '../../../types';
 import { ACTOR_FILTER_TAGS, getTagsByGroup } from '../../config/actorFilterTags';
 
 export class NewWorksConfigModal {

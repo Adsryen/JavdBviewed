@@ -18,9 +18,9 @@ import { renderDetailSearchLinks } from './detailSearchLinks';
 
 import type { InitPhase } from './initOrchestrator';
 import type { GlobalTaskVisibilityPolicy } from '../shared/taskCenterTypes';
-import { actorManager } from '../services/actorManager';
-import { newWorksManager } from '../services/newWorks';
-import { actorExtraInfoService } from '../services/actorRemarks';
+import { actorManager } from '../features/actors';
+import { newWorksManager } from '../features/newWorks';
+import { actorExtraInfoService } from '../features/actorRemarks';
 import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';

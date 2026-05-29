@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoDetailEnhancer } from '../../src/content/enhancedVideoDetail';
-import { relatedListsService } from '../../src/services/relatedLists';
+import { relatedListsService } from '../../src/features/relatedLists';
 
 describe('VideoDetailEnhancer related lists enhancement', () => {
   beforeEach(() => {

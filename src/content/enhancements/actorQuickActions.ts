@@ -3,8 +3,8 @@
  * 在影片页悬浮演员名字时显示快速操作面板（收藏、拉黑、订阅）
  */
 
-import { actorManager } from '../../services/actorManager';
-import { newWorksManager } from '../../services/newWorks';
+import { actorManager } from '../../features/actors';
+import { newWorksManager } from '../../features/newWorks';
 import { showToast } from '../toast';
 import type { ActorRecord } from '../../types';
 
