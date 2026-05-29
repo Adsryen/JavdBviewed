@@ -229,6 +229,12 @@
   - [x] 迁移 115 网盘页面推送处理和验证码页面验证监听逻辑
   - [x] `content/drive115-content.ts` 与 `content/drive115-verify.ts` 保留 manifest content script 入口
   - [x] 保持 `src/manifest.json` 的 115 content script 路径不变
+- [x] 第二十一批迁移：Dashboard 入口层
+  - [x] 迁移前使用架构回归测试约束 Dashboard 页面入口保持薄加载器
+  - [x] 建立 `apps/dashboard/bootstrap.ts`
+  - [x] 迁移 Dashboard 初始化、主题、侧栏、标签页、用户信息、隐私和遥测装配逻辑
+  - [x] `dashboard/dashboard.ts` 保留 HTML module script 入口
+  - [x] 保持 `dashboard/dashboard.html` 的脚本路径不变
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`
