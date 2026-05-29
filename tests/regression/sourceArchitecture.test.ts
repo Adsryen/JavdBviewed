@@ -489,4 +489,19 @@ describe('source architecture cleanup', () => {
       expect(source, `${entry.path} should import its apps/content bootstrap`).toMatch(entry.pattern);
     }
   });
+
+  it('keeps the dashboard page entry thin and boots through apps/dashboard', () => {
+    const bootstrapPath = 'src/apps/dashboard/bootstrap.ts';
+    expect(fs.existsSync(path.resolve(root, bootstrapPath)), `${bootstrapPath} should exist`).toBe(true);
+
+    const entryPath = 'src/dashboard/dashboard.ts';
+    const source = fs.readFileSync(path.resolve(root, entryPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${entryPath} should stay a thin page entry`).toBeLessThanOrEqual(8);
+    expect(source, `${entryPath} should import apps/dashboard/bootstrap`).toMatch(/apps\/dashboard\/bootstrap/);
+  });
 });
