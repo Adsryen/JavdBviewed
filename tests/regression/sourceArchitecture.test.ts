@@ -641,4 +641,67 @@ describe('source architecture cleanup', () => {
       expect(source, `${item.legacyPath} should re-export from ${item.targetPath}`).toMatch(item.targetPattern);
     }
   });
+
+  it('keeps WebDAV sync foundation under features while background router uses the new modules', () => {
+    const expectedFiles = [
+      'src/features/webdavSync/domain/types.ts',
+      'src/features/webdavSync/domain/paths.ts',
+      'src/features/webdavSync/infrastructure/webdavClient.ts',
+      'src/features/webdavSync/infrastructure/propfindParser.ts',
+      'src/features/webdavSync/application/clientIdentity.ts',
+      'src/features/webdavSync/application/clientRegistry.ts',
+      'src/features/webdavSync/index.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const source = fs.readFileSync(path.resolve(root, 'src/background/webdav.ts'), 'utf8');
+    expect(source).toMatch(/features\/webdavSync\/domain\/paths/);
+    expect(source).toMatch(/features\/webdavSync\/infrastructure\/webdavClient/);
+    expect(source).toMatch(/features\/webdavSync\/infrastructure\/propfindParser/);
+    expect(source).toMatch(/features\/webdavSync\/application\/clientIdentity/);
+    expect(source).toMatch(/features\/webdavSync\/application\/clientRegistry/);
+  });
+
+  it('keeps WebDAV backup upload chain under features while background router delegates to it', () => {
+    const expectedFiles = [
+      'src/features/webdavSync/application/backupCollector.ts',
+      'src/features/webdavSync/application/uploadIndex.ts',
+      'src/features/webdavSync/application/uploadService.ts',
+      'src/features/webdavSync/application/cleanupService.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const source = fs.readFileSync(path.resolve(root, 'src/background/webdav.ts'), 'utf8');
+    expect(source).toMatch(/features\/webdavSync\/application\/backupCollector/);
+    expect(source).toMatch(/features\/webdavSync\/application\/uploadIndex/);
+    expect(source).toMatch(/features\/webdavSync\/application\/uploadService/);
+    expect(source).toMatch(/features\/webdavSync\/application\/cleanupService/);
+  });
+
+  it('keeps WebDAV restore, diagnostics, and message router under features', () => {
+    const expectedFiles = [
+      'src/features/webdavSync/application/restorePreview.ts',
+      'src/features/webdavSync/application/restoreService.ts',
+      'src/features/webdavSync/application/importSanitizer.ts',
+      'src/features/webdavSync/application/diagnostics.ts',
+      'src/features/webdavSync/background/router.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const source = fs.readFileSync(path.resolve(root, 'src/background/webdav.ts'), 'utf8');
+    expect(source).toMatch(/features\/webdavSync\/application\/restorePreview/);
+    expect(source).toMatch(/features\/webdavSync\/application\/restoreService/);
+    expect(source).toMatch(/features\/webdavSync\/application\/importSanitizer/);
+    expect(source).toMatch(/features\/webdavSync\/application\/diagnostics/);
+    expect(source).toMatch(/features\/webdavSync\/background\/router/);
+  });
 });
