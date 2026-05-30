@@ -4,42 +4,47 @@ import { getSettings, getValue } from '../../utils/storage';
 import type { VideoRecord } from '../../types';
 import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from '../../content/state';
 import { processVisibleItems, setupObserver } from '../../content/itemProcessor';
-import { handleVideoDetailPage, cleanupVideoDetailObservers, getVideoDetailTaskBlueprints } from '../../content/videoDetail';
+import { handleVideoDetailPage, getVideoDetailTaskBlueprints } from '../../content/videoDetail';
 import { checkAndUpdateVideoStatus } from '../../features/videoStatus';
 import { initExportFeature } from '../../content/export';
 import { initDrive115Features } from '../../content/drive115';
 import { defaultDataAggregator } from '../../features/dataAggregator';
-import { contentFilterManager } from '../../content/contentFilter';
+import { contentFilterManager } from '../../features/contentFilter';
 import { keyboardShortcutsManager } from '../../content/keyboardShortcuts';
 import { magnetSearchManager } from '../../features/magnets';
 import { anchorOptimizationManager } from '../../content/anchorOptimization';
-import { showToast } from '../../content/toast';
-import { videoDetailEnhancer } from '../../content/enhancedVideoDetail';
-import { refreshActorMarksOnPage, runActorRemarksQuick } from '../../content/videoDetail';
-import { listEnhancementManager } from '../../content/enhancements/listEnhancement';
-import { actorEnhancementManager } from '../../content/enhancements/actorEnhancement';
-import { actorQuickActionsManager } from '../../content/enhancements/actorQuickActions';
+import { listEnhancementManager } from '../../features/listEnhancement';
+import { actorEnhancementManager, actorQuickActionsManager } from '../../features/actorEnhancement';
 import { embyEnhancementManager } from '../../content/embyEnhancement';
-import { activatePreviewVideoPreload, releasePreviewVideoMedia } from '../../content/previewVideoPreload';
+import { exposePreviewVolumeDebug, installPreviewVolumeControl } from '../../features/previews';
 import { initOrchestrator } from '../../content/initOrchestrator';
 import type { InitPhase } from '../../content/initOrchestrator';
 import { initInsightsCollector } from '../../content/insightsCollector';
-import { installConsoleProxy } from '../../utils/consoleProxy';
 import { performanceOptimizer } from '../../content/performanceOptimizer';
 import { actorExtraInfoService } from '../../features/actorRemarks';
 import { createTaskTimeoutGuard, isTaskTimeoutError, waitForElement } from '../../content/utils';
 import { runChunkedWork, yieldToMainThread } from '../../content/taskChunking';
 import { PasswordHelper } from '../../content/passwordHelper';
-import { installTaskVisibilityReporter } from '../../content/taskVisibilityReporter';
-import { getActiveManagedTaskIds } from '../../content/taskRuntime';
-import { installTaskHeartbeatReporter } from '../../content/taskHeartbeat';
 import { showEnhancementLoading } from '../../content/enhancementLoadingIndicator';
 import {
     applyOnlineAvailabilitySitePreferences,
     DEFAULT_ONLINE_AVAILABILITY_SITES,
     onlineAvailabilityManager,
 } from '../../features/onlineAvailability';
-import { destroySuperRankingNav, initializeSuperRankingNav, isSuperRankingSupportedHost } from '../../content/superRankingNav';
+import { initializeSuperRankingNav, isSuperRankingSupportedHost } from '../../features/rankings';
+import { installContentConsoleSettingsBridge } from './consoleSettingsBridge';
+import { exposeContentDebugManagers, installContentLifecycleHandlers } from './contentLifecycle';
+import { installContentMessageRouter } from './contentMessageRouter';
+import { installOrchestratorStateBridge } from './orchestratorStateBridge';
+import { injectNavbarBadge, removeUnwantedButtons } from './pageChrome';
+
+installContentConsoleSettingsBridge();
+installOrchestratorStateBridge();
+installContentMessageRouter();
+void installPreviewVolumeControl();
+exposePreviewVolumeDebug();
+exposeContentDebugManagers();
+installContentLifecycleHandlers();
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
@@ -59,53 +64,6 @@ function isCurrentPageMatchedByEmby(settings: any): boolean {
         const normalized = rawPattern.replace(/\*/g, '');
         return normalized ? currentUrl.includes(normalized) : false;
     });
-}
-
-// 预览音量的模块级状态（避免 ReferenceError: currentVolume is not defined）
-let currentVolume: number = 0.2;
-let previewVideoWatcherTimer: number | null = null;
-
-// 安装统一控制台代理（仅影响扩展自身，默认DEBUG，上海时区，显示来源+颜色）
-installConsoleProxy({
-    level: 'DEBUG',
-    format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
-    categories: {
-        general: { enabled: true, match: () => true, label: 'CS', color: '#27ae60' },
-    },
-});
-
-installTaskVisibilityReporter(() => getActiveManagedTaskIds());
-installTaskHeartbeatReporter(() => getActiveManagedTaskIds());
-
-// 从设置应用控制台显示配置到代理
-async function applyConsoleSettingsFromStorage_CS() {
-    try {
-        const settings = await getSettings();
-        const logging: any = settings.logging || {};
-        const ctrl: any = (window as any).__JDB_CONSOLE__;
-        if (!ctrl) return;
-        if (logging.consoleLevel) ctrl.setLevel(logging.consoleLevel);
-        if (logging.consoleFormat) {
-            ctrl.setFormat({
-                showTimestamp: logging.consoleFormat.showTimestamp ?? true,
-                showSource: logging.consoleFormat.showSource ?? true,
-                color: logging.consoleFormat.color ?? true,
-                timeZone: logging.consoleFormat.timeZone || 'Asia/Shanghai',
-            });
-        }
-
-        // 应用日志模块配置（优先使用 logModules，向后兼容 consoleCategories）
-        const modules = logging.logModules || logging.consoleCategories || {};
-        const cfg = ctrl.getConfig();
-        const allKeys = Object.keys(cfg?.categories || {});
-        for (const key of allKeys) {
-            const flag = modules[key];
-            if (flag === false) ctrl.disable(key);
-            else if (flag === true) ctrl.enable(key);
-        }
-    } catch (e) {
-        console.warn('[ConsoleProxy] Failed to apply settings in CS:', e);
-    }
 }
 
 async function runActorRemarksOnActorPage(settings: any, timeoutMs?: number): Promise<void> {
@@ -247,95 +205,6 @@ async function runActorRemarksOnActorPage(settings: any, timeoutMs?: number): Pr
     } catch (e) {
         if (isTaskTimeoutError(e)) throw e;
         log('actorRemarks(actorPage): failed', e);
-    }
-}
-
-applyConsoleSettingsFromStorage_CS();
-
-try {
-    chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local' && changes['settings']) {
-            applyConsoleSettingsFromStorage_CS();
-        }
-    });
-} catch {}
-
-// --- Utility Functions ---
-
-/**
- * 在顶栏注入"插件已生效"标识
- */
-function injectNavbarBadge(): void {
-    try {
-        if (document.getElementById('javdb-ext-badge')) return;
-
-        // JavDB 的用户区域在 #navbar-menu-user > .navbar-end
-        const navbarEnd = document.querySelector('#navbar-menu-user .navbar-end') as HTMLElement | null;
-        if (!navbarEnd) return;
-
-        const badge = document.createElement('div');
-        badge.id = 'javdb-ext-badge';
-        badge.className = 'navbar-item';
-        badge.innerHTML = `
-            <span style="
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                font-size: 12px;
-                padding: 3px 8px;
-                border-radius: 12px;
-                background: rgba(59, 130, 246, 0.15);
-                color: #60a5fa;
-                border: 1px solid rgba(59, 130, 246, 0.3);
-                white-space: nowrap;
-                cursor: default;
-                user-select: none;
-            " title="Jav 助手已启用">
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style="flex-shrink:0">
-                    <circle cx="4" cy="4" r="4" fill="#3b82f6" opacity="0.4"/>
-                    <circle cx="4" cy="4" r="2.5" fill="#60a5fa"/>
-                </svg>
-                Jav 助手已启用
-            </span>
-        `;
-
-        // 插到第一个子元素前面
-        navbarEnd.insertBefore(badge, navbarEnd.firstChild);
-        log('Navbar badge injected');
-    } catch (error) {
-        log('Error injecting navbar badge:', error);
-    }
-}
-
-/**
- * 移除不需要的按钮（官方App和Telegram频道）
- */
-function removeUnwantedButtons(): void {
-    try {
-        // 查找并移除官方App按钮和Telegram按钮
-        const appButtons = document.querySelectorAll('a[href*="app.javdb"], a[href*="t.me/javdbnews"]');
-        appButtons.forEach(button => {
-            if (button.textContent?.includes('官方App') ||
-                button.textContent?.includes('JavDB公告') ||
-                button.textContent?.includes('Telegram')) {
-                log(`Removing unwanted button: ${button.textContent}`);
-                button.remove();
-            }
-        });
-
-        // 也可以通过CSS隐藏这些按钮
-        const style = document.createElement('style');
-        style.textContent = `
-            a[href*="app.javdb"]:not([href*="javdb.com"]),
-            a[href*="t.me/javdbnews"] {
-                display: none !important;
-            }
-        `;
-        document.head.appendChild(style);
-
-        log('Unwanted buttons removal completed');
-    } catch (error) {
-        log('Error removing unwanted buttons:', error);
     }
 }
 
@@ -811,38 +680,6 @@ async function initialize(): Promise<void> {
     initExportFeature();
 }
 
-// --- Messaging Bridge for Orchestrator Visualization ---
-try {
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
-        console.log('[Content] Registering orchestrator:getState listener', {
-            url: window.location.href,
-            readyState: document.readyState,
-        });
-        chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-            try {
-                if (message && message.type === 'orchestrator:getState') {
-                    console.log('[Content] Received orchestrator:getState probe', {
-                        url: window.location.href,
-                        hasInitOrchestrator: !!(window as any).__initOrchestrator__,
-                    });
-                    const o: any = (window as any).__initOrchestrator__;
-                    if (o && typeof o.getState === 'function') {
-                        const state = o.getState();
-                        sendResponse({ ok: true, state });
-                    } else {
-                        sendResponse({ ok: false, error: 'orchestrator not initialized yet' });
-                    }
-                    return false;
-                }
-            } catch (err) {
-                sendResponse({ ok: false, error: String(err) });
-                return false;
-            }
-            return false;
-        });
-    }
-} catch {}
-
 // --- Entry Point ---
 
 // 防止重复初始化
@@ -860,471 +697,3 @@ export function onExecute() {
     injectNavbarBadge();
     initialize().catch(err => console.error('[JavDB Ext] Initialization failed:', err));
 }
-
-try {
-    window.addEventListener('actor-state-changed', async () => {
-        try {
-            listEnhancementManager.reapplyActorHidingForAll?.();
-        } catch (e) {
-            log('Failed to reapply actor-based list hiding after actor state change:', e as any);
-        }
-
-        try {
-            if (window.location.pathname.startsWith('/v/')) {
-                await refreshActorMarksOnPage();
-            }
-        } catch (e) {
-            log('Failed to refresh actor marks after actor state change:', e as any);
-        }
-    });
-} catch (e) {
-    log('Failed to bind actor-state-changed listener:', e as any);
-}
-
-// 监听来自popup或dashboard的设置更新// 消息监听器
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'settings-updated') {
-        log('Settings updated, reloading settings and reprocessing items');
-        // 重新加载设置并重新处理页面项目
-        Promise.resolve((message && message.settings) || null).then(async (incomingSettings) => {
-            const settings = incomingSettings || await getSettings();
-            STATE.settings = settings;
-            try {
-                if (isSuperRankingSupportedHost() && (settings.userExperience as any)?.enableSuperRanking !== false) {
-                    initializeSuperRankingNav();
-                } else {
-                    destroySuperRankingNav();
-                }
-            } catch (e) {
-                log('Failed to refresh super ranking navigation after settings update:', e as any);
-            }
-            log('Updated display settings:', settings.display);
-            log('Updated translation targets:', (STATE.settings as any)?.translation?.targets);
-            processVisibleItems();
-
-            // 同步列表增强的“演员过滤”开关，并立即重应用（无需等待刷新）
-            try {
-                listEnhancementManager.updateConfig({
-                    hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
-                    hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
-                    hideUnrecognizedActorsInList: (settings.listEnhancement as any)?.hideUnrecognizedActorsInList !== false, // 默认true
-                    treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
-                    // 🆕 同步列表显示控制配置
-                    listDisplayControl: {
-                        enabled: (settings.listEnhancement as any)?.listDisplayControl?.enabled !== false,
-                        columnCount: (settings.listEnhancement as any)?.listDisplayControl?.columnCount || 4,
-                        containerWidth: (settings.listEnhancement as any)?.listDisplayControl?.containerWidth || 100,
-                        enableContainerExpansion: (settings.listEnhancement as any)?.listDisplayControl?.enableContainerExpansion === true,
-                    },
-                    popularityEffects: {
-                        enabled: (settings.listEnhancement as any)?.popularityEffects?.enabled === true,                        minRating: Math.max(0, Math.min(5, parseFloat(String((settings.listEnhancement as any)?.popularityEffects?.minRating ?? 4)) || 4)),
-                        minRatingCount: Math.max(0, parseInt(String((settings.listEnhancement as any)?.popularityEffects?.minRatingCount ?? 350), 10) || 350),
-                    },
-                });
-                listEnhancementManager.reapplyActorHidingForAll?.();
-            } catch (e) {
-                log('Failed to reapply actor-based list hiding after settings update:', e as any);
-            }
-
-            // 在默认隐藏功能处理完后，重新应用智能过滤
-            if (settings.userExperience.enableContentFilter) {
-                setTimeout(() => {
-                    // 使用公开方法触发重新应用：更新关键字规则会在已初始化时清理并重新应用过滤
-                    const keywordRules = settings.contentFilter?.keywordRules || [];
-                    contentFilterManager.updateKeywordRules(keywordRules);
-                    log('Content filter reapplied after settings update');
-                }, 100);
-            }
-
-            // 刷新 Emby 增强（应用右侧快捷按钮显示开关等）
-            try {
-                embyEnhancementManager.refresh?.();
-            } catch (e) {
-                log('Failed to refresh Emby enhancement after settings update:', e as any);
-            }
-
-            try {
-                if (window.location.pathname.startsWith('/v/')) {
-                    await videoDetailEnhancer.refreshTranslationFromSettings();
-                    await refreshActorMarksOnPage();
-                    await runActorRemarksQuick();
-                    log('Video detail enhancement reapplied after settings update');
-                }
-            } catch (e) {
-                log('Failed to reapply video detail enhancement after settings update:', e as any);
-            }
-        });
-        return false;
-    } else if (message.type === 'show-toast') {
-        // 处理来自background script的toast通知
-        log('Received toast message:', message.message, message.toastType);
-        try {
-            showToast(message.message, message.toastType || 'info');
-        } catch (err) {
-            console.error('[JavDB Ext] Failed to show toast:', err);
-        }
-        return false;
-    } else if (message.type === 'UPDATE_CONTENT_FILTER') {
-        // 更新内容过滤规则
-        if (message.keywordRules) {
-            // 先重新处理默认隐藏功能，然后再更新智能过滤
-            processVisibleItems();
-            setTimeout(() => {
-                contentFilterManager.updateKeywordRules(message.keywordRules);
-                log(`Content filter rules updated: ${message.keywordRules.length} rules`);
-            }, 100);
-        }
-        return false;
-    } else if (message.type === 'ACTOR_ENHANCEMENT_SAVE_FILTER') {
-        // 保存当前演员页过滤器
-        actorEnhancementManager.saveCurrentTagFilter()
-            .then(() => {
-                sendResponse({ success: true });
-            })
-            .catch((error: any) => {
-                console.error('保存演员页过滤器失败:', error);
-                sendResponse({ success: false, error: (error && error.message) || String(error) });
-            });
-        return true;
-    } else if (message.type === 'ACTOR_ENHANCEMENT_CLEAR_FILTERS') {
-        // 清除所有保存的过滤器
-        actorEnhancementManager.clearSavedFilters()
-            .then(() => {
-                sendResponse({ success: true });
-            })
-            .catch((error: any) => {
-                console.error('清除演员页过滤器失败:', error);
-                sendResponse({ success: false, error: (error && error.message) || String(error) });
-            });
-        return true;
-    } else if (message.type === 'ACTOR_ENHANCEMENT_GET_STATUS') {
-        // 获取演员页增强状态
-        try {
-            const status = actorEnhancementManager.getStatus();
-            sendResponse(status);
-        } catch (error: any) {
-            console.error('获取演员页状态失败:', error);
-            sendResponse({ error: error.message });
-        }
-        return false;
-    }
-    return false; // 确保所有分支都有返回值（同步处理）
-});
-
-async function initVolumeControl() {
-    try {
-        // 从设置对象中获取音量设置
-        const settings = await getSettings();
-        currentVolume = settings.listEnhancement?.previewVolume ?? 0.2;
-        log(`🎵 Volume control init: ${Math.round(currentVolume * 100)}%`);
-
-        // 监听popup消息
-        chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-            if (message.type === 'volume-changed') {
-                currentVolume = message.volume;
-                log(`🎚️ Volume updated: ${Math.round(currentVolume * 100)}%`);
-                applyVolumeToAllVideos();
-                sendResponse({ success: true });
-                return false;
-            }
-            return false;
-        });
-
-        // 监听点击事件 - 使用与调试脚本相同的逻辑
-        document.addEventListener('click', (e) => {
-            const target = e.target as Element;
-            const link = target.closest('a[data-fancybox], a[href*="preview-video"]');
-
-            if (link) {
-                log('🎬 Preview clicked!');
-
-                // 使用调试脚本验证成功的延迟策略
-                setTimeout(() => handleVideos(), 500);
-                setTimeout(() => handleVideos(), 1000);
-                setTimeout(() => handleVideos(), 2000);
-                startPreviewVideoWatcher();
-            }
-        });
-
-        log(`✅ Volume control ready`);
-
-    } catch (error) {
-        log(`❌ Volume control failed:`, error);
-    }
-}
-
-function handleVideos() {
-    const videos = document.querySelectorAll('video');
-    log(`📹 Found ${videos.length} videos`);
-
-    videos.forEach((video, index) => {
-        const v = video as HTMLVideoElement;
-        const style = getComputedStyle(v);
-
-        log(`Video ${index + 1}: id=${v.id}, display=${style.display}, muted=${v.muted}, volume=${v.volume}`);
-
-        // 如果是预览视频且可见，应用音量控制
-        if (isPreviewVideo(v) && style.display !== 'none') {
-            applyVolume(v);
-        }
-    });
-}
-
-function startPreviewVideoWatcher(): void {
-    if (previewVideoWatcherTimer !== null) {
-        return;
-    }
-
-    previewVideoWatcherTimer = window.setInterval(() => {
-        const previewVideos = Array.from(document.querySelectorAll('video')).filter(video => isPreviewVideo(video as HTMLVideoElement)) as HTMLVideoElement[];
-        const fancyboxOpen = document.querySelector('.fancybox-is-open') !== null;
-
-        if (previewVideos.length === 0 || !fancyboxOpen) {
-            releasePreviewVideos(previewVideos);
-            stopPreviewVideoWatcher();
-            return;
-        }
-
-        previewVideos.forEach(video => {
-            if (getComputedStyle(video).display !== 'none') {
-                activatePreviewVideoPreload(video);
-            }
-        });
-    }, 500);
-}
-
-function stopPreviewVideoWatcher(): void {
-    if (previewVideoWatcherTimer === null) {
-        return;
-    }
-
-    window.clearInterval(previewVideoWatcherTimer);
-    previewVideoWatcherTimer = null;
-}
-
-function releasePreviewVideos(videos: HTMLVideoElement[]): void {
-    videos.forEach(video => releasePreviewVideoMedia(video));
-}
-
-function isPreviewVideo(video: HTMLVideoElement): boolean {
-    return video.id === 'preview-video' ||
-           video.className.includes('fancybox-video');
-}
-
-function applyVolume(video: HTMLVideoElement) {
-    log(`🔧 Applying volume ${Math.round(currentVolume * 100)}% to: ${video.id}`);
-
-    try {
-        activatePreviewVideoPreload(video);
-        log(`  Before: muted=${video.muted}, volume=${video.volume}`);
-
-        // 直接设置，就像手动测试一样
-        video.muted = false;
-        video.volume = currentVolume;
-
-        log(`  After: muted=${video.muted}, volume=${video.volume}`);
-
-        // 添加视觉指示器
-        addVolumeIndicator(video);
-
-    } catch (error) {
-        log(`❌ Apply volume error:`, error);
-    }
-}
-
-function applyVolumeToAllVideos() {
-    const videos = document.querySelectorAll('video');
-    videos.forEach(video => {
-        const v = video as HTMLVideoElement;
-        if (isPreviewVideo(v)) {
-            activatePreviewVideoPreload(v);
-            applyVolume(v);
-        }
-    });
-}
-
-function addVolumeIndicator(video: HTMLVideoElement) {
-    try {
-        const container = video.parentElement;
-        if (!container) return;
-
-        // 移除已存在的指示器
-        const existing = container.querySelector('.volume-indicator');
-        if (existing) existing.remove();
-
-        // 创建指示器
-        const indicator = document.createElement('div');
-        indicator.className = 'volume-indicator';
-        indicator.style.cssText = `
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 9999;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        `;
-        indicator.textContent = `🔊 ${Math.round(currentVolume * 100)}%`;
-
-        // 确保容器有相对定位
-        if (getComputedStyle(container).position === 'static') {
-            container.style.position = 'relative';
-        }
-
-        container.appendChild(indicator);
-
-        // 显示动画
-        setTimeout(() => indicator.style.opacity = '1', 100);
-
-        // 3秒后隐藏
-        setTimeout(() => {
-            indicator.style.opacity = '0';
-            setTimeout(() => {
-                if (indicator.parentNode) indicator.remove();
-            }, 300);
-        }, 3000);
-
-    } catch (error) {
-        log(`❌ Add indicator error:`, error);
-    }
-}
-
-// 初始化音量控制
-initVolumeControl();
-
-// 暴露到全局以便调试
-if (typeof window !== 'undefined') {
-    (window as any).javdbVolumeControl = {
-        checkVideos: () => {
-            const videos = document.querySelectorAll('video');
-            console.log(`Found ${videos.length} videos:`, videos);
-            return videos;
-        },
-        forceApply: (volume = 0.75) => {
-            const videos = document.querySelectorAll('video');
-            videos.forEach(video => {
-                video.muted = false;
-                video.volume = volume;
-                console.log(`Applied volume ${volume} to video:`, video);
-            });
-        },
-        getCurrentVolume: () => currentVolume,
-        handleVideos: handleVideos
-    };
-
-    // 暴露列表增强管理器以便调试和测试
-    (window as any).listEnhancementManager = listEnhancementManager;
-
-    // 暴露演员页增强管理器以便调试和测试
-    (window as any).actorEnhancementManager = actorEnhancementManager;
-}
-
-// 页面卸载时清理资源
-window.addEventListener('beforeunload', () => {
-    try {
-        stopPreviewVideoWatcher();
-        // 清理视频详情页的状态监听器
-        cleanupVideoDetailObservers();
-
-        // 清理性能优化器
-        if (performanceOptimizer) {
-            performanceOptimizer.cleanup();
-        }
-
-        // 清理内容过滤器
-        if (contentFilterManager) {
-            contentFilterManager.destroy();
-        }
-
-        // 清理键盘快捷键管理器
-        if (keyboardShortcutsManager) {
-            keyboardShortcutsManager.destroy?.();
-        }
-
-        // 清理Emby增强管理器
-        if (embyEnhancementManager) {
-            embyEnhancementManager.destroy();
-        }
-
-        // 清理磁力搜索管理器
-        if (magnetSearchManager) {
-            magnetSearchManager.destroy?.();
-        }
-
-        log('Resources cleaned up on page unload');
-    } catch (error) {
-        log('Error during cleanup:', error);
-    }
-});
-
-// 监听扩展上下文失效
-if (typeof chrome !== 'undefined' && chrome.runtime) {
-    // 监听runtime错误
-    chrome.runtime.onConnect.addListener((port) => {
-        port.onDisconnect.addListener(() => {
-            if (chrome.runtime.lastError) {
-                log('[Context] Extension context may be invalidated:', chrome.runtime.lastError.message);
-                // 执行清理操作
-                performanceOptimizer?.cleanup();
-            }
-        });
-    });
-}
-
-// 监听页面可见性变化，在页面隐藏时减少资源消耗
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        // 页面隐藏时，暂停一些非关键任务
-        log('[Performance] Page hidden, reducing resource usage');
-        performanceOptimizer?.updateConfig({
-            maxConcurrentRequests: 1,
-            domBatchSize: 2,
-            domThrottleDelay: 200,
-            enableMemoryCleanup: true,
-            memoryCleanupInterval: 20000,
-        });
-        try {
-            // 降档：仅保留 SUK + BTD，减少结果与超时
-            magnetSearchManager.updateConfig({
-                sources: { sukebei: true, btdig: true, btsow: false, torrentz2: false, javbus: false, custom: [] },
-                maxResults: 8,
-                timeout: 5000,
-            });
-        } catch {}
-    } else {
-        // 页面显示时，恢复正常配置
-        log('[Performance] Page visible, restoring normal resource usage');
-        try {
-            const s = STATE.settings as any;
-            const mc = (s?.magnetSearch?.concurrency?.pageMaxConcurrentRequests ?? 2) as number;
-            performanceOptimizer?.updateConfig({
-                maxConcurrentRequests: mc,
-                domBatchSize: 5,
-                domThrottleDelay: 100,
-            });
-            // 恢复用户设定的磁力源、结果数与超时
-            const magnetSearchConfig = s?.magnetSearch || {};
-            const sources = magnetSearchConfig.sources || {};
-            magnetSearchManager.updateConfig({
-                sources: {
-                    sukebei: sources.sukebei !== false,
-                    btdig: sources.btdig !== false,
-                    btsow: sources.btsow !== false,
-                    torrentz2: sources.torrentz2 || false,
-                    javbus: sources.javbus === true,
-                    custom: [],
-                },
-                maxResults: (magnetSearchConfig.maxResults ?? 15),
-                timeout: (magnetSearchConfig.timeoutMs ?? 8000),
-            });
-        } catch {
-            performanceOptimizer?.updateConfig({ maxConcurrentRequests: 2, domBatchSize: 5, domThrottleDelay: 100 });
-        }
-    }
-});

@@ -1,4 +1,4 @@
-import { quickDiagnose, type DiagnosticResult } from '../../../utils/webdavDiagnostic';
+import { quickDiagnose, type DiagnosticResult } from './webdavDiagnostic';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
 
 export interface WebDAVDiagnosticOptions {

@@ -13,5 +13,9 @@ export {
   type SchedulerConfig,
 } from './requestScheduler';
 export { registerNetProxyRouter } from './backgroundFetchRouter';
+export { bgFetchJSON, bgFetchText } from './clientFetch';
+export { lookupIpOrDomain } from './ipLookup';
 export { NetworkError } from './types';
+export type { BgFetchJSONResult, BgFetchTextResult } from './clientFetch';
+export type { IpWhoisResult } from './ipLookup';
 export type { FetchOptions } from './types';

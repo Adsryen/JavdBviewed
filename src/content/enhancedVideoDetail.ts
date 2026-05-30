@@ -17,6 +17,11 @@ import { showEnhancementDone } from './enhancementLoadingIndicator';
 import { getJavdbTheme, isDarkTheme, type JavdbTheme } from './utils';
 import { addTaskUrlsV2 } from '../features/drive115/router';
 import {
+  activatePreviewVideoPreload,
+  releasePreviewVideoMedia,
+  attachNativeJavdbPreview,
+  isAttachedNativeJavdbPreview,
+  restoreNativeJavdbPreview,
   createPreviewCacheEntry,
   getPreviewSourceType,
   isKnownBadVbgflPreviewUrl,
@@ -25,13 +30,7 @@ import {
   parsePreviewCacheEntry,
   serializePreviewCacheEntry,
   type PreviewSourceName,
-} from './previewSourceRules';
-import { activatePreviewVideoPreload, releasePreviewVideoMedia } from './previewVideoPreload';
-import {
-  attachNativeJavdbPreview,
-  isAttachedNativeJavdbPreview,
-  restoreNativeJavdbPreview,
-} from './nativeJavdbPreview';
+} from '../features/previews';
 
 const RELATED_LISTS_PAGE_SIZE = 10;
 

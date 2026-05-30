@@ -1,4 +1,5 @@
 import { getSettings } from '../../utils/storage';
+import { registerEmbyDynamicScripts } from './embyDynamicContentScripts';
 
 let routesTabListener: ((tabId: number, changeInfo: any, tab: chrome.tabs.Tab) => void) | null = null;
 
@@ -98,7 +99,6 @@ export async function registerEmbyDynamicContentScriptsOnStartup(): Promise<void
   try {
     const settings = await getSettings();
     if (settings?.emby?.enabled) {
-      const { registerEmbyDynamicScripts } = await import('../../background/miscHandlers');
       await registerEmbyDynamicScripts(settings.emby);
     }
   } catch (e: any) {

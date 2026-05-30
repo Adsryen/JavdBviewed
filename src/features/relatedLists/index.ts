@@ -1,7 +1,7 @@
 // src/features/relatedLists/index.ts
 
 import { log } from '../../content/state';
-import { bgFetchJSON } from '../../utils/net';
+import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { ReviewBreakerService } from '../reviewUnlock';
 
 export interface RelatedListItem {

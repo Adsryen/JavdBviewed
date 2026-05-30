@@ -1,4 +1,4 @@
-import { handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM, registerMonthlyAlarm } from '../../background/scheduler';
+import { handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM, registerMonthlyAlarm } from './scheduler';
 import { newWorksScheduler } from '../../features/newWorks';
 import { handleTelemetryAlarm, syncTelemetryHeartbeatAlarm } from '../../features/telemetry';
 import { getSettings } from '../../utils/storage';

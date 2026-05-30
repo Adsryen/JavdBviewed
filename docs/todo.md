@@ -45,6 +45,54 @@
   - [ ] 补充测试：设置页 Device ID 变化后，payload 的 `deviceId` 使用最新 `webdav.clientId`
   - [ ] 补充兼容测试：无 `webdav.clientId` 时仍能用 telemetry install state 完成内部归并
 
+- [ ] 错误事件上报（error_report）
+  - [ ] 设计原则：参考浏览器错误上报，只报"什么坏了"，不报"用户在看什么"
+    - 上报三元组：`component`（在哪坏的）+ `code`（怎么坏的）+ `stackHash`（哪行代码）
+    - `message` 只保留 Error 类名（如 `TypeError`、`ReferenceError`），**丢弃 `.message` 内容**
+    - 不上报页面 URL、番号、磁力链接、API 地址、token 等任何用户数据
+    - 不上报原始 stack trace，只上报 MD5 哈希后的 `stackHash`
+  - [ ] 扩展 `domain/types.ts` 类型定义
+    - `TelemetryEventType` 加 `'error_report'`
+    - 新增 `TelemetryErrorInfo`（component / code / message[仅类名] / stackHash / fatal）
+    - 新增 `TelemetryErrorReportPayload`（轻量 payload，不含 features/metrics）
+    - 新增 `TelemetryAnyPayload` 联合类型
+    - `TelemetryReportResult.reason` 加 `'internal-error'` 和 `'deduplicated'`
+  - [ ] 新增 `application/buildErrorReportPayload.ts`
+    - 轻量 payload 构建器：只构建 client + activity + error，跳过 features/metrics
+    - `component` 截断 80 字符
+    - `message` 只取 Error 类名（如 `TypeError`），无 Error 对象时用 `UnknownError`，截断 80 字符
+    - stack 归一化（去行号/列号、取前 10 帧、替换 chunk hash）后 MD5 生成 `stackHash`
+    - 导出 `generateStackHash()` 供节流模块使用
+    - 复用 `getTelemetryRuntimeInfo()` 和 `createTelemetryEventId()`
+  - [ ] 新增 `application/errorThrottle.ts`
+    - 会话级去重：`Set<stackHash>`，同一 service worker 生命周期内同一错误只上报一次
+    - 指纹级冷却：`Map<stackHash, timestamp>`，5 分钟冷却期
+    - 上限 100 个指纹，超出淘汰最旧
+    - 导出 `shouldReportError(stackHash)` 和测试用 `__resetErrorThrottle()`
+  - [ ] 新增 `application/errorReporter.ts`
+    - `reportTelemetryError(error, options?)` 整合 payload 构建 + 节流 + 发送
+    - 全局 try-catch 包裹，永不抛异常
+    - 检查 telemetry enabled / endpoint 存在后才发送
+  - [ ] 更新 `infrastructure/telemetryClient.ts`
+    - `SendTelemetryInput.payload` 类型从 `TelemetryPayload` 扩展为 `TelemetryPayload | TelemetryErrorReportPayload`
+  - [ ] 更新 `application/runtimeMessages.ts`
+    - `handleTelemetryRuntimeMessage` 新增 `telemetry:error` 消息处理
+    - 从 content script 接收错误 payload 并转发给 `reportTelemetryError()`
+  - [ ] 更新 `apps/background/errorHandlers.ts`
+    - 在全局 `unhandledrejection` 和 `error` 监听中 fire-and-forget 调用 `reportTelemetryError()`
+    - 只提取 `error.name`（类名）和 `error.constructor.name`，**不提取 `error.message`**
+  - [ ] 更新 `apps/content/bootstrap.ts`
+    - 新增局部 `reportContentError()` 函数，通过 `chrome.runtime.sendMessage` 发送 `telemetry:error`
+    - 只传 `error.name`（类名），**不传 `error.message`、`window.location`、页面内容**
+    - 新增 `window` 级 `error` + `unhandledrejection` 全局监听器
+    - `onExecute()` 的 `.catch` 中调用 `reportContentError(err, 'init')`
+  - [ ] 更新 `index.ts` 导出
+  - [ ] 验证
+    - 单元测试：payload 构建、stackHash 一致性、节流/去重、reporter 集成、runtime message 处理
+    - 隐私测试：确认 payload 中不含任何用户数据（番号、URL、token、磁力链）
+    - 手动验证：dev 模式触发已知错误，检查 network 面板 POST body
+    - 后端验证：admin API `GET /v1/admin/events?event=error_report`
+
 ---
 
 ## 🧱 项目结构 / 代码组织
@@ -307,26 +355,88 @@
   - [x] 建立 `features/webdavSync/background/router.ts`
   - [x] 迁移备份预览、恢复设置、恢复记录、恢复日志、恢复 IDB 数据逻辑
   - [x] `background/webdav.ts` 收缩为 `features/webdavSync` 兼容导出
-- [ ] 第三十二批迁移：番号详情刷新功能域
-  - [ ] 为 `background/sync.ts` 增加刷新流程和解析器测试
-  - [ ] 建立 `features/records/refresh`
-  - [ ] 迁移 JavDB 搜索页解析、详情页解析、Cloudflare 验证请求、FC2 刷新逻辑
-  - [ ] `background/sync.ts` 保留 re-export 兼容
-  - [ ] `background/dbRouter.ts` 和 WebDAV 恢复链路改用 `features/records/refresh`
-- [ ] 第三十三批迁移：`src/utils` 继续瘦身
-  - [ ] 迁移 `utils/searchEngines.ts` 到 `features/externalSearch/domain`
-  - [ ] 迁移 `utils/net.ts` 到 `platform/network`
-  - [ ] 迁移 `utils/ipLookup.ts` 到 `platform/network`
-  - [ ] 迁移 `utils/webdavDiagnostic.ts` 到 `features/webdavSync/application`
-  - [ ] 评估 `utils/config.ts` 拆分为 `shared/config` 与各 feature config
-  - [ ] 旧 `utils/*` 路径保留兼容导出一轮
-- [ ] 第三十四批迁移：Content 功能域继续瘦身
-  - [ ] 评估 `content/previewVideoPreload.ts` 与 `nativeJavdbPreview.ts` 迁入 `features/previews`
-  - [ ] 迁移前修复 `tests/dom/previewVideoPreload.test.ts` 当前失败断言
-  - [ ] 评估 `content/contentFilter.ts` 迁入 `features/contentFilter`
-  - [ ] 评估 `content/superRankingNav.ts` 迁入 `features/rankings`
-  - [ ] 评估 `content/enhancements/*` 迁入 `features/listEnhancement` 与 `features/actorEnhancement`
-  - [ ] 保持 manifest content 入口和 `apps/content/bootstrap.ts` 只做装配
+- [x] 第三十二批迁移：番号详情刷新功能域
+  - [x] 为 `background/sync.ts` 增加刷新流程和解析器测试
+  - [x] 建立 `features/records/refresh`
+  - [x] 迁移 JavDB 搜索页解析、详情页解析、Cloudflare 验证请求、FC2 刷新逻辑
+  - [x] `background/sync.ts` 保留 re-export 兼容
+  - [x] `background/dbRouter.ts` 和 WebDAV 恢复链路已复核无直接刷新调用，刷新消息入口改用 `features/records/refresh`
+- [x] 第三十三批迁移：`src/utils` 继续瘦身
+  - [x] 迁移 `utils/searchEngines.ts` 到 `features/externalSearch/domain`
+  - [x] 迁移 `utils/net.ts` 到 `platform/network`
+  - [x] 迁移 `utils/ipLookup.ts` 到 `platform/network`
+  - [x] 迁移 `utils/webdavDiagnostic.ts` 到 `features/webdavSync/application`
+  - [x] 评估 `utils/config.ts` 拆分为 `shared/config` 与各 feature config，本批先保持稳定，后续作为独立配置拆分批次处理
+  - [x] 旧 `utils/*` 路径保留兼容导出一轮
+- [x] 第三十四批迁移：Content 功能域继续瘦身
+  - [x] 修复 `tests/dom/previewVideoPreload.test.ts` 当前失败断言，恢复释放后重新激活 `<source>` 的行为
+  - [x] 迁移 `content/previewVideoPreload.ts`、`nativeJavdbPreview.ts`、`previewSourceRules.ts` 到 `features/previews`
+  - [x] 迁移 `content/superRankingNav.ts` 到 `features/rankings`
+  - [x] 评估 `content/contentFilter.ts`：当前 1144 行且与 orchestrator、快捷键、设置和列表状态强耦合，拆成后续独立批次
+  - [x] 评估 `content/enhancements/*`：`listEnhancement` 2198 行、`actorEnhancement` 1176 行、`actorQuickActions` 696 行，按列表增强/演员增强拆成后续独立批次
+  - [x] 保留 `content/*` 旧路径兼容导出，`apps/content/bootstrap.ts` 已改用 `features/previews` 与 `features/rankings`
+- [x] 第三十五批迁移：Content 复杂增强拆分
+  - [x] 迁移 `content/contentFilter.ts` 到 `features/contentFilter`
+  - [x] 迁移 `content/enhancements/listEnhancement.ts` 到 `features/listEnhancement`
+  - [x] 迁移 `content/enhancements/actorEnhancement.ts` 到 `features/actorEnhancement`
+  - [x] 迁移 `content/enhancements/actorQuickActions.ts` 到 `features/actorEnhancement`
+  - [x] 继续收缩 `apps/content/bootstrap.ts`，保留装配职责
+- [x] 第三十六批迁移：Background 杂项路由拆分
+  - [x] 迁移预览 URL 检测与预览源抓取 handler 到 `features/previews/backgroundHandlers.ts`
+  - [x] 迁移新作品手动检查、单演员检查、取消与调度状态消息到 `features/newWorks/backgroundMessages.ts`
+  - [x] 迁移 orchestrator 指标保存、聚合、任务明细与停止任务逻辑到 `apps/background/orchestratorMetrics.ts`
+  - [x] 迁移 Emby 动态内容脚本注入到 `apps/background/embyDynamicContentScripts.ts`
+  - [x] 收缩 `background/miscHandlers.ts` 为消息路由和少量共享 handler
+- [x] 第三十七批迁移：Background DB 路由收口
+  - [x] 迁移 `background/dbRouter.ts` 到 `apps/background/dbMessageRouter.ts`
+  - [x] `apps/background/bootstrap.ts` 改用新 DB 路由入口
+  - [x] 旧 `background/dbRouter.ts` 保留兼容导出
+- [x] 第三十八批迁移：Background scheduler 收口
+  - [x] 迁移 `background/scheduler.ts` 到 `apps/background/scheduler.ts`
+  - [x] `apps/background/alarmRouter.ts` 改用新 scheduler 路径
+  - [x] WebDAV 自动同步 alarm 常量调用改用新路径
+  - [x] 旧 `background/scheduler.ts` 保留兼容导出
+- [x] 第三十九批迁移：115 v2 后台代理归位
+  - [x] 迁移 `background/drive115Proxy.ts` 到 `features/drive115/v2/backgroundProxy.ts`
+  - [x] `apps/background/bootstrap.ts` 改用 115 feature 路径
+  - [x] 旧 `background/drive115Proxy.ts` 保留兼容导出
+- [x] 第四十批迁移：WebDAV 后台 controller 收口
+  - [x] 迁移 `background/webdav.ts` 的后台装配逻辑到 `features/webdavSync/background/controller.ts`
+  - [x] `apps/background/bootstrap.ts` 改用 WebDAV feature controller
+  - [x] `apps/background/scheduler.ts` 的自动同步入口改用 WebDAV feature controller
+  - [x] 旧 `background/webdav.ts` 保留兼容导出
+- [x] 第四十一批迁移：Background misc message router 收口
+  - [x] 迁移 `background/miscHandlers.ts` 到 `apps/background/miscMessageRouter.ts`
+  - [x] `apps/background/bootstrap.ts` 改用本地 misc message router
+  - [x] 旧 `background/miscHandlers.ts` 保留兼容导出
+- [x] 第四十二批迁移：Storage migrations 收口
+  - [x] 迁移 `background/migrations.ts` 到 `platform/storage/migrations.ts`
+  - [x] `apps/background/bootstrap.ts` 改用 storage platform migrations
+  - [x] `platform/storage/index.ts` 暴露 migrations 入口
+  - [x] 旧 `background/migrations.ts` 保留兼容导出
+- [x] 第四十三批迁移：Background 测试文件与 IndexedDB 存储拆分
+  - [x] 迁移 `src/background/db.logs.test.ts` 到 `tests/regression/logRetentionSettings.test.ts`
+  - [x] 增加架构回归约束：`src/background` 不放测试文件
+  - [x] 拆出 `platform/storage/indexedDbSchema.ts`
+  - [x] 拆出 `platform/storage/indexedDbConnection.ts`
+  - [x] 拆出 `platform/storage/indexedDbLogFields.ts`
+  - [x] 拆出 `platform/storage/indexedDbViewedIndexes.ts`
+  - [x] `platform/storage/indexedDb.ts` 保持稳定 API facade
+- [x] 第四十四批迁移：磁力结果 metadata 纯逻辑拆分
+  - [x] 拆出 `features/magnets/application/resultMetadata.ts`
+  - [x] 迁移磁力大小解析、字幕识别、画质识别、破解识别、日期归一化、番号匹配和排序逻辑
+  - [x] `features/magnets/ui/magnetSearchManager.ts` 保持 UI 编排与 DOM 渲染职责
+  - [x] `features/magnets/index.ts` 暴露 result metadata 稳定入口
+  - [x] 补充 `tests/dom/magnetResultMetadata.test.ts`
+- [x] 第四十五批迁移：列表增强配置、热度和样式拆分
+  - [x] 拆出 `features/listEnhancement/domain/config.ts`
+  - [x] 拆出 `features/listEnhancement/application/actorMatching.ts`
+  - [x] 拆出 `features/listEnhancement/application/actorHiding.ts`
+  - [x] 拆出 `features/listEnhancement/application/popularityEffects.ts`
+  - [x] 拆出 `features/listEnhancement/ui/styles.ts`
+  - [x] `features/listEnhancement/listEnhancementManager.ts` 保持列表增强 DOM 编排和生命周期职责
+  - [x] `features/listEnhancement/index.ts` 暴露配置、演员匹配、演员隐藏决策、热度效果和样式入口
+  - [x] 补充 `tests/dom/listEnhancementHelpers.test.ts`
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`

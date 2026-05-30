@@ -2,7 +2,7 @@
 // 破解评论区功能 - 基于JAV-JHS的实现
 
 import { log } from '../../content/state';
-import { bgFetchJSON } from '../../utils/net';
+import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { md5Hex } from '../../utils/md5';
 
 export interface ReviewData {

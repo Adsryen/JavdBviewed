@@ -16,7 +16,7 @@ import {
     getSearchEngineCategory,
     isBundledSearchEngine,
     resolveSearchEngineIcon
-} from '../../../../utils/searchEngines';
+} from '../../../../features/externalSearch/domain/searchEngines';
 import { showMessage } from '../../../ui/toast';
 
 interface SearchEngine {
