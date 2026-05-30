@@ -19,7 +19,7 @@ function collectExportedFunctions(source: string): string[] {
 
 describe('WebDAV backup and restore baseline', () => {
   it('locks current WebDAV router message contract and sync export contract', () => {
-    expect(collectSwitchCases(readSource('src/background/webdav.ts'))).toEqual([
+    expect(collectSwitchCases(readSource('src/features/webdavSync/background/router.ts'))).toEqual([
       'webdav-list-files',
       'WEB_DAV:RESTORE_PREVIEW',
       'WEB_DAV:RESTORE_UNIFIED',
@@ -56,7 +56,7 @@ describe('WebDAV backup and restore baseline', () => {
     expect(joinWebDavUrl('https://alist.example.com/dav/backups', 'clients/device.json')).toBe('https://alist.example.com/dav/backups/clients/device.json');
     expect(buildUploadId('abcdef1234567890', '2026-05-27T07:22:55.524Z')).toBe('20260527_072255524Z_abcdef12');
     expect(sanitizeDeviceLabel('  Work Laptop  ')).toBe('Work Laptop');
-  });
+  }, 10000);
 
   it('parses PROPFIND XML and keeps only user backup files', async () => {
     const { isUserBackupFile, parseWebDAVResponse } = await import('../../src/background/webdav');

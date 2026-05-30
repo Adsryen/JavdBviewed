@@ -283,30 +283,30 @@
   - [x] 补充导入设置清洗、local-only key 过滤测试
   - [x] 补充恢复预览、对象 map 转数组、批量写入边界测试
   - [x] 补充连接诊断参数映射测试
-- [ ] 第二十九批迁移：WebDAV 基础设施与设备档案
-  - [ ] 建立 `features/webdavSync`
-  - [ ] 建立 `features/webdavSync/domain/types.ts`
-  - [ ] 建立 `features/webdavSync/domain/paths.ts`
-  - [ ] 建立 `features/webdavSync/infrastructure/webdavClient.ts`
-  - [ ] 建立 `features/webdavSync/infrastructure/propfindParser.ts`
-  - [ ] 建立 `features/webdavSync/application/clientIdentity.ts`
-  - [ ] 建立 `features/webdavSync/application/clientRegistry.ts`
-  - [ ] `background/webdav.ts` 继续保留 router 入口，内部逐步改用新模块
-- [ ] 第三十批迁移：WebDAV 备份上传链路拆分
-  - [ ] 建立 `features/webdavSync/application/backupCollector.ts`
-  - [ ] 建立 `features/webdavSync/application/uploadIndex.ts`
-  - [ ] 建立 `features/webdavSync/application/uploadService.ts`
-  - [ ] 建立 `features/webdavSync/application/cleanupService.ts`
-  - [ ] 迁移备份数据采集、zip/json 生成、上传与保留数量清理
-  - [ ] 保持手动备份、自动备份、上传索引和设备档案行为一致
-- [ ] 第三十一批迁移：WebDAV 恢复与诊断链路拆分
-  - [ ] 建立 `features/webdavSync/application/restorePreview.ts`
-  - [ ] 建立 `features/webdavSync/application/restoreService.ts`
-  - [ ] 建立 `features/webdavSync/application/importSanitizer.ts`
-  - [ ] 建立 `features/webdavSync/application/diagnostics.ts`
-  - [ ] 建立 `features/webdavSync/background/router.ts`
-  - [ ] 迁移备份预览、恢复设置、恢复记录、恢复日志、恢复 IDB 数据逻辑
-  - [ ] `background/webdav.ts` 收缩为 `features/webdavSync` 兼容导出
+- [x] 第二十九批迁移：WebDAV 基础设施与设备档案
+  - [x] 建立 `features/webdavSync`
+  - [x] 建立 `features/webdavSync/domain/types.ts`
+  - [x] 建立 `features/webdavSync/domain/paths.ts`
+  - [x] 建立 `features/webdavSync/infrastructure/webdavClient.ts`
+  - [x] 建立 `features/webdavSync/infrastructure/propfindParser.ts`
+  - [x] 建立 `features/webdavSync/application/clientIdentity.ts`
+  - [x] 建立 `features/webdavSync/application/clientRegistry.ts`
+  - [x] `background/webdav.ts` 继续保留 router 入口，内部逐步改用新模块
+- [x] 第三十批迁移：WebDAV 备份上传链路拆分
+  - [x] 建立 `features/webdavSync/application/backupCollector.ts`
+  - [x] 建立 `features/webdavSync/application/uploadIndex.ts`
+  - [x] 建立 `features/webdavSync/application/uploadService.ts`
+  - [x] 建立 `features/webdavSync/application/cleanupService.ts`
+  - [x] 迁移备份数据采集、zip/json 生成、上传与保留数量清理
+  - [x] 保持手动备份、自动备份、上传索引和设备档案行为一致
+- [x] 第三十一批迁移：WebDAV 恢复与诊断链路拆分
+  - [x] 建立 `features/webdavSync/application/restorePreview.ts`
+  - [x] 建立 `features/webdavSync/application/restoreService.ts`
+  - [x] 建立 `features/webdavSync/application/importSanitizer.ts`
+  - [x] 建立 `features/webdavSync/application/diagnostics.ts`
+  - [x] 建立 `features/webdavSync/background/router.ts`
+  - [x] 迁移备份预览、恢复设置、恢复记录、恢复日志、恢复 IDB 数据逻辑
+  - [x] `background/webdav.ts` 收缩为 `features/webdavSync` 兼容导出
 - [ ] 第三十二批迁移：番号详情刷新功能域
   - [ ] 为 `background/sync.ts` 增加刷新流程和解析器测试
   - [ ] 建立 `features/records/refresh`

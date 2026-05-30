@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import manifest from '../../src/manifest.json';
 import { DEFAULT_SETTINGS, SERVER_API_BASE_URL } from '../../src/utils/config';
 import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';
 
@@ -63,7 +64,7 @@ describe('RouteManager remote config', () => {
     await expect(RouteManager.getInstance().checkAndUpdateRoutes(true)).resolves.toBe(true);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `${SERVER_API_BASE_URL}/v1/config?channel=stable&version=1.20.2&platform=unknown&locale=en-US`,
+      `${SERVER_API_BASE_URL}/v1/config?channel=stable&version=${manifest.version}&platform=unknown&locale=en-US`,
       expect.objectContaining({
         cache: 'no-cache',
       }),
