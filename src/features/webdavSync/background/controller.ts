@@ -57,7 +57,7 @@ export { byteSizeOf, omitLocalOnlyStorageKeys } from '../application/backupColle
 export { buildNextWebDAVUploadIndex } from '../application/uploadIndex';
 export { sanitizeImportedSettings } from '../application/importSanitizer';
 export { buildBackupPreview } from '../application/restorePreview';
-export { chunk, toArrayFromObjMap } from '../application/restoreService';
+export { chunk, toArrayFromObjMap } from '../application/restoreStorage';
 export { buildWebDAVDiagnosticConfig } from '../application/diagnostics';
 
 function bgLog(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): void {

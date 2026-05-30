@@ -350,10 +350,12 @@
 - [x] 第三十一批迁移：WebDAV 恢复与诊断链路拆分
   - [x] 建立 `features/webdavSync/application/restorePreview.ts`
   - [x] 建立 `features/webdavSync/application/restoreService.ts`
+  - [x] 建立 `features/webdavSync/application/restoreStorage.ts`
   - [x] 建立 `features/webdavSync/application/importSanitizer.ts`
   - [x] 建立 `features/webdavSync/application/diagnostics.ts`
   - [x] 建立 `features/webdavSync/background/router.ts`
   - [x] 迁移备份预览、恢复设置、恢复记录、恢复日志、恢复 IDB 数据逻辑
+  - [x] 拆出恢复集合归一化、store 清空和批量写入工具
   - [x] `background/webdav.ts` 收缩为 `features/webdavSync` 兼容导出
 - [x] 第三十二批迁移：番号详情刷新功能域
   - [x] 为 `background/sync.ts` 增加刷新流程和解析器测试
@@ -386,11 +388,25 @@
   - [x] 迁移新作品手动检查、单演员检查、取消与调度状态消息到 `features/newWorks/backgroundMessages.ts`
   - [x] 迁移 orchestrator 指标保存、聚合、任务明细与停止任务逻辑到 `apps/background/orchestratorMetrics.ts`
   - [x] 迁移 Emby 动态内容脚本注入到 `apps/background/embyDynamicContentScripts.ts`
+  - [x] 拆出 `apps/background/tabMessageHandlers.ts`
+  - [x] 拆出 `apps/background/networkMessageHandlers.ts`
+  - [x] 拆出 `apps/background/userProfileMessageHandler.ts`
+  - [x] 拆出 `apps/background/utilityMessageHandlers.ts`
   - [x] 收缩 `background/miscHandlers.ts` 为消息路由和少量共享 handler
+  - [x] 补充 `tests/extension/backgroundTabHandlers.test.ts`
+  - [x] 补充 network/userProfile/utility handler 单测
 - [x] 第三十七批迁移：Background DB 路由收口
   - [x] 迁移 `background/dbRouter.ts` 到 `apps/background/dbMessageRouter.ts`
   - [x] `apps/background/bootstrap.ts` 改用新 DB 路由入口
   - [x] 旧 `background/dbRouter.ts` 保留兼容导出
+  - [x] 拆出 `apps/background/dbTagsMessageHandlers.ts`
+  - [x] 拆出 `apps/background/dbMagnetPushLogMessageHandlers.ts`
+  - [x] 拆出 `apps/background/dbInsightsMessageHandlers.ts`
+  - [x] 拆出 `apps/background/dbLogMessageHandlers.ts`
+  - [x] 补充 `DB:GET_ALL_TAGS` 与旧 storage 分片读取测试
+  - [x] 补充 `DB:MAGNET_PUSH_LOGS_*` handler 单测
+  - [x] 补充 `DB:INSIGHTS_*` 与 `DB:TRENDS_*` handler 单测
+  - [x] 补充 `DB:LOGS_*` handler 单测
 - [x] 第三十八批迁移：Background scheduler 收口
   - [x] 迁移 `background/scheduler.ts` 到 `apps/background/scheduler.ts`
   - [x] `apps/background/alarmRouter.ts` 改用新 scheduler 路径
@@ -432,11 +448,31 @@
   - [x] 拆出 `features/listEnhancement/domain/config.ts`
   - [x] 拆出 `features/listEnhancement/application/actorMatching.ts`
   - [x] 拆出 `features/listEnhancement/application/actorHiding.ts`
+  - [x] 拆出 `features/listEnhancement/application/actorHidingWorkflow.ts`
+  - [x] 拆出 `features/listEnhancement/application/actorWatermark.ts`
   - [x] 拆出 `features/listEnhancement/application/popularityEffects.ts`
+  - [x] 拆出 `features/listEnhancement/application/scrollPaging.ts`
+  - [x] 拆出 `features/listEnhancement/ui/clickEnhancement.ts`
+  - [x] 拆出 `features/listEnhancement/ui/listItemObserver.ts`
+  - [x] 拆出 `features/listEnhancement/ui/listItemDom.ts`
+  - [x] 拆出 `features/listEnhancement/ui/listScrollState.ts`
+  - [x] 拆出 `features/listEnhancement/ui/listDisplayControl.ts`
+  - [x] 拆出 `features/listEnhancement/ui/previewHoverController.ts`
   - [x] 拆出 `features/listEnhancement/ui/styles.ts`
+  - [x] 拆出 `features/previews/listPreviewLoader.ts`
   - [x] `features/listEnhancement/listEnhancementManager.ts` 保持列表增强 DOM 编排和生命周期职责
-  - [x] `features/listEnhancement/index.ts` 暴露配置、演员匹配、演员隐藏决策、热度效果和样式入口
+  - [x] `features/listEnhancement/index.ts` 暴露配置、演员匹配、演员隐藏决策、演员隐藏执行流程、演员水印、热度效果、滚动翻页、点击增强、列表项 DOM、列表项观察、滚动状态、列表显示控制、预览 hover 控制和样式入口
+  - [x] `features/previews/index.ts` 暴露预览加载入口
   - [x] 补充 `tests/dom/listEnhancementHelpers.test.ts`
+  - [x] 补充 `tests/dom/actorWatermark.test.ts`
+  - [x] 补充 `tests/dom/actorHidingWorkflow.test.ts`
+  - [x] 补充 `tests/dom/listScrollPaging.test.ts`
+  - [x] 补充 `tests/dom/listClickEnhancement.test.ts`
+  - [x] 补充 `tests/dom/listItemObserver.test.ts`
+  - [x] 补充 `tests/dom/listItemDom.test.ts`
+  - [x] 补充 `tests/dom/listScrollState.test.ts`
+  - [x] 补充 `tests/dom/listDisplayControl.test.ts`
+  - [x] 补充 `tests/dom/listPreviewHoverController.test.ts`
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`

@@ -729,6 +729,7 @@ describe('source architecture cleanup', () => {
     const expectedFiles = [
       'src/features/webdavSync/application/restorePreview.ts',
       'src/features/webdavSync/application/restoreService.ts',
+      'src/features/webdavSync/application/restoreStorage.ts',
       'src/features/webdavSync/application/importSanitizer.ts',
       'src/features/webdavSync/application/diagnostics.ts',
       'src/features/webdavSync/background/router.ts',
@@ -742,6 +743,7 @@ describe('source architecture cleanup', () => {
     const source = fs.readFileSync(path.resolve(root, 'src/features/webdavSync/background/controller.ts'), 'utf8');
     expect(source).toMatch(/\.\.\/application\/restorePreview/);
     expect(source).toMatch(/\.\.\/application\/restoreService/);
+    expect(source).toMatch(/\.\.\/application\/restoreStorage/);
     expect(source).toMatch(/\.\.\/application\/importSanitizer/);
     expect(source).toMatch(/\.\.\/application\/diagnostics/);
     expect(source).toMatch(/\.\/router/);
@@ -928,8 +930,18 @@ describe('source architecture cleanup', () => {
       'src/features/listEnhancement/domain/config.ts',
       'src/features/listEnhancement/application/actorMatching.ts',
       'src/features/listEnhancement/application/actorHiding.ts',
+      'src/features/listEnhancement/application/actorHidingWorkflow.ts',
+      'src/features/listEnhancement/application/actorWatermark.ts',
       'src/features/listEnhancement/application/popularityEffects.ts',
+      'src/features/listEnhancement/application/scrollPaging.ts',
+      'src/features/listEnhancement/ui/clickEnhancement.ts',
+      'src/features/listEnhancement/ui/listItemObserver.ts',
+      'src/features/listEnhancement/ui/listItemDom.ts',
+      'src/features/listEnhancement/ui/listScrollState.ts',
+      'src/features/listEnhancement/ui/listDisplayControl.ts',
+      'src/features/listEnhancement/ui/previewHoverController.ts',
       'src/features/listEnhancement/ui/styles.ts',
+      'src/features/previews/listPreviewLoader.ts',
     ];
 
     for (const file of expectedFiles) {
@@ -948,11 +960,19 @@ describe('source architecture cleanup', () => {
 
     const featureSource = fs.readFileSync(path.resolve(root, 'src/features/listEnhancement/listEnhancementManager.ts'), 'utf8');
     const managerLineCount = featureSource.split(/\r?\n/).length;
-    expect(managerLineCount, 'listEnhancementManager.ts should keep shrinking as config, pure helpers, and styles move out').toBeLessThanOrEqual(1650);
+    expect(managerLineCount, 'listEnhancementManager.ts should keep shrinking as config, pure helpers, and styles move out').toBeLessThanOrEqual(900);
     expect(featureSource).toMatch(/\.\/domain\/config/);
-    expect(featureSource).toMatch(/\.\/application\/actorMatching/);
-    expect(featureSource).toMatch(/\.\/application\/actorHiding/);
+    expect(featureSource).toMatch(/\.\/application\/actorHidingWorkflow/);
+    expect(featureSource).toMatch(/\.\/application\/actorWatermark/);
+    expect(featureSource).toMatch(/loadListPreviewVideo/);
     expect(featureSource).toMatch(/\.\/application\/popularityEffects/);
+    expect(featureSource).toMatch(/\.\/application\/scrollPaging/);
+    expect(featureSource).toMatch(/\.\/ui\/clickEnhancement/);
+    expect(featureSource).toMatch(/\.\/ui\/listItemObserver/);
+    expect(featureSource).toMatch(/\.\/ui\/listItemDom/);
+    expect(featureSource).toMatch(/\.\/ui\/listScrollState/);
+    expect(featureSource).toMatch(/\.\/ui\/listDisplayControl/);
+    expect(featureSource).toMatch(/\.\/ui\/previewHoverController/);
     expect(featureSource).toMatch(/\.\/ui\/styles/);
     expect(featureSource).toMatch(/['"]\.\.\/previews['"]/);
     expect(featureSource).toMatch(/['"]\.\.\/rankings['"]/);
@@ -999,6 +1019,10 @@ describe('source architecture cleanup', () => {
       'src/features/newWorks/backgroundMessages.ts',
       'src/apps/background/orchestratorMetrics.ts',
       'src/apps/background/embyDynamicContentScripts.ts',
+      'src/apps/background/tabMessageHandlers.ts',
+      'src/apps/background/networkMessageHandlers.ts',
+      'src/apps/background/userProfileMessageHandler.ts',
+      'src/apps/background/utilityMessageHandlers.ts',
     ];
 
     for (const file of expectedFiles) {
@@ -1010,6 +1034,10 @@ describe('source architecture cleanup', () => {
     expect(miscRouter).toMatch(/features\/newWorks\/backgroundMessages/);
     expect(miscRouter).toMatch(/\.\/orchestratorMetrics/);
     expect(miscRouter).toMatch(/\.\/embyDynamicContentScripts/);
+    expect(miscRouter).toMatch(/\.\/tabMessageHandlers/);
+    expect(miscRouter).toMatch(/\.\/networkMessageHandlers/);
+    expect(miscRouter).toMatch(/\.\/userProfileMessageHandler/);
+    expect(miscRouter).toMatch(/\.\/utilityMessageHandlers/);
 
     const legacyPath = 'src/background/miscHandlers.ts';
     const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
@@ -1028,6 +1056,10 @@ describe('source architecture cleanup', () => {
   it('keeps background DB router under apps with legacy background path as compatibility export', () => {
     const targetPath = 'src/apps/background/dbMessageRouter.ts';
     expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/apps/background/dbTagsMessageHandlers.ts')), 'src/apps/background/dbTagsMessageHandlers.ts should exist').toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/apps/background/dbMagnetPushLogMessageHandlers.ts')), 'src/apps/background/dbMagnetPushLogMessageHandlers.ts should exist').toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/apps/background/dbInsightsMessageHandlers.ts')), 'src/apps/background/dbInsightsMessageHandlers.ts should exist').toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/apps/background/dbLogMessageHandlers.ts')), 'src/apps/background/dbLogMessageHandlers.ts should exist').toBe(true);
 
     const legacyPath = 'src/background/dbRouter.ts';
     const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
@@ -1041,6 +1073,12 @@ describe('source architecture cleanup', () => {
 
     const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/background/bootstrap.ts'), 'utf8');
     expect(bootstrap).toMatch(/\.\/dbMessageRouter/);
+
+    const dbRouter = fs.readFileSync(path.resolve(root, targetPath), 'utf8');
+    expect(dbRouter).toMatch(/\.\/dbTagsMessageHandlers/);
+    expect(dbRouter).toMatch(/\.\/dbMagnetPushLogMessageHandlers/);
+    expect(dbRouter).toMatch(/\.\/dbInsightsMessageHandlers/);
+    expect(dbRouter).toMatch(/\.\/dbLogMessageHandlers/);
   });
 
   it('keeps background scheduler under apps with legacy background path as compatibility export', () => {
@@ -1058,9 +1096,9 @@ describe('source architecture cleanup', () => {
     expect(legacySource).toMatch(/apps\/background\/scheduler/);
 
     const alarmRouter = fs.readFileSync(path.resolve(root, 'src/apps/background/alarmRouter.ts'), 'utf8');
-    const miscHandlers = fs.readFileSync(path.resolve(root, 'src/apps/background/miscMessageRouter.ts'), 'utf8');
+    const utilityHandlers = fs.readFileSync(path.resolve(root, 'src/apps/background/utilityMessageHandlers.ts'), 'utf8');
     expect(alarmRouter).toMatch(/\.\/scheduler/);
-    expect(miscHandlers).toMatch(/\.\/scheduler/);
+    expect(utilityHandlers).toMatch(/\.\/scheduler/);
   });
 
   it('keeps 115 v2 background proxy under drive115 feature with legacy background path as compatibility export', () => {
