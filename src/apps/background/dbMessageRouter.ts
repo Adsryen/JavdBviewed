@@ -1,37 +1,11 @@
 // src/apps/background/dbMessageRouter.ts
 // 抽离 DB 相关消息路由
 
-import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedGet as idbViewedGet, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedTagIndexGetAll as idbViewedTagIndexGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetPushLogsAdd as idbMagnetPushLogsAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, magnetPushLogsQuery as idbMagnetPushLogsQuery, magnetPushLogsClear as idbMagnetPushLogsClear, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, insViewsPut, insViewsBulkPut, insViewsRange, insReportsPut, insReportsGet, insReportsList, insReportsDelete, insReportsExportJSON, insReportsImportJSON, trendsRecordsRange, trendsActorsRange, trendsNewWorksRange, listsBulkPut as idbListsBulkPut, listsPut as idbListsPut, listsDelete as idbListsDelete, listsGetAll as idbListsGetAll, listsGetAllNormalized as idbListsGetAllNormalized, listsClear as idbListsClear, viewedPatchListIds as idbViewedPatchListIds, viewedBulkPatchListIds as idbViewedBulkPatchListIds, newWorksDailyStatRefreshToday as idbNewWorksDailyStatRefreshToday } from '../../platform/storage/indexedDb';
-import { STORAGE_KEYS } from '../../utils/config';
-import { buildViewedRecordSourceFromTagIndexRows, buildViewedTagStatsFromSources } from '../../features/records/tagStats';
-
-const storageChunkPrefixFor = (key: string) => `__chunk__:${key}::`;
-const storageChunkMetaFor = (key: string) => `__chunks_meta__:${key}`;
-
-export async function getLegacyViewedRecordsFromStorage(): Promise<Record<string, unknown>> {
-  const key = STORAGE_KEYS.VIEWED_RECORDS;
-  const prefix = storageChunkPrefixFor(key);
-  const metaKey = storageChunkMetaFor(key);
-  const metaResult = await chrome.storage.local.get([metaKey]) as Record<string, any>;
-  const meta = metaResult?.[metaKey];
-
-  if (meta && typeof meta.chunks === 'number') {
-    const count = Math.max(0, Number(meta.chunks || 0));
-    if (count <= 0) return {};
-    const chunkKeys = Array.from({ length: count }, (_value, index) => `${prefix}${index + 1}`);
-    const chunks = await chrome.storage.local.get(chunkKeys) as Record<string, any>;
-    const records: Record<string, unknown> = {};
-    for (const chunkKey of chunkKeys) {
-      const chunk = chunks?.[chunkKey];
-      if (chunk && typeof chunk === 'object') Object.assign(records, chunk);
-    }
-    return records;
-  }
-
-  const direct = await chrome.storage.local.get([key]) as Record<string, any>;
-  const value = direct?.[key];
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedGet as idbViewedGet, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, viewedExportJSON as idbViewedExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, listsBulkPut as idbListsBulkPut, listsPut as idbListsPut, listsDelete as idbListsDelete, listsGetAll as idbListsGetAll, listsGetAllNormalized as idbListsGetAllNormalized, listsClear as idbListsClear, viewedPatchListIds as idbViewedPatchListIds, viewedBulkPatchListIds as idbViewedBulkPatchListIds, newWorksDailyStatRefreshToday as idbNewWorksDailyStatRefreshToday } from '../../platform/storage/indexedDb';
+import { handleInsightsMessage } from './dbInsightsMessageHandlers';
+import { handleLogMessage } from './dbLogMessageHandlers';
+import { handleMagnetPushLogMessage } from './dbMagnetPushLogMessageHandlers';
+import { handleGetAllTags } from './dbTagsMessageHandlers';
 
 export function registerDbMessageRouter(): void {
   try { initDB().catch(() => {}); } catch {}
@@ -103,116 +77,10 @@ export function registerDbMessageRouter(): void {
           .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed bulk delete failed' }));
         return true;
       }
-      if (message.type === 'DB:LOGS_ADD') {
-        const entry = message?.payload?.entry;
-        idbLogsAdd(entry).then((id) => sendResponse({ success: true, id }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'logs add failed' }));
+      if (handleLogMessage(message, sendResponse)) {
         return true;
       }
-      if (message.type === 'DB:LOGS_BULK') {
-        const entries = message?.payload?.entries || [];
-        idbLogsBulkAdd(entries).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'logs bulk failed' }));
-        return true;
-      }
-      if (message.type === 'DB:LOGS_QUERY') {
-        const payload = message?.payload || {};
-        try { console.info('[Background] logs QUERY', { offset: payload?.offset, limit: payload?.limit, level: payload?.level, minLevel: payload?.minLevel, hasDataOnly: payload?.hasDataOnly, source: payload?.source, hasQuery: !!payload?.query }); } catch {}
-        idbLogsQuery(payload).then((data) => {
-          try { console.info('[Background] logs QUERY:RESULT', { items: Array.isArray(data?.items) ? data.items.length : -1, total: (data as any)?.total }); } catch {}
-          sendResponse({ success: true, ...data });
-        })
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'logs query failed' }));
-        return true;
-      }
-      if (message.type === 'DB:LOGS_CLEAR') {
-        const beforeMs = message?.payload?.beforeMs;
-        idbLogsClear(beforeMs).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'logs clear failed' }));
-        return true;
-      }
-      if (message.type === 'DB:LOGS_EXPORT') {
-        idbLogsExportJSON().then((json) => sendResponse({ success: true, json }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'logs export failed' }));
-        return true;
-      }
-      if (message.type === 'DB:MAGNET_PUSH_LOGS_ADD') {
-        const entry = message?.payload?.entry;
-        try {
-          console.info('[115Trace] bg:magnet-log:add:received', {
-            traceId: entry?.data?.traceId || entry?.data?.correlationId || '',
-            correlationId: entry?.data?.correlationId || '',
-            taskId: entry?.data?.taskId || '',
-            type: entry?.type,
-            videoId: entry?.videoId,
-            action: entry?.data?.action,
-          });
-        } catch {}
-        idbMagnetPushLogsAdd(entry).then((id) => {
-          try {
-            console.info('[115Trace] bg:magnet-log:add:success', {
-              traceId: entry?.data?.traceId || entry?.data?.correlationId || '',
-              correlationId: entry?.data?.correlationId || '',
-              taskId: entry?.data?.taskId || '',
-              id,
-              type: entry?.type,
-              videoId: entry?.videoId,
-            });
-          } catch {}
-          sendResponse({ success: true, id });
-        })
-          .catch((e) => {
-            try {
-              console.warn('[115Trace] bg:magnet-log:add:error', {
-                traceId: entry?.data?.traceId || entry?.data?.correlationId || '',
-                correlationId: entry?.data?.correlationId || '',
-                taskId: entry?.data?.taskId || '',
-                type: entry?.type,
-                videoId: entry?.videoId,
-                error: e?.message || String(e),
-              });
-            } catch {}
-            sendResponse({ success: false, error: e?.message || 'magnet push log add failed' });
-          });
-        return true;
-      }
-      if (message.type === 'DB:MAGNET_PUSH_LOGS_BULK') {
-        const entries = message?.payload?.entries || [];
-        idbMagnetPushLogsBulkAdd(entries).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'magnet push log bulk add failed' }));
-        return true;
-      }
-      if (message.type === 'DB:MAGNET_PUSH_LOGS_QUERY') {
-        const payload = message?.payload || {};
-        try { console.info('[115Trace] bg:magnet-log:query:received', payload); } catch {}
-        idbMagnetPushLogsQuery(payload).then((data) => {
-          try {
-            console.info('[115Trace] bg:magnet-log:query:success', {
-              total: (data as any)?.total,
-              items: Array.isArray((data as any)?.items) ? (data as any).items.length : -1,
-              query: payload?.query || '',
-              status: payload?.status || 'ALL',
-              offset: payload?.offset,
-              limit: payload?.limit,
-            });
-          } catch {}
-          sendResponse({ success: true, ...data });
-        })
-          .catch((e) => {
-            try { console.warn('[115Trace] bg:magnet-log:query:error', { error: e?.message || String(e), payload }); } catch {}
-            sendResponse({ success: false, error: e?.message || 'magnet push log query failed' });
-          });
-        return true;
-      }
-      if (message.type === 'DB:MAGNET_PUSH_LOGS_CLEAR') {
-        const beforeMs = message?.payload?.beforeMs;
-        idbMagnetPushLogsClear(beforeMs).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'magnet push log clear failed' }));
-        return true;
-      }
-      if (message.type === 'DB:MAGNET_PUSH_LOGS_EXPORT') {
-        idbMagnetPushLogsGetAll().then((records) => sendResponse({ success: true, json: JSON.stringify(records) }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'magnet push log export failed' }));
+      if (handleMagnetPushLogMessage(message, sendResponse)) {
         return true;
       }
       // actors
@@ -378,91 +246,7 @@ export function registerDbMessageRouter(): void {
           .catch((e) => sendResponse({ success: false, error: e?.message || 'lists clear failed' }));
         return true;
       }
-      // insights views
-      if (message.type === 'DB:INSIGHTS_VIEWS_PUT') {
-        const view = message?.payload?.view;
-        insViewsPut(view).then(() => {
-          try { chrome.runtime.sendMessage({ type: 'DB:INSIGHTS_VIEWS_CHANGED', payload: { date: view?.date || null, count: 1 } }); } catch {}
-          sendResponse({ success: true });
-        })
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights views put failed' }));
-        return true;
-      }
-      if (message.type === 'DB:INSIGHTS_VIEWS_BULK_PUT') {
-        const views = message?.payload?.views || [];
-        insViewsBulkPut(views).then(() => {
-          try { chrome.runtime.sendMessage({ type: 'DB:INSIGHTS_VIEWS_CHANGED', payload: { count: Array.isArray(views) ? views.length : 0 } }); } catch {}
-          sendResponse({ success: true });
-        })
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights views bulk put failed' }));
-        return true;
-      }
-      if (message.type === 'DB:INSIGHTS_VIEWS_RANGE') {
-        const startDate = message?.payload?.startDate;
-        const endDate = message?.payload?.endDate;
-        insViewsRange(startDate, endDate).then((records) => sendResponse({ success: true, records }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights views range failed' }));
-        return true;
-      }
-      // insights reports
-      if (message.type === 'DB:INSIGHTS_REPORTS_PUT') {
-        const report = message?.payload?.report;
-        insReportsPut(report).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights reports put failed' }));
-        return true;
-      }
-      if (message.type === 'DB:INSIGHTS_REPORTS_GET') {
-        const month = message?.payload?.month;
-        insReportsGet(month).then((record) => sendResponse({ success: true, record }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights reports get failed' }));
-        return true;
-      }
-      if (message.type === 'DB:INSIGHTS_REPORTS_LIST') {
-        const limit = Number(message?.payload?.limit ?? 24);
-        insReportsList(limit).then((records) => sendResponse({ success: true, records }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights reports list failed' }));
-        return true;
-      }
-      if (message.type === 'DB:INSIGHTS_REPORTS_DELETE') {
-        const month = message?.payload?.month;
-        insReportsDelete(month).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights reports delete failed' }));
-        return true;
-      }
-      if (message.type === 'DB:INSIGHTS_REPORTS_EXPORT') {
-        insReportsExportJSON().then((json) => sendResponse({ success: true, json }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights reports export failed' }));
-        return true;
-      }
-      if (message.type === 'DB:INSIGHTS_REPORTS_IMPORT') {
-        const json = message?.payload?.json || '[]';
-        insReportsImportJSON(json).then((count) => sendResponse({ success: true, count }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'insights reports import failed' }));
-        return true;
-      }
-      // trends (records/actors/newWorks)
-      if (message.type === 'DB:TRENDS_RECORDS_RANGE') {
-        const startDate = message?.payload?.startDate;
-        const endDate = message?.payload?.endDate;
-        const mode = message?.payload?.mode || 'cumulative';
-        trendsRecordsRange(startDate, endDate, mode).then((points) => sendResponse({ success: true, points }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'trends records failed' }));
-        return true;
-      }
-      if (message.type === 'DB:TRENDS_ACTORS_RANGE') {
-        const startDate = message?.payload?.startDate;
-        const endDate = message?.payload?.endDate;
-        const mode = message?.payload?.mode || 'cumulative';
-        trendsActorsRange(startDate, endDate, mode).then((points) => sendResponse({ success: true, points }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'trends actors failed' }));
-        return true;
-      }
-      if (message.type === 'DB:TRENDS_NEWWORKS_RANGE') {
-        const startDate = message?.payload?.startDate;
-        const endDate = message?.payload?.endDate;
-        const mode = message?.payload?.mode || 'cumulative';
-        trendsNewWorksRange(startDate, endDate, mode).then((points) => sendResponse({ success: true, points }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'trends newWorks failed' }));
+      if (handleInsightsMessage(message, sendResponse)) {
         return true;
       }
       if (message.type === 'DB:NEWWORKS_DAILY_STAT_REFRESH') {
@@ -471,19 +255,7 @@ export function registerDbMessageRouter(): void {
         return true;
       }
       if (message.type === 'DB:GET_ALL_TAGS') {
-        // 优化：在后台直接统计标签，只返回统计结果
-        const limit = Number(message?.payload?.limit ?? 50);
-        Promise.all([
-          idbViewedGetAll().catch(() => []),
-          idbViewedTagIndexGetAll().catch(() => []),
-          getLegacyViewedRecordsFromStorage().catch(() => ({})),
-        ])
-          .then(([idbRecords, tagIndexRows, legacyRecords]) => {
-            const tagIndexRecords = buildViewedRecordSourceFromTagIndexRows(tagIndexRows);
-            const tags = buildViewedTagStatsFromSources([idbRecords, tagIndexRecords, legacyRecords], limit);
-            sendResponse({ success: true, tags });
-          })
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'get tags failed', tags: [] }));
+        handleGetAllTags(message, sendResponse);
         return true;
       }
       return false;

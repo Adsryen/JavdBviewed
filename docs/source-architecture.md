@@ -99,6 +99,14 @@ apps/background/alarmRouter.ts
 apps/background/errorHandlers.ts
 apps/background/embyDynamicContentScripts.ts
 apps/background/orchestratorMetrics.ts
+apps/background/tabMessageHandlers.ts
+apps/background/networkMessageHandlers.ts
+apps/background/userProfileMessageHandler.ts
+apps/background/utilityMessageHandlers.ts
+apps/background/dbTagsMessageHandlers.ts
+apps/background/dbMagnetPushLogMessageHandlers.ts
+apps/background/dbInsightsMessageHandlers.ts
+apps/background/dbLogMessageHandlers.ts
 apps/background/scheduler.ts
 apps/background/miscMessageRouter.ts
 ```
@@ -107,7 +115,11 @@ apps/background/miscMessageRouter.ts
 
 WebDAV 后台 controller 已归位到 `features/webdavSync/background/controller.ts`，`apps/background/bootstrap.ts` 和自动同步 scheduler 直接装配 feature 入口，旧 `src/background/webdav.ts` 仅保留兼容导出。
 
-Background misc message router 已归位到 `apps/background/miscMessageRouter.ts`，`apps/background/bootstrap.ts` 直接装配本地 app 入口，旧 `src/background/miscHandlers.ts` 仅保留兼容导出。
+WebDAV restore 链路继续按职责拆分：`restorePreview.ts` 负责预览与下载解析，`restoreStorage.ts` 负责恢复时的集合归一化、store 清空和批量写入，`restoreService.ts` 保留恢复流程编排。
+
+Background misc message router 已归位到 `apps/background/miscMessageRouter.ts`，标签页打开、网络代理、用户资料和通用设置类 handler 已拆到独立模块，`apps/background/bootstrap.ts` 直接装配本地 app 入口，旧 `src/background/miscHandlers.ts` 仅保留兼容导出。
+
+Background DB router 已归位到 `apps/background/dbMessageRouter.ts`，标签 Top 50 读取、旧 storage 分片兼容逻辑、持久日志、115 磁力推送日志 handler 和 insights/trends handler 已拆到独立模块，旧 `src/background/dbRouter.ts` 仅保留兼容导出。
 
 Storage migrations 已归位到 `platform/storage/migrations.ts`，`apps/background/bootstrap.ts` 直接装配 storage platform 入口，旧 `src/background/migrations.ts` 仅保留兼容导出。
 
@@ -408,12 +420,22 @@ features/magnets/ui/magnetSearchManager.ts
 features/listEnhancement/domain/config.ts
 features/listEnhancement/application/actorMatching.ts
 features/listEnhancement/application/actorHiding.ts
+features/listEnhancement/application/actorHidingWorkflow.ts
+features/listEnhancement/application/actorWatermark.ts
 features/listEnhancement/application/popularityEffects.ts
+features/listEnhancement/application/scrollPaging.ts
+features/listEnhancement/ui/clickEnhancement.ts
+features/listEnhancement/ui/listItemObserver.ts
+features/listEnhancement/ui/listItemDom.ts
+features/listEnhancement/ui/listScrollState.ts
+features/listEnhancement/ui/listDisplayControl.ts
+features/listEnhancement/ui/previewHoverController.ts
 features/listEnhancement/ui/styles.ts
 features/listEnhancement/listEnhancementManager.ts
+features/previews/listPreviewLoader.ts
 ```
 
-`config.ts` 承载列表增强配置类型和默认值，`actorMatching.ts` 承载标题演员匹配算法，`actorHiding.ts` 承载演员隐藏决策，`popularityEffects.ts` 承载热度评分解析和效果属性构建，`styles.ts` 承载热度 CSS、列表显示控制 CSS 和基础注入 CSS。`listEnhancementManager.ts` 保持 DOM 生命周期、预览、滚动翻页、演员水印和页面编排职责。
+`config.ts` 承载列表增强配置类型和默认值，`actorMatching.ts` 承载标题演员匹配算法，`actorHiding.ts` 承载演员隐藏决策，`actorHidingWorkflow.ts` 承载演员隐藏执行流程和 DOM 标记恢复，`actorWatermark.ts` 承载演员索引/订阅缓存、DOM 演员提取和水印渲染，`popularityEffects.ts` 承载热度评分解析和效果属性构建，`scrollPaging.ts` 承载页码解析、触底判断、加载指示器和下一页追加控制器，`clickEnhancement.ts` 承载列表点击增强、FC2 拦截弹窗、右键后台打开和防抖，`listItemObserver.ts` 承载现有列表项处理和新增列表项观察，`listItemDom.ts` 承载列表项影片信息提取、标题按钮和标题样式优化，`listScrollState.ts` 承载滚动状态和滚动期间列表指针事件控制，`listDisplayControl.ts` 承载列表显示控制的 DOM 应用、域名限制、样式注入和容器接管，`previewHoverController.ts` 承载列表预览 hover 状态机、延迟计时、视频复用和媒体释放，`styles.ts` 承载热度 CSS、列表显示控制 CSS 和基础注入 CSS。`listPreviewLoader.ts` 承载列表悬停预览来源选择、缓存和 video 元素创建。`listEnhancementManager.ts` 保持 DOM 生命周期和页面编排职责。
 
 迁移方式：
 

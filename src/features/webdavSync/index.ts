@@ -10,6 +10,7 @@ export * from './application/diagnostics';
 export * from './application/importSanitizer';
 export * from './application/restorePreview';
 export * from './application/restoreService';
+export * from './application/restoreStorage';
 export * from './application/uploadIndex';
 export * from './application/uploadService';
 export { quickDiagnose, WebDAVDiagnostic } from './application/webdavDiagnostic';
