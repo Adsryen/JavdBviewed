@@ -448,6 +448,31 @@ describe('source architecture cleanup', () => {
     expect(source, `${entryPath} should import apps/background/bootstrap`).toMatch(/apps\/background\/bootstrap/);
   });
 
+  it('keeps background bootstrap focused on wiring and delegates operational areas to app modules', () => {
+    const bootstrapPath = 'src/apps/background/bootstrap.ts';
+    const source = fs.readFileSync(path.resolve(root, bootstrapPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${bootstrapPath} should stay focused on wiring`).toBeLessThanOrEqual(180);
+
+    const expectedModules = [
+      'src/apps/background/dynamicContentScripts.ts',
+      'src/apps/background/dnrRules.ts',
+      'src/apps/background/routeAutoUpdate.ts',
+      'src/apps/background/drive115UserRefresh.ts',
+      'src/apps/background/alarmRouter.ts',
+      'src/apps/background/errorHandlers.ts',
+    ];
+
+    for (const file of expectedModules) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+      expect(source, `${bootstrapPath} should import ${file}`).toContain(`./${path.basename(file, '.ts')}`);
+    }
+  });
+
   it('keeps the main content script entry thin and boots through apps/content', () => {
     const bootstrapPath = 'src/apps/content/bootstrap.ts';
     expect(fs.existsSync(path.resolve(root, bootstrapPath)), `${bootstrapPath} should exist`).toBe(true);
@@ -577,5 +602,43 @@ describe('source architecture cleanup', () => {
 
     expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
     expect(source, `${legacyPath} should re-export from shared/utils/listRecordHelpers`).toMatch(/shared\/utils\/listRecordHelpers/);
+  });
+
+  it('keeps small background modules under platform or features with background paths as compatibility exports', () => {
+    const modules = [
+      {
+        legacyPath: 'src/background/consoleConfig.ts',
+        targetPath: 'src/platform/logging/backgroundConsole.ts',
+        targetPattern: /platform\/logging\/backgroundConsole/,
+      },
+      {
+        legacyPath: 'src/background/netProxy.ts',
+        targetPath: 'src/platform/network/backgroundFetchRouter.ts',
+        targetPattern: /platform\/network\/backgroundFetchRouter/,
+      },
+      {
+        legacyPath: 'src/background/javbusTabFetch.ts',
+        targetPath: 'src/platform/browser/javbusTabFetch.ts',
+        targetPattern: /platform\/browser\/javbusTabFetch/,
+      },
+      {
+        legacyPath: 'src/background/viewedTagStats.ts',
+        targetPath: 'src/features/records/tagStats.ts',
+        targetPattern: /features\/records\/tagStats/,
+      },
+    ];
+
+    for (const item of modules) {
+      expect(fs.existsSync(path.resolve(root, item.targetPath)), `${item.targetPath} should exist`).toBe(true);
+
+      const source = fs.readFileSync(path.resolve(root, item.legacyPath), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${item.legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${item.legacyPath} should re-export from ${item.targetPath}`).toMatch(item.targetPattern);
+    }
   });
 });

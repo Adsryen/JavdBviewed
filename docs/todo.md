@@ -258,31 +258,31 @@
   - [x] 迁移列表记录归一化、系列/标签匹配工具到 `shared/utils`
   - [x] Dashboard 列表、番号库和数据同步改用共享路径
   - [x] platform storage 改用共享路径，保持 platform 不依赖 utils 业务目录
-- [ ] 第二十六批迁移：Background 小型模块瘦身
-  - [ ] 迁移前使用架构回归测试约束目标旧 `background/*` 只能作为兼容出口
-  - [ ] 迁移 `background/consoleConfig.ts` 到 `platform/logging/backgroundConsole.ts`
-  - [ ] 迁移 `background/netProxy.ts` 到 `platform/network/backgroundFetchRouter.ts`
-  - [ ] 迁移 `background/javbusTabFetch.ts` 到 `platform/browser/javbusTabFetch.ts`
-  - [ ] 迁移 `background/viewedTagStats.ts` 到 `features/records/tagStats.ts`
-  - [ ] 更新 `apps/background/bootstrap.ts` 与相关测试导入到新路径
-  - [ ] 旧 `background/*` 文件保留 re-export 兼容
-- [ ] 第二十七批迁移：Background 装配层拆分
-  - [ ] 为 `apps/background/bootstrap.ts` 增加架构回归约束，限制入口只做装配
-  - [ ] 拆出 `apps/background/dynamicContentScripts.ts`
-  - [ ] 拆出 `apps/background/dnrRules.ts`
-  - [ ] 拆出 `apps/background/routeAutoUpdate.ts`
-  - [ ] 拆出 `apps/background/drive115UserRefresh.ts`
-  - [ ] 拆出 `apps/background/alarmRouter.ts`
-  - [ ] 拆出 `apps/background/errorHandlers.ts`
-  - [ ] 保持 `background/background.ts` 作为 manifest 薄入口
-- [ ] 第二十八批迁移：WebDAV 解耦测试基线
-  - [ ] 统计并锁定当前 `background/webdav.ts`、`background/sync.ts` 对外消息类型
-  - [ ] 补充 WebDAV URL 归一化、路径拼接、上传 ID、设备名清洗测试
-  - [ ] 补充 PROPFIND XML 解析与备份文件过滤测试
-  - [ ] 补充上传索引追加、去重、保留数量测试
-  - [ ] 补充导入设置清洗、local-only key 过滤测试
-  - [ ] 补充恢复预览、对象 map 转数组、批量写入边界测试
-  - [ ] 补充连接诊断参数映射测试
+- [x] 第二十六批迁移：Background 小型模块瘦身
+  - [x] 迁移前使用架构回归测试约束目标旧 `background/*` 只能作为兼容出口
+  - [x] 迁移 `background/consoleConfig.ts` 到 `platform/logging/backgroundConsole.ts`
+  - [x] 迁移 `background/netProxy.ts` 到 `platform/network/backgroundFetchRouter.ts`
+  - [x] 迁移 `background/javbusTabFetch.ts` 到 `platform/browser/javbusTabFetch.ts`
+  - [x] 迁移 `background/viewedTagStats.ts` 到 `features/records/tagStats.ts`
+  - [x] 更新 `apps/background/bootstrap.ts` 与相关测试导入到新路径
+  - [x] 旧 `background/*` 文件保留 re-export 兼容
+- [x] 第二十七批迁移：Background 装配层拆分
+  - [x] 为 `apps/background/bootstrap.ts` 增加架构回归约束，限制入口只做装配
+  - [x] 拆出 `apps/background/dynamicContentScripts.ts`
+  - [x] 拆出 `apps/background/dnrRules.ts`
+  - [x] 拆出 `apps/background/routeAutoUpdate.ts`
+  - [x] 拆出 `apps/background/drive115UserRefresh.ts`
+  - [x] 拆出 `apps/background/alarmRouter.ts`
+  - [x] 拆出 `apps/background/errorHandlers.ts`
+  - [x] 保持 `background/background.ts` 作为 manifest 薄入口
+- [x] 第二十八批迁移：WebDAV 解耦测试基线
+  - [x] 统计并锁定当前 `background/webdav.ts`、`background/sync.ts` 对外消息类型
+  - [x] 补充 WebDAV URL 归一化、路径拼接、上传 ID、设备名清洗测试
+  - [x] 补充 PROPFIND XML 解析与备份文件过滤测试
+  - [x] 补充上传索引追加、去重、保留数量测试
+  - [x] 补充导入设置清洗、local-only key 过滤测试
+  - [x] 补充恢复预览、对象 map 转数组、批量写入边界测试
+  - [x] 补充连接诊断参数映射测试
 - [ ] 第二十九批迁移：WebDAV 基础设施与设备档案
   - [ ] 建立 `features/webdavSync`
   - [ ] 建立 `features/webdavSync/domain/types.ts`

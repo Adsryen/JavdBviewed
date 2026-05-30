@@ -10,7 +10,7 @@ import { requestScheduler } from './requestScheduler';
 import { WEBDAV_SYNC_ALARM } from './scheduler';
 import type { UserProfile } from '../types';
 import { globalTaskCenter } from './globalTaskCenter';
-import { fetchJavbusAjaxViaTab } from './javbusTabFetch';
+import { fetchJavbusAjaxViaTab } from '../platform/browser/javbusTabFetch';
 
 const consoleMap: Record<'INFO' | 'WARN' | 'ERROR' | 'DEBUG', (message?: any, ...optionalParams: any[]) => void> = {
   INFO: console.info,

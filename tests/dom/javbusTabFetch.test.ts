@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { javbusPageAjaxFetchScript } from '../../src/background/javbusTabFetch';
+import { javbusPageAjaxFetchScript } from '../../src/platform/browser/javbusTabFetch';
 import { fetchJavbusAjaxViaTab } from '../../src/content/javbusTabFetch';
 import { sendRuntimeMessage } from '../../src/platform/browser/runtimeMessages';
 
