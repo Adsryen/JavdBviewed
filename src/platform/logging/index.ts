@@ -7,3 +7,4 @@ export {
   type LogEntry,
   type LogLevel,
 } from './logController';
+export { installConsoleProxyWithSettings } from './backgroundConsole';

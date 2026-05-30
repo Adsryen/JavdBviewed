@@ -80,24 +80,24 @@ function getExtensionVersion(): string {
   }
 }
 
-function normalizeWebDavBaseUrl(url: string): string {
+export function normalizeWebDavBaseUrl(url: string): string {
   let finalUrl = String(url || '').trim();
   if (finalUrl && !finalUrl.endsWith('/')) finalUrl += '/';
   return finalUrl;
 }
 
-function joinWebDavUrl(baseUrl: string, relativePath: string): string {
+export function joinWebDavUrl(baseUrl: string, relativePath: string): string {
   const normalizedBase = normalizeWebDavBaseUrl(baseUrl);
   return normalizedBase + relativePath.replace(/^\/+/, '');
 }
 
-function buildUploadId(clientId: string, uploadedAt: string): string {
+export function buildUploadId(clientId: string, uploadedAt: string): string {
   const compactTime = uploadedAt.replace(/[-:.]/g, '').replace('T', '_').replace('Z', 'Z');
   const safeClientId = String(clientId || '').trim() || 'anonymous';
   return `${compactTime}_${safeClientId.slice(0, 8)}`;
 }
 
-function sanitizeDeviceLabel(value: string): string {
+export function sanitizeDeviceLabel(value: string): string {
   const trimmed = String(value || '').trim();
   return trimmed || detectBrowserName();
 }
@@ -208,18 +208,26 @@ function createEmptyUploadIndex(): WebDAVUploadIndex {
   };
 }
 
-async function appendWebDAVUploadIndex(baseUrl: string, auth: { username: string; password: string }, item: WebDAVUploadIndexItem, limit: number): Promise<void> {
-  const existing = await webDavReadJsonFile<WebDAVUploadIndex>(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE).catch(() => null);
+export function buildNextWebDAVUploadIndex(
+  existing: WebDAVUploadIndex | null | undefined,
+  item: WebDAVUploadIndexItem,
+  limit: number,
+): WebDAVUploadIndex {
   const index = existing && typeof existing === 'object' ? existing : createEmptyUploadIndex();
   const deduped = (index.items || []).filter(entry => entry.uploadId !== item.uploadId);
   const finalLimit = Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_UPLOAD_INDEX_LIMIT;
   const items = [item, ...deduped].slice(0, finalLimit);
-  const nextIndex: WebDAVUploadIndex = {
+  return {
     version: WEBDAV_UPLOAD_INDEX_VERSION,
     updatedAt: item.uploadedAt,
     lastUploadId: item.uploadId,
     items,
   };
+}
+
+async function appendWebDAVUploadIndex(baseUrl: string, auth: { username: string; password: string }, item: WebDAVUploadIndexItem, limit: number): Promise<void> {
+  const existing = await webDavReadJsonFile<WebDAVUploadIndex>(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE).catch(() => null);
+  const nextIndex = buildNextWebDAVUploadIndex(existing, item, limit);
   await webDavWriteJsonFile(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE, nextIndex);
 }
 
@@ -272,7 +280,7 @@ async function enrichFilesWithUploadIndex(baseUrl: string, auth: { username: str
   });
 }
 
-function isUserBackupFile(file: WebDAVFile): boolean {
+export function isUserBackupFile(file: WebDAVFile): boolean {
   if (!file || file.isDirectory) return false;
   const name = String(file.name || '').trim();
   if (!name) return false;
@@ -450,7 +458,7 @@ async function updateWebDAVClientDeviceLabel(clientId: string, deviceLabel: stri
   }
 }
 
-function sanitizeImportedSettings(importedSettings: any, currentSettings: any): any {
+export function sanitizeImportedSettings(importedSettings: any, currentSettings: any): any {
   if (!importedSettings || typeof importedSettings !== 'object') return importedSettings;
   const next = { ...importedSettings, webdav: { ...(importedSettings.webdav || {}) } };
   const currentWebdav = currentSettings?.webdav || {};
@@ -479,7 +487,7 @@ export async function triggerWebDAVAutoUpload(): Promise<void> {
 const RESTORE_BATCH_SIZE = 1000; // 默认批量写入大小
 let restoreInProgress = false;   // 简单并发锁，避免并发恢复
 
-function chunk<T>(arr: T[], size: number): T[][] {
+export function chunk<T>(arr: T[], size: number): T[][] {
   if (!Array.isArray(arr) || size <= 0) return [arr as any];
   const res: T[][] = [];
   for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
@@ -517,7 +525,33 @@ async function parseBackupFromUrl(finalUrl: string, auth: { username: string; pa
   }
 }
 
-function toArrayFromObjMap<T = any>(maybeMap: any): T[] {
+export function buildBackupPreview(importData: any): any {
+  const stats = (importData && importData.stats) || {};
+  return {
+    version: importData?.version || '1.0',
+    timestamp: importData?.timestamp || null,
+    counts: {
+      viewed: (stats?.idb?.viewedRecords?.count) ?? (Array.isArray(importData?.idb?.viewedRecords) ? importData.idb.viewedRecords.length : Object.keys(importData?.data || importData?.viewed || {}).length),
+      actors: (stats?.idb?.actors?.count) ?? (Array.isArray(importData?.idb?.actors) ? importData.idb.actors.length : Object.keys(importData?.actorRecords || {}).length),
+      newWorks: (stats?.idb?.newWorks?.count) ?? (Array.isArray(importData?.idb?.newWorks) ? importData.idb.newWorks.length : Object.keys(importData?.newWorks?.records || {}).length),
+      magnets: (stats?.idb?.magnets?.count) ?? (Array.isArray(importData?.idb?.magnets) ? importData.idb.magnets.length : 0),
+      logs: (stats?.idb?.logs?.count) ?? (Array.isArray(importData?.idb?.logs) ? importData.idb.logs.length : Array.isArray(importData?.logs) ? importData.logs.length : 0),
+    },
+    bytes: {
+      settings: byteSizeOf(importData?.settings),
+      userProfile: byteSizeOf(importData?.userProfile),
+      viewed: byteSizeOf(importData?.idb?.viewedRecords || importData?.data || importData?.viewed),
+      actors: byteSizeOf(importData?.idb?.actors || importData?.actorRecords),
+      newWorks: byteSizeOf(importData?.idb?.newWorks || importData?.newWorks),
+      magnets: byteSizeOf(importData?.idb?.magnets),
+      logs: byteSizeOf(importData?.idb?.logs || importData?.logs),
+      importStats: byteSizeOf(importData?.importStats),
+    },
+    storageKeys: stats?.storage?.keys ?? (importData?.storageAll ? Object.keys(importData.storageAll).length : undefined),
+  };
+}
+
+export function toArrayFromObjMap<T = any>(maybeMap: any): T[] {
   if (!maybeMap) return [];
   if (Array.isArray(maybeMap)) return maybeMap as T[];
   if (typeof maybeMap === 'object') return Object.values(maybeMap) as T[];
@@ -581,29 +615,7 @@ async function previewBackup(filename: string): Promise<{ success: boolean; erro
     const settings = await getSettings();
     const finalUrl = resolveWebDavUrl(filename, settings.webdav.url);
     const importData = await parseBackupFromUrl(finalUrl, { username: settings.webdav.username, password: settings.webdav.password });
-    const stats = (importData && importData.stats) || {};
-    const preview = {
-      version: importData?.version || '1.0',
-      timestamp: importData?.timestamp || null,
-      counts: {
-        viewed: (stats?.idb?.viewedRecords?.count) ?? (Array.isArray(importData?.idb?.viewedRecords) ? importData.idb.viewedRecords.length : Object.keys(importData?.data || importData?.viewed || {}).length),
-        actors: (stats?.idb?.actors?.count) ?? (Array.isArray(importData?.idb?.actors) ? importData.idb.actors.length : Object.keys(importData?.actorRecords || {}).length),
-        newWorks: (stats?.idb?.newWorks?.count) ?? (Array.isArray(importData?.idb?.newWorks) ? importData.idb.newWorks.length : Object.keys(importData?.newWorks?.records || {}).length),
-        magnets: (stats?.idb?.magnets?.count) ?? (Array.isArray(importData?.idb?.magnets) ? importData.idb.magnets.length : 0),
-        logs: (stats?.idb?.logs?.count) ?? (Array.isArray(importData?.idb?.logs) ? importData.idb.logs.length : Array.isArray(importData?.logs) ? importData.logs.length : 0),
-      },
-      bytes: {
-        settings: byteSizeOf(importData?.settings),
-        userProfile: byteSizeOf(importData?.userProfile),
-        viewed: byteSizeOf(importData?.idb?.viewedRecords || importData?.data || importData?.viewed),
-        actors: byteSizeOf(importData?.idb?.actors || importData?.actorRecords),
-        newWorks: byteSizeOf(importData?.idb?.newWorks || importData?.newWorks),
-        magnets: byteSizeOf(importData?.idb?.magnets),
-        logs: byteSizeOf(importData?.idb?.logs || importData?.logs),
-        importStats: byteSizeOf(importData?.importStats),
-      },
-      storageKeys: stats?.storage?.keys ?? (importData?.storageAll ? Object.keys(importData.storageAll).length : undefined),
-    };
+    const preview = buildBackupPreview(importData);
     return { success: true, preview, raw: importData };
   } catch (e: any) {
     return { success: false, error: e?.message };
@@ -744,7 +756,7 @@ async function collectBackupData(): Promise<any> {
   return snapshot;
 }
 
-function omitLocalOnlyStorageKeys(value: Record<string, any>): Record<string, any> {
+export function omitLocalOnlyStorageKeys(value: Record<string, any>): Record<string, any> {
   const next = { ...(value || {}) };
   delete next[TELEMETRY_CLIENT_STATE_KEY];
   return next;
@@ -1628,7 +1640,7 @@ async function cleanupOldBackups(retentionCount: number): Promise<void> {
   }
 }
 
-function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
+export function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
   const files: WebDAVFile[] = [];
   let simplifiedXml = xmlString;
   simplifiedXml = simplifiedXml.replace(/<(\/)?.+?:/g, '<$1');
@@ -1798,17 +1810,21 @@ async function diagnoseWebDAVConnection(): Promise<{ success: boolean; error?: s
     return { success: false, error: errorMsg };
   }
   try {
-    const diagnostic = await quickDiagnose({
-      url: settings.webdav.url,
-      username: settings.webdav.username,
-      password: settings.webdav.password,
-    });
+    const diagnostic = await quickDiagnose(buildWebDAVDiagnosticConfig(settings.webdav));
     bgLog('INFO', 'WebDAV diagnostic completed', diagnostic);
     return { success: true, diagnostic };
   } catch (error: any) {
     bgLog('ERROR', 'WebDAV diagnostic failed.', { error: error.message });
     return { success: false, error: error.message };
   }
+}
+
+export function buildWebDAVDiagnosticConfig(webdav: any): { url: string; username: string; password: string } {
+  return {
+    url: webdav?.url,
+    username: webdav?.username,
+    password: webdav?.password,
+  };
 }
 
 export function registerWebDAVRouter(): void {

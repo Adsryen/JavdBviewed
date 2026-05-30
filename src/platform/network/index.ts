@@ -12,5 +12,6 @@ export {
   type RequestSchedulerOptions,
   type SchedulerConfig,
 } from './requestScheduler';
+export { registerNetProxyRouter } from './backgroundFetchRouter';
 export { NetworkError } from './types';
 export type { FetchOptions } from './types';

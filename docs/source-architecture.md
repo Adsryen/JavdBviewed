@@ -34,6 +34,7 @@ src/
     onlineAvailability/
     previews/
     privacy/
+    records/
     relatedLists/
     reviewUnlock/
     settingsSearch/
@@ -83,6 +84,17 @@ apps/content/pageRouter.ts
 apps/content/detailPage.ts
 apps/background/messageRouter.ts
 apps/dashboard/routes.ts
+```
+
+当前 `apps/background` 已按职责拆出：
+
+```text
+apps/background/dynamicContentScripts.ts
+apps/background/dnrRules.ts
+apps/background/routeAutoUpdate.ts
+apps/background/drive115UserRefresh.ts
+apps/background/alarmRouter.ts
+apps/background/errorHandlers.ts
 ```
 
 ### `features`
@@ -229,7 +241,8 @@ features/<A>/internal -> features/<B>/internal
 - message router。
 - 定时任务入口。
 
-数据库、网络代理、任务中心等迁入 `platform`。
+数据库、网络代理、任务中心、后台 console 装配等迁入 `platform`。
+已浏览记录的标签统计等业务规则迁入 `features/records`。
 
 ### `src/dashboard`
 
