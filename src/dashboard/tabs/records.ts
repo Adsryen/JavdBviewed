@@ -12,7 +12,7 @@ import {
     matchesLabelRecord,
     matchesSeriesRecord,
 } from '../../shared/utils/listRecordHelpers';
-import { buildSearchEngineUrl, getSearchEnginesForVideo, resolveSearchEngineIcon } from '../../utils/searchEngines';
+import { buildSearchEngineUrl, getSearchEnginesForVideo, resolveSearchEngineIcon } from '../../features/externalSearch/domain/searchEngines';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）
 let RECORDS_TAB_INITIALIZED = false;

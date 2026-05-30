@@ -29,6 +29,7 @@ src/
     externalSearch/
     fc2Breaker/
     insights/
+    listEnhancement/
     magnets/
     newWorks/
     onlineAvailability/
@@ -91,11 +92,24 @@ apps/dashboard/routes.ts
 ```text
 apps/background/dynamicContentScripts.ts
 apps/background/dnrRules.ts
+apps/background/dbMessageRouter.ts
 apps/background/routeAutoUpdate.ts
 apps/background/drive115UserRefresh.ts
 apps/background/alarmRouter.ts
 apps/background/errorHandlers.ts
+apps/background/embyDynamicContentScripts.ts
+apps/background/orchestratorMetrics.ts
+apps/background/scheduler.ts
+apps/background/miscMessageRouter.ts
 ```
+
+115 v2 后台代理已归位到 `features/drive115/v2/backgroundProxy.ts`，`apps/background/bootstrap.ts` 直接装配 feature 入口，旧 `src/background/drive115Proxy.ts` 仅保留兼容导出。
+
+WebDAV 后台 controller 已归位到 `features/webdavSync/background/controller.ts`，`apps/background/bootstrap.ts` 和自动同步 scheduler 直接装配 feature 入口，旧 `src/background/webdav.ts` 仅保留兼容导出。
+
+Background misc message router 已归位到 `apps/background/miscMessageRouter.ts`，`apps/background/bootstrap.ts` 直接装配本地 app 入口，旧 `src/background/miscHandlers.ts` 仅保留兼容导出。
+
+Storage migrations 已归位到 `platform/storage/migrations.ts`，`apps/background/bootstrap.ts` 直接装配 storage platform 入口，旧 `src/background/migrations.ts` 仅保留兼容导出。
 
 ### `features`
 
@@ -173,9 +187,15 @@ platform/browser/tabs.ts
 platform/network/httpClient.ts
 platform/network/proxy.ts
 platform/storage/indexedDb.ts
+platform/storage/indexedDbConnection.ts
+platform/storage/indexedDbSchema.ts
+platform/storage/indexedDbLogFields.ts
+platform/storage/indexedDbViewedIndexes.ts
 platform/tasks/taskCenter.ts
 platform/logging/logger.ts
 ```
+
+当前 `platform/storage/indexedDb.ts` 已收缩为稳定 API facade。IndexedDB schema、连接升级、日志索引字段、viewed 二级索引维护逻辑分别进入独立模块，`src/background/db.ts` 仅保留兼容导出。Background 目录不再承载测试文件，相关回归测试进入 `tests/regression`。
 
 ### `shared`
 
@@ -367,6 +387,33 @@ features/onlineAvailability
 features/externalSearch
 features/videoStatus
 ```
+
+当前 `features/magnets` 已按 domain/application/adapters/ui 分层：
+
+```text
+features/magnets/domain/types.ts
+features/magnets/application/resultMerge.ts
+features/magnets/application/resultMetadata.ts
+features/magnets/application/pagination.ts
+features/magnets/application/sourceTagState.ts
+features/magnets/adapters/javbus/source.ts
+features/magnets/ui/magnetSearchManager.ts
+```
+
+`resultMetadata.ts` 承载磁力大小解析、字幕/画质/破解识别、日期归一化、番号匹配和排序等纯逻辑。`magnetSearchManager.ts` 保持 UI 编排、DOM 渲染、搜索流程和缓存调用职责。
+
+当前 `features/listEnhancement` 已开始按 domain/application/ui 拆分：
+
+```text
+features/listEnhancement/domain/config.ts
+features/listEnhancement/application/actorMatching.ts
+features/listEnhancement/application/actorHiding.ts
+features/listEnhancement/application/popularityEffects.ts
+features/listEnhancement/ui/styles.ts
+features/listEnhancement/listEnhancementManager.ts
+```
+
+`config.ts` 承载列表增强配置类型和默认值，`actorMatching.ts` 承载标题演员匹配算法，`actorHiding.ts` 承载演员隐藏决策，`popularityEffects.ts` 承载热度评分解析和效果属性构建，`styles.ts` 承载热度 CSS、列表显示控制 CSS 和基础注入 CSS。`listEnhancementManager.ts` 保持 DOM 生命周期、预览、滚动翻页、演员水印和页面编排职责。
 
 迁移方式：
 

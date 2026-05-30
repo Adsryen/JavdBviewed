@@ -3,7 +3,7 @@
 
 import { log } from './state';
 import { showToast } from './toast';
-import { contentFilterManager } from './contentFilter';
+import { contentFilterManager } from '../features/contentFilter';
 
 export interface ShortcutAction {
   id: string;
@@ -700,4 +700,3 @@ export class KeyboardShortcutsManager {
 
 // 导出默认实例
 export const keyboardShortcutsManager = new KeyboardShortcutsManager();
-

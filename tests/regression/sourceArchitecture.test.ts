@@ -55,6 +55,15 @@ describe('source architecture cleanup', () => {
     expect(backupFiles).toEqual([]);
   });
 
+  it('keeps test files out of src/background', () => {
+    const backgroundDir = path.resolve(root, 'src/background');
+    const testFiles = fs
+      .readdirSync(backgroundDir)
+      .filter((file) => /\.test\.tsx?$/.test(file));
+
+    expect(testFiles).toEqual([]);
+  });
+
   it('keeps platform modules independent from app and feature layers', () => {
     const violations: string[] = [];
     const forbidden = [
@@ -489,6 +498,37 @@ describe('source architecture cleanup', () => {
     expect(source, `${entryPath} should re-export onExecute for the CRX loader`).toMatch(/export\s+\{\s*onExecute\s*\}/);
   });
 
+  it('keeps content bootstrap focused on initialization and delegates runtime listeners', () => {
+    const bootstrapPath = 'src/apps/content/bootstrap.ts';
+    const source = fs.readFileSync(path.resolve(root, bootstrapPath), 'utf8');
+    const nonEmptyLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${bootstrapPath} should stay focused on initialization`).toBeLessThanOrEqual(900);
+
+    const expectedModules = [
+      'src/apps/content/consoleSettingsBridge.ts',
+      'src/apps/content/contentLifecycle.ts',
+      'src/apps/content/contentMessageRouter.ts',
+      'src/apps/content/orchestratorStateBridge.ts',
+      'src/apps/content/pageChrome.ts',
+      'src/features/previews/previewVolumeControl.ts',
+    ];
+
+    for (const file of expectedModules) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    expect(source).toMatch(/\.\/consoleSettingsBridge/);
+    expect(source).toMatch(/\.\/contentLifecycle/);
+    expect(source).toMatch(/\.\/contentMessageRouter/);
+    expect(source).toMatch(/\.\/orchestratorStateBridge/);
+    expect(source).toMatch(/\.\/pageChrome/);
+    expect(source).toMatch(/features\/previews/);
+  });
+
   it('keeps drive115 content script entries thin and boots through apps/content', () => {
     const expectedBootstraps = [
       'src/apps/content/drive115Content.ts',
@@ -642,7 +682,7 @@ describe('source architecture cleanup', () => {
     }
   });
 
-  it('keeps WebDAV sync foundation under features while background router uses the new modules', () => {
+  it('keeps WebDAV sync foundation under features while background controller uses the new modules', () => {
     const expectedFiles = [
       'src/features/webdavSync/domain/types.ts',
       'src/features/webdavSync/domain/paths.ts',
@@ -650,6 +690,7 @@ describe('source architecture cleanup', () => {
       'src/features/webdavSync/infrastructure/propfindParser.ts',
       'src/features/webdavSync/application/clientIdentity.ts',
       'src/features/webdavSync/application/clientRegistry.ts',
+      'src/features/webdavSync/background/controller.ts',
       'src/features/webdavSync/index.ts',
     ];
 
@@ -657,15 +698,15 @@ describe('source architecture cleanup', () => {
       expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
     }
 
-    const source = fs.readFileSync(path.resolve(root, 'src/background/webdav.ts'), 'utf8');
-    expect(source).toMatch(/features\/webdavSync\/domain\/paths/);
-    expect(source).toMatch(/features\/webdavSync\/infrastructure\/webdavClient/);
-    expect(source).toMatch(/features\/webdavSync\/infrastructure\/propfindParser/);
-    expect(source).toMatch(/features\/webdavSync\/application\/clientIdentity/);
-    expect(source).toMatch(/features\/webdavSync\/application\/clientRegistry/);
+    const source = fs.readFileSync(path.resolve(root, 'src/features/webdavSync/background/controller.ts'), 'utf8');
+    expect(source).toMatch(/\.\.\/domain\/paths/);
+    expect(source).toMatch(/\.\.\/infrastructure\/webdavClient/);
+    expect(source).toMatch(/\.\.\/infrastructure\/propfindParser/);
+    expect(source).toMatch(/\.\.\/application\/clientIdentity/);
+    expect(source).toMatch(/\.\.\/application\/clientRegistry/);
   });
 
-  it('keeps WebDAV backup upload chain under features while background router delegates to it', () => {
+  it('keeps WebDAV backup upload chain under features while background controller delegates to it', () => {
     const expectedFiles = [
       'src/features/webdavSync/application/backupCollector.ts',
       'src/features/webdavSync/application/uploadIndex.ts',
@@ -677,11 +718,11 @@ describe('source architecture cleanup', () => {
       expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
     }
 
-    const source = fs.readFileSync(path.resolve(root, 'src/background/webdav.ts'), 'utf8');
-    expect(source).toMatch(/features\/webdavSync\/application\/backupCollector/);
-    expect(source).toMatch(/features\/webdavSync\/application\/uploadIndex/);
-    expect(source).toMatch(/features\/webdavSync\/application\/uploadService/);
-    expect(source).toMatch(/features\/webdavSync\/application\/cleanupService/);
+    const source = fs.readFileSync(path.resolve(root, 'src/features/webdavSync/background/controller.ts'), 'utf8');
+    expect(source).toMatch(/\.\.\/application\/backupCollector/);
+    expect(source).toMatch(/\.\.\/application\/uploadIndex/);
+    expect(source).toMatch(/\.\.\/application\/uploadService/);
+    expect(source).toMatch(/\.\.\/application\/cleanupService/);
   });
 
   it('keeps WebDAV restore, diagnostics, and message router under features', () => {
@@ -691,17 +732,416 @@ describe('source architecture cleanup', () => {
       'src/features/webdavSync/application/importSanitizer.ts',
       'src/features/webdavSync/application/diagnostics.ts',
       'src/features/webdavSync/background/router.ts',
+      'src/features/webdavSync/background/controller.ts',
     ];
 
     for (const file of expectedFiles) {
       expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
     }
 
-    const source = fs.readFileSync(path.resolve(root, 'src/background/webdav.ts'), 'utf8');
-    expect(source).toMatch(/features\/webdavSync\/application\/restorePreview/);
-    expect(source).toMatch(/features\/webdavSync\/application\/restoreService/);
-    expect(source).toMatch(/features\/webdavSync\/application\/importSanitizer/);
-    expect(source).toMatch(/features\/webdavSync\/application\/diagnostics/);
-    expect(source).toMatch(/features\/webdavSync\/background\/router/);
+    const source = fs.readFileSync(path.resolve(root, 'src/features/webdavSync/background/controller.ts'), 'utf8');
+    expect(source).toMatch(/\.\.\/application\/restorePreview/);
+    expect(source).toMatch(/\.\.\/application\/restoreService/);
+    expect(source).toMatch(/\.\.\/application\/importSanitizer/);
+    expect(source).toMatch(/\.\.\/application\/diagnostics/);
+    expect(source).toMatch(/\.\/router/);
+  });
+
+  it('keeps WebDAV background entry as compatibility export after moving controller under feature', () => {
+    const legacyPath = 'src/background/webdav.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(14);
+    expect(legacySource).toMatch(/features\/webdavSync\/background\/controller/);
+
+    const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/background/bootstrap.ts'), 'utf8');
+    const scheduler = fs.readFileSync(path.resolve(root, 'src/apps/background/scheduler.ts'), 'utf8');
+    expect(bootstrap).toMatch(/features\/webdavSync\/background\/controller/);
+    expect(scheduler).toMatch(/features\/webdavSync\/background\/controller/);
+  });
+
+  it('keeps record refresh implementation under features with background sync as a compatibility export', () => {
+    const expectedFiles = [
+      'src/features/records/refresh/domain/types.ts',
+      'src/features/records/refresh/application/cloudflareVerification.ts',
+      'src/features/records/refresh/application/fc2Refresh.ts',
+      'src/features/records/refresh/application/javdbParsers.ts',
+      'src/features/records/refresh/application/recordRefresh.ts',
+      'src/features/records/refresh/index.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const syncSource = fs.readFileSync(path.resolve(root, 'src/background/sync.ts'), 'utf8');
+    const syncNonEmptyLines = syncSource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(syncNonEmptyLines.length, 'src/background/sync.ts should stay a thin compatibility wrapper').toBeLessThanOrEqual(10);
+    expect(syncSource).toMatch(/features\/records\/refresh/);
+
+    const miscSource = fs.readFileSync(path.resolve(root, 'src/apps/background/miscMessageRouter.ts'), 'utf8');
+    expect(miscSource).toMatch(/features\/records\/refresh/);
+  });
+
+  it('keeps utility migration targets in features and platform while utils paths stay compatibility exports', () => {
+    const modules = [
+      {
+        legacyPath: 'src/utils/searchEngines.ts',
+        targetPath: 'src/features/externalSearch/domain/searchEngines.ts',
+        targetPattern: /features\/externalSearch\/domain\/searchEngines/,
+      },
+      {
+        legacyPath: 'src/utils/net.ts',
+        targetPath: 'src/platform/network/clientFetch.ts',
+        targetPattern: /platform\/network\/clientFetch/,
+      },
+      {
+        legacyPath: 'src/utils/ipLookup.ts',
+        targetPath: 'src/platform/network/ipLookup.ts',
+        targetPattern: /platform\/network\/ipLookup/,
+      },
+      {
+        legacyPath: 'src/utils/webdavDiagnostic.ts',
+        targetPath: 'src/features/webdavSync/application/webdavDiagnostic.ts',
+        targetPattern: /features\/webdavSync\/application\/webdavDiagnostic/,
+      },
+    ];
+
+    for (const item of modules) {
+      expect(fs.existsSync(path.resolve(root, item.targetPath)), `${item.targetPath} should exist`).toBe(true);
+
+      const source = fs.readFileSync(path.resolve(root, item.legacyPath), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${item.legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${item.legacyPath} should re-export from ${item.targetPath}`).toMatch(item.targetPattern);
+    }
+  });
+
+  it('keeps preview implementation under features with content paths as compatibility exports', () => {
+    const expectedFiles = [
+      'src/features/previews/index.ts',
+      'src/features/previews/nativeJavdbPreview.ts',
+      'src/features/previews/previewSourceRules.ts',
+      'src/features/previews/previewVideoPreload.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyFiles = [
+      'src/content/nativeJavdbPreview.ts',
+      'src/content/previewSourceRules.ts',
+      'src/content/previewVideoPreload.ts',
+    ];
+
+    for (const relative of legacyFiles) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${relative} should re-export from features/previews`).toMatch(/features\/previews/);
+    }
+
+    const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    const detailEnhancer = fs.readFileSync(path.resolve(root, 'src/content/enhancedVideoDetail.ts'), 'utf8');
+    const listEnhancement = fs.readFileSync(path.resolve(root, 'src/features/listEnhancement/listEnhancementManager.ts'), 'utf8');
+    expect(contentBootstrap).toMatch(/features\/previews/);
+    expect(detailEnhancer).toMatch(/features\/previews/);
+    expect(listEnhancement).toMatch(/['"]\.\.\/previews['"]/);
+  });
+
+  it('keeps super ranking navigation under features with content path as a compatibility export', () => {
+    const expectedFiles = [
+      'src/features/rankings/index.ts',
+      'src/features/rankings/superRankingNav.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyPath = 'src/content/superRankingNav.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/features\/rankings/);
+
+    const featureSource = fs.readFileSync(path.resolve(root, 'src/features/rankings/superRankingNav.ts'), 'utf8');
+    expect(featureSource).not.toMatch(/from ['"].*content\//);
+
+    const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    const listEnhancement = fs.readFileSync(path.resolve(root, 'src/features/listEnhancement/listEnhancementManager.ts'), 'utf8');
+    expect(contentBootstrap).toMatch(/features\/rankings/);
+    expect(listEnhancement).toMatch(/['"]\.\.\/rankings['"]/);
+  });
+
+  it('keeps content filter implementation under features with content path as a compatibility export', () => {
+    const expectedFiles = [
+      'src/features/contentFilter/index.ts',
+      'src/features/contentFilter/contentFilterManager.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyPath = 'src/content/contentFilter.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/features\/contentFilter/);
+
+    const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    const keyboardShortcuts = fs.readFileSync(path.resolve(root, 'src/content/keyboardShortcuts.ts'), 'utf8');
+    expect(contentBootstrap).toMatch(/features\/contentFilter/);
+    expect(keyboardShortcuts).toMatch(/features\/contentFilter/);
+  });
+
+  it('keeps list enhancement implementation under features with content path as a compatibility export', () => {
+    const expectedFiles = [
+      'src/features/listEnhancement/index.ts',
+      'src/features/listEnhancement/listEnhancementManager.ts',
+      'src/features/listEnhancement/domain/config.ts',
+      'src/features/listEnhancement/application/actorMatching.ts',
+      'src/features/listEnhancement/application/actorHiding.ts',
+      'src/features/listEnhancement/application/popularityEffects.ts',
+      'src/features/listEnhancement/ui/styles.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyPath = 'src/content/enhancements/listEnhancement.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/features\/listEnhancement/);
+
+    const featureSource = fs.readFileSync(path.resolve(root, 'src/features/listEnhancement/listEnhancementManager.ts'), 'utf8');
+    const managerLineCount = featureSource.split(/\r?\n/).length;
+    expect(managerLineCount, 'listEnhancementManager.ts should keep shrinking as config, pure helpers, and styles move out').toBeLessThanOrEqual(1650);
+    expect(featureSource).toMatch(/\.\/domain\/config/);
+    expect(featureSource).toMatch(/\.\/application\/actorMatching/);
+    expect(featureSource).toMatch(/\.\/application\/actorHiding/);
+    expect(featureSource).toMatch(/\.\/application\/popularityEffects/);
+    expect(featureSource).toMatch(/\.\/ui\/styles/);
+    expect(featureSource).toMatch(/['"]\.\.\/previews['"]/);
+    expect(featureSource).toMatch(/['"]\.\.\/rankings['"]/);
+
+    const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    expect(contentBootstrap).toMatch(/features\/listEnhancement/);
+  });
+
+  it('keeps actor enhancement implementation under features with content paths as compatibility exports', () => {
+    const expectedFiles = [
+      'src/features/actorEnhancement/index.ts',
+      'src/features/actorEnhancement/actorEnhancementManager.ts',
+      'src/features/actorEnhancement/actorQuickActionsManager.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyFiles = [
+      'src/content/enhancements/actorEnhancement.ts',
+      'src/content/enhancements/actorQuickActions.ts',
+    ];
+
+    for (const relative of legacyFiles) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${relative} should re-export from features/actorEnhancement`).toMatch(/features\/actorEnhancement/);
+    }
+
+    const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    expect(contentBootstrap).toMatch(/features\/actorEnhancement/);
+  });
+
+  it('keeps background misc message router under apps with legacy background path as compatibility export', () => {
+    const expectedFiles = [
+      'src/apps/background/miscMessageRouter.ts',
+      'src/features/previews/backgroundHandlers.ts',
+      'src/features/newWorks/backgroundMessages.ts',
+      'src/apps/background/orchestratorMetrics.ts',
+      'src/apps/background/embyDynamicContentScripts.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const miscRouter = fs.readFileSync(path.resolve(root, 'src/apps/background/miscMessageRouter.ts'), 'utf8');
+    expect(miscRouter).toMatch(/features\/previews/);
+    expect(miscRouter).toMatch(/features\/newWorks\/backgroundMessages/);
+    expect(miscRouter).toMatch(/\.\/orchestratorMetrics/);
+    expect(miscRouter).toMatch(/\.\/embyDynamicContentScripts/);
+
+    const legacyPath = 'src/background/miscHandlers.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/apps\/background\/miscMessageRouter/);
+
+    const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/background/bootstrap.ts'), 'utf8');
+    expect(bootstrap).toMatch(/\.\/miscMessageRouter/);
+  });
+
+  it('keeps background DB router under apps with legacy background path as compatibility export', () => {
+    const targetPath = 'src/apps/background/dbMessageRouter.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/background/dbRouter.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/apps\/background\/dbMessageRouter/);
+
+    const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/background/bootstrap.ts'), 'utf8');
+    expect(bootstrap).toMatch(/\.\/dbMessageRouter/);
+  });
+
+  it('keeps background scheduler under apps with legacy background path as compatibility export', () => {
+    const targetPath = 'src/apps/background/scheduler.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/background/scheduler.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/apps\/background\/scheduler/);
+
+    const alarmRouter = fs.readFileSync(path.resolve(root, 'src/apps/background/alarmRouter.ts'), 'utf8');
+    const miscHandlers = fs.readFileSync(path.resolve(root, 'src/apps/background/miscMessageRouter.ts'), 'utf8');
+    expect(alarmRouter).toMatch(/\.\/scheduler/);
+    expect(miscHandlers).toMatch(/\.\/scheduler/);
+  });
+
+  it('keeps 115 v2 background proxy under drive115 feature with legacy background path as compatibility export', () => {
+    const targetPath = 'src/features/drive115/v2/backgroundProxy.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/background/drive115Proxy.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/features\/drive115\/v2\/backgroundProxy/);
+
+    const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/background/bootstrap.ts'), 'utf8');
+    expect(bootstrap).toMatch(/features\/drive115\/v2\/backgroundProxy/);
+  });
+
+  it('keeps storage migrations under platform with legacy background path as compatibility export', () => {
+    const targetPath = 'src/platform/storage/migrations.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/background/migrations.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/platform\/storage\/migrations/);
+
+    const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/background/bootstrap.ts'), 'utf8');
+    expect(bootstrap).toMatch(/platform\/storage\/migrations/);
+  });
+
+  it('keeps IndexedDB storage split into schema, connection, log fields, and viewed index helpers', () => {
+    const expectedFiles = [
+      'src/platform/storage/indexedDb.ts',
+      'src/platform/storage/indexedDbConnection.ts',
+      'src/platform/storage/indexedDbSchema.ts',
+      'src/platform/storage/indexedDbLogFields.ts',
+      'src/platform/storage/indexedDbViewedIndexes.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const indexedDbSource = fs.readFileSync(path.resolve(root, 'src/platform/storage/indexedDb.ts'), 'utf8');
+    const indexedDbLineCount = indexedDbSource.split(/\r?\n/).length;
+    expect(indexedDbLineCount, 'indexedDb.ts should keep shrinking as storage internals move out').toBeLessThanOrEqual(2100);
+    expect(indexedDbSource).toMatch(/\.\/indexedDbConnection/);
+    expect(indexedDbSource).toMatch(/\.\/indexedDbSchema/);
+    expect(indexedDbSource).toMatch(/\.\/indexedDbLogFields/);
+    expect(indexedDbSource).toMatch(/\.\/indexedDbViewedIndexes/);
+    expect(indexedDbSource).not.toMatch(/\bopenDB\b/);
+
+    const connectionSource = fs.readFileSync(path.resolve(root, 'src/platform/storage/indexedDbConnection.ts'), 'utf8');
+    expect(connectionSource).toMatch(/\bopenDB\b/);
+    expect(connectionSource).toMatch(/\bupgrade\b/);
+    expect(connectionSource).toMatch(/indexedDbSchema/);
+    expect(connectionSource).toMatch(/indexedDbViewedIndexes/);
+    expect(connectionSource).toMatch(/indexedDbLogFields/);
+  });
+
+  it('keeps magnet search manager focused on UI orchestration with result metadata helpers in application', () => {
+    const targetPath = 'src/features/magnets/application/resultMetadata.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const managerSource = fs.readFileSync(path.resolve(root, 'src/features/magnets/ui/magnetSearchManager.ts'), 'utf8');
+    const managerLineCount = managerSource.split(/\r?\n/).length;
+    expect(managerLineCount, 'magnetSearchManager.ts should keep shrinking as pure result helpers move out').toBeLessThanOrEqual(2450);
+    expect(managerSource).toMatch(/application\/resultMetadata/);
+
+    const helperSource = fs.readFileSync(path.resolve(root, targetPath), 'utf8');
+    expect(helperSource).toMatch(/parseSizeToBytes/);
+    expect(helperSource).toMatch(/detectMagnetQuality/);
+    expect(helperSource).toMatch(/normalizeMagnetDate/);
+    expect(helperSource).toMatch(/isValidMagnetResultName/);
   });
 });

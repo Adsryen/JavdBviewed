@@ -10,4 +10,5 @@ export {
 } from './chromeStorage';
 
 export * from './indexedDb';
+export * from './migrations';
 export * from './trendUtils';

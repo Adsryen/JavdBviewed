@@ -4,7 +4,7 @@ import {
   getSearchEngineCategory,
   isSearchEngineEnabled,
   type SearchEngineTemplate,
-} from '../../../utils/searchEngines';
+} from '../../externalSearch/domain/searchEngines';
 import { getValue } from '../../../utils/storage';
 import { bucketCount, countObjectKeys } from '../domain/buckets';
 import type { TelemetryClientState, TelemetryEventType, TelemetryPayload, TelemetryRuntimeInfo } from '../domain/types';

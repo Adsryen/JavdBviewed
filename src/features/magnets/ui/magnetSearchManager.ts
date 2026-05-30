@@ -21,6 +21,17 @@ import {
   getMagnetSourceLabel,
 } from '../application/sourceTagState';
 import {
+  deduplicateMagnetResults,
+  detectMagnetQuality,
+  detectMagnetSubtitle,
+  extractHashFromMagnet,
+  isCrackedVersion,
+  isValidMagnetResultName,
+  normalizeMagnetDate,
+  parseSizeToBytes,
+  sortMagnetResults,
+} from '../application/resultMetadata';
+import {
   buildJavbusAjaxUrl,
   extractJavbusAjaxParams,
   getJavbusResponseDiagnostics,
@@ -36,9 +47,6 @@ import type {
   MagnetExternalSearchResult,
 } from '../domain/types';
 import { fetchJavbusAjaxViaTab } from '../../../content/javbusTabFetch';
-
-// 正则表达式常量
-const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;
 
 // 磁链缓存 TTL（默认 7 天）
 const MAGNET_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -357,7 +365,7 @@ export class MagnetSearchManager {
 
     const sourceResults = await Promise.all(searchPromises);
     const discoveredCount = sourceResults.reduce((total, results) => total + results.length, 0);
-    const uniqueResults = this.sortResults(this.deduplicateResults(allResults));
+      const uniqueResults = sortMagnetResults(deduplicateMagnetResults(allResults));
 
     return {
       discoveredCount,
@@ -578,13 +586,13 @@ export class MagnetSearchManager {
               name,
               magnet,
               size,
-              sizeBytes: this.parseSizeToBytes(size),
-              date: this.normalizeDate(date, 'Sukebei'),
+              sizeBytes: parseSizeToBytes(size),
+              date: normalizeMagnetDate(date, 'Sukebei'),
               seeders,
               leechers,
               source: 'Sukebei',
-              hasSubtitle: this.detectSubtitle(name),
-              quality: this.detectQuality(name),
+              hasSubtitle: detectMagnetSubtitle(name),
+              quality: detectMagnetQuality(name),
             });
           }
         } else {
@@ -625,11 +633,11 @@ export class MagnetSearchManager {
               name,
               magnet,
               size,
-              sizeBytes: this.parseSizeToBytes(size),
-              date: this.normalizeDate(date, 'BTdig'),
+              sizeBytes: parseSizeToBytes(size),
+              date: normalizeMagnetDate(date, 'BTdig'),
               source: 'BTdig',
-              hasSubtitle: this.detectSubtitle(name),
-              quality: this.detectQuality(name),
+              hasSubtitle: detectMagnetSubtitle(name),
+              quality: detectMagnetQuality(name),
             });
           }
         }
@@ -672,11 +680,11 @@ export class MagnetSearchManager {
               name,
               magnet,
               size,
-              sizeBytes: this.parseSizeToBytes(size),
-              date: this.normalizeDate(date, 'BTSOW'),
+              sizeBytes: parseSizeToBytes(size),
+              date: normalizeMagnetDate(date, 'BTSOW'),
               source: 'BTSOW',
-              hasSubtitle: this.detectSubtitle(name),
-              quality: this.detectQuality(name),
+              hasSubtitle: detectMagnetSubtitle(name),
+              quality: detectMagnetQuality(name),
             });
           }
         }
@@ -723,11 +731,11 @@ export class MagnetSearchManager {
               name,
               magnet,
               size,
-              sizeBytes: this.parseSizeToBytes(size),
+              sizeBytes: parseSizeToBytes(size),
               date,
               source: 'Torrentz2',
-              hasSubtitle: this.detectSubtitle(name),
-              quality: this.detectQuality(name),
+              hasSubtitle: detectMagnetSubtitle(name),
+              quality: detectMagnetQuality(name),
             });
           }
         }
@@ -737,139 +745,6 @@ export class MagnetSearchManager {
     }
 
     return results;
-  }
-
-  /**
-   * 去重结果（基于磁力链接hash）
-   */
-  private deduplicateResults(results: MagnetResult[]): MagnetResult[] {
-    const uniqueResults: MagnetResult[] = [];
-    appendMagnetResults(uniqueResults, results);
-    return uniqueResults;
-  }
-
-  /**
-   * 排序结果：字幕 > 破解 > 磁力大小 > 磁力时间
-   */
-  private sortResults(results: MagnetResult[]): MagnetResult[] {
-    return results.sort((a, b) => {
-      // 1. 优先显示有字幕的
-      if (a.hasSubtitle && !b.hasSubtitle) return -1;
-      if (!a.hasSubtitle && b.hasSubtitle) return 1;
-
-      // 2. 然后显示破解版（检查名称中是否包含破解相关关键词）
-      const aIsCracked = this.isCrackedVersion(a.name);
-      const bIsCracked = this.isCrackedVersion(b.name);
-      if (aIsCracked && !bIsCracked) return -1;
-      if (!aIsCracked && bIsCracked) return 1;
-
-      // 3. 按文件大小排序（大的在前）
-      if (a.sizeBytes !== b.sizeBytes) {
-        return b.sizeBytes - a.sizeBytes;
-      }
-
-      // 4. 按时间排序（新的在前）
-      if (a.date && b.date) {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      }
-
-      // 5. 最后按种子数排序（多的在前）
-      return (b.seeders || 0) - (a.seeders || 0);
-    });
-  }
-
-  /**
-   * 检查是否为破解版
-   */
-  private isCrackedVersion(name: string): boolean {
-    const crackKeywords = ['破解', 'crack', 'uncensored', '无码', '無碼', 'leaked'];
-    const normalizedName = name.toLowerCase();
-    return crackKeywords.some(keyword => normalizedName.includes(keyword.toLowerCase()));
-  }
-
-  /**
-   * 标准化时间格式
-   */
-  private normalizeDate(dateStr: string, source: string): string {
-    if (!dateStr) return '';
-
-    try {
-      // 处理不同来源的时间格式
-      switch (source) {
-        case 'JavDB':
-          // JavDB: "2025-07-13" 格式已经标准
-          return dateStr;
-
-        case 'Sukebei':
-          // Sukebei: "2025-06-24" 格式已经标准
-          return dateStr;
-
-        case 'BTdig':
-          // BTdig: "found 3 weeks ago", "found 1 month ago" 等
-          return this.parseRelativeDate(dateStr);
-
-        case 'BTSOW':
-          // BTSOW: 可能是相对时间或绝对时间
-          if (dateStr.includes('ago') || dateStr.includes('found')) {
-            return this.parseRelativeDate(dateStr);
-          }
-          return dateStr;
-
-        default:
-          return dateStr;
-      }
-    } catch (error) {
-      log(`Error normalizing date "${dateStr}" from ${source}:`, error);
-      return dateStr;
-    }
-  }
-
-  /**
-   * 解析相对时间（如 "found 3 weeks ago"）
-   */
-  private parseRelativeDate(relativeStr: string): string {
-    const now = new Date();
-    const lowerStr = relativeStr.toLowerCase();
-
-    try {
-      // 提取数字和时间单位
-      const match = lowerStr.match(/(\d+)\s*(minute|hour|day|week|month|year)s?\s*ago/);
-      if (!match) {
-        // 如果无法解析，返回一个较旧的日期
-        return '2024-01-01';
-      }
-
-      const amount = parseInt(match[1]);
-      const unit = match[2];
-
-      // 计算具体日期
-      switch (unit) {
-        case 'minute':
-          now.setMinutes(now.getMinutes() - amount);
-          break;
-        case 'hour':
-          now.setHours(now.getHours() - amount);
-          break;
-        case 'day':
-          now.setDate(now.getDate() - amount);
-          break;
-        case 'week':
-          now.setDate(now.getDate() - (amount * 7));
-          break;
-        case 'month':
-          now.setMonth(now.getMonth() - amount);
-          break;
-        case 'year':
-          now.setFullYear(now.getFullYear() - amount);
-          break;
-      }
-
-      // 返回 YYYY-MM-DD 格式
-      return now.toISOString().split('T')[0];
-    } catch (error) {
-      log(`Error parsing relative date "${relativeStr}":`, error);
-      return '2024-01-01';
-    }
   }
 
   /**
@@ -933,8 +808,8 @@ export class MagnetSearchManager {
               name,
               magnet,
               size,
-              sizeBytes: this.parseSizeToBytes(size),
-              date: this.normalizeDate(date, 'JavDB'),
+              sizeBytes: parseSizeToBytes(size),
+              date: normalizeMagnetDate(date, 'JavDB'),
               seeders: 0, // JavDB不提供种子数
               leechers: 0,
               source: 'JavDB',
@@ -976,8 +851,8 @@ export class MagnetSearchManager {
       log('Source statistics:', sourceStats);
 
       // 去重和排序
-      const uniqueResults = this.deduplicateResults(allResults);
-      const sortedResults = this.sortResults(uniqueResults);
+      const uniqueResults = deduplicateMagnetResults(allResults);
+      const sortedResults = sortMagnetResults(uniqueResults);
       const displayLimit = sortedResults.length > 30 ? sortedResults.length : this.config.maxResults;
       const limitedResults = sortedResults.slice(0, displayLimit);
       const duplicateCount = Math.max(0, discoveredCount - uniqueResults.length);
@@ -1326,7 +1201,7 @@ export class MagnetSearchManager {
     }
 
     // 添加破解标签
-    if (this.isCrackedVersion(result.name)) {
+    if (isCrackedVersion(result.name)) {
       const crackedTag = document.createElement('span');
       crackedTag.className = 'tag is-success is-small is-light';
       crackedTag.textContent = '破解';
@@ -1357,7 +1232,7 @@ export class MagnetSearchManager {
     // 下载按钮（保持JavDB原有样式）
     const downloadButton = document.createElement('a');
     downloadButton.className = 'button is-info is-small';
-    downloadButton.href = `https://keepshare.org/aa36p03v/magnet%3A%3Fxt%3Durn%3Abtih%3A${this.extractHashFromMagnet(result.magnet)}`;
+    downloadButton.href = `https://keepshare.org/aa36p03v/magnet%3A%3Fxt%3Durn%3Abtih%3A${extractHashFromMagnet(result.magnet)}`;
     downloadButton.target = '_blank';
     downloadButton.innerHTML = '&nbsp;下载&nbsp;';
 
@@ -2376,26 +2251,6 @@ export class MagnetSearchManager {
   }
 
   /**
-   * 解析文件大小
-   */
-  private parseSizeToBytes(sizeStr: string): number {
-    const match = sizeStr.match(/([0-9.]+)\s*(TB|GB|MB|KB|B)/i);
-    if (!match) return 0;
-    const size = parseFloat(match[1]);
-    const unit = (match[2] || 'B').toUpperCase() as 'TB' | 'GB' | 'MB' | 'KB' | 'B';
-    const multipliers: Record<string, number> = {
-      TB: 1024 * 1024 * 1024 * 1024,
-      GB: 1024 * 1024 * 1024,
-      MB: 1024 * 1024,
-      KB: 1024,
-      B: 1,
-    };
-    return size * (multipliers[unit] || 0);
-  }
-
-
-
-  /**
    * 更新总数显示
    */
   private updateTotalCount(totalOverride?: number): void {
@@ -2459,23 +2314,6 @@ export class MagnetSearchManager {
 
 
 
-  private detectQuality(name: string): string | undefined {
-    const qualityPatterns = [
-      { pattern: /4K|2160p/i, quality: '4K' },
-      { pattern: /1080p/i, quality: '1080p' },
-      { pattern: /720p/i, quality: '720p' },
-      { pattern: /480p/i, quality: '480p' },
-    ];
-
-    for (const { pattern, quality } of qualityPatterns) {
-      if (pattern.test(name)) {
-        return quality;
-      }
-    }
-
-    return undefined;
-  }
-
   /**
    * 验证搜索结果是否匹配视频ID
    */
@@ -2483,47 +2321,13 @@ export class MagnetSearchManager {
     if (!name || !videoId) return false;
 
     try {
-      const normalizedName = name.toUpperCase();
-      const normalizedVideoId = videoId.toUpperCase();
-      const candidates = this.getVideoIdMatchCandidates(normalizedVideoId);
-
-      const isMatch = candidates.some((candidate) => normalizedName.includes(candidate));
+      const isMatch = isValidMagnetResultName(name, videoId);
       log(`Validating result: "${name}" matches "${videoId}": ${isMatch}`);
-
       return isMatch;
     } catch (error) {
       log('Error validating result:', error);
-      // 如果匹配失败，返回true以便调试
       return true;
     }
-  }
-
-  private getVideoIdMatchCandidates(normalizedVideoId: string): string[] {
-    const candidates = new Set<string>([normalizedVideoId]);
-    const compact = normalizedVideoId.replace(/[^A-Z0-9]/g, '');
-
-    const fc2Match = compact.match(/^FC2(?:PPV)?(\d+)$/);
-    if (fc2Match) {
-      const numericId = fc2Match[1];
-      candidates.add(`FC2-${numericId}`);
-      candidates.add(`FC2PPV${numericId}`);
-      candidates.add(`FC2-PPV-${numericId}`);
-      candidates.add(`FC2 PPV ${numericId}`);
-    }
-
-    return Array.from(candidates);
-  }
-
-
-
-
-
-  /**
-   * 从磁力链接提取hash
-   */
-  private extractHashFromMagnet(magnet: string): string {
-    const match = magnet.match(/xt=urn:btih:([a-fA-F0-9]{40})/);
-    return match ? match[1].toLowerCase() : magnet;
   }
 
   /**
@@ -2558,7 +2362,7 @@ export class MagnetSearchManager {
     const now = Date.now();
     const expireAt = now + MAGNET_CACHE_TTL_MS;
     const recs = results.map((r) => {
-      const hash = this.extractHashFromMagnet(r.magnet);
+      const hash = extractHashFromMagnet(r.magnet);
       return {
         key: `${videoId}|${r.source}|${hash}`,
         videoId,
@@ -2578,12 +2382,6 @@ export class MagnetSearchManager {
     });
     await dbMagnetsUpsert(recs);
   }
-
-  private detectSubtitle(name: string): boolean {
-    return ZH_REGEX.test(name);
-  }
-
-
 
   /**
    * 更新配置

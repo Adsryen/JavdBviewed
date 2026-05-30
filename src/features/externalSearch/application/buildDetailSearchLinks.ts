@@ -4,7 +4,7 @@ import {
   getSearchEnginesForVideo,
   resolveSearchEngineIcon,
   type SearchEngineTemplate,
-} from '../../../utils/searchEngines';
+} from '../domain/searchEngines';
 import type { DetailSearchLink } from '../domain/types';
 
 export function buildDetailSearchLinks(

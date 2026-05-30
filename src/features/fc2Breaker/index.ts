@@ -3,7 +3,7 @@
 
 import { log, STATE } from '../../content/state';
 import { getJavdbTheme, type JavdbTheme } from '../../content/utils';
-import { bgFetchJSON } from '../../utils/net';
+import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { ReviewBreakerService } from '../reviewUnlock';
 import { dbViewedPut } from '../../content/dbClient';
 import type { VideoRecord } from '../../types';

@@ -4,11 +4,10 @@ if (typeof self === 'undefined' || !(self as any).registration) {
   console.warn('[Background] Service Worker context not ready, waiting...');
 }
 
-import { installDrive115V2Proxy } from '../../background/drive115Proxy';
-import { registerDbMessageRouter } from '../../background/dbRouter';
-import { ensureMigrationsStart } from '../../background/migrations';
-import { registerMiscRouter } from '../../background/miscHandlers';
-import { registerWebDAVRouter } from '../../background/webdav';
+import { installDrive115V2Proxy } from '../../features/drive115/v2/backgroundProxy';
+import { ensureMigrationsStart } from '../../platform/storage/migrations';
+import { registerMiscRouter } from './miscMessageRouter';
+import { registerWebDAVRouter } from '../../features/webdavSync/background/controller';
 import { globalTaskCenter } from '../../background/globalTaskCenter';
 import { registerNetProxyRouter } from '../../platform/network/backgroundFetchRouter';
 import { installConsoleProxyWithSettings } from '../../platform/logging/backgroundConsole';
@@ -17,6 +16,7 @@ import {
   initializeTelemetryReporter,
 } from '../../features/telemetry';
 import { initializeBackgroundAlarmWiring } from './alarmRouter';
+import { registerDbMessageRouter } from './dbMessageRouter';
 import {
   registerDynamicContentScripts,
   registerEmbyDynamicContentScriptsOnStartup,

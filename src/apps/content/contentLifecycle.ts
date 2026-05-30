@@ -1,0 +1,93 @@
+import { STATE, log } from '../../content/state';
+import { cleanupVideoDetailObservers } from '../../content/videoDetail';
+import { keyboardShortcutsManager } from '../../content/keyboardShortcuts';
+import { embyEnhancementManager } from '../../content/embyEnhancement';
+import { performanceOptimizer } from '../../content/performanceOptimizer';
+import { contentFilterManager } from '../../features/contentFilter';
+import { magnetSearchManager } from '../../features/magnets';
+import { listEnhancementManager } from '../../features/listEnhancement';
+import { actorEnhancementManager } from '../../features/actorEnhancement';
+import { stopPreviewVideoWatcher } from '../../features/previews';
+
+export function exposeContentDebugManagers(): void {
+    if (typeof window === 'undefined') return;
+
+    (window as any).listEnhancementManager = listEnhancementManager;
+    (window as any).actorEnhancementManager = actorEnhancementManager;
+}
+
+export function installContentLifecycleHandlers(): void {
+    window.addEventListener('beforeunload', () => {
+        try {
+            stopPreviewVideoWatcher();
+            cleanupVideoDetailObservers();
+            performanceOptimizer?.cleanup();
+            contentFilterManager?.destroy();
+            keyboardShortcutsManager?.destroy?.();
+            embyEnhancementManager?.destroy();
+            magnetSearchManager?.destroy?.();
+
+            log('Resources cleaned up on page unload');
+        } catch (error) {
+            log('Error during cleanup:', error);
+        }
+    });
+
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+        chrome.runtime.onConnect.addListener((port) => {
+            port.onDisconnect.addListener(() => {
+                if (chrome.runtime.lastError) {
+                    log('[Context] Extension context may be invalidated:', chrome.runtime.lastError.message);
+                    performanceOptimizer?.cleanup();
+                }
+            });
+        });
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            log('[Performance] Page hidden, reducing resource usage');
+            performanceOptimizer?.updateConfig({
+                maxConcurrentRequests: 1,
+                domBatchSize: 2,
+                domThrottleDelay: 200,
+                enableMemoryCleanup: true,
+                memoryCleanupInterval: 20000,
+            });
+            try {
+                magnetSearchManager.updateConfig({
+                    sources: { sukebei: true, btdig: true, btsow: false, torrentz2: false, javbus: false, custom: [] },
+                    maxResults: 8,
+                    timeout: 5000,
+                });
+            } catch {}
+        } else {
+            log('[Performance] Page visible, restoring normal resource usage');
+            try {
+                const s = STATE.settings as any;
+                const mc = (s?.magnetSearch?.concurrency?.pageMaxConcurrentRequests ?? 2) as number;
+                performanceOptimizer?.updateConfig({
+                    maxConcurrentRequests: mc,
+                    domBatchSize: 5,
+                    domThrottleDelay: 100,
+                });
+                const magnetSearchConfig = s?.magnetSearch || {};
+                const sources = magnetSearchConfig.sources || {};
+                magnetSearchManager.updateConfig({
+                    sources: {
+                        sukebei: sources.sukebei !== false,
+                        btdig: sources.btdig !== false,
+                        btsow: sources.btsow !== false,
+                        torrentz2: sources.torrentz2 || false,
+                        javbus: sources.javbus === true,
+                        custom: [],
+                    },
+                    maxResults: (magnetSearchConfig.maxResults ?? 15),
+                    timeout: (magnetSearchConfig.timeoutMs ?? 8000),
+                });
+            } catch {
+                performanceOptimizer?.updateConfig({ maxConcurrentRequests: 2, domBatchSize: 5, domThrottleDelay: 100 });
+            }
+        }
+    });
+}

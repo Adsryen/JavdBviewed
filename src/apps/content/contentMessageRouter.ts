@@ -1,0 +1,150 @@
+import { getSettings } from '../../utils/storage';
+import { STATE, log } from '../../content/state';
+import { processVisibleItems } from '../../content/itemProcessor';
+import { showToast } from '../../content/toast';
+import { videoDetailEnhancer } from '../../content/enhancedVideoDetail';
+import { refreshActorMarksOnPage, runActorRemarksQuick } from '../../content/videoDetail';
+import { contentFilterManager } from '../../features/contentFilter';
+import { listEnhancementManager } from '../../features/listEnhancement';
+import { actorEnhancementManager } from '../../features/actorEnhancement';
+import { embyEnhancementManager } from '../../content/embyEnhancement';
+import { destroySuperRankingNav, initializeSuperRankingNav, isSuperRankingSupportedHost } from '../../features/rankings';
+
+export function installContentMessageRouter(): void {
+    try {
+        window.addEventListener('actor-state-changed', async () => {
+            try {
+                listEnhancementManager.reapplyActorHidingForAll?.();
+            } catch (e) {
+                log('Failed to reapply actor-based list hiding after actor state change:', e as any);
+            }
+
+            try {
+                if (window.location.pathname.startsWith('/v/')) {
+                    await refreshActorMarksOnPage();
+                }
+            } catch (e) {
+                log('Failed to refresh actor marks after actor state change:', e as any);
+            }
+        });
+    } catch (e) {
+        log('Failed to bind actor-state-changed listener:', e as any);
+    }
+
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+        if (message.type === 'settings-updated') {
+            log('Settings updated, reloading settings and reprocessing items');
+            Promise.resolve((message && message.settings) || null).then(async (incomingSettings) => {
+                const settings = incomingSettings || await getSettings();
+                STATE.settings = settings;
+                try {
+                    if (isSuperRankingSupportedHost() && (settings.userExperience as any)?.enableSuperRanking !== false) {
+                        initializeSuperRankingNav();
+                    } else {
+                        destroySuperRankingNav();
+                    }
+                } catch (e) {
+                    log('Failed to refresh super ranking navigation after settings update:', e as any);
+                }
+                log('Updated display settings:', settings.display);
+                log('Updated translation targets:', (STATE.settings as any)?.translation?.targets);
+                processVisibleItems();
+
+                try {
+                    listEnhancementManager.updateConfig({
+                        hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
+                        hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
+                        hideUnrecognizedActorsInList: (settings.listEnhancement as any)?.hideUnrecognizedActorsInList !== false,
+                        treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
+                        listDisplayControl: {
+                            enabled: (settings.listEnhancement as any)?.listDisplayControl?.enabled !== false,
+                            columnCount: (settings.listEnhancement as any)?.listDisplayControl?.columnCount || 4,
+                            containerWidth: (settings.listEnhancement as any)?.listDisplayControl?.containerWidth || 100,
+                            enableContainerExpansion: (settings.listEnhancement as any)?.listDisplayControl?.enableContainerExpansion === true,
+                        },
+                        popularityEffects: {
+                            enabled: (settings.listEnhancement as any)?.popularityEffects?.enabled === true,
+                            minRating: Math.max(0, Math.min(5, parseFloat(String((settings.listEnhancement as any)?.popularityEffects?.minRating ?? 4)) || 4)),
+                            minRatingCount: Math.max(0, parseInt(String((settings.listEnhancement as any)?.popularityEffects?.minRatingCount ?? 350), 10) || 350),
+                        },
+                    });
+                    listEnhancementManager.reapplyActorHidingForAll?.();
+                } catch (e) {
+                    log('Failed to reapply actor-based list hiding after settings update:', e as any);
+                }
+
+                if (settings.userExperience.enableContentFilter) {
+                    setTimeout(() => {
+                        const keywordRules = settings.contentFilter?.keywordRules || [];
+                        contentFilterManager.updateKeywordRules(keywordRules);
+                        log('Content filter reapplied after settings update');
+                    }, 100);
+                }
+
+                try {
+                    embyEnhancementManager.refresh?.();
+                } catch (e) {
+                    log('Failed to refresh Emby enhancement after settings update:', e as any);
+                }
+
+                try {
+                    if (window.location.pathname.startsWith('/v/')) {
+                        await videoDetailEnhancer.refreshTranslationFromSettings();
+                        await refreshActorMarksOnPage();
+                        await runActorRemarksQuick();
+                        log('Video detail enhancement reapplied after settings update');
+                    }
+                } catch (e) {
+                    log('Failed to reapply video detail enhancement after settings update:', e as any);
+                }
+            });
+            return false;
+        } else if (message.type === 'show-toast') {
+            log('Received toast message:', message.message, message.toastType);
+            try {
+                showToast(message.message, message.toastType || 'info');
+            } catch (err) {
+                console.error('[JavDB Ext] Failed to show toast:', err);
+            }
+            return false;
+        } else if (message.type === 'UPDATE_CONTENT_FILTER') {
+            if (message.keywordRules) {
+                processVisibleItems();
+                setTimeout(() => {
+                    contentFilterManager.updateKeywordRules(message.keywordRules);
+                    log(`Content filter rules updated: ${message.keywordRules.length} rules`);
+                }, 100);
+            }
+            return false;
+        } else if (message.type === 'ACTOR_ENHANCEMENT_SAVE_FILTER') {
+            actorEnhancementManager.saveCurrentTagFilter()
+                .then(() => {
+                    sendResponse({ success: true });
+                })
+                .catch((error: any) => {
+                    console.error('保存演员页过滤器失败:', error);
+                    sendResponse({ success: false, error: (error && error.message) || String(error) });
+                });
+            return true;
+        } else if (message.type === 'ACTOR_ENHANCEMENT_CLEAR_FILTERS') {
+            actorEnhancementManager.clearSavedFilters()
+                .then(() => {
+                    sendResponse({ success: true });
+                })
+                .catch((error: any) => {
+                    console.error('清除演员页过滤器失败:', error);
+                    sendResponse({ success: false, error: (error && error.message) || String(error) });
+                });
+            return true;
+        } else if (message.type === 'ACTOR_ENHANCEMENT_GET_STATUS') {
+            try {
+                sendResponse(actorEnhancementManager.getStatus());
+            } catch (error: any) {
+                console.error('获取演员页状态失败:', error);
+                sendResponse({ error: error.message });
+            }
+            return false;
+        }
+        return false;
+    });
+}

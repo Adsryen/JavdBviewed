@@ -12,4 +12,9 @@ export * from './application/restorePreview';
 export * from './application/restoreService';
 export * from './application/uploadIndex';
 export * from './application/uploadService';
+export { quickDiagnose, WebDAVDiagnostic } from './application/webdavDiagnostic';
+export type {
+  DiagnosticResult,
+  WebDAVConfig as WebDAVDiagnosticConfig,
+} from './application/webdavDiagnostic';
 export * from './background/router';

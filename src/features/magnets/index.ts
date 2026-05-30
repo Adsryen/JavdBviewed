@@ -24,6 +24,19 @@ export {
   type MagnetSourceTagView,
 } from './application/sourceTagState';
 export {
+  deduplicateMagnetResults,
+  detectMagnetQuality,
+  detectMagnetSubtitle,
+  extractHashFromMagnet,
+  getVideoIdMatchCandidates,
+  isCrackedVersion,
+  isValidMagnetResultName,
+  normalizeMagnetDate,
+  parseRelativeMagnetDate,
+  parseSizeToBytes,
+  sortMagnetResults,
+} from './application/resultMetadata';
+export {
   buildJavbusAjaxUrl,
   extractJavbusAjaxParams,
   getJavbusResponseDiagnostics,

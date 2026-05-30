@@ -1,4 +1,4 @@
-export type TelemetryEventType = 'startup' | 'heartbeat';
+export type TelemetryEventType = 'startup' | 'heartbeat' | 'error_report';
 export type TelemetryChannel = 'stable' | 'beta' | 'dev';
 export type TelemetryCountBucket = '0' | '1-9' | '10-49' | '50-99' | '100-499' | '500-999' | '1000+' | 'unknown';
 
