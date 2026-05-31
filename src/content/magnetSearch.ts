@@ -1,11 +1,2 @@
-export {
-  MagnetSearchManager,
-  magnetSearchManager,
-} from '../features/magnets';
+export * from '../features/magnets';
 
-export type {
-  MagnetExternalSearchResult,
-  MagnetResult,
-  MagnetSearchConfig,
-  MagnetSourceRunState,
-} from '../features/magnets';

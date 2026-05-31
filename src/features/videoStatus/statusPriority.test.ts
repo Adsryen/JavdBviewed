@@ -7,7 +7,7 @@ import {
     getStatusDisplayName,
     getStatusesByPriority 
 } from './statusPriority';
-import { VIDEO_STATUS } from './config';
+import { VIDEO_STATUS } from '../../utils/config';
 
 describe('status priority helpers', () => {
     it('assigns priorities in viewed, want, browsed order', () => {

@@ -1,4 +1,5 @@
 export * from './listEnhancementManager';
+export * from './content/itemProcessor';
 export * from './domain/config';
 export * from './application/actorMatching';
 export * from './application/actorHiding';
