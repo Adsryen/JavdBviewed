@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildRestoreCategorySelection,
   buildRestoreExecuteConfirmHtml,
   getRestoreCategoryLabel,
   getSelectedRestoreCategories,
@@ -25,6 +26,34 @@ describe('WebDAV restore execute confirm model', () => {
       viewed: false,
       actors: true,
     })).toEqual(['settings', 'actors']);
+  });
+
+  it('builds restore category selection from merge options and extra switches', () => {
+    expect(buildRestoreCategorySelection({
+      mergeOptions: {
+        strategy: 'smart',
+        restoreSettings: true,
+        restoreRecords: true,
+        restoreUserProfile: false,
+        restoreActorRecords: true,
+        restoreLogs: false,
+        restoreMagnetPushLogs: true,
+        restoreImportStats: true,
+        restoreNewWorks: true,
+      },
+      restoreMagnetPushLogs: false,
+      restoreMagnets: true,
+    })).toEqual({
+      settings: true,
+      userProfile: false,
+      viewed: true,
+      actors: true,
+      newWorks: true,
+      logs: false,
+      magnetPushLogs: false,
+      importStats: true,
+      magnets: true,
+    });
   });
 
   it('builds confirm html for enabled auto backup', () => {
