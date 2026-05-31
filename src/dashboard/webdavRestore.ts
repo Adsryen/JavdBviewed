@@ -41,6 +41,11 @@ import {
     type OperationSummaryItemViewModel,
 } from './webdavRestore/operationSummaryModel';
 import {
+    buildCloudPreviewStatItems,
+    buildCloudPreviewStats,
+    buildExtraStatItemHtml,
+} from './webdavRestore/previewStatsModel';
+import {
     buildSettingsDifferenceModalHtml,
     getSettingsDifferenceOverlayStyle,
     SETTINGS_DIFFERENCE_MODAL_CLASS,
@@ -1284,6 +1289,25 @@ function selectFile(file: WebDAVFile, element: HTMLElement): void {
   void loadCloudPreview();
 }
 
+function renderCloudPreviewStats(items: ReturnType<typeof buildCloudPreviewStatItems>): void {
+    const statsContainer = mq<HTMLElement>('#restoreModeStats');
+
+    items.forEach(item => {
+        const numberEl = mq<HTMLElement>(`#${item.id}`);
+        if (numberEl) {
+            numberEl.textContent = item.value.toString();
+            return;
+        }
+
+        if (!item.fixed && statsContainer) {
+            const statItem = document.createElement('div');
+            statItem.className = 'stat-item';
+            statItem.innerHTML = buildExtraStatItemHtml(item);
+            statsContainer.appendChild(statItem);
+        }
+    });
+}
+
 /**
  * 加载云端备份预览并填充统计（不做本地/差异分析）
  */
@@ -1327,78 +1351,10 @@ async function loadCloudPreview(): Promise<void> {
         
         currentCloudData = cloudData;
 
-        // 计算云端统计（优先使用后台 preview.counts），并增加 storageAll 回退
-        const previewCounts = resp.preview?.counts || {};
-        const storageAll = currentCloudData?.storageAll || {};
-        let videoCount = Number(previewCounts.viewed ?? NaN);
-        let actorCount = Number(previewCounts.actors ?? NaN);
-
-        if (isNaN(videoCount)) {
-            // 回退：data/viewed 或 idb.viewedRecords 或 storageAll.VIEWED_RECORDS
-            const viewedMap = currentCloudData.data || currentCloudData.viewed || storageAll[STORAGE_KEYS.VIEWED_RECORDS] || {};
-            const idbViewedArr = Array.isArray(currentCloudData?.idb?.viewedRecords) ? currentCloudData.idb.viewedRecords : [];
-            videoCount = (Object.keys(viewedMap || {}).length) || idbViewedArr.length || 0;
-        }
-        if (isNaN(actorCount)) {
-            // 回退：idb.actors 或 actorRecords 或 storageAll.ACTOR_RECORDS
-            const storageActors = storageAll[STORAGE_KEYS.ACTOR_RECORDS] || {};
-            actorCount = Array.isArray(currentCloudData?.idb?.actors)
-                ? currentCloudData.idb.actors.length
-                : (Object.keys(currentCloudData.actorRecords || {}).length || Object.keys(storageActors).length);
-        }
-        // newWorks 拆分为 subs/recs 两个计数（含 storageAll 回退）
-        const subsCount = Object.keys((currentCloudData.newWorks?.subscriptions) || (storageAll[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS] || {})).length;
-        const recsCount = Object.keys((currentCloudData.newWorks?.records) || (storageAll[STORAGE_KEYS.NEW_WORKS_RECORDS] || {})).length;
-        // 磁链缓存计数：优先 preview.counts.magnets，回退到 idb.magnets.length
-        let magnetCount = Number(previewCounts.magnets ?? NaN);
-        if (isNaN(magnetCount)) {
-            const idbMagnetsArr = Array.isArray(currentCloudData?.idb?.magnets) ? currentCloudData.idb.magnets : [];
-            magnetCount = idbMagnetsArr.length || 0;
-        }
-        // 磁力推送日志计数：优先 preview.counts.magnetPushLogs，回退到 idb.magnetPushLogs.length
-        let magnetPushLogCount = Number(previewCounts.magnetPushLogs ?? NaN);
-        if (isNaN(magnetPushLogCount)) {
-            const idbMagnetPushLogsArr = Array.isArray(currentCloudData?.idb?.magnetPushLogs) ? currentCloudData.idb.magnetPushLogs : [];
-            magnetPushLogCount = idbMagnetPushLogsArr.length || 0;
-        }
-
-        updateElement('quickVideoCount', videoCount.toString());
-        updateElement('quickActorCount', actorCount.toString());
-        updateElement('quickNewWorksSubsCount', subsCount.toString());
-        updateElement('quickNewWorksRecsCount', recsCount.toString());
-
-        // 显示或注入“磁链缓存”计数
-        const magnetNumEl = mq<HTMLElement>('#quickMagnetCount');
-        if (magnetNumEl) {
-            magnetNumEl.textContent = magnetCount.toString();
-        } else {
-            const statsContainer = mq<HTMLElement>('#restoreModeStats');
-            if (statsContainer) {
-                const item = document.createElement('div');
-                item.className = 'stat-item';
-                item.innerHTML = `
-                    <span class="stat-number" id="quickMagnetCount">${magnetCount}</span>
-                    <span class="stat-label">磁链缓存</span>
-                `;
-                statsContainer.appendChild(item);
-            }
-        }
-
-        const magnetPushLogNumEl = mq<HTMLElement>('#quickMagnetPushLogCount');
-        if (magnetPushLogNumEl) {
-            magnetPushLogNumEl.textContent = magnetPushLogCount.toString();
-        } else {
-            const statsContainer = mq<HTMLElement>('#restoreModeStats');
-            if (statsContainer) {
-                const item = document.createElement('div');
-                item.className = 'stat-item';
-                item.innerHTML = `
-                    <span class="stat-number" id="quickMagnetPushLogCount">${magnetPushLogCount}</span>
-                    <span class="stat-label">磁力推送日志</span>
-                `;
-                statsContainer.appendChild(item);
-            }
-        }
+        renderCloudPreviewStats(buildCloudPreviewStatItems(buildCloudPreviewStats({
+            cloudData: currentCloudData,
+            previewCounts: resp.preview?.counts || {},
+        })));
 
         // 配置可选恢复项
         configureRestoreOptions(currentCloudData);
