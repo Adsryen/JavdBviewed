@@ -36,6 +36,7 @@ import {
     buildRestoreResultItems,
     type RestoreResultItemViewModel,
 } from './webdavRestore/restoreResultsModel';
+import { buildStrategyPreviewHtml } from './webdavRestore/strategyPreviewModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -492,83 +493,7 @@ function updateStrategyPreview(strategy: string, diffResult: DataDiffResult): vo
     const previewContent = mq<HTMLElement>('#previewContent');
     if (!previewContent) return;
 
-    let previewHtml = '';
-
-    switch (strategy) {
-        case 'smart':
-            previewHtml = `
-                <div class="preview-section">
-                    <h6><i class="fas fa-check-circle text-success"></i> 将会保留：</h6>
-                    <ul>
-                        <li>本地视频记录：${diffResult.videoRecords.summary.totalLocal.toLocaleString()} 条</li>
-                        <li>本地演员收藏：${diffResult.actorRecords.summary.totalLocal.toLocaleString()} 个</li>
-                        <li>本地设置配置</li>
-                    </ul>
-                </div>
-                <div class="preview-section">
-                    <h6><i class="fas fa-plus-circle text-info"></i> 将会添加：</h6>
-                    <ul>
-                        <li>云端新增视频：${diffResult.videoRecords.summary.cloudOnlyCount.toLocaleString()} 条</li>
-                        <li>云端新增演员：${diffResult.actorRecords.summary.cloudOnlyCount.toLocaleString()} 个</li>
-                        <li>云端新增新作品订阅：${diffResult.newWorks.subscriptions.summary.cloudOnlyCount.toLocaleString()} 个</li>
-                        <li>云端新增新作品记录：${diffResult.newWorks.records.summary.cloudOnlyCount.toLocaleString()} 条</li>
-                    </ul>
-                </div>
-                <div class="preview-section">
-                    <h6><i class="fas fa-exclamation-triangle text-warning"></i> 需要处理：</h6>
-                    <ul>
-                        <li>冲突视频记录：${diffResult.videoRecords.summary.conflictCount.toLocaleString()} 条 → 自动选择最新</li>
-                        <li>冲突演员记录：${diffResult.actorRecords.summary.conflictCount.toLocaleString()} 个 → 自动选择最新</li>
-                        <li>冲突新作品订阅：${diffResult.newWorks.subscriptions.summary.conflictCount.toLocaleString()} 个</li>
-                        <li>冲突新作品记录：${diffResult.newWorks.records.summary.conflictCount.toLocaleString()} 条</li>
-                    </ul>
-                </div>
-            `;
-            break;
-        case 'local':
-            previewHtml = `
-                <div class="preview-section">
-                    <h6><i class="fas fa-shield-alt text-success"></i> 保持现状：</h6>
-                    <p>完全保留本地数据，不会有任何改变。云端备份将被忽略。</p>
-                    <ul>
-                        <li>本地视频记录：${diffResult.videoRecords.summary.totalLocal.toLocaleString()} 条（保持不变）</li>
-                        <li>本地演员收藏：${diffResult.actorRecords.summary.totalLocal.toLocaleString()} 个（保持不变）</li>
-                    </ul>
-                </div>
-            `;
-            break;
-        case 'cloud':
-            previewHtml = `
-                <div class="preview-section">
-                    <h6><i class="fas fa-cloud-download-alt text-info"></i> 完全恢复：</h6>
-                    <p>使用云端备份完全覆盖本地数据。</p>
-                    <ul>
-                        <li>视频记录：恢复到 ${diffResult.videoRecords.summary.totalCloud.toLocaleString()} 条</li>
-                        <li>演员收藏：恢复到 ${diffResult.actorRecords.summary.totalCloud.toLocaleString()} 个</li>
-                    </ul>
-                </div>
-                <div class="preview-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>注意：</strong>本地独有的 ${diffResult.videoRecords.summary.localOnlyCount} 条视频记录将会丢失！
-                </div>
-            `;
-            break;
-        case 'manual':
-            previewHtml = `
-                <div class="preview-section">
-                    <h6><i class="fas fa-hand-paper text-primary"></i> 手动控制：</h6>
-                    <p>您将能够查看每个冲突项的详细信息，并手动选择保留方式。</p>
-                    <ul>
-                        <li>需要处理的视频冲突：${diffResult.videoRecords.summary.conflictCount.toLocaleString()} 个</li>
-                        <li>需要处理的演员冲突：${diffResult.actorRecords.summary.conflictCount.toLocaleString()} 个</li>
-                        <li>预计处理时间：${Math.ceil((diffResult.videoRecords.summary.conflictCount + diffResult.actorRecords.summary.conflictCount) / 10)} 分钟</li>
-                    </ul>
-                </div>
-            `;
-            break;
-    }
-
-    previewContent.innerHTML = previewHtml;
+    previewContent.innerHTML = buildStrategyPreviewHtml(strategy, diffResult);
 }
 
 /**
