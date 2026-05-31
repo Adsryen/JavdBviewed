@@ -577,6 +577,10 @@
   - [ ] Dashboard 大页拆分计划
     - [ ] 拆分 `dashboard/tabs/records.ts`
     - [ ] 拆分 `dashboard/webdavRestore.ts`
+      - [x] 拆出旧备份格式识别与迁移：`features/webdavSync/application/backupMigration.ts`
+      - [x] 拆出恢复文件列表展示模型：`dashboard/webdavRestore/fileListModel.ts`
+      - [x] 为上述两个拆分点补充单元测试
+      - [ ] 继续拆分恢复模式、选项配置、冲突处理和执行结果 UI
     - [ ] 拆分 `dashboard/tabs/insights.ts`
     - [ ] 拆分 `dashboard/tabs/actors.ts`
     - [ ] 拆分 `dashboard/tabs/newWorks.ts`

@@ -1064,6 +1064,7 @@ describe('source architecture cleanup', () => {
       'src/features/webdavSync/application/dataDiff.ts',
       'src/features/webdavSync/application/dataMerge.ts',
       'src/features/webdavSync/application/mergeKeyedMap.ts',
+      'src/features/webdavSync/application/backupMigration.ts',
       'src/features/webdavSync/application/diagnostics.ts',
       'src/features/webdavSync/background/router.ts',
       'src/features/webdavSync/background/controller.ts',
@@ -1084,6 +1085,9 @@ describe('source architecture cleanup', () => {
     const dashboardRestore = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore.ts'), 'utf8');
     expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/dataDiff/);
     expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/dataMerge/);
+    expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/backupMigration/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/fileListModel/);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/fileListModel.ts'))).toBe(true);
 
     const legacyFiles = [
       {
