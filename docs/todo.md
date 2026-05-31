@@ -580,8 +580,10 @@
       - [x] 拆出旧备份格式识别与迁移：`features/webdavSync/application/backupMigration.ts`
       - [x] 拆出恢复文件列表展示模型：`dashboard/webdavRestore/fileListModel.ts`
       - [x] 拆出恢复内容选项配置模型：`dashboard/webdavRestore/restoreOptionsModel.ts`
+      - [x] 拆出冲突当前项显示状态模型：`dashboard/webdavRestore/conflictDisplayModel.ts`
       - [x] 拆出冲突详情展示模型：`dashboard/webdavRestore/conflictDetailModel.ts`
       - [x] 拆出冲突导航状态模型：`dashboard/webdavRestore/conflictNavigationModel.ts`
+      - [x] 将冲突进度条样式状态收拢到 `dashboard/webdavRestore/conflictNavigationModel.ts`
       - [x] 拆出恢复结果列表和结果页展示模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 拆出向导策略预览模型：`dashboard/webdavRestore/strategyPreviewModel.ts`
       - [x] 拆出向导确认摘要模型：`dashboard/webdavRestore/restoreConfirmationModel.ts`
