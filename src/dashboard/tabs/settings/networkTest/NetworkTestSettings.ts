@@ -14,7 +14,7 @@ import {
     saveDomainConfig,
     loadDomainConfig,
     type DomainInfo
-} from '../../../../utils/domainConfig';
+} from '../../../../features/networkTest';
 
 /**
  * 网络配置设置面板类
@@ -839,7 +839,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         showMessage(`已将 ${url} 设为首选线路`, 'success');
 
         // 清除路由管理器的缓存，使新的首选线路立即生效
-        const { getRouteManager } = await import('../../../../utils/routeManager');
+        const { getRouteManager } = await import('../../../../features/routeManagement');
         getRouteManager().clearCache(service);
     }
 
@@ -990,7 +990,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             if (buttonText) buttonText.textContent = '正在更新...';
 
             // 动态导入 RouteManager
-            const { RouteManager } = await import('../../../../utils/routeManager');
+            const { RouteManager } = await import('../../../../features/routeManagement');
             const routeManager = RouteManager.getInstance();
 
             // 强制更新线路配置

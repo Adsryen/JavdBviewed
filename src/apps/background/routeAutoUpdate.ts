@@ -5,7 +5,7 @@ export async function autoUpdateRoutes(): Promise<void> {
     if (typeof document !== 'undefined') {
       console.info('[Background] 检测到 document，上下文可能不是 Service Worker');
     }
-    const { RouteManager } = await import('../../utils/routeManager');
+    const { RouteManager } = await import('../../features/routeManagement');
     const routeManager = RouteManager.getInstance();
     const updated = await routeManager.checkAndUpdateRoutes(false);
 

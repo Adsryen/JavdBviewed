@@ -20,7 +20,7 @@ import { dbViewedPut } from '../dbClient';
 import { isCloudflareChallenge, handleCloudflareVerification } from './cloudflareVerification';
 import { saveSyncProgress, getSavedSyncProgress, clearSyncProgress } from './progressManager';
 import type { SavedSyncProgress } from '../config/syncConfig';
-import { getJavDBRoute } from '../../utils/routeManager';
+import { getJavDBRoute } from '../../features/routeManagement';
 
 /**
  * 视频数据接口
