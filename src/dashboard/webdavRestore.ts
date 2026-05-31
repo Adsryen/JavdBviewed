@@ -26,11 +26,11 @@ import {
 import {
     buildConflictVersionFieldsHtml,
     buildConflictVersionFields,
-    formatTimestamp,
     getConflictTypeLabel,
     getResolutionText,
     type ConflictDetailType,
 } from './webdavRestore/conflictDetailModel';
+import { buildConflictDisplayState } from './webdavRestore/conflictDisplayModel';
 import {
     buildRestoreResultItems,
     buildRestoreResultsHtml,
@@ -2289,29 +2289,32 @@ function showConflictResolution(type: ConflictDetailType, conflicts: any[]): voi
  * 显示当前冲突
  */
 function displayCurrentConflict(): void {
-    if (currentConflicts.length === 0) return;
-
-    const conflict = currentConflicts[currentConflictIndex];
+    const displayState = buildConflictDisplayState({
+        conflicts: currentConflicts,
+        currentIndex: currentConflictIndex,
+        conflictType: currentConflictType,
+        resolutions: conflictResolutions,
+    });
+    if (!displayState) return;
 
     // 更新冲突索引和进度
-    updateElement('currentConflictIndex', (currentConflictIndex + 1).toString());
+    updateElement('currentConflictIndex', displayState.currentIndexText);
     updateConflictProgress();
 
     // 更新冲突标题和类型
-    updateElement('conflictItemTitle', conflict.id);
-    updateElement('conflictItemType', getConflictTypeLabel(currentConflictType));
+    updateElement('conflictItemTitle', displayState.title);
+    updateElement('conflictItemType', displayState.typeLabel);
 
     // 更新时间戳（若数据包含时间）
-    if (conflict.local?.updatedAt) updateElement('localVersionTime', formatTimestamp(conflict.local.updatedAt));
-    if (conflict.cloud?.updatedAt) updateElement('cloudVersionTime', formatTimestamp(conflict.cloud.updatedAt));
+    if (displayState.localTime) updateElement('localVersionTime', displayState.localTime);
+    if (displayState.cloudTime) updateElement('cloudVersionTime', displayState.cloudTime);
 
     // 更新版本内容（视频/演员/新作品订阅/新作品记录）
-    displayVersionContent('localVersionContent', conflict.local, currentConflictType);
-    displayVersionContent('cloudVersionContent', conflict.cloud, currentConflictType);
+    displayVersionContent('localVersionContent', displayState.conflict.local, currentConflictType);
+    displayVersionContent('cloudVersionContent', displayState.conflict.cloud, currentConflictType);
 
     // 设置默认选择
-    const currentResolution = conflictResolutions[conflict.id] || conflict.recommendation || 'merge';
-    const resolutionInput = document.querySelector(`input[name="currentResolution"][value="${currentResolution}"]`) as HTMLInputElement;
+    const resolutionInput = document.querySelector(`input[name="currentResolution"][value="${displayState.selectedResolution}"]`) as HTMLInputElement;
     if (resolutionInput) {
         resolutionInput.checked = true;
     }
