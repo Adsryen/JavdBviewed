@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildConflictVersionFields,
+  buildConflictVersionFieldsHtml,
+  buildConflictVersionFieldHtml,
   getConflictTypeLabel,
   getResolutionText,
   getStatusText,
@@ -109,5 +111,39 @@ describe('WebDAV restore conflict detail model', () => {
     expect(getStatusText('custom')).toBe('custom');
     expect(getResolutionText('local')).toBe('保留本地');
     expect(getResolutionText('unknown')).toBe('unknown');
+  });
+
+  it('renders field html with plain values, tags, and links', () => {
+    expect(buildConflictVersionFieldHtml({
+      iconClass: 'fas fa-video',
+      label: '标题:',
+      value: 'AAA-001',
+    })).toContain('<span class="field-value">AAA-001</span>');
+
+    expect(buildConflictVersionFieldHtml({
+      iconClass: 'fas fa-tags',
+      label: '标签:',
+      value: '',
+      valueClass: 'tags',
+      tags: ['高清', '收藏'],
+    })).toContain('<span class="tag">高清</span><span class="tag">收藏</span>');
+
+    expect(buildConflictVersionFieldHtml({
+      iconClass: 'fas fa-link',
+      label: '链接:',
+      value: 'https://javdb.com/v/abc',
+      href: 'https://javdb.com/v/abc',
+    })).toContain('<a href="https://javdb.com/v/abc" target="_blank" class="external-link">https://javdb.com/v/abc</a>');
+  });
+
+  it('renders all version fields for a conflict side', () => {
+    const html = buildConflictVersionFieldsHtml([
+      { iconClass: 'fas fa-video', label: '标题:', value: 'AAA-001' },
+      { iconClass: 'fas fa-eye', label: '状态:', value: '已观看', valueClass: 'status-viewed' },
+    ]);
+
+    expect(html).toContain('标题:');
+    expect(html).toContain('AAA-001');
+    expect(html).toContain('field-value status-viewed');
   });
 });

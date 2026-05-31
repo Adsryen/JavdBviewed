@@ -25,12 +25,12 @@ import {
     type RestoreOptionViewModel,
 } from './webdavRestore/restoreOptionsModel';
 import {
+    buildConflictVersionFieldsHtml,
     buildConflictVersionFields,
     formatTimestamp,
     getConflictTypeLabel,
     getResolutionText,
     type ConflictDetailType,
-    type ConflictFieldViewModel,
 } from './webdavRestore/conflictDetailModel';
 import {
     buildRestoreResultItems,
@@ -2468,22 +2468,7 @@ function displayVersionContent(containerId: string, data: any, type: ConflictDet
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    container.innerHTML = buildConflictVersionFields(data, type)
-        .map(renderConflictField)
-        .join('');
-}
-
-function renderConflictField(field: ConflictFieldViewModel): string {
-    const valueClass = field.valueClass ? ` ${field.valueClass}` : '';
-    let valueHtml = field.value;
-
-    if (field.tags) {
-        valueHtml = field.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
-    } else if (field.href) {
-        valueHtml = `<a href="${field.href}" target="_blank" class="external-link">${field.value}</a>`;
-    }
-
-    return `<div class="field-item"><span class="field-label"><i class="${field.iconClass}"></i> ${field.label}</span><span class="field-value${valueClass}">${valueHtml}</span></div>`;
+    container.innerHTML = buildConflictVersionFieldsHtml(buildConflictVersionFields(data, type));
 }
 
 
