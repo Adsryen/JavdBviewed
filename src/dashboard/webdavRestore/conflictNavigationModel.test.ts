@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyBatchConflictResolution,
   buildConflictNavigationState,
+  buildConflictProgressStyle,
   calculateConflictProgressPercent,
 } from './conflictNavigationModel';
 
@@ -14,6 +15,16 @@ describe('WebDAV restore conflict navigation model', () => {
 
   it('returns zero progress when there are no conflicts', () => {
     expect(calculateConflictProgressPercent(0, 0)).toBe(0);
+  });
+
+  it('builds conflict progress bar style state', () => {
+    expect(buildConflictProgressStyle(1, 4)).toEqual({
+      width: '50%',
+      display: 'block',
+      height: '100%',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      transition: 'width 0.4s ease',
+    });
   });
 
   it('builds conflict navigation button state', () => {

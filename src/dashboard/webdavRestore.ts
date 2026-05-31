@@ -70,6 +70,7 @@ import {
 import {
     applyBatchConflictResolution,
     buildConflictNavigationState,
+    buildConflictProgressStyle,
     calculateConflictProgressPercent,
     type ConflictResolution,
 } from './webdavRestore/conflictNavigationModel';
@@ -2407,13 +2408,12 @@ function updateConflictProgress(): void {
     const progressFill = document.getElementById('conflictProgressFill');
     if (progressFill && currentConflicts.length > 0) {
         const progress = calculateConflictProgressPercent(currentConflictIndex, currentConflicts.length);
+        const progressStyle = buildConflictProgressStyle(currentConflictIndex, currentConflicts.length);
 
         // 强制设置样式
-        progressFill.style.setProperty('width', `${progress}%`, 'important');
-        progressFill.style.setProperty('display', 'block', 'important');
-        progressFill.style.setProperty('height', '100%', 'important');
-        progressFill.style.setProperty('background', 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 'important');
-        progressFill.style.setProperty('transition', 'width 0.4s ease', 'important');
+        Object.entries(progressStyle).forEach(([property, value]) => {
+            progressFill.style.setProperty(property, value, 'important');
+        });
 
         // 调试日志
         logAsync('DEBUG', '更新冲突进度条', {
