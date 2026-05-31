@@ -54,6 +54,42 @@ export function buildRestoreResultItems(summary: any, cloudData: any): RestoreRe
   });
 }
 
+export function buildRestoreResultsHtml(items: RestoreResultItemViewModel[]): string {
+  return `
+        <div class="results-header">
+            <h4><i class="fas fa-check-circle text-success"></i> 恢复完成</h4>
+            <p>数据已成功覆盖，以下是详细结果：</p>
+        </div>
+        <div class="results-categories">
+            ${items.map(buildRestoreResultItemHtml).join('')}
+        </div>
+        <div class="results-footer">
+            <button class="btn btn-secondary" id="resultsBackBtn">
+                <i class="fas fa-arrow-left"></i>
+                返回选择备份
+            </button>
+            <button class="btn btn-primary" id="resultsDoneBtn">
+                <i class="fas fa-check"></i>
+                完成
+            </button>
+        </div>
+    `;
+}
+
+export function buildRestoreResultItemHtml(item: RestoreResultItemViewModel): string {
+  const details = item.details.join(' · ');
+  return `
+        <div class="result-item">
+            <div class="result-icon"><i class="${item.iconClass}"></i></div>
+            <div class="result-content">
+                <div class="result-title">${item.title}</div>
+                <div class="result-status ${item.statusClass}">${item.statusText}</div>
+                ${details ? `<div class="result-details">${details}</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
 function getResultStatus(result: any): {
   statusText: string;
   statusClass: string;

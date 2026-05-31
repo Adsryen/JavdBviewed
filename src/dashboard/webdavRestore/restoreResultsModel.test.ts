@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildRestoreResultItems } from './restoreResultsModel';
+import {
+  buildRestoreResultItemHtml,
+  buildRestoreResultItems,
+  buildRestoreResultsHtml,
+} from './restoreResultsModel';
 
 describe('WebDAV restore results model', () => {
   it('builds result rows for all restore categories with cloud details', () => {
@@ -83,5 +87,40 @@ describe('WebDAV restore results model', () => {
     expect(items.every(item => item.statusText === '跳过')).toBe(true);
     expect(items.every(item => item.statusClass === 'status-skipped')).toBe(true);
     expect(items.find(item => item.key === 'settings')?.details).toEqual(['云端：无', '未选择']);
+  });
+
+  it('builds full results html with action buttons', () => {
+    const html = buildRestoreResultsHtml([
+      {
+        key: 'settings',
+        title: '扩展设置',
+        statusText: '已覆盖',
+        statusClass: 'status-success',
+        iconClass: 'fas fa-check text-success',
+        details: ['云端：有', '12 ms'],
+      },
+    ]);
+
+    expect(html).toContain('恢复完成');
+    expect(html).toContain('数据已成功覆盖，以下是详细结果：');
+    expect(html).toContain('扩展设置');
+    expect(html).toContain('云端：有 · 12 ms');
+    expect(html).toContain('id="resultsBackBtn"');
+    expect(html).toContain('id="resultsDoneBtn"');
+  });
+
+  it('omits empty result details in item html', () => {
+    const html = buildRestoreResultItemHtml({
+      key: 'logs',
+      title: '日志记录',
+      statusText: '跳过',
+      statusClass: 'status-skipped',
+      iconClass: 'fas fa-minus text-muted',
+      details: [],
+    });
+
+    expect(html).toContain('日志记录');
+    expect(html).toContain('status-skipped');
+    expect(html).not.toContain('result-details');
   });
 });
