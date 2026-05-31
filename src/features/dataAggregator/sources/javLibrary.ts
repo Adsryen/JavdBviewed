@@ -3,7 +3,7 @@
 
 import { HttpClient, defaultHttpClient } from '../../../platform/network/httpClient';
 import { ApiResponse, RatingData, ActorData, VideoMetadata, DataSourceError, ParseError } from '../types';
-import { parseCode } from '../../../utils/codeParser';
+import { parseCode } from '../../../shared/utils/codeParser';
 
 export interface JavLibraryConfig {
   enabled: boolean;

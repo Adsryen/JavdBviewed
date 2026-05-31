@@ -1,9 +1,9 @@
 // src/features/videoStatus/statusManager.ts
 
 import { VIDEO_STATUS } from '../../utils/config';
-import { STATE, log, currentFaviconState, currentTitleStatus, setCurrentFaviconState, setCurrentTitleStatus, suspendEarlyFaviconSync } from '../../content/state';
-import { extractVideoIdFromPage } from '../../content/videoId';
-import { setFavicon } from '../../content/utils';
+import { STATE, log, currentFaviconState, currentTitleStatus, setCurrentFaviconState, setCurrentTitleStatus, suspendEarlyFaviconSync } from '../contentState';
+import { extractVideoIdFromPage } from '../../platform/browser';
+import { setFavicon } from '../../platform/browser/domUtils';
 
 // 缓存视频ID，避免重复提取
 let cachedVideoId: string | null = null;

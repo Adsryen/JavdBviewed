@@ -15,7 +15,7 @@ const cacheMocks = vi.hoisted(() => ({
 }));
 
 // Mock dependencies
-vi.mock('../../../utils/cache', () => ({
+vi.mock('../../../platform/storage/cache', () => ({
   globalCache: {
     getVideoDetail: cacheMocks.getVideoDetail,
     clearAll: cacheMocks.clearAll,

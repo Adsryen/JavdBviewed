@@ -6,7 +6,7 @@ import { emit } from './services/eventBus';
 import { getSettings, saveSettings } from '../utils/storage';
 import { getDrive115V2Service, type Drive115V2UserInfo, type Drive115V2QuotaInfo } from '../features/drive115/v2';
 import { describe115Error } from '../features/drive115/v2/errorCodes';
-import { showToast } from '../content/toast';
+import { showToast } from '../platform/browser/toast';
 import { normalizeDrive115Settings, isDrive115EnabledState } from '../features/drive115/app';
 
 // 115 加载并发保护

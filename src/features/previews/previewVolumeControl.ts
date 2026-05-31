@@ -1,5 +1,5 @@
 import { getSettings } from '../../utils/storage';
-import { log } from '../../content/state';
+import { log } from '../contentState';
 import { activatePreviewVideoPreload, releasePreviewVideoMedia } from './previewVideoPreload';
 
 let currentVolume = 0.2;

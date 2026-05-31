@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   translate: vi.fn(),
 }));
 
-vi.mock('../../src/utils/cache', () => ({
+vi.mock('../../src/platform/storage/cache', () => ({
   globalCache: {
     getVideoDetail: mocks.getVideoDetail,
     clearAll: mocks.clearAll,

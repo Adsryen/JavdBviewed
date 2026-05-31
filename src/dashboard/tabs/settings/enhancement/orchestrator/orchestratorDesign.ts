@@ -1,6 +1,6 @@
 import { STATE } from '../../../../state';
 import type { ExtensionSettings } from '../../../../../types';
-import { getVideoDetailTaskBlueprints } from '../../../../../content/videoDetail';
+import { getVideoDetailTaskBlueprints } from '../../../../../features/videoDetail';
 
 export type OrchestratorDesignTask = {
   phase: 'critical' | 'high' | 'deferred' | 'idle';

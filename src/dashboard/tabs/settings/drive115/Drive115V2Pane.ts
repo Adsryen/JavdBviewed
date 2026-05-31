@@ -8,7 +8,7 @@ interface IDrive115Pane {
 import { getDrive115V2Service, type Drive115V2UserInfo } from '../../../../features/drive115/v2';
 import { getSettings, saveSettings } from '../../../../utils/storage';
 import { describe115Error } from '../../../../features/drive115/v2/errorCodes';
-import { showToast } from '../../../../content/toast';
+import { showToast } from '../../../../platform/browser/toast';
 import { addLogV2 } from '../../../../features/drive115/v2/logs';
 import { openDrive115FolderPicker } from '../../../components/drive115FolderPicker';
 import {

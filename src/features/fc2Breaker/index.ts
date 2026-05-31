@@ -1,11 +1,11 @@
 // src/features/fc2Breaker/index.ts
 // FC2拦截破解功能 - 基于JAV-JHS的实现
 
-import { log, STATE } from '../../content/state';
-import { getJavdbTheme, type JavdbTheme } from '../../content/utils';
+import { log, STATE } from '../contentState';
+import { getJavdbTheme, type JavdbTheme } from '../../platform/browser/domUtils';
 import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { ReviewBreakerService } from '../reviewUnlock';
-import { dbViewedPut } from '../../content/dbClient';
+import { dbViewedPut } from '../../platform/storage/dbRuntimeClient';
 import type { VideoRecord } from '../../types';
 import {
   appendMagnetResults,
@@ -898,12 +898,12 @@ export class FC2BreakerService {
           externalResult,
         );
 
-        const { showToast } = await import('../../content/toast');
+        const { showToast } = await import('../../platform/browser/toast');
         showToast(`FC2 磁力搜索完成：发现 ${discoveredCount} 条，去重 ${duplicateCount} 条，显示 ${mergedResults.length} 条`, 'success');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         statusText.textContent = `多源搜索失败：${message}`;
-        const { showToast } = await import('../../content/toast');
+        const { showToast } = await import('../../platform/browser/toast');
         showToast(`FC2 多源搜索失败：${message}`, 'error');
       } finally {
         searchButton.disabled = false;
@@ -1103,7 +1103,7 @@ export class FC2BreakerService {
 
     try {
       const { isDrive115Enabled, addTaskUrlsV2 } = await import('../drive115/router');
-      const { showToast } = await import('../../content/toast');
+      const { showToast } = await import('../../platform/browser/toast');
       const { getSettings } = await import('../../utils/storage');
 
       if (!(await isDrive115Enabled())) {
@@ -1150,7 +1150,7 @@ export class FC2BreakerService {
         button.disabled = false;
       }, 3000);
     } catch (error) {
-      const { showToast } = await import('../../content/toast');
+      const { showToast } = await import('../../platform/browser/toast');
       const errorMsg = error instanceof Error ? error.message : '未知错误';
       button.classList.remove('is-loading');
       button.textContent = '推送失败';

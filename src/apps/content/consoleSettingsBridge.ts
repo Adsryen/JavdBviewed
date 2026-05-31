@@ -1,8 +1,10 @@
 import { getSettings } from '../../utils/storage';
-import { installConsoleProxy } from '../../utils/consoleProxy';
-import { installTaskVisibilityReporter } from '../../content/taskVisibilityReporter';
-import { getActiveManagedTaskIds } from '../../content/taskRuntime';
-import { installTaskHeartbeatReporter } from '../../content/taskHeartbeat';
+import { installConsoleProxy } from '../../platform/logging/consoleProxy';
+import {
+    getActiveManagedTaskIds,
+    installTaskHeartbeatReporter,
+    installTaskVisibilityReporter,
+} from '../../platform/tasks';
 
 async function applyConsoleSettingsFromStorage(): Promise<void> {
     try {

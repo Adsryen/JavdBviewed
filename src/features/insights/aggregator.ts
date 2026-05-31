@@ -1,5 +1,5 @@
 import { ViewsDaily, ReportStats, TagStat, TrendPoint, Changes } from "../../types/insights";
-import { isValueableTag } from "../../utils/tagFilter";
+import { isValueableTag } from "../../shared/utils/tagFilter";
 
 export interface AggregateOptions {
   topN?: number;

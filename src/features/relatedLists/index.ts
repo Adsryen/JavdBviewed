@@ -1,6 +1,6 @@
 // src/features/relatedLists/index.ts
 
-import { log } from '../../content/state';
+import { log } from '../contentState';
 import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { ReviewBreakerService } from '../reviewUnlock';
 

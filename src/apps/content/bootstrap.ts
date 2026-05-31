@@ -2,30 +2,30 @@
 
 import { getSettings, getValue } from '../../utils/storage';
 import type { VideoRecord } from '../../types';
-import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from '../../content/state';
-import { processVisibleItems, setupObserver } from '../../content/itemProcessor';
-import { handleVideoDetailPage, getVideoDetailTaskBlueprints } from '../../content/videoDetail';
+import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from '../../features/contentState';
+import { processVisibleItems, setupObserver } from '../../features/listEnhancement/content/itemProcessor';
+import { handleVideoDetailPage, getVideoDetailTaskBlueprints } from '../../features/videoDetail';
 import { checkAndUpdateVideoStatus } from '../../features/videoStatus';
-import { initExportFeature } from '../../content/export';
-import { initDrive115Features } from '../../content/drive115';
+import { initExportFeature } from '../../features/pageExport/content';
+import { initDrive115Features } from '../../features/drive115/content';
 import { defaultDataAggregator } from '../../features/dataAggregator';
 import { contentFilterManager } from '../../features/contentFilter';
-import { keyboardShortcutsManager } from '../../content/keyboardShortcuts';
+import { keyboardShortcutsManager } from '../../features/keyboardShortcuts';
 import { magnetSearchManager } from '../../features/magnets';
-import { anchorOptimizationManager } from '../../content/anchorOptimization';
+import { anchorOptimizationManager } from '../../features/anchorOptimization/content';
 import { listEnhancementManager } from '../../features/listEnhancement';
 import { actorEnhancementManager, actorQuickActionsManager } from '../../features/actorEnhancement';
-import { embyEnhancementManager } from '../../content/embyEnhancement';
+import { embyEnhancementManager } from '../../features/embyEnhancement/content';
 import { exposePreviewVolumeDebug, installPreviewVolumeControl } from '../../features/previews';
-import { initOrchestrator } from '../../content/initOrchestrator';
-import type { InitPhase } from '../../content/initOrchestrator';
-import { initInsightsCollector } from '../../content/insightsCollector';
-import { performanceOptimizer } from '../../content/performanceOptimizer';
+import { initOrchestrator, type InitPhase } from './orchestrator';
+import { initInsightsCollector } from '../../features/insights';
+import { performanceOptimizer } from '../../platform/tasks';
 import { actorExtraInfoService } from '../../features/actorRemarks';
-import { createTaskTimeoutGuard, isTaskTimeoutError, waitForElement } from '../../content/utils';
-import { runChunkedWork, yieldToMainThread } from '../../content/taskChunking';
-import { PasswordHelper } from '../../content/passwordHelper';
-import { showEnhancementLoading } from '../../content/enhancementLoadingIndicator';
+import { waitForElement } from '../../platform/browser/domUtils';
+import { createTaskTimeoutGuard, isTaskTimeoutError } from '../../platform/tasks';
+import { runChunkedWork, yieldToMainThread } from '../../platform/tasks';
+import { PasswordHelper } from '../../features/passwordHelper/content';
+import { showEnhancementLoading } from '../../platform/browser/enhancementLoadingIndicator';
 import {
     applyOnlineAvailabilitySitePreferences,
     DEFAULT_ONLINE_AVAILABILITY_SITES,

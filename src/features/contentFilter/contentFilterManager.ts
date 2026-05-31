@@ -1,12 +1,11 @@
 // src/features/contentFilter/contentFilterManager.ts
 // 内容过滤系统
 
-import { STATE, log } from '../../content/state';
-import { showToast } from '../../content/toast';
+import { STATE, log } from '../contentState';
+import { showToast } from '../../platform/browser/toast';
 import { VIDEO_STATUS } from '../../utils/config';
 import type { KeywordFilterRule, ContentFilterConfig } from '../../types';
-import { runChunkedWork, yieldToMainThread } from '../../content/taskChunking';
-import { saveSubtaskDetail } from '../../content/taskDetailReporter';
+import { runChunkedWork, saveSubtaskDetail, yieldToMainThread } from '../../platform/tasks';
 
 // 重新导出类型以保持向后兼容性
 export type { KeywordFilterRule, ContentFilterConfig };

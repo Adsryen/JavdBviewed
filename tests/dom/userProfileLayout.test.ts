@@ -8,7 +8,7 @@ vi.mock('../../src/dashboard/ui/toast', () => ({
   showMessage: vi.fn(),
 }));
 
-vi.mock('../../src/content/toast', () => ({
+vi.mock('../../src/platform/browser/toast', () => ({
   showToast: vi.fn(),
 }));
 

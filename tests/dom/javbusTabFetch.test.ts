@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { javbusPageAjaxFetchScript } from '../../src/platform/browser/javbusTabFetch';
-import { fetchJavbusAjaxViaTab } from '../../src/content/javbusTabFetch';
+import { fetchJavbusAjaxViaRuntime } from '../../src/platform/browser/javbusRuntimeClient';
 import { sendRuntimeMessage } from '../../src/platform/browser/runtimeMessages';
 
 describe('JAVBUS tab ajax fetch fallback', () => {
@@ -24,7 +24,7 @@ describe('JAVBUS tab ajax fetch fallback', () => {
     (globalThis as any).chrome.runtime.lastError = undefined;
     (globalThis as any).chrome.runtime.sendMessage = sendMessage;
 
-    const html = await fetchJavbusAjaxViaTab('https://www.javbus.com/JUR-730', 12000);
+    const html = await fetchJavbusAjaxViaRuntime('https://www.javbus.com/JUR-730', 12000);
 
     expect(html).toBe('<tr><td>ok</td></tr>');
     expect(sendMessage).toHaveBeenCalledWith(

@@ -1,6 +1,6 @@
-import { extractVideoIdFromPage } from '../../content/videoId';
+import { extractVideoIdFromPage } from '../../platform/browser';
 import { defaultHttpClient } from '../../platform/network/httpClient';
-import { log } from '../../content/state';
+import { log } from '../contentState';
 
 export type OnlineAvailabilityFetchType = 'get' | 'parser';
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoDetailEnhancer } from '../../src/content/enhancedVideoDetail';
-import { STATE } from '../../src/content/state';
+import { VideoDetailEnhancer } from '../../src/features/videoDetail';
+import { STATE } from '../../src/features/contentState';
 
 describe('VideoDetailEnhancer preview media loading', () => {
   beforeEach(() => {

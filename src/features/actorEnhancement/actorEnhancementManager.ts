@@ -4,14 +4,14 @@
  */
 
 import { getValue, setValue } from '../../utils/storage';
-import { showToast } from '../../content/toast';
+import { showToast } from '../../platform/browser/toast';
 import type { ActorRecord } from '../../types';
 import { actorManager } from '../actors';
 import { newWorksManager } from '../newWorks';
 import { actorExtraInfoService } from '../actorRemarks';
 import { getSettings } from '../../utils/storage';
-import { completeManagedTask, createManagedTaskDescriptor, ensureManagedTaskRegistered, failManagedTask, requestTaskLease, trackActiveManagedTask, untrackActiveManagedTask } from '../../content/taskRuntime';
-import { showEnhancementDone, showEnhancementLoading } from '../../content/enhancementLoadingIndicator';
+import { completeManagedTask, createManagedTaskDescriptor, ensureManagedTaskRegistered, failManagedTask, requestTaskLease, trackActiveManagedTask, untrackActiveManagedTask } from '../../platform/tasks';
+import { showEnhancementDone, showEnhancementLoading } from '../../platform/browser/enhancementLoadingIndicator';
 
 interface ActorTagFilter {
   tags: string[];

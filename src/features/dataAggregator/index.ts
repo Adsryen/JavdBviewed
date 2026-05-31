@@ -1,7 +1,7 @@
 // src/features/dataAggregator/index.ts
 // 数据聚合器主入口
 
-import { globalCache } from '../../utils/cache';
+import { globalCache } from '../../platform/storage/cache';
 import { BlogJavSource, DEFAULT_BLOGJAV_CONFIG } from './sources/blogJav';
 import { TranslatorService, DEFAULT_TRANSLATOR_CONFIG } from './sources/translator';
 import { AITranslatorService, DEFAULT_AI_TRANSLATOR_CONFIG } from './sources/aiTranslator';
