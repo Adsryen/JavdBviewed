@@ -1,7 +1,7 @@
-// src/utils/__tests__/codeParser.test.ts
+// src/shared/utils/codeParser.test.ts
 // 代码解析器测试
 
-import { CodeParser, parseCode, normalizeCode, matchCodes, extractCodes, isValidCode } from '../codeParser';
+import { CodeParser, parseCode, normalizeCode, matchCodes, extractCodes, isValidCode } from './codeParser';
 
 describe('CodeParser', () => {
   describe('parse方法', () => {

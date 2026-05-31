@@ -1,16 +1,16 @@
-// src/utils/__tests__/cache.test.ts
+// src/platform/storage/cache.test.ts
 // 缓存系统测试
 
 import { beforeEach, afterEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
-import { CacheManager, VideoDetail, ResourceData } from '../cache';
+import { CacheManager, VideoDetail, ResourceData } from './cache';
 
 // Mock storage functions
-vi.mock('../storage', () => ({
+vi.mock('./chromeStorage', () => ({
   getValue: vi.fn(),
   setValue: vi.fn(),
 }));
 
-import { getValue, setValue } from '../storage';
+import { getValue, setValue } from './chromeStorage';
 
 const mockGetValue = getValue as MockedFunction<typeof getValue>;
 const mockSetValue = setValue as MockedFunction<typeof setValue>;
@@ -156,9 +156,8 @@ describe('CacheManager', () => {
       };
 
       mockGetValue
-        .mockResolvedValueOnce({ expired: expiredEntry, valid: validEntry })
-        .mockResolvedValueOnce({})
-        .mockResolvedValueOnce({});
+        .mockResolvedValue({})
+        .mockResolvedValueOnce({ expired: expiredEntry, valid: validEntry });
 
       mockSetValue.mockResolvedValue();
 

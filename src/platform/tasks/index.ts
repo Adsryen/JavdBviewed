@@ -8,6 +8,7 @@ export {
 export {
   clearTaskRetryBudget,
   completeManagedTask,
+  createManagedTaskDescriptor,
   ensureManagedTaskRegistered,
   failManagedTask,
   getActiveManagedTaskIds,
@@ -28,7 +29,18 @@ export {
   untrackActiveManagedTask,
   waitForTaskLease,
   type ManagedTaskRunResult,
-} from './runtimeMessaging';
+} from './contentRuntime';
+
+export {
+  saveSubtaskDetail,
+  type ContentTaskDetailReporterOptions,
+  type SubtaskDetailPayload,
+} from './contentTaskDetailReporter';
+
+export { installTaskHeartbeatReporter } from './taskHeartbeatReporter';
+export { installTaskVisibilityReporter } from './taskVisibilityReporter';
+export { createTaskTimeoutGuard, isTaskTimeoutError } from './taskTimeoutGuard';
+export { PerformanceOptimizer, performanceOptimizer, type PerformanceConfig } from './performanceOptimizer';
 
 export { GlobalTaskCenter, globalTaskCenter } from './globalTaskCenter';
 export { TASK_BUCKET_LIMITS, resolveTaskBucket } from './taskPolicy';
