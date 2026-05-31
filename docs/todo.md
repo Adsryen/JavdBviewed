@@ -585,10 +585,12 @@
       - [x] 拆出冲突导航状态模型：`dashboard/webdavRestore/conflictNavigationModel.ts`
       - [x] 将冲突进度条样式状态收拢到 `dashboard/webdavRestore/conflictNavigationModel.ts`
       - [x] 拆出恢复结果列表和结果页展示模型：`dashboard/webdavRestore/restoreResultsModel.ts`
+      - [x] 拆出恢复结果页 UI 状态模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 拆出向导策略预览模型：`dashboard/webdavRestore/strategyPreviewModel.ts`
       - [x] 拆出向导确认摘要模型：`dashboard/webdavRestore/restoreConfirmationModel.ts`
       - [x] 拆出向导步骤与导航状态模型：`dashboard/webdavRestore/restoreWizardStateModel.ts`
       - [x] 拆出覆盖式恢复二次确认模型：`dashboard/webdavRestore/restoreExecuteConfirmModel.ts`
+      - [x] 拆出覆盖式恢复类别选择模型：`dashboard/webdavRestore/restoreExecuteConfirmModel.ts`
       - [x] 拆出智能合并结果摘要模型：`dashboard/webdavRestore/operationSummaryModel.ts`
       - [x] 拆出云端备份预览统计模型：`dashboard/webdavRestore/previewStatsModel.ts`
       - [x] 拆出恢复模式统计模型：`dashboard/webdavRestore/restoreModeStatsModel.ts`
