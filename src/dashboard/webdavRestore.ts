@@ -3,8 +3,8 @@
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 import { showSmartRestoreModal } from './ui/modal';
-import { analyzeDataDifferences, type DataDiffResult, type MergeOptions } from '../utils/dataDiff';
-import { mergeData, type MergeResult } from '../utils/dataMerge';
+import { analyzeDataDifferences, type DataDiffResult, type MergeOptions } from '../features/webdavSync/application/dataDiff';
+import { mergeData, type MergeResult } from '../features/webdavSync/application/dataMerge';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
 import { requireAuthIfRestricted } from '../features/privacy';

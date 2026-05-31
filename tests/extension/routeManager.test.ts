@@ -59,7 +59,7 @@ describe('RouteManager remote config', () => {
       },
     });
 
-    const { RouteManager } = await import('../../src/utils/routeManager');
+    const { RouteManager } = await import('../../src/features/routeManagement');
 
     await expect(RouteManager.getInstance().checkAndUpdateRoutes(true)).resolves.toBe(true);
 

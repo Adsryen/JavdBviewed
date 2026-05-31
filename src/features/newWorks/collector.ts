@@ -9,7 +9,7 @@ import type {
 import type { VideoRecord } from '../../types';
 import type { KeywordFilterRule } from '../../types';
 import { viewedGetAll, newWorksGet } from '../../platform/storage/indexedDb';
-import { buildJavDBUrl } from '../../utils/routeManager';
+import { buildJavDBUrl } from '../routeManagement';
 import { getSettings } from '../../utils/storage';
 
 export class NewWorksCollector {

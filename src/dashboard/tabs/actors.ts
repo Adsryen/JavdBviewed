@@ -9,7 +9,7 @@ import { getSettings } from '../../utils/storage';
 import { showConfirm } from '../components/confirmModal';
 import { logAsync } from '../logger';
 import type { ActorRecord, ActorPagedSearchResult, ExtensionSettings } from '../../types';
-import { buildJavDBUrl } from '../../utils/routeManager';
+import { buildJavDBUrl } from '../../features/routeManagement';
 
 export class ActorsTab {
     private currentPage = 1;
