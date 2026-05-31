@@ -1090,10 +1090,12 @@ describe('source architecture cleanup', () => {
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreOptionsModel/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/conflictDetailModel/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreResultsModel/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/strategyPreviewModel/);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/fileListModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreOptionsModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/conflictDetailModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreResultsModel.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/strategyPreviewModel.ts'))).toBe(true);
 
     const removedExpertDiffArtifacts = [
       'displayDiffAnalysis',
