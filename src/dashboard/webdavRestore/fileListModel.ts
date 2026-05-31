@@ -9,6 +9,18 @@ export interface WebDAVFile {
   uploadId?: string;
 }
 
+export interface FileListItemViewModel {
+  file: WebDAVFile;
+  className: string;
+  latestBadgeHtml: string;
+  recentBadgeHtml: string;
+  relativeTime: string;
+  formattedSize: string;
+  uploaderClass: string;
+  uploaderDevice: string;
+  uploaderBrowser: string;
+}
+
 export function getUploaderMeta(file: WebDAVFile): { device: string; browser: string; isUnknown: boolean } {
   const device = String(file.uploaderDeviceLabel || file.uploaderClientId || '').trim();
   const browser = String(file.uploaderBrowserName || '').trim();
@@ -89,6 +101,38 @@ export function formatDateYMD(date: Date): string {
   return `${y}-${mo}-${d}`;
 }
 
+export function buildFileListItemViewModels(files: WebDAVFile[], now: Date = new Date()): FileListItemViewModel[] {
+  return files
+    .slice()
+    .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
+    .map((file, index) => buildFileListItemViewModel(file, index, now));
+}
+
+export function buildFileListItemHtml(item: FileListItemViewModel): string {
+  const fileName = escapeHtml(item.file.name);
+  const filePath = escapeHtml(item.file.path);
+
+  return `
+            <i class="fas fa-file-alt file-icon"></i>
+            <div class="file-info">
+                <span class="file-name">
+                    ${fileName}
+                    ${item.latestBadgeHtml}
+                    ${item.recentBadgeHtml}
+                </span>
+                <div class="file-meta">
+                    <span class="file-date">${escapeHtml(item.relativeTime)}</span>
+                    <span class="file-size">${escapeHtml(item.formattedSize)}</span>
+                    <span class="${item.uploaderClass}">设备：${escapeHtml(item.uploaderDevice)}</span>
+                    <span class="${item.uploaderClass}">浏览器：${escapeHtml(item.uploaderBrowser)}</span>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-outline file-download-btn" title="下载此备份到本地" data-filepath="${filePath}" data-filename="${fileName}">
+                <i class="fas fa-download"></i>
+            </button>
+        `;
+}
+
 export function buildBackupDateRangeLabel(files: WebDAVFile[]): string {
   const dates: Date[] = [];
 
@@ -110,4 +154,38 @@ export function buildBackupDateRangeLabel(files: WebDAVFile[]): string {
   const firstStr = formatDateYMD(dates[0]);
   const lastStr = formatDateYMD(dates[dates.length - 1]);
   return firstStr === lastStr ? firstStr : `${firstStr} ~ ${lastStr}`;
+}
+
+function buildFileListItemViewModel(file: WebDAVFile, index: number, now: Date): FileListItemViewModel {
+  const isLatest = index === 0;
+  const isRecent = index < 3;
+  const uploaderMeta = getUploaderMeta(file);
+  const classes = ['webdav-file-item'];
+
+  if (isLatest) {
+    classes.push('latest-file');
+  } else if (isRecent) {
+    classes.push('recent-file');
+  }
+
+  return {
+    file,
+    className: classes.join(' '),
+    latestBadgeHtml: isLatest ? '<span class="latest-badge">最新</span>' : '',
+    recentBadgeHtml: isRecent && !isLatest ? '<span class="recent-badge">最近</span>' : '',
+    relativeTime: formatRelativeTime(file.lastModified, now),
+    formattedSize: formatFileSize(file.size),
+    uploaderClass: uploaderMeta.isUnknown ? 'file-uploader unknown' : 'file-uploader',
+    uploaderDevice: uploaderMeta.device,
+    uploaderBrowser: uploaderMeta.browser,
+  };
+}
+
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

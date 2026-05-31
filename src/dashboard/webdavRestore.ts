@@ -14,9 +14,8 @@ import { dbMagnetPushLogsBulkAdd, dbMagnetPushLogsClear } from './dbClient';
 import { showConfirm } from './components/confirmModal';
 import {
     buildBackupDateRangeLabel,
-    formatFileSize,
-    formatRelativeTime,
-    getUploaderMeta,
+    buildFileListItemHtml,
+    buildFileListItemViewModels,
     type WebDAVFile,
 } from './webdavRestore/fileListModel';
 import {
@@ -1168,12 +1167,8 @@ async function displayFileList(files: WebDAVFile[]): Promise<void> {
 
     fileList.innerHTML = '';
 
-    // 按最后修改时间排序，最新的在前面
-    const sortedFiles = files.slice().sort((a, b) => {
-        const dateA = new Date(a.lastModified).getTime();
-        const dateB = new Date(b.lastModified).getTime();
-        return dateB - dateA;
-    });
+    const fileItems = buildFileListItemViewModels(files);
+    const sortedFiles = fileItems.map(item => item.file);
 
     logAsync('INFO', '文件列表排序完成', {
         totalFiles: sortedFiles.length,
@@ -1187,47 +1182,14 @@ async function displayFileList(files: WebDAVFile[]): Promise<void> {
     // 建立 path 到元素与对象的映射，便于之后快速预选
     const pathMap = new Map<string, { file: WebDAVFile; el: HTMLElement }>();
 
-    sortedFiles.forEach((file, index) => {
+    fileItems.forEach((item) => {
+        const file = item.file;
         const li = document.createElement('li');
-        li.className = 'webdav-file-item';
+        li.className = item.className;
         li.dataset.filename = file.name;
         li.dataset.filepath = file.path;
 
-        // 为最新的文件添加特殊标识
-        const isLatest = index === 0;
-        const isRecent = index < 3; // 前3个文件标记为最近的
-
-        if (isLatest) {
-            li.classList.add('latest-file');
-        } else if (isRecent) {
-            li.classList.add('recent-file');
-        }
-
-        const latestBadge = isLatest ? '<span class="latest-badge">最新</span>' : '';
-        const recentBadge = isRecent && !isLatest ? '<span class="recent-badge">最近</span>' : '';
-
-        const uploaderMeta = getUploaderMeta(file);
-        const uploaderClass = uploaderMeta.isUnknown ? 'file-uploader unknown' : 'file-uploader';
-
-        li.innerHTML = `
-            <i class="fas fa-file-alt file-icon"></i>
-            <div class="file-info">
-                <span class="file-name">
-                    ${file.name}
-                    ${latestBadge}
-                    ${recentBadge}
-                </span>
-                <div class="file-meta">
-                    <span class="file-date">${formatRelativeTime(file.lastModified)}</span>
-                    <span class="file-size">${formatFileSize(file.size)}</span>
-                    <span class="${uploaderClass}">设备：${uploaderMeta.device}</span>
-                    <span class="${uploaderClass}">浏览器：${uploaderMeta.browser}</span>
-                </div>
-            </div>
-            <button class="btn btn-sm btn-outline file-download-btn" title="下载此备份到本地" data-filepath="${file.path}" data-filename="${file.name}">
-                <i class="fas fa-download"></i>
-            </button>
-        `;
+        li.innerHTML = buildFileListItemHtml(item);
 
         // 下载按钮点击不触发选中
         const dlBtn = li.querySelector('.file-download-btn') as HTMLButtonElement;

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildBackupDateRangeLabel,
+  buildFileListItemHtml,
+  buildFileListItemViewModels,
   formatFileSize,
   formatRelativeTime,
   getUploaderMeta,
@@ -65,5 +67,59 @@ describe('WebDAV restore file list model', () => {
       browser: 'Chrome',
       isUnknown: false,
     });
+  });
+
+  it('builds sorted file item view models with latest and recent state', () => {
+    const items = buildFileListItemViewModels([
+      {
+        name: 'old.zip',
+        path: '/old.zip',
+        lastModified: '2026-05-28T00:00:00.000Z',
+      },
+      {
+        name: 'latest.zip',
+        path: '/latest.zip',
+        lastModified: '2026-05-31T00:00:00.000Z',
+        size: 1024,
+      },
+      {
+        name: 'recent.zip',
+        path: '/recent.zip',
+        lastModified: '2026-05-30T00:00:00.000Z',
+      },
+    ], new Date('2026-05-31T12:00:00.000Z'));
+
+    expect(items.map(item => item.file.name)).toEqual(['latest.zip', 'recent.zip', 'old.zip']);
+    expect(items[0]).toMatchObject({
+      className: 'webdav-file-item latest-file',
+      latestBadgeHtml: '<span class="latest-badge">最新</span>',
+      recentBadgeHtml: '',
+      relativeTime: '12小时前',
+      formattedSize: '1.0 KB',
+      uploaderClass: 'file-uploader unknown',
+    });
+    expect(items[1]).toMatchObject({
+      className: 'webdav-file-item recent-file',
+      latestBadgeHtml: '',
+      recentBadgeHtml: '<span class="recent-badge">最近</span>',
+    });
+  });
+
+  it('builds escaped file item html for download rows', () => {
+    const [item] = buildFileListItemViewModels([
+      {
+        name: 'backup-"a"&.zip',
+        path: '/backup-"a"&.zip',
+        lastModified: '2026-05-31T11:30:00.000Z',
+        uploaderDeviceLabel: '<Office>',
+        uploaderBrowserName: 'Chrome & Edge',
+      },
+    ], new Date('2026-05-31T12:00:00.000Z'));
+
+    expect(buildFileListItemHtml(item)).toContain('backup-&quot;a&quot;&amp;.zip');
+    expect(buildFileListItemHtml(item)).toContain('data-filepath="/backup-&quot;a&quot;&amp;.zip"');
+    expect(buildFileListItemHtml(item)).toContain('设备：&lt;Office&gt;');
+    expect(buildFileListItemHtml(item)).toContain('浏览器：Chrome &amp; Edge');
+    expect(buildFileListItemHtml(item)).toContain('class="btn btn-sm btn-outline file-download-btn"');
   });
 });
