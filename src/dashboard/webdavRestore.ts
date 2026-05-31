@@ -32,6 +32,8 @@ import {
 } from './webdavRestore/conflictDetailModel';
 import { buildConflictDisplayState } from './webdavRestore/conflictDisplayModel';
 import {
+    buildRestoreResultsEnterUiState,
+    buildRestoreResultsLeaveUiState,
     buildRestoreResultItems,
     buildRestoreResultsHtml,
 } from './webdavRestore/restoreResultsModel';
@@ -796,11 +798,8 @@ function showRestoreResults(summary: any): void {
     }
 
     // 只展示结果视图：显式隐藏选择/预览/错误/加载等区域，避免叠在一起
-    hideElement('webdavRestoreLoading');
-    hideElement('webdavRestoreError');
-    hideElement('webdavRestoreOptions');
-    hideElement('webdavDataPreview');
-    hideElement('webdavRestoreContent');
+    const enterUiState = buildRestoreResultsEnterUiState();
+    enterUiState.hiddenElementIds.forEach(hideElement);
 
     // 创建结果界面
     const resultsContainer = document.createElement('div');
@@ -814,26 +813,10 @@ function showRestoreResults(summary: any): void {
     // 隐藏默认底部按钮，只显示结果页自带的按钮
     const modalEl = getRestoreModal();
     const modalFooter = modalEl?.querySelector('.modal-footer') as HTMLElement | null;
-    if (modalFooter) {
-        modalFooter.style.display = 'none';
-    }
-    
-    // 额外隐藏所有可能的底部按钮（防止重复显示）
-    const allFooters = modalEl?.querySelectorAll('.modal-footer');
-    allFooters?.forEach((footer) => {
-        (footer as HTMLElement).style.display = 'none';
-    });
+    if (enterUiState.hideFooters) setModalFootersDisplay(modalEl, 'none');
     
     // 隐藏具体的按钮元素
-    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
-    const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
-    const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
-    if (confirmBtn) {
-        confirmBtn.style.display = 'none';
-        confirmBtn.classList.add('hidden');
-    }
-    if (backBtn) backBtn.style.display = 'none';
-    if (cancelBtn) cancelBtn.style.display = 'none';
+    enterUiState.hiddenButtonIds.forEach((id) => hideRestoreResultButton(id));
 
     // 绑定结果页按钮事件
     const resultsBackBtn = resultsContainer.querySelector('#resultsBackBtn') as HTMLButtonElement | null;
@@ -853,34 +836,17 @@ function showRestoreResults(summary: any): void {
             }
 
             // 回到文件选择页：先显示加载，再重新获取列表
-            hideElement('webdavRestoreError');
-            hideElement('webdavDataPreview');
+            const leaveUiState = buildRestoreResultsLeaveUiState();
+            leaveUiState.hiddenElementIds.forEach(hideElement);
             showElement('webdavRestoreLoading');
             const p = (modal?.querySelector('#webdavRestoreLoading p')) as HTMLElement | null;
-            if (p) p.textContent = '正在获取云端文件列表...';
+            if (p) p.textContent = leaveUiState.loadingText;
             fetchFileList();
 
-            const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
-            const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
-            const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
-            if (confirmBtn) {
-                confirmBtn.disabled = true;
-                confirmBtn.style.display = '';
-            }
-            if (backBtn) {
-                backBtn.classList.add('hidden');
-                backBtn.style.display = '';
-            }
-            if (cancelBtn) {
-                cancelBtn.style.display = '';
-            }
+            restoreResultActionButtons(leaveUiState.restoreButtonIds, { disableConfirm: true, hideBack: true });
 
             // 恢复默认底部按钮可见
-            if (modalFooter) modalFooter.style.display = '';
-            const allFooters = modal?.querySelectorAll('.modal-footer');
-            allFooters?.forEach((footer) => {
-                (footer as HTMLElement).style.display = '';
-            });
+            if (leaveUiState.showFooters) setModalFootersDisplay(modal, '');
         };
     }
     if (resultsDoneBtn) {
@@ -888,20 +854,9 @@ function showRestoreResults(summary: any): void {
             // 关闭弹窗
             try { closeModal(); } catch {}
             // 恢复默认底部按钮可见（下次打开弹窗时可用）
-            if (modalFooter) modalFooter.style.display = '';
-            const allFooters = modalEl?.querySelectorAll('.modal-footer');
-            allFooters?.forEach((footer) => {
-                (footer as HTMLElement).style.display = '';
-            });
-            const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
-            const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
-            const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
-            if (confirmBtn) {
-                confirmBtn.style.display = '';
-                confirmBtn.classList.add('hidden');
-            }
-            if (backBtn) backBtn.style.display = '';
-            if (cancelBtn) cancelBtn.style.display = '';
+            const leaveUiState = buildRestoreResultsLeaveUiState();
+            if (leaveUiState.showFooters) setModalFootersDisplay(modalEl, '');
+            restoreResultActionButtons(leaveUiState.restoreButtonIds, { hideConfirm: true });
         };
     }
 }
@@ -2152,6 +2107,32 @@ function updateElement(id: string, text: string): void {
     const ctx = getRestoreModal() || document;
     const element = ctx.querySelector('#' + id) as HTMLElement | null;
     if (element) element.textContent = text;
+}
+
+function setModalFootersDisplay(modal: Element | null | undefined, display: string): void {
+    modal?.querySelectorAll('.modal-footer').forEach((footer) => {
+        (footer as HTMLElement).style.display = display;
+    });
+}
+
+function hideRestoreResultButton(id: string): void {
+    const button = mq<HTMLButtonElement>('#' + id);
+    if (!button) return;
+
+    button.style.display = 'none';
+    if (id === 'webdavRestoreConfirm') button.classList.add('hidden');
+}
+
+function restoreResultActionButtons(ids: string[], options: { disableConfirm?: boolean; hideBack?: boolean; hideConfirm?: boolean } = {}): void {
+    ids.forEach((id) => {
+        const button = mq<HTMLButtonElement>('#' + id);
+        if (!button) return;
+
+        button.style.display = '';
+        if (id === 'webdavRestoreConfirm' && options.disableConfirm) button.disabled = true;
+        if (id === 'webdavRestoreConfirm' && options.hideConfirm) button.classList.add('hidden');
+        if (id === 'webdavRestoreBack' && options.hideBack) button.classList.add('hidden');
+    });
 }
 
 function readCheckboxValue(ids: string[], fallback: boolean): boolean {
