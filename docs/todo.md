@@ -581,6 +581,7 @@
       - [x] 拆出恢复文件列表展示模型：`dashboard/webdavRestore/fileListModel.ts`
       - [x] 拆出恢复内容选项配置模型：`dashboard/webdavRestore/restoreOptionsModel.ts`
       - [x] 拆出冲突详情展示模型：`dashboard/webdavRestore/conflictDetailModel.ts`
+      - [x] 拆出冲突导航状态模型：`dashboard/webdavRestore/conflictNavigationModel.ts`
       - [x] 拆出恢复结果列表和结果页展示模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 拆出向导策略预览模型：`dashboard/webdavRestore/strategyPreviewModel.ts`
       - [x] 拆出向导确认摘要模型：`dashboard/webdavRestore/restoreConfirmationModel.ts`
