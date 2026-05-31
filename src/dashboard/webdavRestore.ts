@@ -57,6 +57,12 @@ import {
     buildWizardStepClassNames,
     canProceedFromWizardStep,
 } from './webdavRestore/restoreWizardStateModel';
+import {
+    applyBatchConflictResolution,
+    buildConflictNavigationState,
+    calculateConflictProgressPercent,
+    type ConflictResolution,
+} from './webdavRestore/conflictNavigationModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -167,7 +173,7 @@ let currentLocalData: any = null;
 let currentDiffResult: DataDiffResult | null = null;
 let currentConflicts: any[] = [];
 let currentConflictIndex = 0;
-let conflictResolutions: Record<string, 'local' | 'cloud' | 'merge'> = {};
+let conflictResolutions: Record<string, ConflictResolution> = {};
 
 // 当前冲突类型（用于渲染与显示文案）
 let currentConflictType: ConflictDetailType = 'video';
@@ -2543,7 +2549,7 @@ function saveCurrentResolution(): void {
     const selectedResolution = document.querySelector('input[name="currentResolution"]:checked') as HTMLInputElement;
 
     if (selectedResolution && conflict) {
-        conflictResolutions[conflict.id] = selectedResolution.value as 'local' | 'cloud' | 'merge';
+        conflictResolutions[conflict.id] = selectedResolution.value as ConflictResolution;
     }
 }
 
@@ -2553,7 +2559,7 @@ function saveCurrentResolution(): void {
 function updateConflictProgress(): void {
     const progressFill = document.getElementById('conflictProgressFill');
     if (progressFill && currentConflicts.length > 0) {
-        const progress = ((currentConflictIndex + 1) / currentConflicts.length) * 100;
+        const progress = calculateConflictProgressPercent(currentConflictIndex, currentConflicts.length);
 
         // 强制设置样式
         progressFill.style.setProperty('width', `${progress}%`, 'important');
@@ -2585,13 +2591,14 @@ function updateConflictProgress(): void {
 function updateNavigationButtons(): void {
     const prevBtn = document.getElementById('prevConflict') as HTMLButtonElement;
     const nextBtn = document.getElementById('nextConflict') as HTMLButtonElement;
+    const navigationState = buildConflictNavigationState(currentConflictIndex, currentConflicts.length);
 
     if (prevBtn) {
-        prevBtn.disabled = currentConflictIndex === 0;
+        prevBtn.disabled = navigationState.previousDisabled;
     }
 
     if (nextBtn) {
-        nextBtn.disabled = currentConflictIndex === currentConflicts.length - 1;
+        nextBtn.disabled = navigationState.nextDisabled;
     }
 }
 
@@ -2619,13 +2626,15 @@ function bindBatchOperations(): void {
 /**
  * 设置批量解决方案
  */
-function setBatchResolution(resolution: 'local' | 'cloud' | 'merge'): void {
+function setBatchResolution(resolution: ConflictResolution): void {
     // 保存当前冲突的选择
     saveCurrentResolution();
 
     // 为所有冲突设置相同的解决方案
-    currentConflicts.forEach(conflict => {
-        conflictResolutions[conflict.id] = resolution;
+    conflictResolutions = applyBatchConflictResolution({
+        conflicts: currentConflicts,
+        existingResolutions: conflictResolutions,
+        resolution,
     });
 
     // 更新当前显示的选择
