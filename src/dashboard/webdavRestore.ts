@@ -3,6 +3,7 @@
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 import { showSmartRestoreModal } from './ui/modal';
+import { detectBackupVersion, migrateBackupData } from '../features/webdavSync/application/backupMigration';
 import { analyzeDataDifferences, type DataDiffResult, type MergeOptions } from '../features/webdavSync/application/dataDiff';
 import { mergeData, type MergeResult } from '../features/webdavSync/application/dataMerge';
 import { getValue, setValue } from '../utils/storage';
@@ -11,181 +12,13 @@ import { requireAuthIfRestricted } from '../features/privacy';
 import { dbActorsBulkPut } from './dbClient';
 import { dbMagnetPushLogsBulkAdd, dbMagnetPushLogsClear } from './dbClient';
 import { showConfirm } from './components/confirmModal';
-import type { VideoRecord, VideoStatus } from '../types';
-
-/**
- * 检测备份数据的版本
- */
-function detectBackupVersion(data: any): 'v1' | 'v2' | 'unknown' {
-  if (!data || typeof data !== 'object') return 'unknown';
-  
-  // v2 格式特征：有 version 字段或包含 data/actorRecords 等结构化字段
-  if (data.version || data.timestamp || (data.data && typeof data.data === 'object')) {
-    return 'v2';
-  }
-  
-  // v1 格式特征：直接是记录对象，或者有 viewed/browsed 等旧字段
-  if (data.viewed || data.browsed || data.want) {
-    return 'v1';
-  }
-  
-  // 检查第一个记录的结构
-  const firstKey = Object.keys(data)[0];
-  if (firstKey && data[firstKey] && typeof data[firstKey] === 'object') {
-    const rec = data[firstKey] as any;
-    // 旧版特征：status 是 'viewed'/'unviewed'，没有 createdAt/updatedAt
-    if ((rec.status === 'viewed' || rec.status === 'unviewed') && !rec.createdAt) {
-      return 'v1';
-    }
-    // 新版特征：有 createdAt/updatedAt
-    if (rec.createdAt || rec.updatedAt) {
-      return 'v2';
-    }
-  }
-  
-  return 'unknown';
-}
-
-/**
- * 迁移单条旧版记录到新版格式
- */
-function migrateOldRecord(record: any): VideoRecord {
-  const now = Date.now();
-  
-  // 如果已经是新版格式，直接返回
-  if (record.createdAt && record.updatedAt) {
-    return record as VideoRecord;
-  }
-  
-  // 转换旧版 status
-  let status: VideoStatus = 'browsed';
-  if (record.status === 'viewed') {
-    status = 'viewed';
-  } else if (record.status === 'want') {
-    status = 'want';
-  } else if (record.status === 'unviewed') {
-    status = 'browsed'; // 旧版的 unviewed 对应新版的 browsed
-  }
-
-  // 使用扩展运算符保留所有原有字段（包括未来可能添加的字段）
-  return {
-    ...record, // 保留所有原有字段
-    // 覆盖必需的字段
-    id: record.id,
-    title: record.title || record.id,
-    status,
-    tags: record.tags || [],
-    listIds: record.listIds || [],
-    createdAt: record.createdAt || now,
-    updatedAt: now,
-    // 以下字段如果存在则保留，不存在则为 undefined
-    releaseDate: record.releaseDate,
-    javdbUrl: record.javdbUrl,
-    javdbImage: record.javdbImage,
-    enhancedData: record.enhancedData,
-  };
-}
-
-/**
- * 迁移旧版备份数据到新版格式
- */
-function migrateBackupData(oldData: any): any {
-  const version = detectBackupVersion(oldData);
-  
-  logAsync('INFO', 'WebDAV恢复：检测到备份数据版本', { version });
-  
-  if (version === 'v2') {
-    // 已经是新版格式，直接返回
-    return oldData;
-  }
-  
-  if (version === 'v1') {
-    // 旧版格式迁移
-    logAsync('INFO', 'WebDAV恢复：开始迁移旧版本数据格式');
-    
-    const migratedData: any = {
-      version: '2.1',
-      timestamp: new Date().toISOString(),
-      data: {},
-      actorRecords: oldData.actorRecords || {},
-      settings: oldData.settings,
-      userProfile: oldData.userProfile,
-      logs: oldData.logs || [],
-      importStats: oldData.importStats,
-      newWorks: oldData.newWorks || {}
-    };
-    
-    // 迁移视频记录
-    const recordsSource = oldData.data || oldData.viewed || oldData;
-    if (recordsSource && typeof recordsSource === 'object') {
-      const migratedRecords: Record<string, VideoRecord> = {};
-      let migratedCount = 0;
-      
-      for (const [id, record] of Object.entries(recordsSource)) {
-        if (record && typeof record === 'object') {
-          migratedRecords[id] = migrateOldRecord(record as any);
-          migratedCount++;
-        }
-      }
-      
-      migratedData.data = migratedRecords;
-      logAsync('INFO', 'WebDAV恢复：已迁移视频记录', { count: migratedCount });
-    }
-    
-    // 合并 browsed 和 want 列表（如果存在）
-    if (oldData.browsed && typeof oldData.browsed === 'object') {
-      let browsedCount = 0;
-      for (const [id, record] of Object.entries(oldData.browsed)) {
-        if (record && typeof record === 'object' && !migratedData.data[id]) {
-          const migrated = migrateOldRecord(record as any);
-          migrated.status = 'browsed';
-          migratedData.data[id] = migrated;
-          browsedCount++;
-        }
-      }
-      if (browsedCount > 0) {
-        logAsync('INFO', 'WebDAV恢复：已迁移browsed记录', { count: browsedCount });
-      }
-    }
-    
-    if (oldData.want && typeof oldData.want === 'object') {
-      let wantCount = 0;
-      for (const [id, record] of Object.entries(oldData.want)) {
-        if (record && typeof record === 'object' && !migratedData.data[id]) {
-          const migrated = migrateOldRecord(record as any);
-          migrated.status = 'want';
-          migratedData.data[id] = migrated;
-          wantCount++;
-        }
-      }
-      if (wantCount > 0) {
-        logAsync('INFO', 'WebDAV恢复：已迁移want记录', { count: wantCount });
-      }
-    }
-    
-    logAsync('INFO', 'WebDAV恢复：旧版本数据迁移完成', { 
-      totalRecords: Object.keys(migratedData.data).length,
-      actors: Object.keys(migratedData.actorRecords).length
-    });
-    
-    return migratedData;
-  }
-  
-  // 未知格式，尝试原样返回
-  logAsync('WARN', 'WebDAV恢复：无法识别备份数据版本，尝试原样导入');
-  return oldData;
-}
-
-interface WebDAVFile {
-    path: string;
-    name: string;
-    lastModified: string;
-    size?: number;
-    uploaderClientId?: string;
-    uploaderDeviceLabel?: string;
-    uploaderBrowserName?: string;
-    uploadId?: string;
-}
+import {
+    buildBackupDateRangeLabel,
+    formatFileSize,
+    formatRelativeTime,
+    getUploaderMeta,
+    type WebDAVFile,
+} from './webdavRestore/fileListModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -226,16 +59,6 @@ function ensureFooterInModal(): void {
             }
         });
     });
-}
-
-function getUploaderMeta(file: WebDAVFile): { device: string; browser: string; isUnknown: boolean } {
-    const device = String(file.uploaderDeviceLabel || file.uploaderClientId || '').trim();
-    const browser = String(file.uploaderBrowserName || '').trim();
-    return {
-        device: device || '未知设备',
-        browser: browser || '未知浏览器',
-        isUnknown: !device && !browser,
-    };
 }
 
 // 全局变量
@@ -330,75 +153,6 @@ let wizardState: WizardState = {
     isAnalysisComplete: false
 };
 
-// 格式化文件大小
-function formatFileSize(bytes?: number): string {
-    if (!bytes || bytes === 0) return '未知大小';
-
-    const units = ['B', 'KB', 'MB', 'GB'];
-    let size = bytes;
-    let unitIndex = 0;
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-        size /= 1024;
-        unitIndex++;
-    }
-
-    return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
-// 格式化相对时间
-function formatRelativeTime(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMinutes < 1) {
-        return '刚刚';
-    } else if (diffMinutes < 60) {
-        return `${diffMinutes}分钟前`;
-    } else if (diffHours < 24) {
-        return `${diffHours}小时前`;
-    } else if (diffDays === 1) {
-        return '昨天';
-    } else if (diffDays < 7) {
-        return `${diffDays}天前`;
-    } else if (diffDays < 30) {
-        const weeks = Math.floor(diffDays / 7);
-        return `${weeks}周前`;
-    } else if (diffDays < 365) {
-        const months = Math.floor(diffDays / 30);
-        return `${months}个月前`;
-    } else {
-        const years = Math.floor(diffDays / 365);
-        return `${years}年前`;
-    }
-}
-
-// 从备份文件名解析日期（优先从文件名提取，形如 javdb-extension-backup-YYYY-MM-DD[-HH-MM-SS].(json|zip)）
-function parseDateFromFilename(filename: string): Date | null {
-    const match = filename.match(/javdb-extension-backup-(\d{4}-\d{2}-\d{2})(?:-(\d{2})-(\d{2})-(\d{2}))?\.(?:json|zip)$/i);
-    if (!match) return null;
-    const datePart = match[1];
-    const h = match[2] || '00';
-    const m = match[3] || '00';
-    const s = match[4] || '00';
-    const iso = `${datePart}T${h}:${m}:${s}Z`;
-    const t = Date.parse(iso);
-    if (isNaN(t)) return null;
-    return new Date(t);
-}
-
-// 格式化日期为 YYYY-MM-DD（UTC）
-function formatDateYMD(date: Date): string {
-    const y = date.getUTCFullYear();
-    const mo = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(date.getUTCDate()).padStart(2, '0');
-    return `${y}-${mo}-${d}`;
-}
-
 // 更新“云端备份数量 & 范围”摘要
 function updateBackupSummary(files: WebDAVFile[]): void {
     try {
@@ -406,33 +160,7 @@ function updateBackupSummary(files: WebDAVFile[]): void {
         const rangeEl = mq<HTMLElement>('#webdavBackupRange');
 
         if (countEl) countEl.textContent = String(files.length);
-
-        if (rangeEl) {
-            const dates: Date[] = [];
-            // 优先使用文件名解析
-            for (const f of files) {
-                const d = parseDateFromFilename(f.name);
-                if (d) dates.push(d);
-            }
-            // 若文件名解析不到，再尝试 lastModified
-            if (dates.length === 0) {
-                for (const f of files) {
-                    const t = Date.parse(f.lastModified);
-                    if (!isNaN(t)) dates.push(new Date(t));
-                }
-            }
-
-            if (dates.length > 0) {
-                dates.sort((a, b) => a.getTime() - b.getTime());
-                const first = dates[0];
-                const last = dates[dates.length - 1];
-                const firstStr = formatDateYMD(first);
-                const lastStr = formatDateYMD(last);
-                rangeEl.textContent = firstStr === lastStr ? firstStr : `${firstStr} ~ ${lastStr}`;
-            } else {
-                rangeEl.textContent = '未知';
-            }
-        }
+        if (rangeEl) rangeEl.textContent = buildBackupDateRangeLabel(files);
     } catch (e) {
         logAsync('WARN', '日期范围计算失败', { error: e });
     }
@@ -1894,7 +1622,7 @@ async function loadCloudPreview(): Promise<void> {
         if (version === 'v1') {
             logAsync('INFO', 'WebDAV恢复：检测到旧版本备份，正在自动迁移');
             showMessage('检测到旧版本备份数据，正在自动迁移...', 'info');
-            cloudData = migrateBackupData(cloudData);
+            cloudData = migrateBackupData(cloudData, { logger: logAsync });
             showMessage('✓ 旧版本数据迁移成功', 'success');
         } else if (version === 'unknown') {
             logAsync('WARN', 'WebDAV恢复：无法识别备份版本，尝试原样处理');
