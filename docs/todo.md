@@ -581,6 +581,7 @@
       - [x] 拆出恢复文件列表展示模型：`dashboard/webdavRestore/fileListModel.ts`
       - [x] 拆出恢复内容选项配置模型：`dashboard/webdavRestore/restoreOptionsModel.ts`
       - [x] 拆出冲突详情展示模型：`dashboard/webdavRestore/conflictDetailModel.ts`
+      - [x] 拆出恢复结果列表模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 清理废弃专家差异分析残留和空实现
       - [x] 为上述拆分点补充单元测试
       - [ ] 继续拆分恢复模式、冲突处理和执行结果 UI

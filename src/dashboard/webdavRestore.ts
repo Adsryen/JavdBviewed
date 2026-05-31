@@ -32,6 +32,10 @@ import {
     type ConflictDetailType,
     type ConflictFieldViewModel,
 } from './webdavRestore/conflictDetailModel';
+import {
+    buildRestoreResultItems,
+    type RestoreResultItemViewModel,
+} from './webdavRestore/restoreResultsModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -999,138 +1003,15 @@ function showRestoreResults(summary: any): void {
     const resultsContainer = document.createElement('div');
     resultsContainer.id = 'restoreResultsContainer';
     resultsContainer.className = 'restore-results-container';
-    
-    const categoryNames: { [key: string]: string } = {
-        settings: '扩展设置',
-        userProfile: '账号信息',
-        viewed: '观看记录',
-        actors: '演员库',
-        newWorks: '新作品',
-        logs: '日志记录',
-        magnetPushLogs: '磁力推送日志',
-        importStats: '导入统计',
-        magnets: '磁链缓存'
-    };
 
-    let resultsHtml = `
+    const resultItems = buildRestoreResultItems(summary, currentCloudData);
+    const resultsHtml = `
         <div class="results-header">
             <h4><i class="fas fa-check-circle text-success"></i> 恢复完成</h4>
             <p>数据已成功覆盖，以下是详细结果：</p>
         </div>
         <div class="results-categories">
-    `;
-
-    // 遍历所有类别，未选择的也展示为“跳过”
-    const catsToShow = Object.keys(categoryNames);
-    catsToShow.forEach((category) => {
-        const result: any = (summary?.categories && summary.categories[category]) ? summary.categories[category] : { reason: 'not_selected' };
-        const categoryName = categoryNames[category] || category;
-
-        const hasError = !!result?.error || result?.reason === 'error';
-        const missing = result?.reason === 'missing';
-        const notSelected = result?.reason === 'not_selected';
-        const hasReplaced = result?.replaced === true;
-        const hasCleared = result?.cleared === true;
-        const written = typeof result?.written === 'number' ? result.written : undefined;
-        const hadNewWorks = !!(result?.hasSubs || result?.hasRecords || result?.hasConfig);
-
-        let statusText = '跳过';
-        let statusClass = 'status-skipped';
-        let icon = 'fas fa-minus text-muted';
-
-        if (hasError) {
-            statusText = '失败';
-            statusClass = 'status-error';
-            icon = 'fas fa-times text-danger';
-        } else if (hasReplaced || hasCleared || (typeof written === 'number' && written > 0) || hadNewWorks) {
-            statusText = '已覆盖';
-            statusClass = 'status-success';
-            icon = 'fas fa-check text-success';
-        } else if (missing || notSelected) {
-            statusText = '跳过';
-            statusClass = 'status-skipped';
-            icon = 'fas fa-minus text-muted';
-        }
-
-        // 构建详情：云端统计 + 写入条数 + 耗时 + 备注
-        const detailParts: string[] = [];
-        // 云端统计（从 currentCloudData 推断）
-        try {
-            switch (category) {
-                case 'settings': {
-                    const sa = (currentCloudData?.storageAll || {});
-                    const has = !!(currentCloudData?.settings || sa[STORAGE_KEYS.SETTINGS]);
-                    detailParts.push(`云端：${has ? '有' : '无'}`);
-                    break;
-                }
-                case 'userProfile': {
-                    const sa = (currentCloudData?.storageAll || {});
-                    const has = currentCloudData?.userProfile != null || sa[STORAGE_KEYS.USER_PROFILE] != null;
-                    detailParts.push(`云端：${has ? '有' : '无'}`);
-                    break;
-                }
-                case 'viewed': {
-                    const sa = (currentCloudData?.storageAll || {});
-                    const idbArr = Array.isArray(currentCloudData?.idb?.viewedRecords) ? currentCloudData.idb.viewedRecords : [];
-                    const cloudViewed = idbArr.length || Object.keys(currentCloudData?.data || currentCloudData?.viewed || sa[STORAGE_KEYS.VIEWED_RECORDS] || {}).length;
-                    if (cloudViewed || cloudViewed === 0) detailParts.push(`云端：${cloudViewed} 条`);
-                    break;
-                }
-                case 'actors': {
-                    const sa = (currentCloudData?.storageAll || {});
-                    const idbArr = Array.isArray(currentCloudData?.idb?.actors) ? currentCloudData.idb.actors : [];
-                    const cloudActors = idbArr.length || Object.keys(currentCloudData?.actorRecords || sa[STORAGE_KEYS.ACTOR_RECORDS] || {}).length;
-                    if (cloudActors || cloudActors === 0) detailParts.push(`云端：${cloudActors} 条`);
-                    break;
-                }
-                case 'newWorks': {
-                    const sa = (currentCloudData?.storageAll || {});
-                    const subs = Object.keys((currentCloudData?.newWorks?.subscriptions) || (sa[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS] || {})).length;
-                    const recs = Object.keys((currentCloudData?.newWorks?.records) || (sa[STORAGE_KEYS.NEW_WORKS_RECORDS] || {})).length;
-                    detailParts.push(`云端：订阅 ${subs} · 记录 ${recs}`);
-                    break;
-                }
-                case 'logs': {
-                    const idbArr = Array.isArray(currentCloudData?.idb?.logs) ? currentCloudData.idb.logs : [];
-                    const logsCount = idbArr.length || (Array.isArray(currentCloudData?.logs) ? currentCloudData.logs.length : 0);
-                    detailParts.push(`云端：${logsCount} 条`);
-                    break;
-                }
-                case 'magnets': {
-                    const idbArr = Array.isArray(currentCloudData?.idb?.magnets) ? currentCloudData.idb.magnets : [];
-                    detailParts.push(`云端：${idbArr.length} 条`);
-                    break;
-                }
-                case 'importStats': {
-                    const sa = (currentCloudData?.storageAll || {});
-                    const has = currentCloudData?.importStats != null || sa[STORAGE_KEYS.LAST_IMPORT_STATS] != null;
-                    detailParts.push(`云端：${has ? '有' : '无'}`);
-                    break;
-                }
-                default:
-                    break;
-            }
-        } catch {}
-
-        if (typeof written === 'number') detailParts.push(`写入：${written} 条`);
-        if (typeof result?.durationMs === 'number') detailParts.push(`${Math.round(result.durationMs)} ms`);
-        if (result?.reason && !['missing', 'error', 'not_selected'].includes(result.reason)) detailParts.push(String(result.reason));
-        if (notSelected) detailParts.push('未选择');
-        const details = detailParts.join(' · ');
-
-        resultsHtml += `
-            <div class="result-item">
-                <div class="result-icon"><i class="${icon}"></i></div>
-                <div class="result-content">
-                    <div class="result-title">${categoryName}</div>
-                    <div class="result-status ${statusClass}">${statusText}</div>
-                    ${details ? `<div class="result-details">${details}</div>` : ''}
-                </div>
-            </div>
-        `;
-    });
-
-    resultsHtml += `
+            ${resultItems.map(renderRestoreResultItem).join('')}
         </div>
         <div class="results-footer">
             <button class="btn btn-secondary" id="resultsBackBtn">
@@ -1240,6 +1121,20 @@ function showRestoreResults(summary: any): void {
             if (cancelBtn) cancelBtn.style.display = '';
         };
     }
+}
+
+function renderRestoreResultItem(item: RestoreResultItemViewModel): string {
+    const details = item.details.join(' · ');
+    return `
+        <div class="result-item">
+            <div class="result-icon"><i class="${item.iconClass}"></i></div>
+            <div class="result-content">
+                <div class="result-title">${item.title}</div>
+                <div class="result-status ${item.statusClass}">${item.statusText}</div>
+                ${details ? `<div class="result-details">${details}</div>` : ''}
+            </div>
+        </div>
+    `;
 }
 
 /**
