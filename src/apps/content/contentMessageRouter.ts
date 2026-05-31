@@ -1,13 +1,13 @@
 import { getSettings } from '../../utils/storage';
-import { STATE, log } from '../../content/state';
-import { processVisibleItems } from '../../content/itemProcessor';
-import { showToast } from '../../content/toast';
-import { videoDetailEnhancer } from '../../content/enhancedVideoDetail';
-import { refreshActorMarksOnPage, runActorRemarksQuick } from '../../content/videoDetail';
+import { STATE, log } from '../../features/contentState';
+import { processVisibleItems } from '../../features/listEnhancement/content/itemProcessor';
+import { showToast } from '../../platform/browser/toast';
+import { videoDetailEnhancer } from '../../features/videoDetail';
+import { refreshActorMarksOnPage, runActorRemarksQuick } from '../../features/videoDetail';
 import { contentFilterManager } from '../../features/contentFilter';
 import { listEnhancementManager } from '../../features/listEnhancement';
 import { actorEnhancementManager } from '../../features/actorEnhancement';
-import { embyEnhancementManager } from '../../content/embyEnhancement';
+import { embyEnhancementManager } from '../../features/embyEnhancement/content';
 import { destroySuperRankingNav, initializeSuperRankingNav, isSuperRankingSupportedHost } from '../../features/rankings';
 
 export function installContentMessageRouter(): void {

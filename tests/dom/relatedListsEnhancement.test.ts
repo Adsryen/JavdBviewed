@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoDetailEnhancer } from '../../src/content/enhancedVideoDetail';
+import { VideoDetailEnhancer } from '../../src/features/videoDetail';
 import { relatedListsService } from '../../src/features/relatedLists';
 
 describe('VideoDetailEnhancer related lists enhancement', () => {

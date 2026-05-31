@@ -20,7 +20,7 @@ import { initUserProfileSection } from '../../dashboard/userProfile';
 // import { initDataSyncSection } from './dataSync';
 import '../../dashboard/ui/dataViewModal'; // 确保 dataViewModal 被初始化
 import { getDrive115V2Service } from '../../features/drive115/v2';
-import { installConsoleProxy } from '../../utils/consoleProxy';
+import { installConsoleProxy } from '../../platform/logging/consoleProxy';
 import { ensureMounted } from '../../dashboard/loaders/partialsLoader';
 import { ensureStylesLoaded } from '../../dashboard/loaders/stylesLoader';
 import { loadPartial, initThemeListener } from '../../dashboard/loaders/partialsLoader';
@@ -35,7 +35,7 @@ import { bindUiListeners } from '../../dashboard/listeners/ui';
 import { refreshHomeOverview, bindHomeChartsRangeControls, bindHomeRefreshButton } from '../../dashboard/home/charts';
 import { STORAGE_KEYS } from '../../utils/config';
 import { getSettings } from '../../utils/storage';
-import { getDisplayVersionInfo } from '../../utils/versionInfo';
+import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';
 import { normalizeDrive115Settings, isDrive115EnabledState } from '../../features/drive115/app';
 import { handleCloudflareVerification } from '../../dashboard/dataSync/cloudflareVerification';
 import { mountDashboardReleaseAnnouncement } from './releaseAnnouncementBootstrap';

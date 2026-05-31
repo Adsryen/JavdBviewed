@@ -1,9 +1,9 @@
 // src/features/reviewUnlock/index.ts
 // 破解评论区功能 - 基于JAV-JHS的实现
 
-import { log } from '../../content/state';
+import { log } from '../contentState';
 import { bgFetchJSON } from '../../platform/network/clientFetch';
-import { md5Hex } from '../../utils/md5';
+import { md5Hex } from '../../shared/utils/md5';
 
 export interface ReviewData {
   id: string;

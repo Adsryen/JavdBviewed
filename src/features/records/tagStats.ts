@@ -1,4 +1,4 @@
-import { isValueableTag } from '../../utils/tagFilter';
+import { isValueableTag } from '../../shared/utils/tagFilter';
 
 export interface ViewedTagStat {
   name: string;

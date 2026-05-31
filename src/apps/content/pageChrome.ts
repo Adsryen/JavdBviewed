@@ -1,4 +1,4 @@
-import { log } from '../../content/state';
+import { log } from '../../features/contentState';
 
 export function injectNavbarBadge(): void {
     try {

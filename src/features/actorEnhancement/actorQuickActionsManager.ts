@@ -5,7 +5,7 @@
 
 import { actorManager } from '../actors';
 import { newWorksManager } from '../newWorks';
-import { showToast } from '../../content/toast';
+import { showToast } from '../../platform/browser/toast';
 import type { ActorRecord } from '../../types';
 
 interface ActorQuickActionsConfig {

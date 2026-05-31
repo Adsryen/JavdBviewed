@@ -1,10 +1,10 @@
 // src/features/listEnhancement/listEnhancementManager.ts
 
-import { log } from '../../content/state';
-import { showToast } from '../../content/toast';
+import { log } from '../contentState';
+import { showToast } from '../../platform/browser/toast';
 import { actorManager } from '../actors';
 import { newWorksManager } from '../newWorks';
-import { processVisibleItems } from '../../content/itemProcessor';
+import { processVisibleItems } from './content/itemProcessor';
 import {
   appendSuperRankingTop250Page,
   getSuperRankingTop250PageInfo,

@@ -4,7 +4,7 @@ import {
   buildDetailSearchLinks,
   findDetailSearchInsertionTarget,
   renderDetailSearchLinks,
-} from '../../src/content/detailSearchLinks';
+} from '../../src/features/externalSearch';
 
 describe('detail search links', () => {
   afterEach(() => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AnchorOptimizationManager } from '../../src/content/anchorOptimization';
+import { AnchorOptimizationManager } from '../../src/features/anchorOptimization/content';
 
 describe('AnchorOptimizationManager themed floating buttons', () => {
   beforeEach(() => {

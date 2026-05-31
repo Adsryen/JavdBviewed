@@ -1,8 +1,8 @@
-import { STATE, log } from '../../content/state';
-import { cleanupVideoDetailObservers } from '../../content/videoDetail';
-import { keyboardShortcutsManager } from '../../content/keyboardShortcuts';
-import { embyEnhancementManager } from '../../content/embyEnhancement';
-import { performanceOptimizer } from '../../content/performanceOptimizer';
+import { STATE, log } from '../../features/contentState';
+import { cleanupVideoDetailObservers } from '../../features/videoDetail';
+import { keyboardShortcutsManager } from '../../features/keyboardShortcuts';
+import { embyEnhancementManager } from '../../features/embyEnhancement/content';
+import { performanceOptimizer } from '../../platform/tasks';
 import { contentFilterManager } from '../../features/contentFilter';
 import { magnetSearchManager } from '../../features/magnets';
 import { listEnhancementManager } from '../../features/listEnhancement';

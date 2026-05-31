@@ -1,6 +1,6 @@
 import { getSettings, saveSettings } from '../../utils/storage';
 import type { ExtensionSettings } from '../../types';
-import { getDisplayVersionInfo } from '../../utils/versionInfo';
+import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';
 
 const DOCS_URL = 'https://jbd.we-together.club/';
 

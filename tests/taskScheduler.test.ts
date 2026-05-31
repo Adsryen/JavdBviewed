@@ -117,7 +117,7 @@ describe('GlobalTaskCenter scheduling', () => {
     const orchestrator: any = mod.initOrchestrator;
 
     orchestrator['completedTasks'].clear();
-    orchestrator['deferredRetryTimers'].clear();
+    orchestrator['retryTimers'].clearAll();
     orchestrator['runningDeferred'] = 0;
 
     orchestrator['scheduleTask']('deferred', {

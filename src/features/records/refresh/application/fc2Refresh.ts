@@ -1,7 +1,7 @@
 import { viewedPut as idbViewedPut } from '../../../../platform/storage/indexedDb';
 import type { VideoRecord } from '../../../../types';
 import { STORAGE_KEYS } from '../../../../utils/config';
-import { md5Hex } from '../../../../utils/md5';
+import { md5Hex } from '../../../../shared/utils/md5';
 import { getValue, setValue } from '../../../../utils/storage';
 import { fetchHtml } from './cloudflareVerification';
 import { parseSearchResults } from './javdbParsers';

@@ -1,7 +1,7 @@
 // src/components/ActorAvatar.ts
 // 演员头像加载组件
 
-import { globalCache } from '../utils/cache';
+import { globalCache } from '../platform/storage/cache';
 
 export interface ActorAvatarOptions {
     size?: 'small' | 'medium' | 'large'; // 头像尺寸

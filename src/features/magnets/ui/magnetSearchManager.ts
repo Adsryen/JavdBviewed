@@ -1,13 +1,13 @@
 // src/features/magnets/ui/magnetSearchManager.ts
 // 磁力搜索功能
 
-import { log } from '../../../content/state';
-import { showToast } from '../../../content/toast';
-import { extractVideoIdFromPage } from '../../../content/videoId';
+import { log } from '../../contentState';
+import { showToast } from '../../../platform/browser/toast';
+import { extractVideoIdFromPage } from '../../../platform/browser';
 import { defaultHttpClient } from '../../../platform/network/httpClient';
-import { handlePushToDrive115 } from '../../../content/drive115';
-import { performanceOptimizer } from '../../../content/performanceOptimizer';
-import { dbMagnetsQuery, dbMagnetsUpsert } from '../../../content/dbClient';
+import { handlePushToDrive115 } from '../../drive115/content';
+import { performanceOptimizer } from '../../../platform/tasks';
+import { dbMagnetsQuery, dbMagnetsUpsert } from '../../../platform/storage/dbRuntimeClient';
 import {
   appendMagnetResults,
   getResultSources,
@@ -46,7 +46,7 @@ import type {
   MagnetSourceRunState,
   MagnetExternalSearchResult,
 } from '../domain/types';
-import { fetchJavbusAjaxViaTab } from '../../../content/javbusTabFetch';
+import { fetchJavbusAjaxViaRuntime } from '../../../platform/browser/javbusRuntimeClient';
 
 // 磁链缓存 TTL（默认 7 天）
 const MAGNET_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -527,7 +527,7 @@ export class MagnetSearchManager {
 
       try {
         log(`[JAVBUS] Ajax empty for ${videoId}, retrying in JAVBUS tab context`);
-        const tabAjaxHtml = await fetchJavbusAjaxViaTab(pageUrl, this.config.timeout);
+        const tabAjaxHtml = await fetchJavbusAjaxViaRuntime(pageUrl, this.config.timeout);
         log(`[JAVBUS] Tab ajax response loaded for ${videoId}: ${tabAjaxHtml.length} chars`);
         const tabResults = parseJavbusMagnetRows(tabAjaxHtml, videoId);
         if (tabResults.length > 0) {
@@ -1271,7 +1271,7 @@ export class MagnetSearchManager {
    */
   private async checkIfVideoViewed(): Promise<boolean> {
     try {
-      const { STATE } = await import('../../../content/state');
+      const { STATE } = await import('../../contentState');
       const videoId = this.currentVideoId;
       if (!videoId) return false;
       

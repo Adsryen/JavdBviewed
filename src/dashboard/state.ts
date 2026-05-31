@@ -3,7 +3,7 @@ import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config';
 import type { ExtensionSettings, VideoRecord, LogEntry } from '../types';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
-import { getDisplayVersionInfo } from '../utils/versionInfo';
+import { getDisplayVersionInfo } from '../shared/utils/versionInfo';
 
 // --- Global State & Utilities ---
 

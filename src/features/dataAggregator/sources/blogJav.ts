@@ -3,7 +3,7 @@
 
 import { HttpClient, defaultHttpClient } from '../../../platform/network/httpClient';
 import { ApiResponse, ImageData, VideoMetadata, DataSourceError, ParseError } from '../types';
-import { parseCode } from '../../../utils/codeParser';
+import { parseCode } from '../../../shared/utils/codeParser';
 
 export interface BlogJavConfig {
   enabled: boolean;
