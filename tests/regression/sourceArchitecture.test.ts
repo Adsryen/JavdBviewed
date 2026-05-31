@@ -1091,6 +1091,24 @@ describe('source architecture cleanup', () => {
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/fileListModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreOptionsModel.ts'))).toBe(true);
 
+    const removedExpertDiffArtifacts = [
+      'displayDiffAnalysis',
+      'generateDiffSummaryHTML',
+      'bindConflictDetailEvents',
+      'bindExpertModeEvents',
+      'bindExpertStrategyChangeEvents',
+      'updateExpertImpactPreview',
+      'expertMergeStrategy',
+      'expertSmartMerge',
+      'expertKeepLocal',
+      'expertKeepCloud',
+      'expertManualResolve',
+    ];
+
+    for (const artifact of removedExpertDiffArtifacts) {
+      expect(dashboardRestore, `${artifact} should be removed from deprecated expert restore mode`).not.toContain(artifact);
+    }
+
     const legacyFiles = [
       {
         legacyPath: 'src/utils/dataDiff.ts',

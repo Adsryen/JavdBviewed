@@ -266,7 +266,6 @@ function switchMode(newMode: 'quick' | 'wizard' | 'expert'): void {
                 initializeWizardMode(currentDiffResult);
                 break;
             case 'expert':
-                displayDiffAnalysis(currentDiffResult);
                 break;
         }
     }
@@ -1929,183 +1928,6 @@ function hideAnalysisLoading(): void {
 }
 
 /**
- * 显示差异分析结果（专家模式）
- */
-function displayDiffAnalysis(diffResult: DataDiffResult): void {
-    // 专家模式已废弃：此函数改为无操作，避免影响覆盖式恢复
-    return;
-}
-
-/**
- * 生成差异分析HTML内容
- */
-function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
-    return `
-        <div class="diff-summary">
-            <div class="diff-category">
-                <div class="diff-header">
-                    <i class="fas fa-video"></i>
-                    <span>视频记录</span>
-                </div>
-                <div class="diff-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">云端新增：</span>
-                        <span class="stat-value">${diffResult.videoRecords.summary.cloudOnlyCount}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">本地保留：</span>
-                        <span class="stat-value">${diffResult.videoRecords.summary.totalLocal}</span>
-                    </div>
-                    <div class="stat-item conflict">
-                        <span class="stat-label">发现冲突：</span>
-                        <span class="stat-value">${diffResult.videoRecords.summary.conflictCount}</span>
-                        ${diffResult.videoRecords.summary.conflictCount > 0 ?
-                            '<button class="btn-link" id="viewVideoConflicts">查看详情</button>' :
-                            '<button class="btn-link hidden" id="viewVideoConflicts">查看详情</button>'
-                        }
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">本地独有：</span>
-                        <span class="stat-value">${diffResult.videoRecords.summary.localOnlyCount}</span>
-                        <small>(云端没有)</small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="diff-category">
-                <div class="diff-header">
-                    <i class="fas fa-users"></i>
-                    <span>演员收藏</span>
-                </div>
-                <div class="diff-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">云端新增：</span>
-                        <span class="stat-value">${diffResult.actorRecords.summary.cloudOnlyCount}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">本地保留：</span>
-                        <span class="stat-value">${diffResult.actorRecords.summary.totalLocal}</span>
-                    </div>
-                    <div class="stat-item conflict">
-                        <span class="stat-label">发现冲突：</span>
-                        <span class="stat-value">${diffResult.actorRecords.summary.conflictCount}</span>
-                        ${diffResult.actorRecords.summary.conflictCount > 0 ?
-                            '<button class="btn-link" id="viewActorConflicts">查看详情</button>' :
-                            '<button class="btn-link hidden" id="viewActorConflicts">查看详情</button>'
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="diff-category">
-                <div class="diff-header">
-                    <i class="fas fa-bell"></i>
-                    <span>新作品</span>
-                </div>
-                <div class="diff-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">订阅 云端新增：</span>
-                        <span class="stat-value">${diffResult.newWorks.subscriptions.summary.cloudOnlyCount}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">订阅 本地保留：</span>
-                        <span class="stat-value">${diffResult.newWorks.subscriptions.summary.totalLocal}</span>
-                    </div>
-                    <div class="stat-item conflict">
-                        <span class="stat-label">订阅 冲突：</span>
-                        <span class="stat-value">${diffResult.newWorks.subscriptions.summary.conflictCount}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">记录 云端新增：</span>
-                        <span class="stat-value">${diffResult.newWorks.records.summary.cloudOnlyCount}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">记录 本地保留：</span>
-                        <span class="stat-value">${diffResult.newWorks.records.summary.totalLocal}</span>
-                    </div>
-                    <div class="stat-item conflict">
-                        <span class="stat-label">记录 冲突：</span>
-                        <span class="stat-value">${diffResult.newWorks.records.summary.conflictCount}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="diff-category">
-                <div class="diff-header">
-                    <i class="fas fa-cogs"></i>
-                    <span>扩展设置</span>
-                </div>
-                <div class="diff-stats">
-                    <div class="stat-item" id="settingsDiffStatus">
-                        <span class="stat-label">状态：</span>
-                        <span class="stat-value">${diffResult.settings.hasConflict ? '检测到差异' : '无差异'}</span>
-                        ${diffResult.settings.hasConflict ?
-                            '<button class="btn-link" id="viewSettingsDiff">查看详情</button>' : ''
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="merge-strategy-section">
-            <h5>
-                <i class="fas fa-cogs"></i>
-                合并策略选择
-            </h5>
-            <p class="section-description">选择如何处理数据冲突和差异</p>
-
-            <div class="strategy-options">
-                <div class="strategy-option">
-                    <input type="radio" id="expertSmartMerge" name="expertMergeStrategy" value="smart" checked>
-                    <label for="expertSmartMerge">
-                        <i class="fas fa-magic"></i>
-                        <div class="strategy-content">
-                            <span class="strategy-title">智能合并</span>
-                            <span class="strategy-description">自动处理冲突，保留最新数据</span>
-                        </div>
-                    </label>
-                </div>
-
-                <div class="strategy-option">
-                    <input type="radio" id="expertKeepLocal" name="expertMergeStrategy" value="local">
-                    <label for="expertKeepLocal">
-                        <i class="fas fa-hdd"></i>
-                        <div class="strategy-content">
-                            <span class="strategy-title">保留本地</span>
-                            <span class="strategy-description">完全保留本地数据</span>
-                        </div>
-                    </label>
-                </div>
-
-                <div class="strategy-option">
-                    <input type="radio" id="expertKeepCloud" name="expertMergeStrategy" value="cloud">
-                    <label for="expertKeepCloud">
-                        <i class="fas fa-cloud"></i>
-                        <div class="strategy-content">
-                            <span class="strategy-title">保留云端</span>
-                            <span class="strategy-description">使用云端数据覆盖本地</span>
-                        </div>
-                    </label>
-                </div>
-
-                <div class="strategy-option">
-                    <input type="radio" id="expertManualResolve" name="expertMergeStrategy" value="manual">
-                    <label for="expertManualResolve">
-                        <i class="fas fa-hand-paper"></i>
-                        <div class="strategy-content">
-                            <span class="strategy-title">手动处理</span>
-                            <span class="strategy-description">逐个处理冲突项</span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-        </div>
-
-        <!-- 影响预览模块已移除，保持分析界面简洁 -->
-    `;
-}
-
-/**
  * 自动检测并配置恢复内容选项
  */
 function configureRestoreOptions(cloudData: any): void {
@@ -2171,46 +1993,6 @@ function updateOptionMessage(container: HTMLElement, className: string, iconClas
     const small = container.querySelector('small');
     if (small) {
         small.innerHTML = `<span class="${className}"><i class="fas ${iconClass}"></i> ${message}</span>`;
-    }
-}
-
-/**
- * 绑定冲突详情查看事件
- */
-function bindConflictDetailEvents(diffResult: DataDiffResult): void {
-    const videoConflictsBtn = document.getElementById('viewVideoConflicts');
-    const actorConflictsBtn = document.getElementById('viewActorConflicts');
-    const settingsDiffBtn = document.getElementById('viewSettingsDiff');
-
-    // 调试日志
-    logAsync('DEBUG', '绑定冲突详情事件', {
-        videoConflictsBtn: !!videoConflictsBtn,
-        actorConflictsBtn: !!actorConflictsBtn,
-        settingsDiffBtn: !!settingsDiffBtn,
-        settingsHasConflict: diffResult.settings.hasConflict,
-        settingsData: diffResult.settings
-    });
-
-    if (videoConflictsBtn && diffResult.videoRecords.conflicts.length > 0) {
-        videoConflictsBtn.onclick = () => showConflictResolution('video', diffResult.videoRecords.conflicts);
-    }
-
-    if (actorConflictsBtn && diffResult.actorRecords.conflicts.length > 0) {
-        actorConflictsBtn.onclick = () => showConflictResolution('actor', diffResult.actorRecords.conflicts);
-    }
-
-    if (settingsDiffBtn) {
-        if (diffResult.settings.hasConflict) {
-            settingsDiffBtn.onclick = () => {
-                logAsync('INFO', '点击设置差异查看详情按钮');
-                showSettingsDifference(diffResult.settings);
-            };
-            logAsync('INFO', '设置差异按钮事件已绑定');
-        } else {
-            logAsync('INFO', '设置无差异，不绑定事件');
-        }
-    } else {
-        logAsync('ERROR', '设置差异按钮元素未找到');
     }
 }
 
@@ -3455,30 +3237,6 @@ function getResolutionText(resolution: string): string {
         'merge': '智能合并'
     };
     return resolutionMap[resolution] || resolution;
-}
-
-/**
- * 绑定专家模式事件
- */
-function bindExpertModeEvents(diffResult: DataDiffResult): void {
-    // 专家模式已废弃：此函数改为无操作
-    return;
-}
-
-/**
- * 绑定专家模式策略选择事件
- */
-function bindExpertStrategyChangeEvents(): void {
-    // 专家模式已废弃：此函数改为无操作
-    return;
-}
-
-/**
- * 更新专家模式影响预览
- */
-function updateExpertImpactPreview(strategy: string, diffResult: DataDiffResult): void {
-    // 专家模式已废弃：不再更新影响预览
-    return;
 }
 
 // 函数已在定义时导出
