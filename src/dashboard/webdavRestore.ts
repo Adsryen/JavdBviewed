@@ -51,6 +51,7 @@ import {
     formatElapsedTime,
 } from './webdavRestore/restoreProgressModel';
 import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
+import { buildRestoreExecuteConfirmHtml } from './webdavRestore/restoreExecuteConfirmModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -740,45 +741,9 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
         // 读取自动备份开关状态
         const autoBackupBeforeRestore = (document.getElementById('webdavAutoBackupBeforeRestore') as HTMLInputElement)?.checked ?? true;
 
-        // 二次确认提示
-        const selectedCategories = Object.entries(categories).filter(([_, enabled]) => enabled).map(([key, _]) => key);
-        const categoryNames: { [key: string]: string } = {
-            settings: '扩展设置',
-            userProfile: '账号信息',
-            viewed: '观看记录',
-            actors: '演员库',
-            newWorks: '新作品',
-            logs: '日志记录',
-            magnetPushLogs: '磁力推送日志',
-            importStats: '导入统计',
-            magnets: '磁链缓存'
-        };
-        const confirmMessage = `
-            <div style="line-height: 1.8;">
-                <div class="alert-error">
-                    <p>⚠️ 警告：替换式恢复将清空现有数据！</p>
-                </div>
-                
-                <div style="background: var(--surface-secondary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-                    <p style="margin: 0 0 12px 0; font-weight: 600; color: var(--text-primary);">将要恢复的类别：</p>
-                    <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
-                        ${selectedCategories.map(cat => `<li>${categoryNames[cat] || cat}</li>`).join('')}
-                    </ul>
-                </div>
-                
-                <div class="${autoBackupBeforeRestore ? 'alert-success' : 'alert-warning'}">
-                    <p>${autoBackupBeforeRestore ? '✓ 恢复前将自动备份当前数据' : '✗ 未启用自动备份'}</p>
-                </div>
-                
-                <p style="margin: 0; font-weight: 600; color: var(--error-text, #c62828); text-align: center;">
-                    此操作不可撤销，确定要继续吗？
-                </p>
-            </div>
-        `;
-        
         const confirmed = await showConfirm({
             title: '⚠️ 确认覆盖式恢复',
-            message: confirmMessage,
+            message: buildRestoreExecuteConfirmHtml({ categories, autoBackupBeforeRestore }),
             confirmText: '确定恢复',
             cancelText: '取消',
             type: 'danger',
