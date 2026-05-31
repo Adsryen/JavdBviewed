@@ -46,6 +46,11 @@ import {
     buildExtraStatItemHtml,
 } from './webdavRestore/previewStatsModel';
 import {
+    buildQuickRestoreConfirmHtml,
+    buildQuickRestoreMergeOptions,
+    buildQuickRestoreModalStats,
+} from './webdavRestore/quickRestoreModel';
+import {
     buildSettingsDifferenceModalHtml,
     getSettingsDifferenceOverlayStyle,
     SETTINGS_DIFFERENCE_MODAL_CLASS,
@@ -367,34 +372,16 @@ async function startQuickRestore(): Promise<void> {
         return;
     }
 
-    const totalConflicts = currentDiffResult.videoRecords.summary.conflictCount +
-                          currentDiffResult.actorRecords.summary.conflictCount;
-
     // 显示智能恢复确认弹窗
     try {
         showSmartRestoreModal({
-            localRecordsCount: currentDiffResult.videoRecords.summary.totalLocal,
-            localActorsCount: currentDiffResult.actorRecords.summary.totalLocal,
-            cloudNewDataCount: currentDiffResult.videoRecords.summary.cloudOnlyCount + currentDiffResult.actorRecords.summary.cloudOnlyCount,
-            conflictsCount: totalConflicts,
+            ...buildQuickRestoreModalStats(currentDiffResult),
             onConfirm: () => {
                 // 用户确认后执行恢复
                 logAsync('INFO', '用户确认执行快捷恢复');
 
-                // 使用智能合并策略和默认内容选择
-                const mergeOptions: MergeOptions = {
-                    strategy: 'smart',
-                    restoreSettings: false, // 快捷恢复默认不恢复设置
-                    restoreRecords: true,   // 恢复视频记录
-                    restoreUserProfile: true, // 恢复用户资料
-                    restoreActorRecords: true, // 恢复演员记录
-                    restoreLogs: false,     // 不恢复日志
-                    restoreImportStats: true, // 恢复导入统计
-                    restoreNewWorks: true   // 新增：快捷恢复包含新作品
-                };
-
                 // 执行恢复
-                executeRestore(mergeOptions);
+                executeRestore(buildQuickRestoreMergeOptions());
             },
             onCancel: () => {
                 logAsync('INFO', '用户取消快捷恢复');
@@ -403,29 +390,9 @@ async function startQuickRestore(): Promise<void> {
     } catch (error) {
         console.error('Failed to load smart restore modal:', error);
         // 降级到原来的confirm方式
-        const confirmMessage = `
-            <div style="line-height: 1.8;">
-                <p style="margin: 0 0 16px 0; font-weight: 600;">确认执行一键智能恢复？</p>
-                
-                <div style="background: var(--surface-secondary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-                    <p style="margin: 0 0 12px 0; font-weight: 600; color: var(--text-primary);">📊 操作预览：</p>
-                    <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
-                        <li>保留本地视频记录：<strong>${currentDiffResult.videoRecords.summary.totalLocal.toLocaleString()}</strong> 条</li>
-                        <li>保留本地演员收藏：<strong>${currentDiffResult.actorRecords.summary.totalLocal.toLocaleString()}</strong> 个</li>
-                        <li>添加云端新增数据：<strong>${currentDiffResult.videoRecords.summary.cloudOnlyCount + currentDiffResult.actorRecords.summary.cloudOnlyCount}</strong> 项</li>
-                        <li>自动处理冲突：<strong>${totalConflicts}</strong> 个（保留最新数据）</li>
-                    </ul>
-                </div>
-                
-                <div class="alert-warning">
-                    <p>⚠️ 注意：此操作将修改您的本地数据，建议在操作前确保已备份重要信息。</p>
-                </div>
-            </div>
-        `;
-
         const confirmed = await showConfirm({
             title: '确认一键智能恢复',
-            message: confirmMessage,
+            message: buildQuickRestoreConfirmHtml(currentDiffResult),
             confirmText: '开始恢复',
             cancelText: '取消',
             type: 'warning',
@@ -436,20 +403,8 @@ async function startQuickRestore(): Promise<void> {
             // 用户确认后执行恢复
             logAsync('INFO', '用户确认执行快捷恢复');
 
-            // 使用智能合并策略和默认内容选择
-            const mergeOptions: MergeOptions = {
-                strategy: 'smart',
-                restoreSettings: false, // 快捷恢复默认不恢复设置
-                restoreRecords: true,   // 恢复视频记录
-                restoreUserProfile: true, // 恢复用户资料
-                restoreActorRecords: true, // 恢复演员记录
-                restoreLogs: false,     // 不恢复日志
-                restoreImportStats: true, // 恢复导入统计
-                restoreNewWorks: true   // 新增：快捷恢复包含新作品
-            };
-
             // 执行恢复
-            executeRestore(mergeOptions);
+            executeRestore(buildQuickRestoreMergeOptions());
         } else {
             logAsync('INFO', '用户取消快捷恢复');
         }
