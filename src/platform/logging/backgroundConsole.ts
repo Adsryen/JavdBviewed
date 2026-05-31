@@ -1,7 +1,7 @@
 ﻿// src/platform/logging/backgroundConsole.ts
 // 抽离统一控制台代理安装与设置应用
 
-import { installConsoleProxy } from '../../utils/consoleProxy';
+import { installConsoleProxy } from './consoleProxy';
 import { getSettings } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 
