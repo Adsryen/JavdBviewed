@@ -5,6 +5,14 @@ export interface ConflictNavigationState {
   nextDisabled: boolean;
 }
 
+export interface ConflictProgressStyle {
+  width: string;
+  display: string;
+  height: string;
+  background: string;
+  transition: string;
+}
+
 export interface ConflictLike {
   id: string;
 }
@@ -20,6 +28,18 @@ export function buildConflictNavigationState(currentIndex: number, totalConflict
   return {
     previousDisabled: currentIndex <= 0,
     nextDisabled: totalConflicts <= 0 || currentIndex >= totalConflicts - 1,
+  };
+}
+
+export function buildConflictProgressStyle(currentIndex: number, totalConflicts: number): ConflictProgressStyle {
+  const progress = calculateConflictProgressPercent(currentIndex, totalConflicts);
+
+  return {
+    width: `${progress}%`,
+    display: 'block',
+    height: '100%',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    transition: 'width 0.4s ease',
   };
 }
 
