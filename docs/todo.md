@@ -473,6 +473,114 @@
   - [x] 补充 `tests/dom/listScrollState.test.ts`
   - [x] 补充 `tests/dom/listDisplayControl.test.ts`
   - [x] 补充 `tests/dom/listPreviewHoverController.test.ts`
+- [ ] 第四十六批迁移：文件夹框架遗漏收口
+  - [x] 审计旧目录真实实现残留，确认重点集中在 `src/content`、`src/utils`、`src/dashboard`
+  - [x] Content 任务运行时归位
+    - [x] 迁移 `content/pageContext.ts` 到 `platform/browser/pageContext.ts`
+    - [x] 迁移 `content/taskRuntime.ts` 到 `platform/tasks/contentRuntime.ts`
+    - [x] 迁移 `content/taskDetailReporter.ts` 到 `platform/tasks/contentTaskDetailReporter.ts`
+    - [x] 迁移 `content/taskHeartbeat.ts` 到 `platform/tasks/taskHeartbeatReporter.ts`
+    - [x] 迁移 `content/taskVisibilityReporter.ts` 到 `platform/tasks/taskVisibilityReporter.ts`
+    - [x] `content/taskChunking.ts` 保持 thin wrapper，调用方改用 `platform/tasks/chunking.ts`
+    - [x] 迁移 `content/performanceOptimizer.ts` 到 `platform/tasks/performanceOptimizer.ts`
+    - [x] 迁移 `content/itemProcessor.ts` 到 `features/listEnhancement/content/itemProcessor.ts`
+    - [x] 详情页和列表增强调用方改用 `features/listEnhancement/content` 入口
+    - [x] 迁移 `content/state.ts` 到 `features/contentState`
+    - [x] 内容脚本共享状态调用方改用 `features/contentState` 入口
+    - [x] apps/features 调用方改用 `platform/tasks` 与 `platform/browser`
+    - [x] 补充架构回归约束，防止基础设施继续回流到 `src/content`
+  - [ ] Content 页面装配与大型增强继续拆分
+    - [x] 迁移 `content/initOrchestrator.ts` 到 `apps/content/orchestrator`
+    - [x] 拆分 `apps/content/orchestrator/initOrchestrator.ts` 内部调度、依赖重试、页面生命周期和 metrics 上报逻辑
+      - [x] 拆出 `types.ts` 保存 orchestrator 类型和默认可见性策略
+      - [x] 拆出 `hardwareConcurrency.ts` 保存硬件并发决策
+      - [x] 拆出 `metrics.ts` 保存性能指标状态与统计逻辑
+      - [x] 拆出 `schedulingRules.ts` 保存任务 key、重试延迟、依赖分组、优先级排序等纯调度规则
+      - [x] 拆出 `retryTimers.ts` 保存重试定时器去重、取消和批量清理逻辑
+      - [x] 拆出 `highPhaseScheduler.ts` 保存 high 阶段优先级、依赖等待、并发限制和死锁兜底执行逻辑
+      - [x] 拆出 `pageLifecycleBindings.ts` 保存页面卸载、生命周期取消和 unload metrics 保存绑定
+      - [x] 拆出 `dashboardMetricsMessages.ts` 保存 Dashboard metrics 查询与重置消息监听
+      - [x] 拆出任务调度/依赖重试逻辑
+      - [x] 拆出页面生命周期和 Dashboard metrics 消息监听逻辑
+    - [x] 迁移 `content/javbusTabFetch.ts` 到 `platform/browser/javbusRuntimeClient.ts`
+    - [x] 磁力 JAVBUS fallback 改用 platform runtime client
+    - [x] 旧 `content/javbusTabFetch.ts` 保留兼容导出
+    - [x] 迁移 `content/insightsCollector.ts` 到 `features/insights/contentCollector.ts`
+    - [x] `apps/content/bootstrap.ts` 改用 `features/insights` 入口
+    - [x] 旧 `content/insightsCollector.ts` 保留兼容导出
+    - [x] 迁移 `content/dbClient.ts` 到 `platform/storage/dbRuntimeClient.ts`
+    - [x] 115/FC2/磁力/并发存储调用方改用 platform DB runtime client
+    - [x] 旧 `content/dbClient.ts` 保留兼容导出
+    - [x] 迁移 `content/toast.ts` 到 `platform/browser/toast.ts`
+    - [x] 迁移 `content/utils.ts` 的 DOM/主题/favicon 工具到 `platform/browser/domUtils.ts`
+    - [x] 迁移 `content/utils.ts` 的任务超时守卫到 `platform/tasks/taskTimeoutGuard.ts`
+    - [x] 迁移 `content/enhancementLoadingIndicator.ts` 到 `platform/browser/enhancementLoadingIndicator.ts`
+    - [x] 迁移 `content/videoFavoriteRating.ts` 到 `features/videoDetail/favoriteRating.ts`
+    - [x] 业务调用方改用 `platform/browser`、`platform/tasks` 和 `features/videoDetail` 稳定入口
+    - [x] 旧 `content/toast.ts`、`content/utils.ts`、`content/enhancementLoadingIndicator.ts`、`content/videoFavoriteRating.ts` 保留兼容导出
+    - [x] 迁移 `content/videoDetail.ts` 到 `features/videoDetail/pageHandler.ts`
+    - [x] 迁移 `content/enhancedVideoDetail.ts` 到 `features/videoDetail/enhancer.ts`
+    - [x] `apps/content`、Dashboard orchestrator 设计页和详情页 DOM 测试改用 `features/videoDetail`
+    - [x] 旧 `content/videoDetail.ts` 与 `content/enhancedVideoDetail.ts` 保留兼容导出
+    - [x] 迁移 `content/drive115.ts` 到 `features/drive115/content`
+    - [x] 迁移 `content/drive115.test.ts` 到 `features/drive115/content`
+    - [x] 迁移 `content/keyboardShortcuts.ts` 到 `features/keyboardShortcuts`
+    - [x] 迁移 `content/privacy/*` 到 `features/privacy/content`
+    - [x] 迁移 `content/export.ts` 到 `features/pageExport/content`
+    - [x] 页面导出功能改用 `features/privacy` 服务入口
+    - [x] 旧 `content/privacy/*` 保留兼容导出
+    - [x] 旧 `content/export.ts` 保留兼容导出
+    - [x] `content/detailSearchLinks.ts` 调用方改用 `features/externalSearch` 稳定入口
+    - [x] 迁移 `content/homeInsightsWidget.ts` 到 `features/insights/ui`
+    - [x] 迁移 `content/videoId.ts` 的页面提取逻辑到 `platform/browser/videoId.ts`
+    - [x] 详情页、磁力、115、在线可看、状态和 insights 调用方改用 `platform/browser`
+    - [x] 迁移 `content/passwordHelper.ts` 到 `features/passwordHelper/content`
+    - [x] 主内容脚本改用 `features/passwordHelper/content`，standalone manifest 入口保持稳定
+    - [x] 迁移 `content/anchorOptimization.ts` 到 `features/anchorOptimization/content`
+    - [x] 主内容脚本和锚点优化 DOM 测试改用 feature 入口
+    - [x] 迁移 `content/coverEnhancement.ts` 到 `features/coverEnhancement/content`
+    - [x] 迁移 `content/embyEnhancement.ts` 到 `features/embyEnhancement/content`
+    - [x] 主内容脚本、消息路由和生命周期清理改用 Emby feature 入口
+    - [x] 迁移 `content/concurrency.ts` 到 `features/records/content/concurrency.ts`
+    - [x] 迁移 `content/concurrencyTest.ts` 到 `features/records/content/concurrencyTest.ts`
+    - [x] 详情页记录写入和处理队列改用 `features/records/content` 入口
+    - [x] 旧 `content/concurrency.ts` 与 `content/concurrencyTest.ts` 保留兼容导出
+  - [ ] Utils 基础能力归位
+    - [x] 迁移 `utils/codeParser.ts` 到 `shared/utils/codeParser.ts`
+    - [x] 迁移 `utils/md5.ts` 到 `shared/utils/md5.ts`
+    - [x] 迁移 `utils/tagFilter.ts` 到 `shared/utils/tagFilter.ts`
+    - [x] 迁移 `utils/versionInfo.ts` 到 `shared/utils/versionInfo.ts`
+    - [x] 迁移 `content/videoId.ts` 的纯解析逻辑到 `shared/utils/videoId.ts`
+    - [x] `codeParser` 和 `versionInfo` 行为测试迁入 `shared/utils`
+    - [x] 为 `shared/utils/videoId.ts` 补充纯解析单元测试
+    - [x] 修复 `codeParser` 便捷函数独立调用时的 static `this` 绑定问题
+    - [x] 旧 `utils/codeParser.ts`、`utils/md5.ts`、`utils/tagFilter.ts`、`utils/versionInfo.ts` 保留兼容导出
+    - [x] 迁移 `utils/statusPriority.test.ts` 到 `features/videoStatus/statusPriority.test.ts`
+    - [x] 架构回归约束 `src/utils` 不再承载 feature 测试文件
+    - [x] 迁移 `utils/consoleProxy.ts` 到 `platform/logging/consoleProxy.ts`
+    - [x] Content、Dashboard、Background console 装配改用 `platform/logging/consoleProxy`
+    - [x] 旧 `utils/consoleProxy.ts` 保留兼容导出
+    - [x] 迁移 `utils/routeManager.ts` 到 `features/routeManagement`
+    - [x] Background 自动线路更新、Dashboard 网络测试、演员页、新作品采集和数据同步调用方改用 `features/routeManagement`
+    - [x] 旧 `utils/routeManager.ts` 保留兼容导出
+    - [x] 迁移 `utils/dataDiff.ts`、`utils/dataMerge.ts`、`utils/mergeKeyedMap.ts` 到 `features/webdavSync/application`
+    - [x] Dashboard WebDAV 恢复页改用 feature 内部恢复差异/合并工具
+    - [x] 旧 `utils/dataDiff.ts`、`utils/dataMerge.ts`、`utils/mergeKeyedMap.ts` 保留兼容导出
+    - [x] 迁移 `utils/cache.ts` 到 `platform/storage/cache.ts`
+    - [x] DataAggregator 和演员头像组件改用 `platform/storage/cache`
+    - [x] 旧 `utils/cache.ts` 保留兼容导出
+    - [x] 迁移 `utils/domainConfig.ts` 到 `features/networkTest/domain/domainConfig.ts`
+    - [x] 网络测试设置页改用 `features/networkTest` 稳定入口
+    - [x] 旧 `utils/domainConfig.ts` 保留兼容导出
+    - [ ] 评估 `utils/config.ts` 拆为 `shared/config` 与 feature config
+    - [ ] 旧 `utils/*` 路径逐步收缩为兼容导出
+  - [ ] Dashboard 大页拆分计划
+    - [ ] 拆分 `dashboard/tabs/records.ts`
+    - [ ] 拆分 `dashboard/webdavRestore.ts`
+    - [ ] 拆分 `dashboard/tabs/insights.ts`
+    - [ ] 拆分 `dashboard/tabs/actors.ts`
+    - [ ] 拆分 `dashboard/tabs/newWorks.ts`
+    - [ ] 保持 `apps/dashboard/bootstrap.ts` 只做装配
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
   - [x] 处理 `src/background/background.ts.step*`
