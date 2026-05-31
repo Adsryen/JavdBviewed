@@ -54,6 +54,7 @@ import {
     buildRestoreProgressHtml,
     formatElapsedTime,
 } from './webdavRestore/restoreProgressModel';
+import { buildRestoreModeStatItems } from './webdavRestore/restoreModeStatsModel';
 import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
 import { buildRestoreExecuteConfirmHtml } from './webdavRestore/restoreExecuteConfirmModel';
 import {
@@ -251,17 +252,7 @@ function initializeRestoreInterface(diffResult: DataDiffResult): void {
 function initializeRestoreMode(diffResult: DataDiffResult): void {
     logAsync('INFO', '初始化统一恢复模式');
 
-    // 更新统计数据
-    updateElement('quickVideoCount', diffResult.videoRecords.summary.totalLocal.toString());
-    updateElement('quickActorCount', diffResult.actorRecords.summary.totalLocal.toString());
-    updateElement('quickNewWorksSubsCount', diffResult.newWorks.subscriptions.summary.totalLocal.toString());
-    updateElement('quickNewWorksRecsCount', diffResult.newWorks.records.summary.totalLocal.toString());
-
-    const totalConflicts = diffResult.videoRecords.summary.conflictCount +
-                          diffResult.actorRecords.summary.conflictCount +
-                          diffResult.newWorks.subscriptions.summary.conflictCount +
-                          diffResult.newWorks.records.summary.conflictCount;
-    updateElement('quickConflictCount', totalConflicts.toString());
+    renderRestoreModeStats(diffResult);
 
     // 绑定恢复按钮
     const restoreBtn = document.getElementById('quickRestoreBtn');
@@ -320,18 +311,7 @@ function switchMode(newMode: 'quick' | 'wizard' | 'expert'): void {
 function initializeQuickMode(diffResult: DataDiffResult): void {
     logAsync('INFO', '初始化快捷模式');
 
-    // 更新统计数据
-    updateElement('quickVideoCount', diffResult.videoRecords.summary.totalLocal.toString());
-    updateElement('quickActorCount', diffResult.actorRecords.summary.totalLocal.toString());
-    // 新增：新作品统计
-    updateElement('quickNewWorksSubsCount', diffResult.newWorks.subscriptions.summary.totalLocal.toString());
-    updateElement('quickNewWorksRecsCount', diffResult.newWorks.records.summary.totalLocal.toString());
-
-    const totalConflicts = diffResult.videoRecords.summary.conflictCount +
-                          diffResult.actorRecords.summary.conflictCount +
-                          diffResult.newWorks.subscriptions.summary.conflictCount +
-                          diffResult.newWorks.records.summary.conflictCount;
-    updateElement('quickConflictCount', totalConflicts.toString());
+    renderRestoreModeStats(diffResult);
 
     // 绑定快捷恢复按钮
     const quickRestoreBtn = mq<HTMLElement>('#quickRestoreBtn');
@@ -340,6 +320,12 @@ function initializeQuickMode(diffResult: DataDiffResult): void {
             startQuickRestore();
         };
     }
+}
+
+function renderRestoreModeStats(diffResult: DataDiffResult): void {
+    buildRestoreModeStatItems(diffResult).forEach(item => {
+        updateElement(item.id, item.value.toString());
+    });
 }
 
 /**
