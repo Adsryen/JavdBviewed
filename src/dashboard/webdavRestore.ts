@@ -46,6 +46,10 @@ import {
     getSettingsDifferenceOverlayStyle,
     SETTINGS_DIFFERENCE_MODAL_CLASS,
 } from './webdavRestore/settingsDifferenceModel';
+import {
+    buildRestoreProgressHtml,
+    formatElapsedTime,
+} from './webdavRestore/restoreProgressModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -872,25 +876,7 @@ function showRestoreProgress(): void {
     const progressContainer = document.createElement('div');
     progressContainer.id = 'restoreProgressContainer';
     progressContainer.className = 'restore-progress-container';
-    progressContainer.innerHTML = `
-        <div class="progress-header">
-            <h4><i class="fas fa-sync fa-spin"></i> 正在执行覆盖式恢复</h4>
-            <p>请耐心等待，恢复过程中请勿关闭页面</p>
-        </div>
-        <div class="progress-categories" id="progressCategories">
-            <!-- 类别进度将动态添加 -->
-        </div>
-        <div class="progress-summary" id="progressSummary">
-            <div class="summary-item">
-                <span class="label">总进度:</span>
-                <span class="value" id="overallProgress">准备中...</span>
-            </div>
-            <div class="summary-item">
-                <span class="label">已用时间:</span>
-                <span class="value" id="elapsedTime">00:00</span>
-            </div>
-        </div>
-    `;
+    progressContainer.innerHTML = buildRestoreProgressHtml();
 
     modalBody.appendChild(progressContainer);
 
@@ -898,11 +884,9 @@ function showRestoreProgress(): void {
     const startTime = Date.now();
     const updateTimer = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const minutes = Math.floor(elapsed / 60);
-        const seconds = elapsed % 60;
         const timerEl = document.getElementById('elapsedTime');
         if (timerEl) {
-            timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timerEl.textContent = formatElapsedTime(elapsed);
         }
     }, 1000);
 
