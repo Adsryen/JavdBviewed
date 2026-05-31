@@ -50,6 +50,7 @@ import {
     buildRestoreProgressHtml,
     formatElapsedTime,
 } from './webdavRestore/restoreProgressModel';
+import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -652,52 +653,25 @@ function initializeConfirmation(): void {
     const summaryContainer = mq<HTMLElement>('#confirmationSummary');
     if (!summaryContainer || !currentDiffResult) return;
 
-    const strategyNames = {
-        'smart': '智能合并',
-        'local': '保留本地',
-        'cloud': '使用云端',
-        'manual': '手动处理'
-    };
+    const contentLabels = Object.fromEntries(
+        wizardState.selectedContent.map(id => {
+            const element = mq<HTMLElement>('#' + id) || document.getElementById(id);
+            const label = element?.closest('.form-group-checkbox')?.querySelector('label')?.textContent || id;
+            return [id, label];
+        })
+    );
 
-    const summaryHtml = `
-        <div class="summary-section">
-            <h5><i class="fas fa-cog"></i> 恢复策略</h5>
-            <p>${strategyNames[wizardState.strategy as keyof typeof strategyNames] || wizardState.strategy}</p>
-        </div>
-        <div class="summary-section">
-            <h5><i class="fas fa-list"></i> 恢复内容</h5>
-            <ul>
-                ${wizardState.selectedContent.map(id => {
-                    const element = mq<HTMLElement>('#' + id) || document.getElementById(id);
-                    const label = element?.closest('.form-group-checkbox')?.querySelector('label')?.textContent || id;
-                    return `<li>${label}</li>`;
-                }).join('')}
-            </ul>
-        </div>
-        <div class="summary-section">
-            <h5><i class="fas fa-chart-bar"></i> 预期结果</h5>
-            <div class="result-stats">
-                <div class="stat">
-                    <span class="stat-label">视频记录：</span>
-                    <span class="stat-value">${currentDiffResult.videoRecords.summary.totalLocal.toLocaleString()} 条</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">演员收藏：</span>
-                    <span class="stat-value">${currentDiffResult.actorRecords.summary.totalLocal.toLocaleString()} 个</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">新作品订阅：</span>
-                    <span class="stat-value">${currentDiffResult.newWorks.subscriptions.summary.totalLocal.toLocaleString()} 个</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">新作品记录：</span>
-                    <span class="stat-value">${currentDiffResult.newWorks.records.summary.totalLocal.toLocaleString()} 条</span>
-                </div>
-            </div>
-        </div>
-    `;
-
-    summaryContainer.innerHTML = summaryHtml;
+    summaryContainer.innerHTML = buildRestoreConfirmationHtml({
+        strategy: wizardState.strategy,
+        selectedContent: wizardState.selectedContent,
+        contentLabels,
+        diffSummary: {
+            videoCount: currentDiffResult.videoRecords.summary.totalLocal,
+            actorCount: currentDiffResult.actorRecords.summary.totalLocal,
+            subscriptionCount: currentDiffResult.newWorks.subscriptions.summary.totalLocal,
+            recordCount: currentDiffResult.newWorks.records.summary.totalLocal,
+        },
+    });
 }
 
 /**
