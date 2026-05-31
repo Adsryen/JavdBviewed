@@ -64,6 +64,26 @@ describe('source architecture cleanup', () => {
     expect(testFiles).toEqual([]);
   });
 
+  it('keeps feature tests out of src/utils', () => {
+    const utilsDir = path.resolve(root, 'src/utils');
+    const testFiles = fs
+      .readdirSync(utilsDir, { recursive: true })
+      .map((entry) => String(entry).replace(/\\/g, '/'))
+      .filter((file) => /\.test\.tsx?$/.test(file));
+
+    expect(testFiles).toEqual([]);
+  });
+
+  it('keeps feature tests out of src/content', () => {
+    const contentDir = path.resolve(root, 'src/content');
+    const testFiles = fs
+      .readdirSync(contentDir, { recursive: true })
+      .map((entry) => String(entry).replace(/\\/g, '/'))
+      .filter((file) => /\.test\.tsx?$/.test(file));
+
+    expect(testFiles).toEqual([]);
+  });
+
   it('keeps platform modules independent from app and feature layers', () => {
     const violations: string[] = [];
     const forbidden = [
@@ -248,6 +268,8 @@ describe('source architecture cleanup', () => {
       'src/features/insights/personas.ts',
       'src/features/insights/prompts.ts',
       'src/features/insights/reportGenerator.ts',
+      'src/features/insights/contentCollector.ts',
+      'src/features/insights/ui/homeInsightsWidget.ts',
     ];
 
     for (const file of expectedFeatureFiles) {
@@ -265,6 +287,29 @@ describe('source architecture cleanup', () => {
       expect(nonEmptyLines.length, `${relative} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
       expect(source, `${relative} should re-export from features/insights`).toMatch(/features\/insights/);
     }
+
+    const legacyContentPath = 'src/content/insightsCollector.ts';
+    const legacyContentSource = fs.readFileSync(path.resolve(root, legacyContentPath), 'utf8');
+    const legacyContentLines = legacyContentSource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(legacyContentLines.length, `${legacyContentPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacyContentSource, `${legacyContentPath} should re-export from features/insights`).toMatch(/features\/insights/);
+
+    const bootstrapSource = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    expect(bootstrapSource, 'content bootstrap should use the insights feature directly').not.toMatch(/content\/insightsCollector/);
+    expect(bootstrapSource, 'content bootstrap should import initInsightsCollector from features/insights').toMatch(/features\/insights/);
+
+    const legacyHomeWidgetPath = 'src/content/homeInsightsWidget.ts';
+    const legacyHomeWidgetSource = fs.readFileSync(path.resolve(root, legacyHomeWidgetPath), 'utf8');
+    const legacyHomeWidgetLines = legacyHomeWidgetSource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(legacyHomeWidgetLines.length, `${legacyHomeWidgetPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacyHomeWidgetSource, `${legacyHomeWidgetPath} should re-export from features/insights`).toMatch(/features\/insights/);
   });
 
   it('keeps dataAggregator implementation under features and services as compatibility exports', () => {
@@ -391,6 +436,7 @@ describe('source architecture cleanup', () => {
       'src/features/drive115/app/logger.ts',
       'src/features/drive115/app/runtime.ts',
       'src/features/drive115/app/types.ts',
+      'src/features/drive115/content/index.ts',
       'src/features/drive115/router/index.ts',
       'src/features/drive115/v2/index.ts',
       'src/features/drive115/v2/errorCodes.ts',
@@ -416,6 +462,21 @@ describe('source architecture cleanup', () => {
         expect(source, `${relative} should re-export from features/drive115`).toMatch(/features\/drive115/);
       }
     }
+
+    const legacyContentPath = 'src/content/drive115.ts';
+    const legacyContentSource = fs.readFileSync(path.resolve(root, legacyContentPath), 'utf8');
+    const legacyContentLines = legacyContentSource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(legacyContentLines.length, `${legacyContentPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacyContentSource).toMatch(/features\/drive115\/content/);
+
+    const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    const magnetManager = fs.readFileSync(path.resolve(root, 'src/features/magnets/ui/magnetSearchManager.ts'), 'utf8');
+    expect(bootstrap).toMatch(/features\/drive115\/content/);
+    expect(magnetManager).toMatch(/drive115\/content/);
   });
 
   it('keeps privacy utilities under the privacy feature and utils path as compatibility exports', () => {
@@ -644,6 +705,275 @@ describe('source architecture cleanup', () => {
     expect(source, `${legacyPath} should re-export from shared/utils/listRecordHelpers`).toMatch(/shared\/utils\/listRecordHelpers/);
   });
 
+  it('keeps pure reusable utilities under shared utils with utils paths as compatibility exports', () => {
+    const modules = [
+      'codeParser',
+      'md5',
+      'tagFilter',
+      'versionInfo',
+    ];
+
+    for (const moduleName of modules) {
+      const sharedPath = `src/shared/utils/${moduleName}.ts`;
+      expect(fs.existsSync(path.resolve(root, sharedPath)), `${sharedPath} should exist`).toBe(true);
+
+      const legacyPath = `src/utils/${moduleName}.ts`;
+      const source = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${legacyPath} should re-export from shared/utils/${moduleName}`).toMatch(new RegExp(`shared\\/utils\\/${moduleName}`));
+    }
+
+    const violations: string[] = [];
+    const legacyUtilityImport = /(?:^|['"])(?:\.\.\/)+utils\/(?:codeParser|md5|tagFilter|versionInfo)(?:['"]|$)/;
+
+    for (const file of listSourceFiles('src')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      if (relative.startsWith('src/utils/')) continue;
+
+      const source = fs.readFileSync(file, 'utf8');
+      if (legacyUtilityImport.test(source)) {
+        violations.push(relative);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps content video id parsing as a shared pure utility with page extraction under platform browser', () => {
+    const sharedPath = 'src/shared/utils/videoId.ts';
+    expect(fs.existsSync(path.resolve(root, sharedPath)), `${sharedPath} should exist`).toBe(true);
+
+    const platformPath = 'src/platform/browser/videoId.ts';
+    expect(fs.existsSync(path.resolve(root, platformPath)), `${platformPath} should exist`).toBe(true);
+
+    const contentSource = fs.readFileSync(path.resolve(root, 'src/content/videoId.ts'), 'utf8');
+    const nonEmptyLines = contentSource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(nonEmptyLines.length, 'src/content/videoId.ts should stay a thin compatibility wrapper').toBeLessThanOrEqual(8);
+    expect(contentSource, 'src/content/videoId.ts should re-export from platform/browser/videoId').toMatch(/platform\/browser\/videoId/);
+
+    const platformSource = fs.readFileSync(path.resolve(root, platformPath), 'utf8');
+    expect(platformSource, `${platformPath} should reuse shared pure parser`).toMatch(/shared\/utils\/videoId/);
+
+    const directConsumers = [
+      'src/features/onlineAvailability/index.ts',
+      'src/features/magnets/ui/magnetSearchManager.ts',
+      'src/features/drive115/content/index.ts',
+      'src/features/insights/contentCollector.ts',
+      'src/features/videoDetail/pageHandler.ts',
+      'src/features/videoDetail/favoriteRating.ts',
+      'src/features/videoDetail/enhancer.ts',
+      'src/features/videoStatus/statusManager.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use platform/browser video id helpers`).not.toMatch(/content\/videoId/);
+      expect(source, `${relative} should reference platform/browser`).toMatch(/platform\/browser/);
+    }
+  });
+
+  it('keeps console proxy under platform logging with utils path as a compatibility export', () => {
+    const targetPath = 'src/platform/logging/consoleProxy.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/utils/consoleProxy.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from platform/logging/consoleProxy`).toMatch(/platform\/logging\/consoleProxy/);
+
+    const directConsumers = [
+      'src/apps/content/consoleSettingsBridge.ts',
+      'src/apps/dashboard/bootstrap.ts',
+      'src/platform/logging/backgroundConsole.ts',
+      'src/platform/logging/index.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use platform/logging/consoleProxy directly`).not.toMatch(/utils\/consoleProxy/);
+      expect(source, `${relative} should reference platform logging console proxy`).toMatch(/consoleProxy/);
+    }
+  });
+
+  it('keeps route management under features with utils path as a compatibility export', () => {
+    const featurePath = 'src/features/routeManagement/index.ts';
+    expect(fs.existsSync(path.resolve(root, featurePath)), `${featurePath} should exist`).toBe(true);
+
+    const legacyPath = 'src/utils/routeManager.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from features/routeManagement`).toMatch(/features\/routeManagement/);
+
+    const directConsumers = [
+      'src/apps/background/routeAutoUpdate.ts',
+      'src/dashboard/dataSync/api.ts',
+      'src/dashboard/tabs/actors.ts',
+      'src/dashboard/tabs/settings/networkTest/NetworkTestSettings.ts',
+      'src/features/newWorks/collector.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use features/routeManagement directly`).not.toMatch(/utils\/routeManager/);
+      expect(source, `${relative} should reference route management feature`).toMatch(/features\/routeManagement|routeManagement/);
+    }
+  });
+
+  it('keeps TTL cache under platform storage with utils path as a compatibility export', () => {
+    const targetPath = 'src/platform/storage/cache.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/utils/cache.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from platform/storage/cache`).toMatch(/platform\/storage\/cache/);
+
+    const directConsumers = [
+      'src/features/dataAggregator/index.ts',
+      'src/components/ActorAvatar.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use platform storage cache directly`).not.toMatch(/utils\/cache/);
+      expect(source, `${relative} should reference platform storage cache`).toMatch(/platform\/storage\/cache/);
+    }
+  });
+
+  it('keeps content DB runtime client under platform storage', () => {
+    const targetPath = 'src/platform/storage/dbRuntimeClient.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/dbClient.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from platform/storage/dbRuntimeClient`).toMatch(/platform\/storage\/dbRuntimeClient/);
+
+    const directConsumers = [
+      'src/features/records/content/concurrency.ts',
+      'src/features/fc2Breaker/index.ts',
+      'src/features/magnets/ui/magnetSearchManager.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use platform storage DB runtime client directly`).not.toMatch(/content\/dbClient|\.\/dbClient/);
+      expect(source, `${relative} should reference platform storage DB runtime client`).toMatch(/platform\/storage\/dbRuntimeClient/);
+    }
+  });
+
+  it('keeps network test domain configuration under the network test feature', () => {
+    const targetPath = 'src/features/networkTest/domain/domainConfig.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/utils/domainConfig.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from features/networkTest/domain/domainConfig`).toMatch(/features\/networkTest\/domain\/domainConfig/);
+
+    const directConsumer = 'src/dashboard/tabs/settings/networkTest/NetworkTestSettings.ts';
+    const source = fs.readFileSync(path.resolve(root, directConsumer), 'utf8');
+    expect(source, `${directConsumer} should use the feature domain config directly`).not.toMatch(/utils\/domainConfig/);
+    expect(source, `${directConsumer} should reference network test feature`).toMatch(/features\/networkTest/);
+  });
+
+  it('keeps content-side record concurrency under the records feature with content paths as compatibility exports', () => {
+    const expectedFiles = [
+      'src/features/records/content/index.ts',
+      'src/features/records/content/concurrency.ts',
+      'src/features/records/content/concurrencyTest.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyFiles = [
+      {
+        legacyPath: 'src/content/concurrency.ts',
+        targetPattern: /features\/records\/content/,
+      },
+      {
+        legacyPath: 'src/content/concurrencyTest.ts',
+        targetPattern: /features\/records\/content\/concurrencyTest/,
+      },
+    ];
+
+    for (const item of legacyFiles) {
+      const legacySource = fs.readFileSync(path.resolve(root, item.legacyPath), 'utf8');
+      const nonEmptyLines = legacySource
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${item.legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(legacySource, `${item.legacyPath} should re-export from records content feature`).toMatch(item.targetPattern);
+    }
+
+    const directConsumers = [
+      'src/features/videoDetail/pageHandler.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use records content concurrency directly`).not.toMatch(/content\/concurrency/);
+      expect(source, `${relative} should reference records content feature`).toMatch(/features\/records\/content|records\/content/);
+    }
+  });
+
+  it('keeps content-side JAVBUS tab fetch client under platform browser', () => {
+    const targetPath = 'src/platform/browser/javbusRuntimeClient.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/javbusTabFetch.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from platform/browser/javbusRuntimeClient`).toMatch(/platform\/browser\/javbusRuntimeClient/);
+
+    const directConsumer = 'src/features/magnets/ui/magnetSearchManager.ts';
+    const source = fs.readFileSync(path.resolve(root, directConsumer), 'utf8');
+    expect(source, `${directConsumer} should use platform browser JAVBUS runtime client directly`).not.toMatch(/content\/javbusTabFetch/);
+    expect(source, `${directConsumer} should reference platform browser JAVBUS runtime client`).toMatch(/platform\/browser\/javbusRuntimeClient/);
+  });
+
   it('keeps small background modules under platform or features with background paths as compatibility exports', () => {
     const modules = [
       {
@@ -731,6 +1061,9 @@ describe('source architecture cleanup', () => {
       'src/features/webdavSync/application/restoreService.ts',
       'src/features/webdavSync/application/restoreStorage.ts',
       'src/features/webdavSync/application/importSanitizer.ts',
+      'src/features/webdavSync/application/dataDiff.ts',
+      'src/features/webdavSync/application/dataMerge.ts',
+      'src/features/webdavSync/application/mergeKeyedMap.ts',
       'src/features/webdavSync/application/diagnostics.ts',
       'src/features/webdavSync/background/router.ts',
       'src/features/webdavSync/background/controller.ts',
@@ -747,6 +1080,36 @@ describe('source architecture cleanup', () => {
     expect(source).toMatch(/\.\.\/application\/importSanitizer/);
     expect(source).toMatch(/\.\.\/application\/diagnostics/);
     expect(source).toMatch(/\.\/router/);
+
+    const dashboardRestore = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore.ts'), 'utf8');
+    expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/dataDiff/);
+    expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/dataMerge/);
+
+    const legacyFiles = [
+      {
+        legacyPath: 'src/utils/dataDiff.ts',
+        targetPattern: /features\/webdavSync\/application\/dataDiff/,
+      },
+      {
+        legacyPath: 'src/utils/dataMerge.ts',
+        targetPattern: /features\/webdavSync\/application\/dataMerge/,
+      },
+      {
+        legacyPath: 'src/utils/mergeKeyedMap.ts',
+        targetPattern: /features\/webdavSync\/application\/mergeKeyedMap/,
+      },
+    ];
+
+    for (const item of legacyFiles) {
+      const legacySource = fs.readFileSync(path.resolve(root, item.legacyPath), 'utf8');
+      const nonEmptyLines = legacySource
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${item.legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(legacySource, `${item.legacyPath} should re-export from webdavSync application`).toMatch(item.targetPattern);
+    }
   });
 
   it('keeps WebDAV background entry as compatibility export after moving controller under feature', () => {
@@ -861,10 +1224,10 @@ describe('source architecture cleanup', () => {
     }
 
     const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
-    const detailEnhancer = fs.readFileSync(path.resolve(root, 'src/content/enhancedVideoDetail.ts'), 'utf8');
+    const detailEnhancer = fs.readFileSync(path.resolve(root, 'src/features/videoDetail/enhancer.ts'), 'utf8');
     const listEnhancement = fs.readFileSync(path.resolve(root, 'src/features/listEnhancement/listEnhancementManager.ts'), 'utf8');
     expect(contentBootstrap).toMatch(/features\/previews/);
-    expect(detailEnhancer).toMatch(/features\/previews/);
+    expect(detailEnhancer).toMatch(/['"]\.\.\/previews['"]/);
     expect(listEnhancement).toMatch(/['"]\.\.\/previews['"]/);
   });
 
@@ -918,15 +1281,36 @@ describe('source architecture cleanup', () => {
     expect(legacySource).toMatch(/features\/contentFilter/);
 
     const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
-    const keyboardShortcuts = fs.readFileSync(path.resolve(root, 'src/content/keyboardShortcuts.ts'), 'utf8');
+    const keyboardShortcuts = fs.readFileSync(path.resolve(root, 'src/features/keyboardShortcuts/index.ts'), 'utf8');
     expect(contentBootstrap).toMatch(/features\/contentFilter/);
-    expect(keyboardShortcuts).toMatch(/features\/contentFilter/);
+    expect(keyboardShortcuts).toMatch(/\.\.\/contentFilter/);
+  });
+
+  it('keeps keyboard shortcuts under features with content path as a compatibility export', () => {
+    const featurePath = 'src/features/keyboardShortcuts/index.ts';
+    expect(fs.existsSync(path.resolve(root, featurePath)), `${featurePath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/keyboardShortcuts.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/features\/keyboardShortcuts/);
+
+    const bootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    const lifecycle = fs.readFileSync(path.resolve(root, 'src/apps/content/contentLifecycle.ts'), 'utf8');
+    expect(bootstrap).toMatch(/features\/keyboardShortcuts/);
+    expect(lifecycle).toMatch(/features\/keyboardShortcuts/);
   });
 
   it('keeps list enhancement implementation under features with content path as a compatibility export', () => {
     const expectedFiles = [
       'src/features/listEnhancement/index.ts',
       'src/features/listEnhancement/listEnhancementManager.ts',
+      'src/features/listEnhancement/content/itemProcessor.ts',
       'src/features/listEnhancement/domain/config.ts',
       'src/features/listEnhancement/application/actorMatching.ts',
       'src/features/listEnhancement/application/actorHiding.ts',
@@ -958,6 +1342,16 @@ describe('source architecture cleanup', () => {
     expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
     expect(legacySource).toMatch(/features\/listEnhancement/);
 
+    const legacyItemProcessorPath = 'src/content/itemProcessor.ts';
+    const legacyItemProcessorSource = fs.readFileSync(path.resolve(root, legacyItemProcessorPath), 'utf8');
+    const legacyItemProcessorLines = legacyItemProcessorSource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(legacyItemProcessorLines.length, `${legacyItemProcessorPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacyItemProcessorSource).toMatch(/features\/listEnhancement\/content\/itemProcessor/);
+
     const featureSource = fs.readFileSync(path.resolve(root, 'src/features/listEnhancement/listEnhancementManager.ts'), 'utf8');
     const managerLineCount = featureSource.split(/\r?\n/).length;
     expect(managerLineCount, 'listEnhancementManager.ts should keep shrinking as config, pure helpers, and styles move out').toBeLessThanOrEqual(900);
@@ -979,6 +1373,145 @@ describe('source architecture cleanup', () => {
 
     const contentBootstrap = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
     expect(contentBootstrap).toMatch(/features\/listEnhancement/);
+
+    const directConsumers = [
+      'src/apps/content/bootstrap.ts',
+      'src/apps/content/contentMessageRouter.ts',
+      'src/features/listEnhancement/listEnhancementManager.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use list enhancement item processor directly`).not.toMatch(/(?:\.\.\/)+content\/itemProcessor|src\/content\/itemProcessor/);
+      expect(source, `${relative} should reference list enhancement feature`).toMatch(/features\/listEnhancement/);
+    }
+  });
+
+  it('keeps content task runtime helpers under platform with content paths as compatibility exports', () => {
+    const modules = [
+      {
+        legacyPath: 'src/content/pageContext.ts',
+        targetPath: 'src/platform/browser/pageContext.ts',
+        targetPattern: /platform\/browser\/pageContext/,
+      },
+      {
+        legacyPath: 'src/content/taskRuntime.ts',
+        targetPath: 'src/platform/tasks/contentRuntime.ts',
+        targetPattern: /platform\/tasks\/contentRuntime/,
+      },
+      {
+        legacyPath: 'src/content/taskDetailReporter.ts',
+        targetPath: 'src/platform/tasks/contentTaskDetailReporter.ts',
+        targetPattern: /platform\/tasks\/contentTaskDetailReporter/,
+      },
+      {
+        legacyPath: 'src/content/taskHeartbeat.ts',
+        targetPath: 'src/platform/tasks/taskHeartbeatReporter.ts',
+        targetPattern: /platform\/tasks\/taskHeartbeatReporter/,
+      },
+      {
+        legacyPath: 'src/content/taskVisibilityReporter.ts',
+        targetPath: 'src/platform/tasks/taskVisibilityReporter.ts',
+        targetPattern: /platform\/tasks\/taskVisibilityReporter/,
+      },
+      {
+        legacyPath: 'src/content/taskChunking.ts',
+        targetPath: 'src/platform/tasks/chunking.ts',
+        targetPattern: /platform\/tasks\/chunking/,
+      },
+      {
+        legacyPath: 'src/content/performanceOptimizer.ts',
+        targetPath: 'src/platform/tasks/performanceOptimizer.ts',
+        targetPattern: /platform\/tasks\/performanceOptimizer/,
+      },
+    ];
+
+    for (const item of modules) {
+      expect(fs.existsSync(path.resolve(root, item.targetPath)), `${item.targetPath} should exist`).toBe(true);
+
+      const source = fs.readFileSync(path.resolve(root, item.legacyPath), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${item.legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(source, `${item.legacyPath} should re-export from ${item.targetPath}`).toMatch(item.targetPattern);
+    }
+
+    const directConsumers = [
+      'src/apps/content/bootstrap.ts',
+      'src/apps/content/contentLifecycle.ts',
+      'src/apps/content/consoleSettingsBridge.ts',
+      'src/features/actorEnhancement/actorEnhancementManager.ts',
+      'src/features/contentFilter/contentFilterManager.ts',
+      'src/features/magnets/ui/magnetSearchManager.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use platform task/browser helpers directly`).not.toMatch(/content\/(?:task(?:Runtime|Chunking|DetailReporter|Heartbeat|VisibilityReporter)|pageContext|performanceOptimizer)|\.\.\/\.\.\/content\/(?:task|pageContext|performanceOptimizer)/);
+    }
+  });
+
+  it('keeps content init orchestrator under apps/content with content path as a compatibility export', () => {
+    const expectedFiles = [
+      'src/apps/content/orchestrator/index.ts',
+      'src/apps/content/orchestrator/initOrchestrator.ts',
+      'src/apps/content/orchestrator/types.ts',
+      'src/apps/content/orchestrator/hardwareConcurrency.ts',
+      'src/apps/content/orchestrator/metrics.ts',
+      'src/apps/content/orchestrator/schedulingRules.ts',
+      'src/apps/content/orchestrator/retryTimers.ts',
+      'src/apps/content/orchestrator/highPhaseScheduler.ts',
+      'src/apps/content/orchestrator/pageLifecycleBindings.ts',
+      'src/apps/content/orchestrator/dashboardMetricsMessages.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyPath = 'src/content/initOrchestrator.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/apps\/content\/orchestrator/);
+
+    const bootstrapSource = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    expect(bootstrapSource).toMatch(/\.\/orchestrator/);
+    expect(bootstrapSource).not.toMatch(/content\/initOrchestrator/);
+
+    const videoDetailSource = fs.readFileSync(path.resolve(root, 'src/features/videoDetail/pageHandler.ts'), 'utf8');
+    const enhancedVideoDetailSource = fs.readFileSync(path.resolve(root, 'src/features/videoDetail/enhancer.ts'), 'utf8');
+    expect(videoDetailSource).toMatch(/apps\/content\/orchestrator/);
+    expect(enhancedVideoDetailSource).toMatch(/apps\/content\/orchestrator/);
+
+    const orchestratorSource = fs.readFileSync(path.resolve(root, 'src/apps/content/orchestrator/initOrchestrator.ts'), 'utf8');
+    expect(orchestratorSource).toMatch(/platform\/tasks/);
+    expect(orchestratorSource).toMatch(/platform\/browser/);
+    expect(orchestratorSource).toMatch(/\.\/types/);
+    expect(orchestratorSource).toMatch(/\.\/hardwareConcurrency/);
+    expect(orchestratorSource).toMatch(/\.\/metrics/);
+    expect(orchestratorSource).toMatch(/\.\/schedulingRules/);
+    expect(orchestratorSource).toMatch(/\.\/retryTimers/);
+    expect(orchestratorSource).toMatch(/\.\/highPhaseScheduler/);
+    expect(orchestratorSource).toMatch(/\.\/pageLifecycleBindings/);
+    expect(orchestratorSource).toMatch(/\.\/dashboardMetricsMessages/);
+    expect(orchestratorSource).not.toMatch(/function getDefaultVisibilityPolicy/);
+    expect(orchestratorSource).not.toMatch(/navigator\.hardwareConcurrency/);
+    expect(orchestratorSource).not.toMatch(/completedTasks:\s*0/);
+    expect(orchestratorSource).not.toMatch(/priorityB - priorityA/);
+    expect(orchestratorSource).not.toMatch(/waitReason === 'tab-hidden' \? 1200 : 400/);
+    expect(orchestratorSource).not.toMatch(/visibilityPolicy === 'background_allowed' \? 300 : 150/);
+    expect(orchestratorSource).not.toMatch(/window\.addEventListener\('pagehide'/);
+    expect(orchestratorSource).not.toMatch(/chrome\.runtime\.onMessage\.addListener/);
+    expect(orchestratorSource).not.toMatch(/deferredRetryTimers/);
+    expect(orchestratorSource).not.toMatch(/warning: circular dependency or missing dependency detected/);
   });
 
   it('keeps actor enhancement implementation under features with content paths as compatibility exports', () => {
@@ -1181,5 +1714,379 @@ describe('source architecture cleanup', () => {
     expect(helperSource).toMatch(/detectMagnetQuality/);
     expect(helperSource).toMatch(/normalizeMagnetDate/);
     expect(helperSource).toMatch(/isValidMagnetResultName/);
+  });
+
+  it('keeps content-side toast UI under platform browser with content path as compatibility export', () => {
+    const targetPath = 'src/platform/browser/toast.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/toast.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/platform\/browser\/toast/);
+
+    const violations: string[] = [];
+    for (const file of listSourceFiles('src')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      if (relative === legacyPath) continue;
+      const source = fs.readFileSync(file, 'utf8');
+      for (const specifier of readRelativeImports(source)) {
+        const target = resolveImportPath(file, specifier);
+        if (target === 'src/content/toast') {
+          violations.push(relative);
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps content shared state under features with content path as a compatibility export', () => {
+    const targetPath = 'src/features/contentState/index.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/state.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from contentState feature`).toMatch(/features\/contentState/);
+
+    const scannedDirs = [
+      'src/apps/content',
+      'src/features',
+      'tests/dom',
+    ];
+    const violations: string[] = [];
+
+    for (const dir of scannedDirs) {
+      for (const file of listSourceFiles(dir)) {
+        const relative = path.relative(root, file).replace(/\\/g, '/');
+        if (relative === legacyPath) continue;
+        const source = fs.readFileSync(file, 'utf8');
+        if (/content\/state|src\/content\/state/.test(source)) {
+          violations.push(relative);
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps content DOM utilities under platform browser and task timeout helpers under platform tasks', () => {
+    const browserTarget = 'src/platform/browser/domUtils.ts';
+    const taskTarget = 'src/platform/tasks/taskTimeoutGuard.ts';
+    expect(fs.existsSync(path.resolve(root, browserTarget)), `${browserTarget} should exist`).toBe(true);
+    expect(fs.existsSync(path.resolve(root, taskTarget)), `${taskTarget} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/utils.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(12);
+    expect(legacySource).toMatch(/platform\/browser\/domUtils/);
+    expect(legacySource).toMatch(/platform\/tasks\/taskTimeoutGuard/);
+
+    const violations: string[] = [];
+    for (const file of listSourceFiles('src')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      if (relative === legacyPath) continue;
+      const source = fs.readFileSync(file, 'utf8');
+      for (const specifier of readRelativeImports(source)) {
+        const target = resolveImportPath(file, specifier);
+        if (target === 'src/content/utils') {
+          violations.push(relative);
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps enhancement loading indicator under platform browser with content path as compatibility export', () => {
+    const targetPath = 'src/platform/browser/enhancementLoadingIndicator.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/enhancementLoadingIndicator.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/platform\/browser\/enhancementLoadingIndicator/);
+
+    const violations: string[] = [];
+    for (const file of listSourceFiles('src')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      if (relative === legacyPath) continue;
+      const source = fs.readFileSync(file, 'utf8');
+      for (const specifier of readRelativeImports(source)) {
+        const target = resolveImportPath(file, specifier);
+        if (target === 'src/content/enhancementLoadingIndicator') {
+          violations.push(relative);
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps video favorite rating under the video detail feature with content path as compatibility export', () => {
+    const targetPath = 'src/features/videoDetail/favoriteRating.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/videoFavoriteRating.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource).toMatch(/features\/videoDetail\/favoriteRating/);
+
+    const violations: string[] = [];
+    for (const file of listSourceFiles('src')) {
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      if (relative === legacyPath) continue;
+      const source = fs.readFileSync(file, 'utf8');
+      for (const specifier of readRelativeImports(source)) {
+        const target = resolveImportPath(file, specifier);
+        if (target === 'src/content/videoFavoriteRating') {
+          violations.push(relative);
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps video detail page handling under features with content paths as compatibility exports', () => {
+    const expectedFiles = [
+      'src/features/videoDetail/index.ts',
+      'src/features/videoDetail/pageHandler.ts',
+      'src/features/videoDetail/enhancer.ts',
+      'src/features/videoDetail/favoriteRating.ts',
+      'src/features/videoDetail/favoriteRating.css',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyFiles = [
+      {
+        legacyPath: 'src/content/videoDetail.ts',
+        targetPattern: /features\/videoDetail\/pageHandler/,
+      },
+      {
+        legacyPath: 'src/content/enhancedVideoDetail.ts',
+        targetPattern: /features\/videoDetail\/enhancer/,
+      },
+    ];
+
+    for (const item of legacyFiles) {
+      const legacySource = fs.readFileSync(path.resolve(root, item.legacyPath), 'utf8');
+      const nonEmptyLines = legacySource
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${item.legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(legacySource, `${item.legacyPath} should re-export from videoDetail feature`).toMatch(item.targetPattern);
+    }
+
+    const directConsumers = [
+      'src/apps/content/bootstrap.ts',
+      'src/apps/content/contentLifecycle.ts',
+      'src/apps/content/contentMessageRouter.ts',
+      'src/features/listEnhancement/content/itemProcessor.ts',
+      'src/dashboard/tabs/settings/enhancement/orchestrator/orchestratorDesign.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use videoDetail feature directly`).not.toMatch(/content\/(?:videoDetail|enhancedVideoDetail)/);
+      expect(source, `${relative} should reference features/videoDetail`).toMatch(/features\/videoDetail|\.\.\/\.\.\/videoDetail/);
+    }
+  });
+
+  it('keeps content privacy implementation under privacy feature with content paths as compatibility exports', () => {
+    const expectedFiles = [
+      'src/features/privacy/content/index.ts',
+      'src/features/privacy/content/elementProtector.ts',
+      'src/features/privacy/content/stateListener.ts',
+    ];
+
+    for (const file of expectedFiles) {
+      expect(fs.existsSync(path.resolve(root, file)), `${file} should exist`).toBe(true);
+    }
+
+    const legacyFiles = [
+      {
+        legacyPath: 'src/content/privacy/index.ts',
+        targetPattern: /features\/privacy\/content/,
+      },
+      {
+        legacyPath: 'src/content/privacy/elementProtector.ts',
+        targetPattern: /features\/privacy\/content\/elementProtector/,
+      },
+      {
+        legacyPath: 'src/content/privacy/stateListener.ts',
+        targetPattern: /features\/privacy\/content\/stateListener/,
+      },
+    ];
+
+    for (const item of legacyFiles) {
+      const legacySource = fs.readFileSync(path.resolve(root, item.legacyPath), 'utf8');
+      const nonEmptyLines = legacySource
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      expect(nonEmptyLines.length, `${item.legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+      expect(legacySource, `${item.legacyPath} should re-export from privacy content feature`).toMatch(item.targetPattern);
+    }
+
+    const exportSource = fs.readFileSync(path.resolve(root, 'src/content/export.ts'), 'utf8');
+    expect(exportSource, 'content export should re-export from the page export feature').toMatch(/features\/pageExport\/content/);
+    expect(exportSource, 'content export should stay a thin compatibility wrapper').not.toMatch(/requireAuthIfRestricted|createExportUI|startExport/);
+  });
+
+  it('keeps page export implementation under its feature with content path as a compatibility export', () => {
+    const targetPath = 'src/features/pageExport/content/index.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const source = fs.readFileSync(path.resolve(root, targetPath), 'utf8');
+    expect(source, 'page export feature should use privacy service directly').toMatch(/features\/privacy/);
+    expect(source, 'page export feature should not depend on content privacy compatibility exports').not.toMatch(/content\/privacy|\.\/privacy/);
+
+    const bootstrapSource = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    expect(bootstrapSource, 'content bootstrap should use page export feature directly').not.toMatch(/content\/export/);
+    expect(bootstrapSource, 'content bootstrap should reference page export feature').toMatch(/features\/pageExport/);
+  });
+
+  it('keeps detail search links under external search with content path as compatibility export', () => {
+    const targetPath = 'src/features/externalSearch/ui/detailSearchPanel.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/detailSearchLinks.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(12);
+    expect(legacySource, `${legacyPath} should re-export from features/externalSearch`).toMatch(/features\/externalSearch/);
+
+    const directConsumers = [
+      'src/features/videoDetail/pageHandler.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use external search feature directly`).not.toMatch(/content\/detailSearchLinks/);
+      expect(source, `${relative} should reference externalSearch`).toMatch(/externalSearch/);
+    }
+  });
+
+  it('keeps password helper content implementation under passwordHelper feature with content path as compatibility export', () => {
+    const targetPath = 'src/features/passwordHelper/content/index.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/passwordHelper.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from features/passwordHelper/content`).toMatch(/features\/passwordHelper\/content/);
+
+    const bootstrapSource = fs.readFileSync(path.resolve(root, 'src/apps/content/bootstrap.ts'), 'utf8');
+    expect(bootstrapSource, 'content bootstrap should use passwordHelper feature directly').not.toMatch(/content\/passwordHelper/);
+    expect(bootstrapSource, 'content bootstrap should reference features/passwordHelper/content').toMatch(/features\/passwordHelper\/content/);
+  });
+
+  it('keeps anchor optimization implementation under its feature with content path as compatibility export', () => {
+    const targetPath = 'src/features/anchorOptimization/content/index.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/anchorOptimization.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from features/anchorOptimization/content`).toMatch(/features\/anchorOptimization\/content/);
+
+    const directConsumers = [
+      'src/apps/content/bootstrap.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use anchorOptimization feature directly`).not.toMatch(/content\/anchorOptimization/);
+      expect(source, `${relative} should reference features/anchorOptimization/content`).toMatch(/features\/anchorOptimization\/content/);
+    }
+  });
+
+  it('keeps cover enhancement implementation under its feature with content path as compatibility export', () => {
+    const targetPath = 'src/features/coverEnhancement/content/index.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/coverEnhancement.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from features/coverEnhancement/content`).toMatch(/features\/coverEnhancement\/content/);
+  });
+
+  it('keeps Emby enhancement implementation under its feature with content path as compatibility export', () => {
+    const targetPath = 'src/features/embyEnhancement/content/index.ts';
+    expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
+
+    const legacyPath = 'src/content/embyEnhancement.ts';
+    const legacySource = fs.readFileSync(path.resolve(root, legacyPath), 'utf8');
+    const nonEmptyLines = legacySource
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(nonEmptyLines.length, `${legacyPath} should stay a thin compatibility wrapper`).toBeLessThanOrEqual(8);
+    expect(legacySource, `${legacyPath} should re-export from features/embyEnhancement/content`).toMatch(/features\/embyEnhancement\/content/);
+
+    const directConsumers = [
+      'src/apps/content/bootstrap.ts',
+      'src/apps/content/contentLifecycle.ts',
+      'src/apps/content/contentMessageRouter.ts',
+    ];
+
+    for (const relative of directConsumers) {
+      const source = fs.readFileSync(path.resolve(root, relative), 'utf8');
+      expect(source, `${relative} should use Emby enhancement feature directly`).not.toMatch(/content\/embyEnhancement/);
+      expect(source, `${relative} should reference features/embyEnhancement/content`).toMatch(/features\/embyEnhancement\/content/);
+    }
   });
 });

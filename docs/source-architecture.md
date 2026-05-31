@@ -38,6 +38,7 @@ src/
     records/
     relatedLists/
     reviewUnlock/
+    routeManagement/
     settingsSearch/
     subtitles/
     videoStatus/
@@ -116,6 +117,8 @@ apps/background/miscMessageRouter.ts
 WebDAV 后台 controller 已归位到 `features/webdavSync/background/controller.ts`，`apps/background/bootstrap.ts` 和自动同步 scheduler 直接装配 feature 入口，旧 `src/background/webdav.ts` 仅保留兼容导出。
 
 WebDAV restore 链路继续按职责拆分：`restorePreview.ts` 负责预览与下载解析，`restoreStorage.ts` 负责恢复时的集合归一化、store 清空和批量写入，`restoreService.ts` 保留恢复流程编排。
+
+WebDAV 恢复预览和智能合并的差异分析已归位到 `features/webdavSync/application`：`dataDiff.ts`、`dataMerge.ts`、`mergeKeyedMap.ts` 由 Dashboard 恢复页直接调用，旧 `src/utils/*` 路径仅保留兼容导出。
 
 Background misc message router 已归位到 `apps/background/miscMessageRouter.ts`，标签页打开、网络代理、用户资料和通用设置类 handler 已拆到独立模块，`apps/background/bootstrap.ts` 直接装配本地 app 入口，旧 `src/background/miscHandlers.ts` 仅保留兼容导出。
 
@@ -209,6 +212,42 @@ platform/logging/logger.ts
 
 当前 `platform/storage/indexedDb.ts` 已收缩为稳定 API facade。IndexedDB schema、连接升级、日志索引字段、viewed 二级索引维护逻辑分别进入独立模块，`src/background/db.ts` 仅保留兼容导出。Background 目录不再承载测试文件，相关回归测试进入 `tests/regression`。
 
+Content 任务运行时已归位到 `platform/tasks` 与 `platform/browser`：页面上下文进入 `platform/browser/pageContext.ts`，任务 descriptor、心跳、可见性上报、任务明细上报和内容侧性能优化器进入 `platform/tasks/*`。列表页处理器已归位到 `features/listEnhancement/content/itemProcessor.ts`。旧 `src/content/pageContext.ts`、`taskRuntime.ts`、`taskHeartbeat.ts`、`taskVisibilityReporter.ts`、`taskDetailReporter.ts`、`taskChunking.ts`、`performanceOptimizer.ts`、`itemProcessor.ts` 仅保留兼容导出，apps/features/content 内部调用优先走 platform 稳定入口。
+
+内容脚本共享状态已归位到 `features/contentState`。旧 `src/content/state.ts` 仅保留兼容导出，apps/content 和各内容侧 feature 统一使用 feature 入口。
+
+JAVBUS tab ajax fallback 已按前后台职责拆分：后台真实 tab 打开和页面注入执行器位于 `platform/browser/javbusTabFetch.ts`，内容脚本侧 runtime 请求客户端位于 `platform/browser/javbusRuntimeClient.ts`。旧 `src/background/javbusTabFetch.ts` 与 `src/content/javbusTabFetch.ts` 仅保留兼容导出。
+
+Content 初始化编排器已归位到 `apps/content/orchestrator`。旧 `src/content/initOrchestrator.ts` 仅保留兼容导出，`apps/content/bootstrap.ts` 直接装配本地 app orchestrator。orchestrator 类型、硬件并发决策、metrics 状态、纯调度规则、重试定时器、高优先级阶段调度、页面生命周期绑定和 Dashboard metrics 消息监听已拆到独立模块。后续详情页、115 content 入口、快捷键等内容脚本能力继续按 feature/app 边界迁移。
+
+115 详情页/磁力推送内容脚本能力已归位到 `features/drive115/content`。旧 `src/content/drive115.ts` 仅保留兼容导出，`apps/content/bootstrap.ts` 和磁力 UI 直接使用 feature 子入口；`features/drive115/index.ts` 继续暴露 app/router/v2，避免 background/dashboard 通过顶层入口拉入 DOM 内容脚本模块。
+
+键盘快捷键能力已归位到 `features/keyboardShortcuts`。旧 `src/content/keyboardShortcuts.ts` 仅保留兼容导出，`apps/content/bootstrap.ts` 和生命周期清理模块直接使用 feature 入口。
+
+内容侧隐私保护能力已归位到 `features/privacy/content`。旧 `src/content/privacy/*` 仅保留兼容导出，内容导出功能直接使用 `features/privacy` 服务入口。
+
+页面数据导出能力已归位到 `features/pageExport/content`。旧 `src/content/export.ts` 仅保留兼容导出，主内容脚本直接装配 page export feature。
+
+内容侧通用 UI/DOM 工具已归位到 platform 与详情页 feature：toast 进入 `platform/browser/toast.ts`，DOM/主题/favicon 工具进入 `platform/browser/domUtils.ts`，增强加载提示进入 `platform/browser/enhancementLoadingIndicator.ts`，任务超时守卫进入 `platform/tasks/taskTimeoutGuard.ts`，影片收藏评分进入 `features/videoDetail/favoriteRating.ts`。旧 `src/content/toast.ts`、`utils.ts`、`enhancementLoadingIndicator.ts`、`videoFavoriteRating.ts` 仅保留兼容导出。
+
+页面视频 ID 提取已归位到 `platform/browser/videoId.ts`，纯解析算法位于 `shared/utils/videoId.ts`。旧 `src/content/videoId.ts` 仅保留兼容导出，详情页、磁力、115、在线可看、状态同步和 insights 调用方直接使用 platform 入口。
+
+密码显示助手内容脚本实现已归位到 `features/passwordHelper/content`。旧 `src/content/passwordHelper.ts` 仅保留兼容导出，`passwordHelper-standalone.ts` 作为 manifest 独立入口继续保持当前路径。
+
+锚点优化内容脚本实现已归位到 `features/anchorOptimization/content`。旧 `src/content/anchorOptimization.ts` 仅保留兼容导出，主内容脚本和 DOM 测试直接使用 feature 入口。
+
+封面增强内容脚本实现已归位到 `features/coverEnhancement/content`。旧 `src/content/coverEnhancement.ts` 仅保留兼容导出。
+
+Emby/Jellyfin 页面增强内容脚本实现已归位到 `features/embyEnhancement/content`。旧 `src/content/embyEnhancement.ts` 仅保留兼容导出，主内容脚本、消息路由和生命周期清理直接使用 feature 入口。
+
+详情页主处理已归位到 `features/videoDetail`：`pageHandler.ts` 承载详情页状态同步、任务蓝图、演员备注触发和页面处理入口，`enhancer.ts` 承载详情页增强器、翻译、封面、评论、FC2、相关清单和预览增强，`favoriteRating.ts` 承载收藏评分 UI。旧 `src/content/videoDetail.ts` 与 `src/content/enhancedVideoDetail.ts` 仅保留兼容导出，`apps/content`、Dashboard orchestrator 设计页和 DOM 测试直接使用 feature 入口。
+
+详情页外部搜索 UI 已归位到 `features/externalSearch`。旧 `src/content/detailSearchLinks.ts` 仅保留兼容导出，详情页处理和 DOM 测试直接使用 external search feature 入口。
+
+首页报告入口骨架已归位到 `features/insights/ui/homeInsightsWidget.ts`。旧 `src/content/homeInsightsWidget.ts` 仅保留兼容导出。
+
+内容侧番号记录并发写入和视频处理队列已归位到 `features/records/content`。旧 `src/content/concurrency.ts` 与 `src/content/concurrencyTest.ts` 仅保留兼容导出，详情页记录状态写入直接使用 records feature 入口。
+
 ### `shared`
 
 `shared` 是跨层共享层。它保持纯净，放类型、协议、常量和无副作用工具函数。
@@ -301,18 +340,26 @@ apps/dashboard/
 
 ### `src/utils`
 
-`utils` 逐步瘦身，只保留真正小而纯的工具。当前业务配置和存储封装应迁走。
+`utils` 逐步瘦身，旧路径只保留兼容导出，真实实现按职责进入 `shared`、`platform` 或 `features`。
+
+已归位：
+
+- `searchEngines.ts` -> `features/externalSearch/domain`
+- `net.ts`、`ipLookup.ts` -> `platform/network`
+- `statusPriority.ts` -> `features/videoStatus`
+- `listRecordHelpers.ts` -> `shared/utils`
+- `webdavDiagnostic.ts` -> `features/webdavSync/application`
+- `codeParser.ts`、`md5.ts`、`tagFilter.ts`、`versionInfo.ts`、`videoId.ts` 的纯解析逻辑 -> `shared/utils`
+- `consoleProxy.ts` -> `platform/logging`
+- `routeManager.ts` -> `features/routeManagement`
+- `dataDiff.ts`、`dataMerge.ts`、`mergeKeyedMap.ts` -> `features/webdavSync/application`
+- `cache.ts` -> `platform/storage`
+- `domainConfig.ts` -> `features/networkTest/domain`
 
 建议迁移：
 
 - `config.ts` -> `shared/config` 或拆入各 feature config
-- `searchEngines.ts` -> `features/externalSearch/domain`
-- `domainConfig.ts` -> `shared/config`
 - `storage.ts` -> `platform/storage`
-- `net.ts`、`ipLookup.ts` -> `platform/network`
-- `statusPriority.ts` -> `features/videoStatus/domain`
-- `listRecordHelpers.ts` -> `shared/utils`
-- `webdavDiagnostic.ts` -> `features/webdavSync/diagnostics`
 
 ## 新功能落点规则
 
