@@ -34,7 +34,7 @@ import {
 } from './webdavRestore/conflictDetailModel';
 import {
     buildRestoreResultItems,
-    type RestoreResultItemViewModel,
+    buildRestoreResultsHtml,
 } from './webdavRestore/restoreResultsModel';
 import { buildStrategyPreviewHtml } from './webdavRestore/strategyPreviewModel';
 import {
@@ -923,27 +923,7 @@ function showRestoreResults(summary: any): void {
     resultsContainer.className = 'restore-results-container';
 
     const resultItems = buildRestoreResultItems(summary, currentCloudData);
-    const resultsHtml = `
-        <div class="results-header">
-            <h4><i class="fas fa-check-circle text-success"></i> 恢复完成</h4>
-            <p>数据已成功覆盖，以下是详细结果：</p>
-        </div>
-        <div class="results-categories">
-            ${resultItems.map(renderRestoreResultItem).join('')}
-        </div>
-        <div class="results-footer">
-            <button class="btn btn-secondary" id="resultsBackBtn">
-                <i class="fas fa-arrow-left"></i>
-                返回选择备份
-            </button>
-            <button class="btn btn-primary" id="resultsDoneBtn">
-                <i class="fas fa-check"></i>
-                完成
-            </button>
-        </div>
-    `;
-
-    resultsContainer.innerHTML = resultsHtml;
+    resultsContainer.innerHTML = buildRestoreResultsHtml(resultItems);
     modalBody.appendChild(resultsContainer);
 
     // 隐藏默认底部按钮，只显示结果页自带的按钮
@@ -1039,20 +1019,6 @@ function showRestoreResults(summary: any): void {
             if (cancelBtn) cancelBtn.style.display = '';
         };
     }
-}
-
-function renderRestoreResultItem(item: RestoreResultItemViewModel): string {
-    const details = item.details.join(' · ');
-    return `
-        <div class="result-item">
-            <div class="result-icon"><i class="${item.iconClass}"></i></div>
-            <div class="result-content">
-                <div class="result-title">${item.title}</div>
-                <div class="result-status ${item.statusClass}">${item.statusText}</div>
-                ${details ? `<div class="result-details">${details}</div>` : ''}
-            </div>
-        </div>
-    `;
 }
 
 /**
