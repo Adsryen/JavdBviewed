@@ -33,6 +33,23 @@ export function buildConflictVersionFields(
   return buildNewWorksRecordFields(data, options);
 }
 
+export function buildConflictVersionFieldsHtml(fields: ConflictFieldViewModel[]): string {
+  return fields.map(buildConflictVersionFieldHtml).join('');
+}
+
+export function buildConflictVersionFieldHtml(field: ConflictFieldViewModel): string {
+  const valueClass = field.valueClass ? ` ${field.valueClass}` : '';
+  let valueHtml = field.value;
+
+  if (field.tags) {
+    valueHtml = field.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+  } else if (field.href) {
+    valueHtml = `<a href="${field.href}" target="_blank" class="external-link">${field.value}</a>`;
+  }
+
+  return `<div class="field-item"><span class="field-label"><i class="${field.iconClass}"></i> ${field.label}</span><span class="field-value${valueClass}">${valueHtml}</span></div>`;
+}
+
 export function getConflictTypeLabel(type: ConflictDetailType): string {
   const labels: Record<ConflictDetailType, string> = {
     video: '视频记录',
