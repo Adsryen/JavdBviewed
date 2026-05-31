@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildRestoreResultsEnterUiState,
+  buildRestoreResultsLeaveUiState,
   buildRestoreResultItemHtml,
   buildRestoreResultItems,
   buildRestoreResultsHtml,
@@ -122,5 +124,39 @@ describe('WebDAV restore results model', () => {
     expect(html).toContain('日志记录');
     expect(html).toContain('status-skipped');
     expect(html).not.toContain('result-details');
+  });
+
+  it('builds UI state for entering results view', () => {
+    expect(buildRestoreResultsEnterUiState()).toEqual({
+      hiddenElementIds: [
+        'webdavRestoreLoading',
+        'webdavRestoreError',
+        'webdavRestoreOptions',
+        'webdavDataPreview',
+        'webdavRestoreContent',
+      ],
+      hiddenButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreBack',
+        'webdavRestoreCancel',
+      ],
+      hideFooters: true,
+    });
+  });
+
+  it('builds UI state for leaving results view', () => {
+    expect(buildRestoreResultsLeaveUiState()).toEqual({
+      hiddenElementIds: [
+        'webdavRestoreError',
+        'webdavDataPreview',
+      ],
+      loadingText: '正在获取云端文件列表...',
+      restoreButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreBack',
+        'webdavRestoreCancel',
+      ],
+      showFooters: true,
+    });
   });
 });

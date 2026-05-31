@@ -27,6 +27,19 @@ export interface RestoreResultItemViewModel {
   details: string[];
 }
 
+export interface RestoreResultsEnterUiState {
+  hiddenElementIds: string[];
+  hiddenButtonIds: string[];
+  hideFooters: boolean;
+}
+
+export interface RestoreResultsLeaveUiState {
+  hiddenElementIds: string[];
+  loadingText: string;
+  restoreButtonIds: string[];
+  showFooters: boolean;
+}
+
 const CATEGORY_NAMES: Record<string, string> = {
   settings: '扩展设置',
   userProfile: '账号信息',
@@ -88,6 +101,40 @@ export function buildRestoreResultItemHtml(item: RestoreResultItemViewModel): st
             </div>
         </div>
     `;
+}
+
+export function buildRestoreResultsEnterUiState(): RestoreResultsEnterUiState {
+  return {
+    hiddenElementIds: [
+      'webdavRestoreLoading',
+      'webdavRestoreError',
+      'webdavRestoreOptions',
+      'webdavDataPreview',
+      'webdavRestoreContent',
+    ],
+    hiddenButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreBack',
+      'webdavRestoreCancel',
+    ],
+    hideFooters: true,
+  };
+}
+
+export function buildRestoreResultsLeaveUiState(): RestoreResultsLeaveUiState {
+  return {
+    hiddenElementIds: [
+      'webdavRestoreError',
+      'webdavDataPreview',
+    ],
+    loadingText: '正在获取云端文件列表...',
+    restoreButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreBack',
+      'webdavRestoreCancel',
+    ],
+    showFooters: true,
+  };
 }
 
 function getResultStatus(result: any): {
