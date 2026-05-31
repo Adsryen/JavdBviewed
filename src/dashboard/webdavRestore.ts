@@ -52,6 +52,11 @@ import {
 } from './webdavRestore/restoreProgressModel';
 import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
 import { buildRestoreExecuteConfirmHtml } from './webdavRestore/restoreExecuteConfirmModel';
+import {
+    buildWizardNavigationState,
+    buildWizardStepClassNames,
+    canProceedFromWizardStep,
+} from './webdavRestore/restoreWizardStateModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -460,16 +465,12 @@ async function startQuickRestore(): Promise<void> {
  */
 function updateWizardSteps(): void {
     const steps = getRestoreModal()?.querySelectorAll('.step') || [];
+    const stepClassNames = buildWizardStepClassNames(wizardState.currentStep, steps.length);
 
     steps.forEach((step, index) => {
-        const stepNumber = index + 1;
         step.classList.remove('active', 'completed');
-
-        if (stepNumber < wizardState.currentStep) {
-            step.classList.add('completed');
-        } else if (stepNumber === wizardState.currentStep) {
-            step.classList.add('active');
-        }
+        const className = stepClassNames[index];
+        if (className) step.classList.add(className);
     });
 
     // 更新步骤内容显示
@@ -561,18 +562,23 @@ function updateWizardNavigation(): void {
     const prevBtn = mq<HTMLButtonElement>('#wizardPrevBtn');
     const nextBtn = mq<HTMLButtonElement>('#wizardNextBtn');
     const startBtn = mq<HTMLButtonElement>('#wizardStartBtn');
+    const navigationState = buildWizardNavigationState(wizardState.currentStep, 3);
 
     if (prevBtn) {
-        prevBtn.disabled = wizardState.currentStep === 1;
+        prevBtn.disabled = navigationState.previousDisabled;
     }
 
     if (nextBtn && startBtn) {
-        if (wizardState.currentStep === 3) {
+        if (navigationState.nextHidden) {
             nextBtn.classList.add('hidden');
-            startBtn.classList.remove('hidden');
         } else {
             nextBtn.classList.remove('hidden');
+        }
+
+        if (navigationState.startHidden) {
             startBtn.classList.add('hidden');
+        } else {
+            startBtn.classList.remove('hidden');
         }
     }
 }
@@ -581,19 +587,11 @@ function updateWizardNavigation(): void {
  * 验证当前步骤
  */
 function validateCurrentStep(): boolean {
-    switch (wizardState.currentStep) {
-        case 1:
-            // 策略选择验证
-            return !!wizardState.strategy;
-        case 2:
-            // 内容选择验证
-            return wizardState.selectedContent.length > 0;
-        case 3:
-            // 确认步骤
-            return true;
-        default:
-            return false;
-    }
+    return canProceedFromWizardStep({
+        currentStep: wizardState.currentStep,
+        strategy: wizardState.strategy,
+        selectedContentCount: wizardState.selectedContent.length,
+    });
 }
 
 /**
