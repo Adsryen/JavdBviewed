@@ -37,6 +37,10 @@ import {
     type RestoreResultItemViewModel,
 } from './webdavRestore/restoreResultsModel';
 import { buildStrategyPreviewHtml } from './webdavRestore/strategyPreviewModel';
+import {
+    buildOperationSummaryItems,
+    type OperationSummaryItemViewModel,
+} from './webdavRestore/operationSummaryModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -2157,30 +2161,20 @@ function updateOperationSummary(summary: any): void {
     const summaryGrid = document.getElementById('operationSummaryGrid');
     if (!summaryGrid) return;
 
-    const summaryItems = [
-        { label: '新增视频记录', value: summary.videoRecords.added, icon: 'fas fa-plus' },
-        { label: '更新视频记录', value: summary.videoRecords.updated, icon: 'fas fa-edit' },
-        { label: '保留视频记录', value: summary.videoRecords.kept, icon: 'fas fa-check' },
-        { label: '新增演员收藏', value: summary.actorRecords.added, icon: 'fas fa-user-plus' },
-        { label: '更新演员收藏', value: summary.actorRecords.updated, icon: 'fas fa-user-edit' },
-        { label: '保留演员收藏', value: summary.actorRecords.kept, icon: 'fas fa-user-check' },
-        { label: '新增新作品订阅', value: summary.newWorks?.subscriptions?.added ?? 0, icon: 'fas fa-bell' },
-        { label: '更新新作品订阅', value: summary.newWorks?.subscriptions?.updated ?? 0, icon: 'fas fa-bell' },
-        { label: '新增新作品记录', value: summary.newWorks?.records?.added ?? 0, icon: 'fas fa-bell' },
-        { label: '更新新作品记录', value: summary.newWorks?.records?.updated ?? 0, icon: 'fas fa-bell' }
-    ];
+    const html = buildOperationSummaryItems(summary).map(renderOperationSummaryItem).join('');
+    summaryGrid.innerHTML = html;
+}
 
-    const html = summaryItems.map(item => `
+function renderOperationSummaryItem(item: OperationSummaryItemViewModel): string {
+    return `
         <div class="summary-item">
             <div class="summary-label">
-                <i class="${item.icon}"></i>
+                <i class="${item.iconClass}"></i>
                 ${item.label}
             </div>
             <div class="summary-value">${item.value}</div>
         </div>
-    `).join('');
-
-    summaryGrid.innerHTML = html;
+    `;
 }
 
 /**
