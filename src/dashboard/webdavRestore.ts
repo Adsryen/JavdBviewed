@@ -61,7 +61,10 @@ import {
 } from './webdavRestore/restoreProgressModel';
 import { buildRestoreModeStatItems } from './webdavRestore/restoreModeStatsModel';
 import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
-import { buildRestoreExecuteConfirmHtml } from './webdavRestore/restoreExecuteConfirmModel';
+import {
+    buildRestoreCategorySelection,
+    buildRestoreExecuteConfirmHtml,
+} from './webdavRestore/restoreExecuteConfirmModel';
 import {
     buildWizardNavigationState,
     buildWizardStepClassNames,
@@ -675,21 +678,14 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
             return;
         }
 
-        // 构造统一恢复类别映射
-        const categories = {
-            settings: !!mergeOptions.restoreSettings,
-            userProfile: !!mergeOptions.restoreUserProfile,
-            viewed: !!mergeOptions.restoreRecords,
-            actors: !!mergeOptions.restoreActorRecords,
-            newWorks: !!mergeOptions.restoreNewWorks,
-            logs: !!mergeOptions.restoreLogs,
-            magnetPushLogs: ((document.getElementById('webdavRestoreMagnetPushLogs') as HTMLInputElement)?.checked) ?? ((document.getElementById('webdavRestoreMagnetPushLogsSimple') as HTMLInputElement)?.checked) ?? false,
-            importStats: !!mergeOptions.restoreImportStats,
-            magnets: (((document.getElementById('webdavRestoreMagnets') as HTMLInputElement)?.checked) ?? ((document.getElementById('webdavRestoreMagnetsSimple') as HTMLInputElement)?.checked) ?? false),
-        };
+        const categories = buildRestoreCategorySelection({
+            mergeOptions,
+            restoreMagnetPushLogs: readCheckboxValue(['webdavRestoreMagnetPushLogs', 'webdavRestoreMagnetPushLogsSimple'], false),
+            restoreMagnets: readCheckboxValue(['webdavRestoreMagnets', 'webdavRestoreMagnetsSimple'], false),
+        });
 
         // 读取自动备份开关状态
-        const autoBackupBeforeRestore = (document.getElementById('webdavAutoBackupBeforeRestore') as HTMLInputElement)?.checked ?? true;
+        const autoBackupBeforeRestore = readCheckboxValue(['webdavAutoBackupBeforeRestore'], true);
 
         const confirmed = await showConfirm({
             title: '⚠️ 确认覆盖式恢复',
@@ -2156,6 +2152,17 @@ function updateElement(id: string, text: string): void {
     const ctx = getRestoreModal() || document;
     const element = ctx.querySelector('#' + id) as HTMLElement | null;
     if (element) element.textContent = text;
+}
+
+function readCheckboxValue(ids: string[], fallback: boolean): boolean {
+    const ctx = getRestoreModal() || document;
+
+    for (const id of ids) {
+        const checkbox = ctx.querySelector('#' + id) as HTMLInputElement | null;
+        if (checkbox) return Boolean(checkbox.checked);
+    }
+
+    return fallback;
 }
 
 /**

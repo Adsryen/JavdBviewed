@@ -1,5 +1,20 @@
 export type RestoreCategorySelection = Record<string, boolean>;
 
+export interface RestoreCategorySelectionInput {
+  mergeOptions: {
+    restoreSettings?: boolean;
+    restoreRecords?: boolean;
+    restoreUserProfile?: boolean;
+    restoreActorRecords?: boolean;
+    restoreNewWorks?: boolean;
+    restoreLogs?: boolean;
+    restoreMagnetPushLogs?: boolean;
+    restoreImportStats?: boolean;
+  };
+  restoreMagnetPushLogs: boolean;
+  restoreMagnets: boolean;
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   settings: '扩展设置',
   userProfile: '账号信息',
@@ -20,6 +35,20 @@ export function getSelectedRestoreCategories(categories: RestoreCategorySelectio
   return Object.entries(categories)
     .filter(([, enabled]) => enabled)
     .map(([key]) => key);
+}
+
+export function buildRestoreCategorySelection(input: RestoreCategorySelectionInput): RestoreCategorySelection {
+  return {
+    settings: Boolean(input.mergeOptions.restoreSettings),
+    userProfile: Boolean(input.mergeOptions.restoreUserProfile),
+    viewed: Boolean(input.mergeOptions.restoreRecords),
+    actors: Boolean(input.mergeOptions.restoreActorRecords),
+    newWorks: Boolean(input.mergeOptions.restoreNewWorks),
+    logs: Boolean(input.mergeOptions.restoreLogs),
+    magnetPushLogs: input.restoreMagnetPushLogs,
+    importStats: Boolean(input.mergeOptions.restoreImportStats),
+    magnets: input.restoreMagnets,
+  };
 }
 
 export function buildRestoreExecuteConfirmHtml(input: {
