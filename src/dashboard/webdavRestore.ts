@@ -19,6 +19,11 @@ import {
     getUploaderMeta,
     type WebDAVFile,
 } from './webdavRestore/fileListModel';
+import {
+    buildRestoreOptionViewModels,
+    summarizeRestoreOptionViewModels,
+    type RestoreOptionViewModel,
+} from './webdavRestore/restoreOptionsModel';
 
 /**
  * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
@@ -2104,242 +2109,53 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
  * 自动检测并配置恢复内容选项
  */
 function configureRestoreOptions(cloudData: any): void {
-    const options = [
-        {
-            id: 'webdavRestoreSettings',
-            dataKey: 'settings',
-            required: true, // 设置是必需的
-            name: '扩展设置'
-        },
-        {
-            id: 'webdavRestoreRecords',
-            dataKey: 'data',
-            required: true, // 观看记录是必需的
-            name: '观看记录'
-        },
-        {
-            id: 'webdavRestoreUserProfile',
-            dataKey: 'userProfile',
-            required: true, // 账号信息是必需的
-            name: '账号信息'
-        },
-        {
-            id: 'webdavRestoreActorRecords',
-            dataKey: 'actorRecords',
-            required: false, // 演员库是可选的
-            name: '演员库'
-        },
-        {
-            id: 'webdavRestoreLogs',
-            dataKey: 'logs',
-            required: false, // 日志是可选的
-            name: '日志记录'
-        },
-        {
-            id: 'webdavRestoreMagnetPushLogs',
-            dataKey: 'magnetPushLogs',
-            required: false,
-            name: '磁力推送日志'
-        },
-        {
-            id: 'webdavRestoreNewWorks',
-            dataKey: 'newWorks',
-            required: false,
-            name: '新作品（订阅/记录/配置）'
-        },
-        {
-            id: 'webdavRestoreImportStats',
-            dataKey: 'importStats',
-            required: false, // 导入统计是可选的
-            name: '导入统计'
-        },
-        {
-            id: 'webdavRestoreMagnets',
-            dataKey: 'magnets',
-            required: false, // 磁链缓存是可选的
-            name: '磁链缓存'
-        }
-    ];
-
-    let availableCount = 0;
-    let unavailableCount = 0;
-
-    options.forEach(option => {
-        const checkbox = document.getElementById(option.id) as HTMLInputElement;
-        const container = checkbox?.closest('.form-group-checkbox') as HTMLElement;
-
-        if (!checkbox || !container) return;
-
-        // 更健壮的数据源回退（优先原字段 -> storageAll -> idb.*）
-        const sa = cloudData?.storageAll || {};
-        let dataset: any = undefined;
-        let hasData = false;
-
-        switch (option.dataKey) {
-            case 'data': { // 观看记录
-                dataset = cloudData?.data || cloudData?.viewed || sa[STORAGE_KEYS.VIEWED_RECORDS] ||
-                    (Array.isArray(cloudData?.idb?.viewedRecords) ? cloudData.idb.viewedRecords : undefined);
-                break;
-            }
-            case 'actorRecords': { // 演员库
-                dataset = cloudData?.actorRecords || sa[STORAGE_KEYS.ACTOR_RECORDS] ||
-                    (Array.isArray(cloudData?.idb?.actors) ? cloudData.idb.actors : undefined);
-                break;
-            }
-            case 'magnetPushLogs': {
-                dataset = cloudData?.magnetPushLogs || cloudData?.data?.magnetPushLogs ||
-                    (Array.isArray(cloudData?.idb?.magnetPushLogs) ? cloudData.idb.magnetPushLogs : undefined);
-                break;
-            }
-            case 'settings': {
-                dataset = cloudData?.settings || sa[STORAGE_KEYS.SETTINGS];
-                break;
-            }
-            case 'userProfile': {
-                dataset = cloudData?.userProfile ?? sa[STORAGE_KEYS.USER_PROFILE];
-                break;
-            }
-            case 'logs': {
-                dataset = cloudData?.logs || (Array.isArray(cloudData?.idb?.logs) ? cloudData.idb.logs : undefined);
-                break;
-            }
-            case 'newWorks': {
-                const subs = Object.keys((cloudData?.newWorks?.subscriptions) || (sa[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS] || {})).length;
-                const recs = Object.keys((cloudData?.newWorks?.records) || (sa[STORAGE_KEYS.NEW_WORKS_RECORDS] || {})).length;
-                const cfg = Object.keys((cloudData?.newWorks?.config) || (sa[STORAGE_KEYS.NEW_WORKS_CONFIG] || {})).length;
-                dataset = cloudData?.newWorks || { subscriptions: subs, records: recs, config: cfg };
-                hasData = (subs + recs + cfg) > 0;
-                break;
-            }
-            case 'importStats': {
-                dataset = cloudData?.importStats ?? sa[STORAGE_KEYS.LAST_IMPORT_STATS];
-                break;
-            }
-            case 'magnets': {
-                // 磁链只在 IDB 快照中可用
-                dataset = Array.isArray(cloudData?.idb?.magnets) ? cloudData.idb.magnets : [];
-                break;
-            }
-            default: {
-                dataset = cloudData ? cloudData[option.dataKey] : undefined;
-            }
-        }
-
-        if (option.dataKey !== 'newWorks') {
-            if (Array.isArray(dataset)) hasData = dataset.length > 0;
-            else if (dataset && typeof dataset === 'object') hasData = Object.keys(dataset).length > 0;
-            else hasData = !!dataset;
-        }
-
-        if (hasData) {
-            // 数据存在，启用选项
-            checkbox.disabled = false;
-            checkbox.checked = true;
-            container.classList.remove('disabled', 'unavailable');
-            container.classList.add('available');
-
-            // 添加数据统计信息
-            updateOptionStats(container, dataset, option.dataKey);
-            availableCount++;
-        } else if (option.required) {
-            // 必需数据不存在，显示警告但保持启用
-            checkbox.disabled = false;
-            checkbox.checked = true;
-            container.classList.remove('disabled', 'available');
-            container.classList.add('warning');
-
-            // 添加警告信息
-            addWarningMessage(container, `${option.name}数据在备份中缺失`);
-            availableCount++;
-        } else {
-            // 可选数据不存在，禁用选项
-            checkbox.disabled = true;
-            checkbox.checked = false;
-            container.classList.remove('available', 'warning');
-            container.classList.add('disabled', 'unavailable');
-
-            // 添加不可用信息
-            addUnavailableMessage(container, `${option.name}在此备份中不可用`);
-            unavailableCount++;
-        }
-    });
+    const viewModels = buildRestoreOptionViewModels(cloudData);
+    viewModels.forEach(renderRestoreOptionViewModel);
+    const summary = summarizeRestoreOptionViewModels(viewModels);
 
     // 记录检测结果
     logAsync('INFO', '恢复内容选项自动配置完成', {
-        availableOptions: availableCount,
-        unavailableOptions: unavailableCount,
+        availableOptions: summary.availableOptions,
+        unavailableOptions: summary.unavailableOptions,
         cloudDataKeys: cloudData ? Object.keys(cloudData) : []
     });
 }
 
 /**
+ * 渲染恢复选项状态
+ */
+function renderRestoreOptionViewModel(viewModel: RestoreOptionViewModel): void {
+    const checkbox = document.getElementById(viewModel.id) as HTMLInputElement | null;
+    const container = checkbox?.closest('.form-group-checkbox') as HTMLElement | null;
+
+    if (!checkbox || !container) return;
+
+    checkbox.disabled = viewModel.disabled;
+    checkbox.checked = viewModel.checked;
+    container.classList.remove('available', 'warning', 'disabled', 'unavailable');
+
+    if (viewModel.state === 'available') {
+        container.classList.add('available');
+        updateOptionStats(container, viewModel.statsText);
+        return;
+    }
+
+    if (viewModel.state === 'warning') {
+        container.classList.add('warning');
+        updateOptionMessage(container, 'warning-text', 'fa-exclamation-triangle', viewModel.message || '');
+        return;
+    }
+
+    container.classList.add('disabled', 'unavailable');
+    updateOptionMessage(container, 'unavailable-text', 'fa-times-circle', viewModel.message || '');
+}
+
+/**
  * 更新选项统计信息
  */
-function updateOptionStats(container: HTMLElement, data: any, dataKey: string): void {
+function updateOptionStats(container: HTMLElement, statsText?: string): void {
     const small = container.querySelector('small');
     if (!small) return;
-
-    let statsText = '';
-
-    switch (dataKey) {
-        case 'data':
-            if (Array.isArray(data)) {
-                statsText = `包含 ${data.length} 条观看记录`;
-            } else if (data && typeof data === 'object') {
-                const videoCount = Object.keys(data).length;
-                statsText = `包含 ${videoCount} 条观看记录`;
-            }
-            break;
-        case 'actorRecords':
-            if (Array.isArray(data)) {
-                statsText = `包含 ${data.length} 个演员信息`;
-            } else if (data && typeof data === 'object') {
-                const count = Object.keys(data).length;
-                statsText = `包含 ${count} 个演员信息`;
-            }
-            break;
-        case 'logs':
-            if (Array.isArray(data)) {
-                statsText = `包含 ${data.length} 条日志记录`;
-            }
-            break;
-        case 'settings':
-            if (data && typeof data === 'object') {
-                const settingsCount = Object.keys(data).length;
-                statsText = `包含 ${settingsCount} 项设置`;
-            }
-            break;
-        case 'userProfile':
-            if (data && data.email) {
-                statsText = `账号: ${data.email}`;
-            }
-            break;
-        case 'importStats':
-            if (data && data.lastImportTime) {
-                const date = new Date(data.lastImportTime);
-                statsText = `最后导入: ${date.toLocaleDateString()}`;
-            }
-            break;
-        case 'newWorks': {
-            let subs = 0, recs = 0;
-            if (data && typeof data === 'object') {
-                const s = (data as any).subscriptions;
-                const r = (data as any).records;
-                subs = typeof s === 'number' ? s : (s && typeof s === 'object' ? Object.keys(s).length : 0);
-                recs = typeof r === 'number' ? r : (r && typeof r === 'object' ? Object.keys(r).length : 0);
-            }
-            statsText = `订阅 ${subs} · 记录 ${recs}`;
-            break;
-        }
-        case 'magnets':
-            if (Array.isArray(data)) {
-                statsText = `包含 ${data.length} 条磁链缓存`;
-            } else if (data && typeof data === 'object') {
-                const magnetCount = Object.keys(data).length;
-                statsText = `包含 ${magnetCount} 条磁链缓存`;
-            }
-            break;
-    }
 
     if (statsText) {
         const originalText = small.textContent || '';
@@ -2349,22 +2165,12 @@ function updateOptionStats(container: HTMLElement, data: any, dataKey: string): 
 }
 
 /**
- * 添加警告信息
+ * 更新选项状态信息
  */
-function addWarningMessage(container: HTMLElement, message: string): void {
+function updateOptionMessage(container: HTMLElement, className: string, iconClass: string, message: string): void {
     const small = container.querySelector('small');
     if (small) {
-        small.innerHTML = `<span class="warning-text"><i class="fas fa-exclamation-triangle"></i> ${message}</span>`;
-    }
-}
-
-/**
- * 添加不可用信息
- */
-function addUnavailableMessage(container: HTMLElement, message: string): void {
-    const small = container.querySelector('small');
-    if (small) {
-        small.innerHTML = `<span class="unavailable-text"><i class="fas fa-times-circle"></i> ${message}</span>`;
+        small.innerHTML = `<span class="${className}"><i class="fas ${iconClass}"></i> ${message}</span>`;
     }
 }
 

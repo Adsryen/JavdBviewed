@@ -1087,7 +1087,9 @@ describe('source architecture cleanup', () => {
     expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/dataMerge/);
     expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/backupMigration/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/fileListModel/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreOptionsModel/);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/fileListModel.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreOptionsModel.ts'))).toBe(true);
 
     const legacyFiles = [
       {
