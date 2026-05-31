@@ -1,5 +1,2 @@
-export {
-  appendMagnetResults,
-  extractMagnetHash,
-  getResultSources,
-} from '../features/magnets/application/resultMerge';
+export * from '../features/magnets/application/resultMerge';
+
