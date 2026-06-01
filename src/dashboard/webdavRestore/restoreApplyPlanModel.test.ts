@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMergeStorageWritePlans,
   buildRollbackStorageWritePlans,
+  buildRestoreStorageKeys,
   sanitizeRestoredActorRecords,
   type RestoreStorageKeys,
 } from './restoreApplyPlanModel';
@@ -30,6 +31,22 @@ const allEnabledOptions = {
 };
 
 describe('WebDAV restore apply plan model', () => {
+  it('builds restore storage keys from extension storage constants', () => {
+    expect(
+      buildRestoreStorageKeys({
+        VIEWED_RECORDS: 'viewed',
+        ACTOR_RECORDS: 'actor_records',
+        SETTINGS: 'settings',
+        USER_PROFILE: 'user_profile',
+        LOGS: 'persistent_logs',
+        LAST_IMPORT_STATS: 'last_import_stats',
+        NEW_WORKS_SUBSCRIPTIONS: 'new_works_subscriptions',
+        NEW_WORKS_RECORDS: 'new_works_records',
+        NEW_WORKS_CONFIG: 'new_works_config',
+      }),
+    ).toEqual(storageKeys);
+  });
+
   it('removes blacklist-only state before writing restored actor records', () => {
     expect(
       sanitizeRestoredActorRecords({
