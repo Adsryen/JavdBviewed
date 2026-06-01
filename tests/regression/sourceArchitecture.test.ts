@@ -1143,6 +1143,15 @@ describe('source architecture cleanup', () => {
       expect(dashboardRestore, `${artifact} should be removed from deprecated expert restore mode`).not.toContain(artifact);
     }
 
+    const removedRestoreSaveArtifacts = [
+      'saveRestoredData',
+      'dbActorsBulkPut',
+    ];
+
+    for (const artifact of removedRestoreSaveArtifacts) {
+      expect(dashboardRestore, `${artifact} should be removed from legacy restore save flow`).not.toContain(artifact);
+    }
+
     const legacyFiles = [
       {
         legacyPath: 'src/utils/dataDiff.ts',
