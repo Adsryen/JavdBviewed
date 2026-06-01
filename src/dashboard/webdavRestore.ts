@@ -83,6 +83,7 @@ import {
 import {
     buildMergeStorageWritePlans,
     buildRollbackStorageWritePlans,
+    buildRestoreStorageKeys,
 } from './webdavRestore/restoreApplyPlanModel';
 import {
     buildWizardNavigationState,
@@ -1685,17 +1686,11 @@ async function createRestoreBackup(): Promise<void> {
  * 应用合并结果到本地存储
  */
 async function applyMergeResult(mergeResult: MergeResult, options: MergeOptions): Promise<void> {
-    const writePlans = buildMergeStorageWritePlans(mergeResult.mergedData, options, {
-        viewedRecords: STORAGE_KEYS.VIEWED_RECORDS,
-        actorRecords: STORAGE_KEYS.ACTOR_RECORDS,
-        settings: STORAGE_KEYS.SETTINGS,
-        userProfile: STORAGE_KEYS.USER_PROFILE,
-        logs: STORAGE_KEYS.LOGS,
-        importStats: STORAGE_KEYS.LAST_IMPORT_STATS,
-        newWorksSubscriptions: STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS,
-        newWorksRecords: STORAGE_KEYS.NEW_WORKS_RECORDS,
-        newWorksConfig: STORAGE_KEYS.NEW_WORKS_CONFIG,
-    });
+    const writePlans = buildMergeStorageWritePlans(
+        mergeResult.mergedData,
+        options,
+        buildRestoreStorageKeys(STORAGE_KEYS)
+    );
 
     const promises = writePlans.map((plan) => {
         if (plan.kind === 'videoRecords') validateVideoRecords(plan.value);
@@ -1888,17 +1883,10 @@ export async function rollbackLastRestore(): Promise<void> {
 
         logAsync('INFO', '开始回滚到恢复前状态', { backupKey: latestBackupKey });
 
-        const writePlans = buildRollbackStorageWritePlans(backupData.data, {
-            viewedRecords: STORAGE_KEYS.VIEWED_RECORDS,
-            actorRecords: STORAGE_KEYS.ACTOR_RECORDS,
-            settings: STORAGE_KEYS.SETTINGS,
-            userProfile: STORAGE_KEYS.USER_PROFILE,
-            logs: STORAGE_KEYS.LOGS,
-            importStats: STORAGE_KEYS.LAST_IMPORT_STATS,
-            newWorksSubscriptions: STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS,
-            newWorksRecords: STORAGE_KEYS.NEW_WORKS_RECORDS,
-            newWorksConfig: STORAGE_KEYS.NEW_WORKS_CONFIG,
-        });
+        const writePlans = buildRollbackStorageWritePlans(
+            backupData.data,
+            buildRestoreStorageKeys(STORAGE_KEYS)
+        );
 
         const promises = writePlans.map((plan) => setValue(plan.key, plan.value));
 

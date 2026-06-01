@@ -12,6 +12,18 @@ export interface RestoreStorageKeys {
   newWorksConfig: string;
 }
 
+export interface RestoreStorageKeyConstants {
+  VIEWED_RECORDS: string;
+  ACTOR_RECORDS: string;
+  SETTINGS: string;
+  USER_PROFILE: string;
+  LOGS: string;
+  LAST_IMPORT_STATS: string;
+  NEW_WORKS_SUBSCRIPTIONS: string;
+  NEW_WORKS_RECORDS: string;
+  NEW_WORKS_CONFIG: string;
+}
+
 export type RestoreStorageWriteKind =
   | 'videoRecords'
   | 'actorRecords'
@@ -27,6 +39,20 @@ export interface RestoreStorageWritePlan {
   kind: RestoreStorageWriteKind;
   key: string;
   value: any;
+}
+
+export function buildRestoreStorageKeys(keys: RestoreStorageKeyConstants): RestoreStorageKeys {
+  return {
+    viewedRecords: keys.VIEWED_RECORDS,
+    actorRecords: keys.ACTOR_RECORDS,
+    settings: keys.SETTINGS,
+    userProfile: keys.USER_PROFILE,
+    logs: keys.LOGS,
+    importStats: keys.LAST_IMPORT_STATS,
+    newWorksSubscriptions: keys.NEW_WORKS_SUBSCRIPTIONS,
+    newWorksRecords: keys.NEW_WORKS_RECORDS,
+    newWorksConfig: keys.NEW_WORKS_CONFIG,
+  };
 }
 
 export function sanitizeRestoredActorRecords(actorRecords: Record<string, any>): Record<string, any> {
