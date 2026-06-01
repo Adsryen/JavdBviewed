@@ -1085,29 +1085,22 @@ describe('source architecture cleanup', () => {
     const dashboardRestore = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore.ts'), 'utf8');
     expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/dataDiff/);
     expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/dataMerge/);
-    expect(dashboardRestore).toMatch(/features\/webdavSync\/application\/backupMigration/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/fileListModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreOptionsModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/conflictDisplayModel/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/conflictController/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/conflictDetailModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/conflictNavigationModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreResultsModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreBackupModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/strategyPreviewModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreConfirmationModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreWizardStateModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreExecuteConfirmModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreModeStatsModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreValidationModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreApplyPlanModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreModalStateModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/operationSummaryModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/previewStatsModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/quickRestoreModel/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreApplyController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreAnalysisController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreFilePreviewController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreModalShellController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreOptionsController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreUnifiedExecutorController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreResultController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreProgressResultsController/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreWizardController/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/settingsDifferenceModel/);
-    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreProgressModel/);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/fileListModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreOptionsModel.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/conflictController.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/conflictDisplayModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/conflictDetailModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/conflictNavigationModel.ts'))).toBe(true);
@@ -1121,11 +1114,69 @@ describe('source architecture cleanup', () => {
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreValidationModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreApplyPlanModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreModalStateModel.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreFooterModel.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreApplyController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreAnalysisController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreFilePreviewController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreModalShellController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreOptionsController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreUnifiedExecutorController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreResultController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreProgressResultsController.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreWizardController.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/operationSummaryModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/previewStatsModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/quickRestoreModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/settingsDifferenceModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreProgressModel.ts'))).toBe(true);
+
+    const conflictController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/conflictController.ts'), 'utf8');
+    expect(conflictController).toMatch(/\.\/conflictDisplayModel/);
+    expect(conflictController).toMatch(/\.\/conflictDetailModel/);
+    expect(conflictController).toMatch(/\.\/conflictNavigationModel/);
+
+    const restoreResultController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreResultController.ts'), 'utf8');
+    expect(restoreResultController).toMatch(/\.\/operationSummaryModel/);
+    expect(restoreResultController).toMatch(/\.\/restoreBackupModel/);
+
+    const restoreProgressResultsController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreProgressResultsController.ts'), 'utf8');
+    expect(restoreProgressResultsController).toMatch(/\.\/restoreProgressModel/);
+    expect(restoreProgressResultsController).toMatch(/\.\/restoreResultsModel/);
+
+    const restoreWizardController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreWizardController.ts'), 'utf8');
+    expect(restoreWizardController).toMatch(/\.\/quickRestoreModel/);
+    expect(restoreWizardController).toMatch(/\.\/restoreConfirmationModel/);
+    expect(restoreWizardController).toMatch(/\.\/restoreModeStatsModel/);
+    expect(restoreWizardController).toMatch(/\.\/restoreModeUiModel/);
+    expect(restoreWizardController).toMatch(/\.\/restoreWizardStateModel/);
+    expect(restoreWizardController).toMatch(/\.\/strategyPreviewModel/);
+
+    const restoreApplyController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreApplyController.ts'), 'utf8');
+    expect(restoreApplyController).toMatch(/\.\/restoreApplyPlanModel/);
+    expect(restoreApplyController).toMatch(/\.\/restoreBackupModel/);
+    expect(restoreApplyController).toMatch(/\.\/restoreModalStateModel/);
+    expect(restoreApplyController).toMatch(/\.\/restoreValidationModel/);
+
+    const restoreAnalysisController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreAnalysisController.ts'), 'utf8');
+    expect(restoreAnalysisController).toMatch(/features\/webdavSync\/application\/dataDiff/);
+    expect(restoreAnalysisController).toMatch(/\.\/restoreModalStateModel/);
+
+    const restoreFilePreviewController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreFilePreviewController.ts'), 'utf8');
+    expect(restoreFilePreviewController).toMatch(/features\/webdavSync\/application\/backupMigration/);
+    expect(restoreFilePreviewController).toMatch(/\.\/fileListModel/);
+    expect(restoreFilePreviewController).toMatch(/\.\/previewStatsModel/);
+    expect(restoreFilePreviewController).toMatch(/\.\/restoreModalStateModel/);
+
+    const restoreModalShellController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreModalShellController.ts'), 'utf8');
+    expect(restoreModalShellController).toMatch(/\.\/restoreFooterModel/);
+    expect(restoreModalShellController).toMatch(/\.\/restoreModalStateModel/);
+
+    const restoreOptionsController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreOptionsController.ts'), 'utf8');
+    expect(restoreOptionsController).toMatch(/\.\/restoreOptionsModel/);
+
+    const restoreUnifiedExecutorController = fs.readFileSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreUnifiedExecutorController.ts'), 'utf8');
+    expect(restoreUnifiedExecutorController).toMatch(/features\/webdavSync\/application\/dataDiff/);
+    expect(restoreUnifiedExecutorController).toMatch(/\.\/restoreExecuteConfirmModel/);
 
     const removedExpertDiffArtifacts = [
       'displayDiffAnalysis',

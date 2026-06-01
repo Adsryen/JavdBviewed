@@ -54,6 +54,52 @@ export interface CloudPreviewEnterState {
   confirmButtonTitle: string;
 }
 
+export interface RestoreSubmitLoadingState {
+  disabledButtonIds: string[];
+  confirmButtonHtml: string;
+}
+
+export interface RestoreSubmitErrorState {
+  enabledButtonIds: string[];
+  shownButtonIds: string[];
+  confirmButtonHtml: string;
+}
+
+export interface FileListLoadingState {
+  hiddenElementIds: string[];
+  shownElementIds: string[];
+}
+
+export interface FileListEnterState {
+  hiddenElementIds: string[];
+  shownElementIds: string[];
+  shownContentSelector: string;
+  shownListSelector: string;
+  clearedElementIds: string[];
+}
+
+export interface FileSelectionState {
+  hiddenElementIds: string[];
+  disabledButtonIds: string[];
+  hiddenButtonIds: string[];
+  confirmButtonHtml: string;
+  confirmButtonTitle: string;
+}
+
+export interface RestoreFileListBackState {
+  hiddenElementIds: string[];
+  shownContentSelector: string;
+  shownListSelector: string;
+  disabledButtonIds: string[];
+  hiddenButtonIds: string[];
+}
+
+export interface RestoreErrorState {
+  hiddenElementIds: string[];
+  shownElementIds: string[];
+  errorMessageElementId: string;
+}
+
 export function buildRestoreModalResetState(): RestoreModalResetState {
   return {
     modalClassNamesToRemove: ['preview-active'],
@@ -146,5 +192,87 @@ export function buildCloudPreviewEnterState(): CloudPreviewEnterState {
     ],
     confirmButtonHtml: '<i class="fas fa-download"></i> 开始覆盖式恢复',
     confirmButtonTitle: '开始执行覆盖式恢复',
+  };
+}
+
+export function buildRestoreSubmitLoadingState(): RestoreSubmitLoadingState {
+  return {
+    disabledButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreCancel',
+    ],
+    confirmButtonHtml: '<i class="fas fa-spinner fa-spin"></i> 合并中...',
+  };
+}
+
+export function buildRestoreSubmitErrorState(): RestoreSubmitErrorState {
+  return {
+    enabledButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreCancel',
+    ],
+    shownButtonIds: ['webdavRestoreConfirm'],
+    confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
+  };
+}
+
+export function buildFileListLoadingState(): FileListLoadingState {
+  return {
+    hiddenElementIds: [
+      'webdavRestoreContent',
+      'webdavRestoreError',
+    ],
+    shownElementIds: ['webdavRestoreLoading'],
+  };
+}
+
+export function buildFileListEnterState(): FileListEnterState {
+  return {
+    hiddenElementIds: [
+      'webdavRestoreLoading',
+      'webdavRestoreError',
+      'webdavDataPreview',
+    ],
+    shownElementIds: ['webdavRestoreContent'],
+    shownContentSelector: '#webdavRestoreContent .restore-description',
+    shownListSelector: '#webdavRestoreContent .file-list-container',
+    clearedElementIds: ['webdavFileList'],
+  };
+}
+
+export function buildFileSelectionState(): FileSelectionState {
+  return {
+    hiddenElementIds: [
+      'webdavRestoreOptions',
+      'webdavDataPreview',
+    ],
+    disabledButtonIds: ['webdavRestoreConfirm'],
+    hiddenButtonIds: ['webdavRestoreConfirm'],
+    confirmButtonHtml: '<i class="fas fa-download"></i> 开始覆盖式恢复',
+    confirmButtonTitle: '选择备份后即可恢复',
+  };
+}
+
+export function buildRestoreFileListBackState(): RestoreFileListBackState {
+  return {
+    hiddenElementIds: ['webdavDataPreview'],
+    shownContentSelector: '#webdavRestoreContent .restore-description',
+    shownListSelector: '#webdavRestoreContent .file-list-container',
+    disabledButtonIds: ['webdavRestoreConfirm'],
+    hiddenButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreBack',
+    ],
+  };
+}
+
+export function buildRestoreErrorState(): RestoreErrorState {
+  return {
+    hiddenElementIds: [
+      'webdavRestoreLoading',
+      'webdavRestoreContent',
+    ],
+    shownElementIds: ['webdavRestoreError'],
+    errorMessageElementId: 'webdavRestoreErrorMessage',
   };
 }

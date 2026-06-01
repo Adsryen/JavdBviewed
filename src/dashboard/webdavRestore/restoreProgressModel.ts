@@ -20,6 +20,46 @@ export function buildRestoreProgressHtml(): string {
     `;
 }
 
+export interface RestoreProgressContainerSpec {
+  id: string;
+  className: string;
+  html: string;
+}
+
+export interface RestoreProgressEnterState {
+  modalId: string;
+  modalBodySelector: string;
+  hiddenChildDisplay: string;
+}
+
+export interface RestoreProgressLeaveState {
+  progressContainerId: string;
+  restoredChildDisplay: string;
+}
+
+export function buildRestoreProgressContainerSpec(): RestoreProgressContainerSpec {
+  return {
+    id: 'restoreProgressContainer',
+    className: 'restore-progress-container',
+    html: buildRestoreProgressHtml(),
+  };
+}
+
+export function buildRestoreProgressEnterState(): RestoreProgressEnterState {
+  return {
+    modalId: 'webdavRestoreModal',
+    modalBodySelector: '.modal-body',
+    hiddenChildDisplay: 'none',
+  };
+}
+
+export function buildRestoreProgressLeaveState(): RestoreProgressLeaveState {
+  return {
+    progressContainerId: 'restoreProgressContainer',
+    restoredChildDisplay: '',
+  };
+}
+
 export function formatElapsedTime(elapsedSeconds: number): string {
   const minutes = Math.floor(elapsedSeconds / 60);
   const seconds = elapsedSeconds % 60;

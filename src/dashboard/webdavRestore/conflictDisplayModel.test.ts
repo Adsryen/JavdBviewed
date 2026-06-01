@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildConflictDisplayState } from './conflictDisplayModel';
+import {
+  buildConflictModalHideState,
+  buildConflictModalShowState,
+  buildConflictDisplayState,
+} from './conflictDisplayModel';
 
 describe('WebDAV restore conflict display model', () => {
   it('builds display state for current conflict', () => {
@@ -58,5 +62,19 @@ describe('WebDAV restore conflict display model', () => {
       conflictType: 'video',
       resolutions: {},
     })).toBeNull();
+  });
+
+  it('builds conflict modal show and hide states', () => {
+    expect(buildConflictModalShowState()).toEqual({
+      modalId: 'conflictResolutionModal',
+      classNamesToAdd: ['visible'],
+      classNamesToRemove: ['hidden'],
+    });
+
+    expect(buildConflictModalHideState()).toEqual({
+      modalId: 'conflictResolutionModal',
+      classNamesToAdd: ['hidden'],
+      classNamesToRemove: ['visible'],
+    });
   });
 });

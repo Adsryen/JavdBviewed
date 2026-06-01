@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildConflictVersionContentHtml,
   buildConflictVersionFields,
   buildConflictVersionFieldsHtml,
   buildConflictVersionFieldHtml,
@@ -145,5 +146,21 @@ describe('WebDAV restore conflict detail model', () => {
     expect(html).toContain('标题:');
     expect(html).toContain('AAA-001');
     expect(html).toContain('field-value status-viewed');
+  });
+
+  it('renders version content html from raw conflict data and type', () => {
+    const html = buildConflictVersionContentHtml(
+      {
+        title: 'AAA-001 title',
+        status: 'viewed',
+        tags: ['高清'],
+        updatedAt: Date.UTC(2026, 4, 30, 8, 0, 0),
+      },
+      'video',
+    );
+
+    expect(html).toContain('AAA-001 title');
+    expect(html).toContain('已观看');
+    expect(html).toContain('<span class="tag">高清</span>');
   });
 });
