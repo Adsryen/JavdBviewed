@@ -599,6 +599,7 @@
       - [x] 拆出恢复进度展示模型：`dashboard/webdavRestore/restoreProgressModel.ts`
       - [x] 拆出恢复前备份 key 选择、下载文件名和旧备份清理选择模型：`dashboard/webdavRestore/restoreBackupModel.ts`
       - [x] 拆出恢复/回滚写入计划和演员记录清洗模型：`dashboard/webdavRestore/restoreApplyPlanModel.ts`
+      - [x] 拆出恢复弹窗重置与分析加载 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
       - [x] 清理废弃专家差异分析残留和空实现
       - [x] 为上述拆分点补充单元测试
       - [ ] 继续拆分恢复模式、冲突处理和执行结果 UI
