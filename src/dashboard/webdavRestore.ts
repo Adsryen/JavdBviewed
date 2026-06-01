@@ -60,6 +60,11 @@ import {
     buildRestoreProgressHtml,
     formatElapsedTime,
 } from './webdavRestore/restoreProgressModel';
+import {
+    buildAnalysisLoadingEnterState,
+    buildAnalysisLoadingLeaveState,
+    buildRestoreModalResetState,
+} from './webdavRestore/restoreModalStateModel';
 import { buildRestoreModeStatItems } from './webdavRestore/restoreModeStatsModel';
 import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
 import {
@@ -920,28 +925,22 @@ export function showWebDAVRestoreModal(): void {
 
 function resetModalState(): void {
     const modal = getRestoreModal();
-    modal?.classList.remove('preview-active');
+    const state = buildRestoreModalResetState();
+    state.modalClassNamesToRemove.forEach(className => modal?.classList.remove(className));
 
-    // 隐藏所有内容区域
-    hideElement('webdavRestoreContent');
-    hideElement('webdavRestoreError');
-    hideElement('webdavRestoreOptions');
+    state.hiddenElementIds.forEach(hideElement);
+    state.shownElementIds.forEach(showElement);
 
-    // 显示加载状态
-    showElement('webdavRestoreLoading');
+    state.disabledButtonIds.forEach(id => {
+        const button = mq<HTMLButtonElement>('#' + id);
+        if (button) button.disabled = true;
+    });
 
-    // 重置按钮状态
-    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
-    if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.classList.add('hidden');
-    }
-
-    // 清空文件列表
-    const fileList = mq<HTMLElement>('#webdavFileList');
-    if (fileList) {
-        fileList.innerHTML = '';
-    }
+    state.hiddenButtonIds.forEach(id => mq<HTMLElement>('#' + id)?.classList.add('hidden'));
+    state.clearedElementIds.forEach(id => {
+        const element = mq<HTMLElement>('#' + id);
+        if (element) element.innerHTML = '';
+    });
 }
 
 function bindModalEvents(): void {
@@ -1430,23 +1429,25 @@ async function getCurrentLocalData(): Promise<any> {
  * 显示分析加载状态
  */
 function showAnalysisLoading(): void {
+    const state = buildAnalysisLoadingEnterState();
     const loadingElement = document.getElementById('webdavRestoreLoading');
     const loadingText = loadingElement?.querySelector('p');
 
     if (loadingText) {
-        loadingText.textContent = '正在分析数据差异...';
+        loadingText.textContent = state.loadingText;
     }
 
-    hideElement('webdavRestoreContent');
-    showElement('webdavRestoreLoading');
+    state.hiddenElementIds.forEach(hideElement);
+    state.shownElementIds.forEach(showElement);
 }
 
 /**
  * 隐藏分析加载状态
  */
 function hideAnalysisLoading(): void {
-    hideElement('webdavRestoreLoading');
-    showElement('webdavRestoreContent');
+    const state = buildAnalysisLoadingLeaveState();
+    state.hiddenElementIds.forEach(hideElement);
+    state.shownElementIds.forEach(showElement);
 }
 
 /**
