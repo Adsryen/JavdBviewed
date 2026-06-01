@@ -80,7 +80,10 @@ import {
     validateSettings,
     validateVideoRecords,
 } from './webdavRestore/restoreValidationModel';
-import { buildMergeStorageWritePlans } from './webdavRestore/restoreApplyPlanModel';
+import {
+    buildMergeStorageWritePlans,
+    buildRollbackStorageWritePlans,
+} from './webdavRestore/restoreApplyPlanModel';
 import {
     buildWizardNavigationState,
     buildWizardStepClassNames,
@@ -1885,43 +1888,24 @@ export async function rollbackLastRestore(): Promise<void> {
 
         logAsync('INFO', '开始回滚到恢复前状态', { backupKey: latestBackupKey });
 
-        // 恢复数据
-        const promises = [];
+        const writePlans = buildRollbackStorageWritePlans(backupData.data, {
+            viewedRecords: STORAGE_KEYS.VIEWED_RECORDS,
+            actorRecords: STORAGE_KEYS.ACTOR_RECORDS,
+            settings: STORAGE_KEYS.SETTINGS,
+            userProfile: STORAGE_KEYS.USER_PROFILE,
+            logs: STORAGE_KEYS.LOGS,
+            importStats: STORAGE_KEYS.LAST_IMPORT_STATS,
+            newWorksSubscriptions: STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS,
+            newWorksRecords: STORAGE_KEYS.NEW_WORKS_RECORDS,
+            newWorksConfig: STORAGE_KEYS.NEW_WORKS_CONFIG,
+        });
 
-        if (backupData.data.viewedRecords) {
-            promises.push(setValue(STORAGE_KEYS.VIEWED_RECORDS, backupData.data.viewedRecords));
-        }
-
-        if (backupData.data.actorRecords) {
-            const sanitized = Object.fromEntries(
-                Object.entries(backupData.data.actorRecords || {}).map(([id, a]: any) => {
-                    const { blacklisted, ...rest } = a || {};
-                    return [id, rest];
-                })
-            );
-            promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, sanitized));
-        }
-
-        if (backupData.data.settings) {
-            promises.push(setValue(STORAGE_KEYS.SETTINGS, backupData.data.settings));
-        }
-
-        if (backupData.data.userProfile) {
-            promises.push(setValue(STORAGE_KEYS.USER_PROFILE, backupData.data.userProfile));
-        }
-
-        if (backupData.data.logs) {
-            promises.push(setValue(STORAGE_KEYS.LOGS, backupData.data.logs));
-        }
+        const promises = writePlans.map((plan) => setValue(plan.key, plan.value));
 
         if (backupData.data.magnetPushLogs) {
             promises.push(
                 dbMagnetPushLogsClear().then(() => dbMagnetPushLogsBulkAdd(backupData.data.magnetPushLogs))
             );
-        }
-
-        if (backupData.data.importStats) {
-            promises.push(setValue(STORAGE_KEYS.LAST_IMPORT_STATS, backupData.data.importStats));
         }
 
         await Promise.all(promises);
