@@ -65,8 +65,11 @@ import { buildRestoreModeStatItems } from './webdavRestore/restoreModeStatsModel
 import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
 import {
     buildRestoreBackupData,
+    buildRestoreBackupDownloadName,
     buildRestoreBackupKey,
+    findLatestRestoreBackupKey,
     formatRestoreBackupTimestamp,
+    selectOldRestoreBackupKeys,
 } from './webdavRestore/restoreBackupModel';
 import {
     buildRestoreCategorySelection,
@@ -1866,17 +1869,13 @@ async function downloadLatestBackup(): Promise<void> {
     try {
         // 获取最新的备份
         const backupKeys = await chrome.storage.local.get(null);
-        const restoreBackupKeys = Object.keys(backupKeys).filter(key =>
-            key.startsWith(STORAGE_KEYS.RESTORE_BACKUP)
-        );
+        const latestBackupKey = findLatestRestoreBackupKey(Object.keys(backupKeys), STORAGE_KEYS.RESTORE_BACKUP);
 
-        if (restoreBackupKeys.length === 0) {
+        if (!latestBackupKey) {
             showMessage('没有找到备份文件', 'warn');
             return;
         }
 
-        // 获取最新的备份
-        const latestBackupKey = restoreBackupKeys.sort().pop()!;
         const backupData = backupKeys[latestBackupKey] as any;
 
         // 创建下载
@@ -1887,7 +1886,7 @@ async function downloadLatestBackup(): Promise<void> {
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = `restore-backup-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.json`;
+        a.download = buildRestoreBackupDownloadName(new Date());
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1908,16 +1907,12 @@ export async function rollbackLastRestore(): Promise<void> {
     try {
         // 获取最新的备份
         const backupKeys = await chrome.storage.local.get(null);
-        const restoreBackupKeys = Object.keys(backupKeys).filter(key =>
-            key.startsWith(STORAGE_KEYS.RESTORE_BACKUP)
-        );
+        const latestBackupKey = findLatestRestoreBackupKey(Object.keys(backupKeys), STORAGE_KEYS.RESTORE_BACKUP);
 
-        if (restoreBackupKeys.length === 0) {
+        if (!latestBackupKey) {
             throw new Error('没有找到可回滚的备份');
         }
 
-        // 获取最新的备份
-        const latestBackupKey = restoreBackupKeys.sort().pop()!;
         const backupData = backupKeys[latestBackupKey] as any;
 
         if (!backupData || !backupData.data) {
@@ -1990,16 +1985,17 @@ export async function rollbackLastRestore(): Promise<void> {
 export async function cleanupOldBackups(keepCount: number = 5): Promise<void> {
     try {
         const backupKeys = await chrome.storage.local.get(null);
-        const restoreBackupKeys = Object.keys(backupKeys).filter(key =>
-            key.startsWith(STORAGE_KEYS.RESTORE_BACKUP)
-        ).sort();
+        const keysToDelete = selectOldRestoreBackupKeys(
+            Object.keys(backupKeys),
+            STORAGE_KEYS.RESTORE_BACKUP,
+            keepCount
+        );
 
-        if (restoreBackupKeys.length <= keepCount) {
+        if (keysToDelete.length === 0) {
             return; // 不需要清理
         }
 
         // 删除多余的旧备份
-        const keysToDelete = restoreBackupKeys.slice(0, restoreBackupKeys.length - keepCount);
         await chrome.storage.local.remove(keysToDelete);
 
         logAsync('INFO', '清理旧备份完成', {
