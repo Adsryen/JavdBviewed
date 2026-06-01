@@ -80,6 +80,7 @@ import {
     validateSettings,
     validateVideoRecords,
 } from './webdavRestore/restoreValidationModel';
+import { buildMergeStorageWritePlans } from './webdavRestore/restoreApplyPlanModel';
 import {
     buildWizardNavigationState,
     buildWizardStepClassNames,
@@ -1681,62 +1682,25 @@ async function createRestoreBackup(): Promise<void> {
  * 应用合并结果到本地存储
  */
 async function applyMergeResult(mergeResult: MergeResult, options: MergeOptions): Promise<void> {
-    const promises = [];
+    const writePlans = buildMergeStorageWritePlans(mergeResult.mergedData, options, {
+        viewedRecords: STORAGE_KEYS.VIEWED_RECORDS,
+        actorRecords: STORAGE_KEYS.ACTOR_RECORDS,
+        settings: STORAGE_KEYS.SETTINGS,
+        userProfile: STORAGE_KEYS.USER_PROFILE,
+        logs: STORAGE_KEYS.LOGS,
+        importStats: STORAGE_KEYS.LAST_IMPORT_STATS,
+        newWorksSubscriptions: STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS,
+        newWorksRecords: STORAGE_KEYS.NEW_WORKS_RECORDS,
+        newWorksConfig: STORAGE_KEYS.NEW_WORKS_CONFIG,
+    });
 
-    if (options.restoreRecords && mergeResult.mergedData) {
-        // 数据校验
-    // 新增：新作品
-    if (mergeResult.mergedData.newWorks) {
-        const nw = mergeResult.mergedData.newWorks;
-        if (nw.subscriptions) {
-            promises.push(setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, nw.subscriptions));
-        }
-        if (nw.records) {
-            promises.push(setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, nw.records));
-        }
-        if (nw.config) {
-            promises.push(setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, nw.config));
-        }
-    }
+    const promises = writePlans.map((plan) => {
+        if (plan.kind === 'videoRecords') validateVideoRecords(plan.value);
+        if (plan.kind === 'actorRecords') validateActorRecords(plan.value);
+        if (plan.kind === 'settings') validateSettings(plan.value);
 
-        if (mergeResult.mergedData.videoRecords) {
-            validateVideoRecords(mergeResult.mergedData.videoRecords);
-            promises.push(setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords));
-        }
-    }
-
-    if (options.restoreActorRecords && mergeResult.mergedData) {
-        // 数据校验
-        if (mergeResult.mergedData.actorRecords) {
-            validateActorRecords(mergeResult.mergedData.actorRecords);
-            // 写回前剔除 blacklisted
-            const sanitized = Object.fromEntries(
-                Object.entries(mergeResult.mergedData.actorRecords || {}).map(([id, a]: any) => {
-                    const { blacklisted, ...rest } = a || {};
-                    return [id, rest];
-                })
-            );
-            promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, sanitized));
-        }
-    }
-
-    if (options.restoreSettings && mergeResult.mergedData) {
-        // 数据校验
-        validateSettings(mergeResult.mergedData.settings);
-        promises.push(setValue(STORAGE_KEYS.SETTINGS, mergeResult.mergedData.settings));
-    }
-
-    if (options.restoreUserProfile && mergeResult.mergedData) {
-        promises.push(setValue(STORAGE_KEYS.USER_PROFILE, mergeResult.mergedData.userProfile));
-    }
-
-    if (options.restoreLogs && mergeResult.mergedData) {
-        promises.push(setValue(STORAGE_KEYS.LOGS, mergeResult.mergedData.logs));
-    }
-
-    if (options.restoreImportStats && mergeResult.mergedData) {
-        promises.push(setValue(STORAGE_KEYS.LAST_IMPORT_STATS, mergeResult.mergedData.importStats));
-    }
+        return setValue(plan.key, plan.value);
+    });
 
     await Promise.all(promises);
 

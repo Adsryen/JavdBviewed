@@ -1099,6 +1099,7 @@ describe('source architecture cleanup', () => {
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreExecuteConfirmModel/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreModeStatsModel/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreValidationModel/);
+    expect(dashboardRestore).toMatch(/\.\/webdavRestore\/restoreApplyPlanModel/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/operationSummaryModel/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/previewStatsModel/);
     expect(dashboardRestore).toMatch(/\.\/webdavRestore\/quickRestoreModel/);
@@ -1117,6 +1118,7 @@ describe('source architecture cleanup', () => {
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreExecuteConfirmModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreModeStatsModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreValidationModel.ts'))).toBe(true);
+    expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/restoreApplyPlanModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/operationSummaryModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/previewStatsModel.ts'))).toBe(true);
     expect(fs.existsSync(path.resolve(root, 'src/dashboard/webdavRestore/quickRestoreModel.ts'))).toBe(true);
