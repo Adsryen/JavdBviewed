@@ -89,3 +89,57 @@ export function buildMergeStorageWritePlans(
 
   return plans;
 }
+
+export function buildRollbackStorageWritePlans(
+  backupData: any,
+  keys: RestoreStorageKeys,
+): RestoreStorageWritePlan[] {
+  const plans: RestoreStorageWritePlan[] = [];
+  if (!backupData) return plans;
+
+  if (backupData.viewedRecords) {
+    plans.push({ kind: 'videoRecords', key: keys.viewedRecords, value: backupData.viewedRecords });
+  }
+
+  if (backupData.actorRecords) {
+    plans.push({
+      kind: 'actorRecords',
+      key: keys.actorRecords,
+      value: sanitizeRestoredActorRecords(backupData.actorRecords),
+    });
+  }
+
+  if (backupData.settings) {
+    plans.push({ kind: 'settings', key: keys.settings, value: backupData.settings });
+  }
+
+  if (backupData.userProfile) {
+    plans.push({ kind: 'userProfile', key: keys.userProfile, value: backupData.userProfile });
+  }
+
+  if (backupData.logs) {
+    plans.push({ kind: 'logs', key: keys.logs, value: backupData.logs });
+  }
+
+  if (backupData.importStats) {
+    plans.push({ kind: 'importStats', key: keys.importStats, value: backupData.importStats });
+  }
+
+  if (backupData.newWorks?.subscriptions) {
+    plans.push({
+      kind: 'newWorksSubscriptions',
+      key: keys.newWorksSubscriptions,
+      value: backupData.newWorks.subscriptions,
+    });
+  }
+
+  if (backupData.newWorks?.records) {
+    plans.push({ kind: 'newWorksRecords', key: keys.newWorksRecords, value: backupData.newWorks.records });
+  }
+
+  if (backupData.newWorks?.config) {
+    plans.push({ kind: 'newWorksConfig', key: keys.newWorksConfig, value: backupData.newWorks.config });
+  }
+
+  return plans;
+}

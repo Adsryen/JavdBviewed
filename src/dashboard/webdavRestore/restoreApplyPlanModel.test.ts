@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMergeStorageWritePlans,
+  buildRollbackStorageWritePlans,
   sanitizeRestoredActorRecords,
   type RestoreStorageKeys,
 } from './restoreApplyPlanModel';
@@ -114,5 +115,38 @@ describe('WebDAV restore apply plan model', () => {
         storageKeys,
       ),
     ).toEqual([]);
+  });
+
+  it('builds rollback storage write plans from backup data', () => {
+    const backupData = {
+      viewedRecords: { 'AAA-001': { id: 'AAA-001' } },
+      actorRecords: { actor1: { id: 'actor1', blacklisted: true, note: 'keep' } },
+      settings: { display: { theme: 'dark' } },
+      userProfile: { username: 'tester' },
+      logs: [{ level: 'INFO' }],
+      importStats: { total: 3 },
+      newWorks: {
+        subscriptions: { actor1: { actorId: 'actor1' } },
+        records: { 'AAA-002': { id: 'AAA-002' } },
+        config: { autoCheckEnabled: true },
+      },
+      magnetPushLogs: [{ id: 'magnet-log-1' }],
+    };
+
+    expect(buildRollbackStorageWritePlans(backupData, storageKeys)).toEqual([
+      { kind: 'videoRecords', key: 'viewed', value: backupData.viewedRecords },
+      { kind: 'actorRecords', key: 'actor_records', value: { actor1: { id: 'actor1', note: 'keep' } } },
+      { kind: 'settings', key: 'settings', value: backupData.settings },
+      { kind: 'userProfile', key: 'user_profile', value: backupData.userProfile },
+      { kind: 'logs', key: 'persistent_logs', value: backupData.logs },
+      { kind: 'importStats', key: 'last_import_stats', value: backupData.importStats },
+      { kind: 'newWorksSubscriptions', key: 'new_works_subscriptions', value: backupData.newWorks.subscriptions },
+      { kind: 'newWorksRecords', key: 'new_works_records', value: backupData.newWorks.records },
+      { kind: 'newWorksConfig', key: 'new_works_config', value: backupData.newWorks.config },
+    ]);
+  });
+
+  it('skips rollback plans for missing backup fields', () => {
+    expect(buildRollbackStorageWritePlans({ magnetPushLogs: [{ id: 'log' }] }, storageKeys)).toEqual([]);
   });
 });
