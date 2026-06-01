@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildOperationSummaryItems } from './operationSummaryModel';
+import {
+  buildOperationSummaryHtml,
+  buildOperationSummaryItems,
+  buildRestoreResultModalCloseState,
+  buildRestoreResultModalShowState,
+} from './operationSummaryModel';
 
 describe('WebDAV restore operation summary model', () => {
   it('builds operation summary items from merge summary', () => {
@@ -36,5 +41,37 @@ describe('WebDAV restore operation summary model', () => {
     });
 
     expect(items.slice(6).map(item => item.value)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('builds operation summary html', () => {
+    const html = buildOperationSummaryHtml([
+      { label: '新增视频记录', value: 1, iconClass: 'fas fa-plus' },
+      { label: '保留演员收藏', value: 2, iconClass: 'fas fa-user-check' },
+    ]);
+
+    expect(html).toContain('summary-item');
+    expect(html).toContain('fas fa-plus');
+    expect(html).toContain('新增视频记录');
+    expect(html).toContain('1');
+    expect(html).toContain('fas fa-user-check');
+    expect(html).toContain('保留演员收藏');
+    expect(html).toContain('2');
+  });
+
+  it('builds restore result modal visibility states', () => {
+    expect(buildRestoreResultModalShowState()).toEqual({
+      currentModalId: 'webdavRestoreModal',
+      resultModalId: 'restoreResultModal',
+      currentModalClassNamesToAdd: ['hidden'],
+      resultModalClassNamesToRemove: ['hidden'],
+      resultModalClassNamesToAdd: ['visible'],
+    });
+
+    expect(buildRestoreResultModalCloseState()).toEqual({
+      resultModalId: 'restoreResultModal',
+      resultModalClassNamesToAdd: ['hidden'],
+      resultModalClassNamesToRemove: ['visible'],
+      reloadDelayMs: 500,
+    });
   });
 });

@@ -27,6 +27,12 @@ export interface RestoreResultItemViewModel {
   details: string[];
 }
 
+export interface RestoreResultsContainerSpec {
+  id: string;
+  className: string;
+  html: string;
+}
+
 export interface RestoreResultsEnterUiState {
   hiddenElementIds: string[];
   hiddenButtonIds: string[];
@@ -38,6 +44,30 @@ export interface RestoreResultsLeaveUiState {
   loadingText: string;
   restoreButtonIds: string[];
   showFooters: boolean;
+}
+
+export interface RestoreResultsReturnToListState {
+  resultsContainerId: string;
+  modalBodySelector: string;
+  restoredChildDisplay: string;
+  hiddenElementIds: string[];
+  shownElementIds: string[];
+  loadingTextElementSelector: string;
+  loadingText: string;
+  restoreButtonIds: string[];
+  actionButtonOptions: {
+    disableConfirm: boolean;
+    hideBack: boolean;
+  };
+  footerDisplay: string;
+}
+
+export interface RestoreResultsDoneState {
+  restoreButtonIds: string[];
+  actionButtonOptions: {
+    hideConfirm: boolean;
+  };
+  footerDisplay: string;
 }
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -65,6 +95,14 @@ export function buildRestoreResultItems(summary: any, cloudData: any): RestoreRe
       ...status,
     };
   });
+}
+
+export function buildRestoreResultsContainerSpec(summary: any, cloudData: any): RestoreResultsContainerSpec {
+  return {
+    id: 'restoreResultsContainer',
+    className: 'restore-results-container',
+    html: buildRestoreResultsHtml(buildRestoreResultItems(summary, cloudData)),
+  };
 }
 
 export function buildRestoreResultsHtml(items: RestoreResultItemViewModel[]): string {
@@ -134,6 +172,45 @@ export function buildRestoreResultsLeaveUiState(): RestoreResultsLeaveUiState {
       'webdavRestoreCancel',
     ],
     showFooters: true,
+  };
+}
+
+export function buildRestoreResultsReturnToListState(): RestoreResultsReturnToListState {
+  return {
+    resultsContainerId: 'restoreResultsContainer',
+    modalBodySelector: '.modal-body',
+    restoredChildDisplay: '',
+    hiddenElementIds: [
+      'webdavRestoreError',
+      'webdavDataPreview',
+    ],
+    shownElementIds: ['webdavRestoreLoading'],
+    loadingTextElementSelector: '#webdavRestoreLoading p',
+    loadingText: '正在获取云端文件列表...',
+    restoreButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreBack',
+      'webdavRestoreCancel',
+    ],
+    actionButtonOptions: {
+      disableConfirm: true,
+      hideBack: true,
+    },
+    footerDisplay: '',
+  };
+}
+
+export function buildRestoreResultsDoneState(): RestoreResultsDoneState {
+  return {
+    restoreButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreBack',
+      'webdavRestoreCancel',
+    ],
+    actionButtonOptions: {
+      hideConfirm: true,
+    },
+    footerDisplay: '',
   };
 }
 

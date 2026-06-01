@@ -37,6 +37,10 @@ export function buildConflictVersionFieldsHtml(fields: ConflictFieldViewModel[])
   return fields.map(buildConflictVersionFieldHtml).join('');
 }
 
+export function buildConflictVersionContentHtml(data: any, type: ConflictDetailType): string {
+  return buildConflictVersionFieldsHtml(buildConflictVersionFields(data, type));
+}
+
 export function buildConflictVersionFieldHtml(field: ConflictFieldViewModel): string {
   const valueClass = field.valueClass ? ` ${field.valueClass}` : '';
   let valueHtml = field.value;

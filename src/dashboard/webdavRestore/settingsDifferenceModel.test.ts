@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSettingsDifferenceModalHtml,
+  getSettingsDifferenceCloseState,
+  getSettingsDifferenceOpenState,
   getSettingsDifferenceOverlayStyle,
   SETTINGS_DIFFERENCE_MODAL_CLASS,
 } from './settingsDifferenceModel';
@@ -42,5 +44,29 @@ describe('WebDAV restore settings difference model', () => {
     expect(SETTINGS_DIFFERENCE_MODAL_CLASS).toBe('settings-diff-modal');
     expect(getSettingsDifferenceOverlayStyle()).toContain('position: fixed');
     expect(getSettingsDifferenceOverlayStyle()).toContain('z-index: 2147483647');
+  });
+
+  it('builds open and close animation states for the DOM shell', () => {
+    expect(getSettingsDifferenceOpenState()).toEqual({
+      bodyOverflow: 'hidden',
+      initialStyle: {
+        opacity: '0',
+        transform: 'scale(0.9)',
+        transition: 'all 0.3s ease-out',
+      },
+      animatedStyle: {
+        opacity: '1',
+        transform: 'scale(1)',
+      },
+    });
+
+    expect(getSettingsDifferenceCloseState()).toEqual({
+      bodyOverflow: '',
+      animationDurationMs: 300,
+      closingStyle: {
+        opacity: '0',
+        transform: 'scale(0.9)',
+      },
+    });
   });
 });

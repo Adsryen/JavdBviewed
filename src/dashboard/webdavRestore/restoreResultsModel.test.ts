@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRestoreResultsEnterUiState,
+  buildRestoreResultsContainerSpec,
+  buildRestoreResultsDoneState,
   buildRestoreResultsLeaveUiState,
+  buildRestoreResultsReturnToListState,
   buildRestoreResultItemHtml,
   buildRestoreResultItems,
   buildRestoreResultsHtml,
@@ -111,6 +114,26 @@ describe('WebDAV restore results model', () => {
     expect(html).toContain('id="resultsDoneBtn"');
   });
 
+  it('builds the restore results container spec', () => {
+    const spec = buildRestoreResultsContainerSpec(
+      {
+        categories: {
+          settings: { replaced: true },
+        },
+      },
+      {
+        settings: true,
+      },
+    );
+
+    expect(spec).toEqual({
+      id: 'restoreResultsContainer',
+      className: 'restore-results-container',
+      html: expect.stringContaining('恢复完成'),
+    });
+    expect(spec.html).toContain('扩展设置');
+  });
+
   it('omits empty result details in item html', () => {
     const html = buildRestoreResultItemHtml({
       key: 'logs',
@@ -157,6 +180,45 @@ describe('WebDAV restore results model', () => {
         'webdavRestoreCancel',
       ],
       showFooters: true,
+    });
+  });
+
+  it('builds state for returning from results to backup list', () => {
+    expect(buildRestoreResultsReturnToListState()).toEqual({
+      resultsContainerId: 'restoreResultsContainer',
+      modalBodySelector: '.modal-body',
+      restoredChildDisplay: '',
+      hiddenElementIds: [
+        'webdavRestoreError',
+        'webdavDataPreview',
+      ],
+      shownElementIds: ['webdavRestoreLoading'],
+      loadingTextElementSelector: '#webdavRestoreLoading p',
+      loadingText: '正在获取云端文件列表...',
+      restoreButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreBack',
+        'webdavRestoreCancel',
+      ],
+      actionButtonOptions: {
+        disableConfirm: true,
+        hideBack: true,
+      },
+      footerDisplay: '',
+    });
+  });
+
+  it('builds state for closing completed restore results', () => {
+    expect(buildRestoreResultsDoneState()).toEqual({
+      restoreButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreBack',
+        'webdavRestoreCancel',
+      ],
+      actionButtonOptions: {
+        hideConfirm: true,
+      },
+      footerDisplay: '',
     });
   });
 });

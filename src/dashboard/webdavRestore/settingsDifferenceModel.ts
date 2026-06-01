@@ -5,6 +5,18 @@ export interface SettingsDifferenceInput {
   cloud?: unknown;
 }
 
+export interface SettingsDifferenceOpenState {
+  bodyOverflow: string;
+  initialStyle: Record<string, string>;
+  animatedStyle: Record<string, string>;
+}
+
+export interface SettingsDifferenceCloseState {
+  bodyOverflow: string;
+  animationDurationMs: number;
+  closingStyle: Record<string, string>;
+}
+
 export function getSettingsDifferenceOverlayStyle(): string {
   return `
         position: fixed !important;
@@ -20,6 +32,32 @@ export function getSettingsDifferenceOverlayStyle(): string {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
         backdrop-filter: blur(4px) !important;
     `;
+}
+
+export function getSettingsDifferenceOpenState(): SettingsDifferenceOpenState {
+  return {
+    bodyOverflow: 'hidden',
+    initialStyle: {
+      opacity: '0',
+      transform: 'scale(0.9)',
+      transition: 'all 0.3s ease-out',
+    },
+    animatedStyle: {
+      opacity: '1',
+      transform: 'scale(1)',
+    },
+  };
+}
+
+export function getSettingsDifferenceCloseState(): SettingsDifferenceCloseState {
+  return {
+    bodyOverflow: '',
+    animationDurationMs: 300,
+    closingStyle: {
+      opacity: '0',
+      transform: 'scale(0.9)',
+    },
+  };
 }
 
 export function buildSettingsDifferenceModalHtml(settingsDiff: SettingsDifferenceInput): string {

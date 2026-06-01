@@ -5,6 +5,13 @@ import {
   buildAnalysisPreviewEnterState,
   buildCloudPreviewEnterState,
   buildCloudPreviewLoadingState,
+  buildFileListEnterState,
+  buildFileListLoadingState,
+  buildFileSelectionState,
+  buildRestoreErrorState,
+  buildRestoreFileListBackState,
+  buildRestoreSubmitErrorState,
+  buildRestoreSubmitLoadingState,
   buildRestoreModalResetState,
 } from './restoreModalStateModel';
 
@@ -101,6 +108,88 @@ describe('WebDAV restore modal state model', () => {
       ],
       confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
       confirmButtonTitle: '开始执行覆盖式恢复',
+    });
+  });
+
+  it('builds state for submitting restore merge', () => {
+    expect(buildRestoreSubmitLoadingState()).toEqual({
+      disabledButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreCancel',
+      ],
+      confirmButtonHtml: '<i class="fas fa-spinner fa-spin"></i> 合并中...',
+    });
+  });
+
+  it('builds state for restoring buttons after submit failure', () => {
+    expect(buildRestoreSubmitErrorState()).toEqual({
+      enabledButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreCancel',
+      ],
+      shownButtonIds: ['webdavRestoreConfirm'],
+      confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
+    });
+  });
+
+  it('builds state for loading backup file list', () => {
+    expect(buildFileListLoadingState()).toEqual({
+      hiddenElementIds: [
+        'webdavRestoreContent',
+        'webdavRestoreError',
+      ],
+      shownElementIds: ['webdavRestoreLoading'],
+    });
+  });
+
+  it('builds state for entering backup file list', () => {
+    expect(buildFileListEnterState()).toEqual({
+      hiddenElementIds: [
+        'webdavRestoreLoading',
+        'webdavRestoreError',
+        'webdavDataPreview',
+      ],
+      shownElementIds: ['webdavRestoreContent'],
+      shownContentSelector: '#webdavRestoreContent .restore-description',
+      shownListSelector: '#webdavRestoreContent .file-list-container',
+      clearedElementIds: ['webdavFileList'],
+    });
+  });
+
+  it('builds state after selecting a backup file', () => {
+    expect(buildFileSelectionState()).toEqual({
+      hiddenElementIds: [
+        'webdavRestoreOptions',
+        'webdavDataPreview',
+      ],
+      disabledButtonIds: ['webdavRestoreConfirm'],
+      hiddenButtonIds: ['webdavRestoreConfirm'],
+      confirmButtonHtml: '<i class="fas fa-download"></i> 开始覆盖式恢复',
+      confirmButtonTitle: '选择备份后即可恢复',
+    });
+  });
+
+  it('builds state for returning to backup file list', () => {
+    expect(buildRestoreFileListBackState()).toEqual({
+      hiddenElementIds: ['webdavDataPreview'],
+      shownContentSelector: '#webdavRestoreContent .restore-description',
+      shownListSelector: '#webdavRestoreContent .file-list-container',
+      disabledButtonIds: ['webdavRestoreConfirm'],
+      hiddenButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreBack',
+      ],
+    });
+  });
+
+  it('builds state for showing restore error', () => {
+    expect(buildRestoreErrorState()).toEqual({
+      hiddenElementIds: [
+        'webdavRestoreLoading',
+        'webdavRestoreContent',
+      ],
+      shownElementIds: ['webdavRestoreError'],
+      errorMessageElementId: 'webdavRestoreErrorMessage',
     });
   });
 });

@@ -580,11 +580,14 @@
       - [x] 拆出旧备份格式识别与迁移：`features/webdavSync/application/backupMigration.ts`
       - [x] 拆出恢复文件列表展示模型：`dashboard/webdavRestore/fileListModel.ts`
       - [x] 拆出恢复内容选项配置模型：`dashboard/webdavRestore/restoreOptionsModel.ts`
+      - [x] 拆出冲突弹窗运行时控制器：`dashboard/webdavRestore/conflictController.ts`
       - [x] 拆出冲突当前项显示状态模型：`dashboard/webdavRestore/conflictDisplayModel.ts`
       - [x] 拆出冲突详情展示模型：`dashboard/webdavRestore/conflictDetailModel.ts`
+      - [x] 拆出冲突版本内容 HTML 模型：`dashboard/webdavRestore/conflictDetailModel.ts`
       - [x] 拆出冲突导航状态模型：`dashboard/webdavRestore/conflictNavigationModel.ts`
       - [x] 将冲突进度条样式状态收拢到 `dashboard/webdavRestore/conflictNavigationModel.ts`
       - [x] 拆出恢复结果列表和结果页展示模型：`dashboard/webdavRestore/restoreResultsModel.ts`
+      - [x] 拆出恢复结果页容器规格模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 拆出恢复结果页 UI 状态模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 拆出向导策略预览模型：`dashboard/webdavRestore/strategyPreviewModel.ts`
       - [x] 拆出向导确认摘要模型：`dashboard/webdavRestore/restoreConfirmationModel.ts`
@@ -592,19 +595,35 @@
       - [x] 拆出覆盖式恢复二次确认模型：`dashboard/webdavRestore/restoreExecuteConfirmModel.ts`
       - [x] 拆出覆盖式恢复类别选择模型：`dashboard/webdavRestore/restoreExecuteConfirmModel.ts`
       - [x] 拆出智能合并结果摘要模型：`dashboard/webdavRestore/operationSummaryModel.ts`
+      - [x] 拆出智能合并结果摘要 HTML 和结果弹窗显隐状态：`dashboard/webdavRestore/operationSummaryModel.ts`
       - [x] 拆出云端备份预览统计模型：`dashboard/webdavRestore/previewStatsModel.ts`
       - [x] 拆出恢复模式统计模型：`dashboard/webdavRestore/restoreModeStatsModel.ts`
+      - [x] 拆出恢复模式切换状态和废弃专家预览清理规则：`dashboard/webdavRestore/restoreModeUiModel.ts`
       - [x] 拆出快捷恢复确认模型：`dashboard/webdavRestore/quickRestoreModel.ts`
-      - [x] 拆出设置差异弹窗展示模型：`dashboard/webdavRestore/settingsDifferenceModel.ts`
-      - [x] 拆出恢复进度展示模型：`dashboard/webdavRestore/restoreProgressModel.ts`
+      - [x] 拆出设置差异弹窗展示和开关动画状态模型：`dashboard/webdavRestore/settingsDifferenceModel.ts`
+      - [x] 拆出恢复进度展示、容器规格和进度页显隐状态模型：`dashboard/webdavRestore/restoreProgressModel.ts`
       - [x] 拆出恢复前备份 key 选择、下载文件名和旧备份清理选择模型：`dashboard/webdavRestore/restoreBackupModel.ts`
       - [x] 拆出恢复/回滚写入计划和演员记录清洗模型：`dashboard/webdavRestore/restoreApplyPlanModel.ts`
       - [x] 拆出恢复弹窗重置与分析加载 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
       - [x] 拆出云端预览加载与进入预览 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
       - [x] 拆出分析完成后进入预览 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
+      - [x] 拆出恢复提交中和失败恢复按钮 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
+      - [x] 拆出文件列表加载、进入列表和选中文件 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
+      - [x] 拆出返回文件列表和错误展示 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
+      - [x] 拆出恢复弹窗底部按钮规格模型：`dashboard/webdavRestore/restoreFooterModel.ts`
+      - [x] 拆出恢复结果弹窗运行时控制器：`dashboard/webdavRestore/restoreResultController.ts`
+      - [x] 拆出恢复进度页与内嵌恢复结果页运行时控制器：`dashboard/webdavRestore/restoreProgressResultsController.ts`
+      - [x] 拆出恢复模式、快捷恢复和向导流程运行时控制器：`dashboard/webdavRestore/restoreWizardController.ts`
+      - [x] 拆出智能合并应用、回滚和旧备份清理运行时控制器：`dashboard/webdavRestore/restoreApplyController.ts`
+      - [x] 拆出文件列表、下载按钮、云端预览和预览统计运行时控制器：`dashboard/webdavRestore/restoreFilePreviewController.ts`
+      - [x] 拆出差异分析、本地数据读取和分析预览进入状态运行时控制器：`dashboard/webdavRestore/restoreAnalysisController.ts`
+      - [x] 拆出恢复选项 DOM 渲染运行时控制器：`dashboard/webdavRestore/restoreOptionsController.ts`
+      - [x] 拆出覆盖式恢复执行入口运行时控制器：`dashboard/webdavRestore/restoreUnifiedExecutorController.ts`
+      - [x] 拆出恢复弹窗外壳和通用 DOM helper 运行时控制器：`dashboard/webdavRestore/restoreModalShellController.ts`
+      - [x] 拆出恢复结果页回退和完成按钮 UI 状态模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 清理废弃专家差异分析残留和空实现
       - [x] 为上述拆分点补充单元测试
-      - [ ] 继续拆分恢复模式、冲突处理和执行结果 UI
+      - [ ] 收尾压缩 `dashboard/webdavRestore.ts` 的兼容薄转发与装配顺序
     - [ ] 拆分 `dashboard/tabs/insights.ts`
     - [ ] 拆分 `dashboard/tabs/actors.ts`
     - [ ] 拆分 `dashboard/tabs/newWorks.ts`

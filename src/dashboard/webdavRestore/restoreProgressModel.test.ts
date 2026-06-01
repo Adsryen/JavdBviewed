@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildRestoreProgressHtml, formatElapsedTime } from './restoreProgressModel';
+import {
+  buildRestoreProgressContainerSpec,
+  buildRestoreProgressEnterState,
+  buildRestoreProgressHtml,
+  buildRestoreProgressLeaveState,
+  formatElapsedTime,
+} from './restoreProgressModel';
 
 describe('WebDAV restore progress model', () => {
   it('builds restore progress html with initial status and timer placeholders', () => {
@@ -20,5 +26,26 @@ describe('WebDAV restore progress model', () => {
     expect(formatElapsedTime(9)).toBe('00:09');
     expect(formatElapsedTime(65)).toBe('01:05');
     expect(formatElapsedTime(3605)).toBe('60:05');
+  });
+
+  it('builds restore progress container spec', () => {
+    expect(buildRestoreProgressContainerSpec()).toEqual({
+      id: 'restoreProgressContainer',
+      className: 'restore-progress-container',
+      html: buildRestoreProgressHtml(),
+    });
+  });
+
+  it('builds progress enter and leave states for modal body children', () => {
+    expect(buildRestoreProgressEnterState()).toEqual({
+      modalId: 'webdavRestoreModal',
+      modalBodySelector: '.modal-body',
+      hiddenChildDisplay: 'none',
+    });
+
+    expect(buildRestoreProgressLeaveState()).toEqual({
+      progressContainerId: 'restoreProgressContainer',
+      restoredChildDisplay: '',
+    });
   });
 });
