@@ -9,7 +9,6 @@ import { mergeData, type MergeResult } from '../features/webdavSync/application/
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
 import { requireAuthIfRestricted } from '../features/privacy';
-import { dbActorsBulkPut } from './dbClient';
 import { dbMagnetPushLogsBulkAdd, dbMagnetPushLogsClear } from './dbClient';
 import { showConfirm } from './components/confirmModal';
 import {
@@ -876,42 +875,6 @@ function showRestoreResults(summary: any): void {
             if (leaveUiState.showFooters) setModalFootersDisplay(modalEl, '');
             restoreResultActionButtons(leaveUiState.restoreButtonIds, { hideConfirm: true });
         };
-    }
-}
-
-/**
- * 保存恢复的数据
- */
-async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
-    try {
-        // 保存合并后的数据到本地存储
-        if (mergeResult.mergedData) {
-        await setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords || {});
-        await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.mergedData.actorRecords || {});
-
-        // 同步写入 IndexedDB（演员库）
-        try {
-            const actorsObj = mergeResult.mergedData.actorRecords || {};
-            const actorsArr = Object.values(actorsObj || {});
-            if (actorsArr.length > 0) {
-                await dbActorsBulkPut(actorsArr as any);
-            }
-        } catch (e) {
-            // 不阻断流程，仅记录日志
-            console.warn('[WebDAVRestore] Failed to write actors into IDB, fallback to localStorage only:', (e as any)?.message || e);
-        }
-
-        if (mergeResult.mergedData.settings) {
-            await setValue(STORAGE_KEYS.SETTINGS, mergeResult.mergedData.settings as any);
-        }
-
-        if (mergeResult.mergedData.userProfile) {
-            await setValue(STORAGE_KEYS.USER_PROFILE, mergeResult.mergedData.userProfile);
-        }
-        }
-    } catch (error) {
-        console.error('保存恢复数据失败:', error);
-        throw error;
     }
 }
 
