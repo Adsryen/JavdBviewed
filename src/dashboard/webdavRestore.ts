@@ -64,6 +64,11 @@ import {
 import { buildRestoreModeStatItems } from './webdavRestore/restoreModeStatsModel';
 import { buildRestoreConfirmationHtml } from './webdavRestore/restoreConfirmationModel';
 import {
+    buildRestoreBackupData,
+    buildRestoreBackupKey,
+    formatRestoreBackupTimestamp,
+} from './webdavRestore/restoreBackupModel';
+import {
     buildRestoreCategorySelection,
     buildRestoreExecuteConfirmHtml,
 } from './webdavRestore/restoreExecuteConfirmModel';
@@ -1657,18 +1662,15 @@ async function handleConfirmRestore(): Promise<void> {
  * 创建恢复前备份
  */
 async function createRestoreBackup(): Promise<void> {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupData = {
-        timestamp: Date.now(),
-        version: '2.0',
+    const now = new Date();
+    const timestamp = formatRestoreBackupTimestamp(now);
+    const backupData = buildRestoreBackupData({
         data: currentLocalData,
-        metadata: {
-            createdBy: 'smart-restore',
-            originalFile: selectedFile?.name
-        }
-    };
+        now,
+        originalFile: selectedFile?.name,
+    });
 
-    await setValue(`${STORAGE_KEYS.RESTORE_BACKUP}_${timestamp}`, backupData);
+    await setValue(buildRestoreBackupKey(STORAGE_KEYS.RESTORE_BACKUP, timestamp), backupData);
     logAsync('INFO', '已创建恢复前备份', { timestamp });
 }
 
