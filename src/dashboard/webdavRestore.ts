@@ -63,6 +63,7 @@ import {
 import {
     buildAnalysisLoadingEnterState,
     buildAnalysisLoadingLeaveState,
+    buildAnalysisPreviewEnterState,
     buildCloudPreviewEnterState,
     buildCloudPreviewLoadingState,
     buildRestoreModalResetState,
@@ -1326,25 +1327,7 @@ async function performDataAnalysis(): Promise<void> {
         // 分析差异
         currentDiffResult = analyzeDataDifferences(currentLocalData, currentCloudData);
 
-        // 先显示数据预览界面
-        hideElement('webdavRestoreLoading');
-        // 确保webdavRestoreContent容器显示
-        const restoreContent = mq<HTMLElement>('#webdavRestoreContent');
-        if (restoreContent) {
-            restoreContent.classList.remove('hidden');
-            restoreContent.style.display = 'block';
-            restoreContent.style.height = 'auto';
-            restoreContent.style.minHeight = '400px';
-            restoreContent.style.overflow = 'visible';
-        }
-
-        // 隐藏文件选择相关的元素，但保持webdavRestoreContent容器显示
-        const modal = getRestoreModal();
-        const restoreDescription = modal?.querySelector('#webdavRestoreContent .restore-description');
-        const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container');
-        if (restoreDescription) restoreDescription.classList.add('hidden');
-        if (fileListContainer) fileListContainer.classList.add('hidden');
-        modal?.classList.add('preview-active');
+        const { restoreContent, previewElement } = applyAnalysisPreviewEnterState();
 
         // 验证父容器状态
         logAsync('INFO', 'webdavRestoreContent容器状态', {
@@ -1355,45 +1338,17 @@ async function performDataAnalysis(): Promise<void> {
             offsetWidth: restoreContent?.offsetWidth
         });
 
-        showElement('webdavDataPreview');
-
-        // 强制显示元素（调试用）
-        const previewElement = mq<HTMLElement>('#webdavDataPreview');
-        if (previewElement) {
-            previewElement.style.display = 'block';
-            previewElement.style.visibility = 'visible';
-            previewElement.style.opacity = '1';
-            previewElement.style.position = 'relative';
-            previewElement.style.zIndex = '1000';
-            previewElement.classList.remove('hidden');
-        }
-
         // 验证元素是否正确显示
-        const previewElementAfterShow = mq<HTMLElement>('#webdavDataPreview');
         logAsync('INFO', '显示webdavDataPreview后验证', {
-            isHidden: previewElementAfterShow?.classList.contains('hidden'),
-            display: previewElementAfterShow ? getComputedStyle(previewElementAfterShow).display : 'N/A',
-            styleDisplay: previewElementAfterShow?.style.display,
-            offsetHeight: previewElementAfterShow?.offsetHeight,
-            offsetWidth: previewElementAfterShow?.offsetWidth
+            isHidden: previewElement?.classList.contains('hidden'),
+            display: previewElement ? getComputedStyle(previewElement).display : 'N/A',
+            styleDisplay: previewElement?.style.display,
+            offsetHeight: previewElement?.offsetHeight,
+            offsetWidth: previewElement?.offsetWidth
         });
 
         // 初始化覆盖式恢复界面
         initializeRestoreInterface(currentDiffResult);
-
-        // 更新按钮状态
-        const analyzeBtn = mq<HTMLButtonElement>('#webdavRestoreAnalyze');
-        const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
-        const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
-
-        if (analyzeBtn) analyzeBtn.classList.add('hidden');
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.classList.remove('hidden');
-            confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始恢复';
-            confirmBtn.title = '开始执行覆盖式恢复';
-        }
-        if (backBtn) backBtn.classList.remove('hidden');
 
         logAsync('INFO', '数据差异分析完成', {
             videoConflicts: currentDiffResult.videoRecords.conflicts.length,
@@ -1405,6 +1360,47 @@ async function performDataAnalysis(): Promise<void> {
         showMessage(`分析失败: ${error.message}`, 'error');
         hideAnalysisLoading();
     }
+}
+
+function applyAnalysisPreviewEnterState(): { restoreContent: HTMLElement | null; previewElement: HTMLElement | null } {
+    const state = buildAnalysisPreviewEnterState();
+    const modal = getRestoreModal();
+
+    state.hiddenElementIds.forEach(hideElement);
+    state.shownElementIds.forEach(showElement);
+
+    const restoreContent = mq<HTMLElement>('#' + state.restoreContentElementId);
+    if (restoreContent) {
+        restoreContent.classList.remove('hidden');
+        Object.assign(restoreContent.style, state.restoreContentStyle);
+    }
+
+    const restoreDescription = modal?.querySelector(state.hiddenContentSelector);
+    const fileListContainer = modal?.querySelector(state.hiddenListSelector);
+    if (restoreDescription) restoreDescription.classList.add('hidden');
+    if (fileListContainer) fileListContainer.classList.add('hidden');
+    state.modalClassNamesToAdd.forEach(className => modal?.classList.add(className));
+
+    const previewElement = mq<HTMLElement>('#' + state.previewElementId);
+    if (previewElement) {
+        Object.assign(previewElement.style, state.previewElementStyle);
+        previewElement.classList.remove('hidden');
+    }
+
+    state.hiddenButtonIds.forEach(id => mq<HTMLElement>('#' + id)?.classList.add('hidden'));
+    state.enabledButtonIds.forEach(id => {
+        const button = mq<HTMLButtonElement>('#' + id);
+        if (button) button.disabled = false;
+    });
+    state.shownButtonIds.forEach(id => mq<HTMLElement>('#' + id)?.classList.remove('hidden'));
+
+    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+    if (confirmBtn) {
+        confirmBtn.innerHTML = state.confirmButtonHtml;
+        confirmBtn.title = state.confirmButtonTitle;
+    }
+
+    return { restoreContent, previewElement };
 }
 
 /**

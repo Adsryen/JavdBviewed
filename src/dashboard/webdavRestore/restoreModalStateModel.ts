@@ -18,6 +18,23 @@ export interface AnalysisLoadingLeaveState {
   shownElementIds: string[];
 }
 
+export interface AnalysisPreviewEnterState {
+  modalClassNamesToAdd: string[];
+  hiddenElementIds: string[];
+  shownElementIds: string[];
+  hiddenContentSelector: string;
+  hiddenListSelector: string;
+  restoreContentElementId: string;
+  restoreContentStyle: Record<string, string>;
+  previewElementId: string;
+  previewElementStyle: Record<string, string>;
+  hiddenButtonIds: string[];
+  enabledButtonIds: string[];
+  shownButtonIds: string[];
+  confirmButtonHtml: string;
+  confirmButtonTitle: string;
+}
+
 export interface CloudPreviewLoadingState {
   loadingText: string;
   modalClassNamesToRemove: string[];
@@ -64,6 +81,39 @@ export function buildAnalysisLoadingLeaveState(): AnalysisLoadingLeaveState {
   return {
     hiddenElementIds: ['webdavRestoreLoading'],
     shownElementIds: ['webdavRestoreContent'],
+  };
+}
+
+export function buildAnalysisPreviewEnterState(): AnalysisPreviewEnterState {
+  return {
+    modalClassNamesToAdd: ['preview-active'],
+    hiddenElementIds: ['webdavRestoreLoading'],
+    shownElementIds: ['webdavDataPreview'],
+    hiddenContentSelector: '#webdavRestoreContent .restore-description',
+    hiddenListSelector: '#webdavRestoreContent .file-list-container',
+    restoreContentElementId: 'webdavRestoreContent',
+    restoreContentStyle: {
+      display: 'block',
+      height: 'auto',
+      minHeight: '400px',
+      overflow: 'visible',
+    },
+    previewElementId: 'webdavDataPreview',
+    previewElementStyle: {
+      display: 'block',
+      visibility: 'visible',
+      opacity: '1',
+      position: 'relative',
+      zIndex: '1000',
+    },
+    hiddenButtonIds: ['webdavRestoreAnalyze'],
+    enabledButtonIds: ['webdavRestoreConfirm'],
+    shownButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreBack',
+    ],
+    confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
+    confirmButtonTitle: '开始执行覆盖式恢复',
   };
 }
 

@@ -601,6 +601,7 @@
       - [x] 拆出恢复/回滚写入计划和演员记录清洗模型：`dashboard/webdavRestore/restoreApplyPlanModel.ts`
       - [x] 拆出恢复弹窗重置与分析加载 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
       - [x] 拆出云端预览加载与进入预览 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
+      - [x] 拆出分析完成后进入预览 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
       - [x] 清理废弃专家差异分析残留和空实现
       - [x] 为上述拆分点补充单元测试
       - [ ] 继续拆分恢复模式、冲突处理和执行结果 UI

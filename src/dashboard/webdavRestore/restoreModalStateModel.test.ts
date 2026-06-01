@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildAnalysisLoadingEnterState,
   buildAnalysisLoadingLeaveState,
+  buildAnalysisPreviewEnterState,
   buildCloudPreviewEnterState,
   buildCloudPreviewLoadingState,
   buildRestoreModalResetState,
@@ -66,6 +67,39 @@ describe('WebDAV restore modal state model', () => {
         'webdavRestoreBack',
       ],
       confirmButtonHtml: '<i class="fas fa-download"></i> 开始覆盖式恢复',
+      confirmButtonTitle: '开始执行覆盖式恢复',
+    });
+  });
+
+  it('builds state for entering analyzed restore preview', () => {
+    expect(buildAnalysisPreviewEnterState()).toEqual({
+      modalClassNamesToAdd: ['preview-active'],
+      hiddenElementIds: ['webdavRestoreLoading'],
+      shownElementIds: ['webdavDataPreview'],
+      hiddenContentSelector: '#webdavRestoreContent .restore-description',
+      hiddenListSelector: '#webdavRestoreContent .file-list-container',
+      restoreContentElementId: 'webdavRestoreContent',
+      restoreContentStyle: {
+        display: 'block',
+        height: 'auto',
+        minHeight: '400px',
+        overflow: 'visible',
+      },
+      previewElementId: 'webdavDataPreview',
+      previewElementStyle: {
+        display: 'block',
+        visibility: 'visible',
+        opacity: '1',
+        position: 'relative',
+        zIndex: '1000',
+      },
+      hiddenButtonIds: ['webdavRestoreAnalyze'],
+      enabledButtonIds: ['webdavRestoreConfirm'],
+      shownButtonIds: [
+        'webdavRestoreConfirm',
+        'webdavRestoreBack',
+      ],
+      confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
       confirmButtonTitle: '开始执行覆盖式恢复',
     });
   });
