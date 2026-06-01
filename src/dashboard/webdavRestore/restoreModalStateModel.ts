@@ -18,6 +18,25 @@ export interface AnalysisLoadingLeaveState {
   shownElementIds: string[];
 }
 
+export interface CloudPreviewLoadingState {
+  loadingText: string;
+  modalClassNamesToRemove: string[];
+  hiddenElementIds: string[];
+  shownElementIds: string[];
+}
+
+export interface CloudPreviewEnterState {
+  modalClassNamesToAdd: string[];
+  hiddenElementIds: string[];
+  shownElementIds: string[];
+  hiddenContentSelector: string;
+  hiddenListSelector: string;
+  enabledButtonIds: string[];
+  shownButtonIds: string[];
+  confirmButtonHtml: string;
+  confirmButtonTitle: string;
+}
+
 export function buildRestoreModalResetState(): RestoreModalResetState {
   return {
     modalClassNamesToRemove: ['preview-active'],
@@ -45,5 +64,37 @@ export function buildAnalysisLoadingLeaveState(): AnalysisLoadingLeaveState {
   return {
     hiddenElementIds: ['webdavRestoreLoading'],
     shownElementIds: ['webdavRestoreContent'],
+  };
+}
+
+export function buildCloudPreviewLoadingState(): CloudPreviewLoadingState {
+  return {
+    loadingText: '正在读取云端备份统计...',
+    modalClassNamesToRemove: ['preview-active'],
+    hiddenElementIds: [
+      'webdavRestoreError',
+      'webdavRestoreContent',
+    ],
+    shownElementIds: ['webdavRestoreLoading'],
+  };
+}
+
+export function buildCloudPreviewEnterState(): CloudPreviewEnterState {
+  return {
+    modalClassNamesToAdd: ['preview-active'],
+    hiddenElementIds: ['webdavRestoreLoading'],
+    shownElementIds: [
+      'webdavRestoreContent',
+      'webdavDataPreview',
+    ],
+    hiddenContentSelector: '#webdavRestoreContent .restore-description',
+    hiddenListSelector: '#webdavRestoreContent .file-list-container',
+    enabledButtonIds: ['webdavRestoreConfirm'],
+    shownButtonIds: [
+      'webdavRestoreConfirm',
+      'webdavRestoreBack',
+    ],
+    confirmButtonHtml: '<i class="fas fa-download"></i> 开始覆盖式恢复',
+    confirmButtonTitle: '开始执行覆盖式恢复',
   };
 }

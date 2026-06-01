@@ -63,6 +63,8 @@ import {
 import {
     buildAnalysisLoadingEnterState,
     buildAnalysisLoadingLeaveState,
+    buildCloudPreviewEnterState,
+    buildCloudPreviewLoadingState,
     buildRestoreModalResetState,
 } from './webdavRestore/restoreModalStateModel';
 import { buildRestoreModeStatItems } from './webdavRestore/restoreModeStatsModel';
@@ -1187,16 +1189,7 @@ function renderCloudPreviewStats(items: ReturnType<typeof buildCloudPreviewStatI
 async function loadCloudPreview(): Promise<void> {
     if (!selectedFile) return;
 
-    const modal = getRestoreModal();
-    modal?.classList.remove('preview-active');
-
-    // 显示加载
-    const loading = document.getElementById('webdavRestoreLoading');
-    const p = loading?.querySelector('p');
-    if (p) p.textContent = '正在读取云端备份统计...';
-    hideElement('webdavRestoreError');
-    hideElement('webdavRestoreContent');
-    showElement('webdavRestoreLoading');
+    applyCloudPreviewLoadingState();
 
     try {
         const resp = await new Promise<any>((resolve) => {
@@ -1232,35 +1225,16 @@ async function loadCloudPreview(): Promise<void> {
         // 配置可选恢复项
         configureRestoreOptions(currentCloudData);
 
-        // 切换到统计视图
-        hideElement('webdavRestoreLoading');
-        const modal = getRestoreModal();
-        const restoreDescription = modal?.querySelector('#webdavRestoreContent .restore-description');
-        const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container');
-        if (restoreDescription) restoreDescription.classList.add('hidden');
-        if (fileListContainer) fileListContainer.classList.add('hidden');
-        modal?.classList.add('preview-active');
-        showElement('webdavRestoreContent');
-        showElement('webdavDataPreview');
+        applyCloudPreviewEnterState();
 
         // 强制清理“影响预览”残留 UI（旧模板可能仍包含该块）
+        const modal = getRestoreModal();
         try {
             const impactSummary2 = (modal || document).querySelector('#impactSummary') as HTMLElement | null;
             if (impactSummary2) impactSummary2.remove();
             const impactPreview2 = (modal || document).querySelector('.impact-preview') as HTMLElement | null;
             if (impactPreview2) impactPreview2.remove();
         } catch {}
-
-        // 启用操作按钮
-        const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
-        const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.classList.remove('hidden');
-            confirmBtn.innerHTML = '<i class=\"fas fa-download\"></i> 开始覆盖式恢复';
-            confirmBtn.title = '开始执行覆盖式恢复';
-        }
-        if (backBtn) backBtn.classList.remove('hidden');
 
         // 同步绑定中部动作按钮
         const quickRestoreBtn = mq<HTMLElement>('#quickRestoreBtn');
@@ -1273,6 +1247,46 @@ async function loadCloudPreview(): Promise<void> {
         const msgEl = document.getElementById('webdavRestoreErrorMessage');
         if (msgEl) msgEl.textContent = e?.message || '预览失败';
         logAsync('ERROR', '读取云端备份统计失败', { error: e?.message });
+    }
+}
+
+function applyCloudPreviewLoadingState(): void {
+    const state = buildCloudPreviewLoadingState();
+    const modal = getRestoreModal();
+    state.modalClassNamesToRemove.forEach(className => modal?.classList.remove(className));
+
+    const loading = document.getElementById('webdavRestoreLoading');
+    const loadingText = loading?.querySelector('p');
+    if (loadingText) loadingText.textContent = state.loadingText;
+
+    state.hiddenElementIds.forEach(hideElement);
+    state.shownElementIds.forEach(showElement);
+}
+
+function applyCloudPreviewEnterState(): void {
+    const state = buildCloudPreviewEnterState();
+    const modal = getRestoreModal();
+
+    state.hiddenElementIds.forEach(hideElement);
+    state.shownElementIds.forEach(showElement);
+
+    const restoreDescription = modal?.querySelector(state.hiddenContentSelector);
+    const fileListContainer = modal?.querySelector(state.hiddenListSelector);
+    if (restoreDescription) restoreDescription.classList.add('hidden');
+    if (fileListContainer) fileListContainer.classList.add('hidden');
+    state.modalClassNamesToAdd.forEach(className => modal?.classList.add(className));
+
+    state.enabledButtonIds.forEach(id => {
+        const button = mq<HTMLButtonElement>('#' + id);
+        if (button) button.disabled = false;
+    });
+
+    state.shownButtonIds.forEach(id => mq<HTMLElement>('#' + id)?.classList.remove('hidden'));
+
+    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+    if (confirmBtn) {
+        confirmBtn.innerHTML = state.confirmButtonHtml;
+        confirmBtn.title = state.confirmButtonTitle;
     }
 }
 
