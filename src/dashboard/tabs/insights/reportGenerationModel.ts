@@ -1,7 +1,7 @@
 import { buildInsightsVisualFields } from '../../../features/insights/visualFields';
 import type { ReportStats, TagStat } from '../../../types/insights';
 import type { InsightsAggregationMode } from './reportAggregationRuntime';
-import { buildChineseMonthLabel } from './reportPeriodModel';
+import { buildChineseMonthLabel, buildChineseMonthLabelFromDateText } from './reportPeriodModel';
 
 const DISCLAIMER_HTML = '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。';
 
@@ -121,7 +121,8 @@ export function buildReportGenerationFields(input: BuildReportGenerationFieldsIn
   ].map((item) => `<li>${item}</li>`).join('');
   const topList = getTopList(input.stats);
   const totalAll = getTotalAll(input.stats, topList);
-  const monthLabel = buildChineseMonthLabel(input.startDate, input.endDate);
+  const monthLabel = buildChineseMonthLabelFromDateText(input.startText, input.endText)
+    || buildChineseMonthLabel(input.startDate, input.endDate);
 
   return {
     reportTitle: `我的${monthLabel}观影标签报告`,
