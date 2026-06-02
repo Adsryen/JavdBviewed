@@ -145,7 +145,8 @@ export class NewApiClient {
                     headers,
                     body: JSON.stringify({
                         ...request,
-                        stream: false
+                        stream: false,
+                        enable_thinking: false
                     }),
                     signal: controller.signal
                 });
