@@ -576,7 +576,78 @@
     - [ ] 旧 `utils/*` 路径逐步收缩为兼容导出
   - [ ] Dashboard 大页拆分计划
     - [ ] 拆分 `dashboard/tabs/records.ts`
-    - [ ] 拆分 `dashboard/webdavRestore.ts`
+      - [x] 第一批：抽出搜索 token 解析、筛选 token 移除、高级条件判断和搜索结果计数模型
+        - [x] 新增 `dashboard/tabs/records/searchQueryModel.ts`
+        - [x] 新增 `dashboard/tabs/records/advancedConditionModel.ts`
+        - [x] 新增 `dashboard/tabs/records/searchResultSummaryModel.ts`
+        - [x] 补充 11 个单元测试覆盖搜索语法、高级条件和结果计数
+      - [x] 第二批：抽出标签/清单/系列/番号筛选器 DOM controller
+        - [x] 抽出通用 `dashboard/tabs/records/multiSelectFilterController.ts`
+        - [x] 标签筛选器改用 controller 管理收集、渲染、已选显示、输入文案
+        - [x] 清单筛选器改用 controller 管理清单元数据、来源 badge、已选显示、删除联动
+        - [x] 系列/番号筛选器改用 controller 管理匹配、已选显示、搜索 token 删除联动
+        - [x] 补充 DOM 测试覆盖打开、选择、过滤、删除和 token 回调
+      - [ ] 第三批：抽出分页、批量操作和记录行/card 渲染 controller
+        - [x] 拆出分页模型：总页数、页码窗口、上一页/下一页状态
+        - [x] 拆出记录行/card 展示模型：评分、标签、清单、时间、基础 HTML
+        - [x] 拆出记录行/card DOM controller：封面懒加载、tooltip、操作按钮和事件绑定
+          - [x] 抽出图片 tooltip controller：加载态、失败态、边缘避让定位、mousemove 清理
+          - [x] 抽出封面 DOM controller：封面节点创建、fallback、懒加载 observer 注册
+          - [x] 抽出操作按钮 controller：收藏、编辑、刷新、删除、添加到清单
+          - [x] 抽出搜索图标 controller：外部搜索入口、无效配置跳过、图标 fallback
+          - [x] 抽出记录项 DOM controller：列表/卡片布局、行选择、标签/清单筛选点击、封面观察注册
+          - [x] 抽出单条记录动作 controller：收藏、编辑、刷新、删除确认和本地记录更新
+          - [x] 抽出编辑弹窗 controller：表单/JSON 双向同步、半星评分、字段锁、保存回调
+          - [x] 抽出清单浮层 controller：单条添加、批量修改清单入口
+        - [x] 补充记录项 DOM 测试覆盖列表/卡片布局、行选择、标签/清单点击和封面懒加载
+        - [x] 补充编辑弹窗 DOM 测试覆盖必填校验、保存回调、关闭和字段锁同步
+        - [x] 拆出批量操作 controller：批量刷新/删除/加标签
+          - [x] 抽出批量选择 controller：选择状态、全选、当前页三态
+          - [x] 抽出批量添加标签 controller：弹窗、输入解析、空值提示
+          - [x] 抽出批量刷新/删除 controller：确认弹窗、刷新进度、删除回调
+          - [x] 抽出共享进度弹窗 controller：批量刷新和导出复用
+        - [x] 抽出导出 controller：格式选择弹窗、JSON/CSV 生成、文件下载
+        - [ ] 保持 `records.ts` 只负责查询、组合 controller 和调度 render
+          - [x] 继续拆出单条收藏/刷新/删除业务动作，减少 render 回调体积
+          - [x] 抽出搜索建议 controller：tag/list/series/label token 提示、键盘选择、点击应用
+          - [x] 抽出高级条件 UI controller：条件行创建、UI 解析、删除条件、快捷时间预览和新增
+          - [x] 抽出统计卡片 controller：统计渲染、服务端统计映射、卡片筛选、高级条件联动
+          - [x] 抽出封面运行时 controller：tooltip 容器、封面懒加载 observer、失败 fallback
+          - [x] 抽出清单元数据 controller：清单/系列/番号 map 填充、并发加载去重、加载后刷新触发
+          - [x] 抽出筛选下拉遮罩 controller：backdrop 创建、定位、关闭和显示同步
+          - [x] 抽出批量标签 service：标签去重、锁定字段、DB 保存、成功失败计数
+          - [x] 抽出查询参数模型：排序解析、复杂查询判定、list 名称解析、导出/分页查询参数构建
+          - [x] 抽出本地筛选模型：文本/状态/标签/清单/系列/番号/收藏/高级条件过滤和排序
+          - [x] 抽出列表渲染器：空态、分页切片、封面 observer、逐条记录渲染错误隔离
+          - [x] 抽出清单浮层 runtime：lazy controller、关闭、单条/批量清单变更执行和本地同步
+          - [x] 抽出分页 DOM controller：分页按钮渲染、active/disabled 状态和翻页回调
+          - [x] 抽出顶部工具栏 controller：封面开关、列表/卡片切换、收藏筛选和设置持久化
+          - [x] 抽出搜索 token 选择同步模型：标签、清单、系列、番号 token 与手动筛选合并
+          - [x] 抽出批量工具条 controller：全选、操作下拉、刷新/删除/清单/加标签入口绑定
+          - [x] 抽出搜索结果计数 controller：条件摘要、结果数量和查询耗时显示
+          - [x] 抽出导出数据 provider 与服务端分页 provider：查询分支、进度弹窗、导出输入构建
+          - [x] 抽出本地筛选 updater：搜索 token 同步、筛选器刷新、本地过滤和异常兜底
+          - [x] 抽出筛选器装配工厂：标签、清单、系列、番号四组 controller 配置与 token 删除联动
+          - [x] 抽出渲染协调器：本地/服务端分支、加载态和统计刷新调度
+          - [x] 抽出页面生命周期 controller：事件绑定顺序、闭包状态更新、分页设置持久化和初始化调度
+          - [x] 抽出高级搜索折叠委托绑定：全局 click 捕获、防重复绑定和面板显示切换
+          - [x] 抽出页面元素收集模块：DOM 查询集中管理、未标记状态选项兜底和初始化依赖整理
+          - [x] 抽出列表视图 controller：列表渲染参数装配、记录项创建依赖、标签/清单筛选切换和操作回调透传
+          - [x] 抽出分页 runtime：总数来源选择、页码边界校验和翻页重渲染调度
+          - [x] 抽出导出 runtime：本地/服务端导出数据来源、查询状态透传和导出按钮处理委托
+          - [x] 抽出批量加标签 runtime：可见/存储记录读取、成功失败提示和重渲染调度
+          - [x] 抽出查询 runtime：IDB 使用判断、排序解析、服务端分页加载状态和失败提示
+          - [x] 抽出状态刷新 controller：页码重置、筛选刷新、渲染和批量 UI 更新顺序
+          - [x] 抽出编辑保存 service：重复 ID 校验、改 ID 删除旧记录、内存记录替换和提示结果
+          - [x] 抽出本地筛选 runtime：页面输入、token 状态写回、筛选器刷新和异常兜底装配
+          - [x] 修正 token-backed 筛选器读取：支持动态 token Set getter，避免搜索 token 更新后删除判断读旧引用
+          - [x] 抽出单条记录动作 runtime：编辑弹窗、编辑保存 service 和 item actions controller 统一装配
+          - [x] 抽出批量操作 runtime：清单浮层、批量加标签、批量刷新/删除和批量工具条统一装配
+          - [x] 抽出筛选 runtime：四组筛选器、下拉遮罩、本地筛选和 token Set 写回统一装配
+          - [x] 抽出列表视图 runtime：列表渲染、分页和导出运行时统一装配
+          - [x] 抽出生命周期 runtime：页面元素到生命周期 controller 的入参组装和事件绑定入口收口
+      - [ ] 第四批：收口 `records.ts` 为页面装配层
+    - [x] 拆分 `dashboard/webdavRestore.ts`
       - [x] 拆出旧备份格式识别与迁移：`features/webdavSync/application/backupMigration.ts`
       - [x] 拆出恢复文件列表展示模型：`dashboard/webdavRestore/fileListModel.ts`
       - [x] 拆出恢复内容选项配置模型：`dashboard/webdavRestore/restoreOptionsModel.ts`
@@ -623,7 +694,7 @@
       - [x] 拆出恢复结果页回退和完成按钮 UI 状态模型：`dashboard/webdavRestore/restoreResultsModel.ts`
       - [x] 清理废弃专家差异分析残留和空实现
       - [x] 为上述拆分点补充单元测试
-      - [ ] 收尾压缩 `dashboard/webdavRestore.ts` 的兼容薄转发与装配顺序
+      - [x] 收尾压缩 `dashboard/webdavRestore.ts` 的兼容薄转发与装配顺序
     - [ ] 拆分 `dashboard/tabs/insights.ts`
     - [ ] 拆分 `dashboard/tabs/actors.ts`
     - [ ] 拆分 `dashboard/tabs/newWorks.ts`

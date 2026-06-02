@@ -1,0 +1,99 @@
+import type { VideoRecord } from '../../../types';
+import type { RecordsAdvancedCondition } from './advancedConditionModel';
+import {
+  updateRecordsLocalFilterState,
+  type UpdateRecordsLocalFilterStateResult,
+} from './localFilterUpdater';
+
+type UpdateLocalFilterState = typeof updateRecordsLocalFilterState;
+
+export interface CreateRecordsLocalFilterRuntimeOptions {
+  searchInput: HTMLInputElement;
+  filterSelect: HTMLSelectElement;
+  sortSelect: HTMLSelectElement;
+  getRecords: () => VideoRecord[];
+  selectedTags: Set<string>;
+  selectedListIds: Set<string>;
+  selectedSeriesIds: Set<string>;
+  selectedLabelIds: Set<string>;
+  getTokenSelectedTags: () => Set<string>;
+  setTokenSelectedTags: (value: Set<string>) => void;
+  getTokenSelectedListIds: () => Set<string>;
+  setTokenSelectedListIds: (value: Set<string>) => void;
+  getTokenSelectedSeriesIds: () => Set<string>;
+  setTokenSelectedSeriesIds: (value: Set<string>) => void;
+  getTokenSelectedLabelIds: () => Set<string>;
+  setTokenSelectedLabelIds: (value: Set<string>) => void;
+  listNameById: Map<string, string>;
+  seriesIdToRecord: Map<string, any>;
+  labelIdToRecord: Map<string, any>;
+  getAdvancedConditions: () => RecordsAdvancedCondition[];
+  isFavoritesFilterActive: () => boolean;
+  refreshTags: () => void;
+  refreshLists: () => void;
+  refreshSeries: () => void;
+  refreshLabels: () => void;
+  setFilteredRecords: (records: VideoRecord[]) => void;
+  logError?: (message: string, error: unknown) => void;
+  updateLocalFilterState?: UpdateLocalFilterState;
+}
+
+export interface RecordsLocalFilterRuntime {
+  updateFilteredRecords: () => void;
+}
+
+export function createRecordsLocalFilterRuntime(
+  options: CreateRecordsLocalFilterRuntimeOptions,
+): RecordsLocalFilterRuntime {
+  const updateLocalFilterState = options.updateLocalFilterState || updateRecordsLocalFilterState;
+  const logError = options.logError || ((message: string, error: unknown) => {
+    console.error(message, error);
+  });
+
+  const applyResult = (result: UpdateRecordsLocalFilterStateResult): void => {
+    options.setFilteredRecords(result.filteredRecords);
+    options.setTokenSelectedTags(result.tokenSelectedTags);
+    options.setTokenSelectedListIds(result.tokenSelectedListIds);
+    options.setTokenSelectedSeriesIds(result.tokenSelectedSeriesIds);
+    options.setTokenSelectedLabelIds(result.tokenSelectedLabelIds);
+  };
+
+  const updateFilteredRecords = (): void => {
+    try {
+      const records = options.getRecords();
+      const result = updateLocalFilterState({
+        searchText: options.searchInput.value,
+        filterValue: options.filterSelect.value as VideoRecord['status'] | 'all',
+        sortValue: options.sortSelect.value,
+        records: Array.isArray(records) ? records : [],
+        selectedTags: options.selectedTags,
+        tokenSelectedTags: options.getTokenSelectedTags(),
+        selectedListIds: options.selectedListIds,
+        tokenSelectedListIds: options.getTokenSelectedListIds(),
+        selectedSeriesIds: options.selectedSeriesIds,
+        tokenSelectedSeriesIds: options.getTokenSelectedSeriesIds(),
+        selectedLabelIds: options.selectedLabelIds,
+        tokenSelectedLabelIds: options.getTokenSelectedLabelIds(),
+        listNameById: options.listNameById,
+        seriesIdToRecord: options.seriesIdToRecord,
+        labelIdToRecord: options.labelIdToRecord,
+        advancedConditions: options.getAdvancedConditions(),
+        favoritesFilterActive: options.isFavoritesFilterActive(),
+        refreshTags: options.refreshTags,
+        refreshLists: options.refreshLists,
+        refreshSeries: options.refreshSeries,
+        refreshLabels: options.refreshLabels,
+        onError: (error) => {
+          logError('[Records] 更新过滤记录时出错:', error);
+        },
+      });
+
+      applyResult(result);
+    } catch (error) {
+      logError('[Records] 更新过滤记录时出错:', error);
+      options.setFilteredRecords([]);
+    }
+  };
+
+  return { updateFilteredRecords };
+}

@@ -3,16 +3,33 @@ import { VIDEO_STATUS, STORAGE_KEYS } from '../../utils/config';
 import type { VideoRecord, VideoStatus } from '../../types';
 import { showMessage } from '../ui/toast';
 import { showConfirmationModal } from '../ui/modal';
-import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
+import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut } from '../dbClient';
 import { dbListsGetAllNormalized, dbViewedPatchList, dbViewedBulkPatchList } from '../dbClient';
-import type { ListRecord } from '../../types';
 import {
-    getCollectionExternalId,
-    isVideoListRecord,
-    matchesLabelRecord,
-    matchesSeriesRecord,
-} from '../../shared/utils/listRecordHelpers';
-import { buildSearchEngineUrl, getSearchEnginesForVideo, resolveSearchEngineIcon } from '../../features/externalSearch/domain/searchEngines';
+    parseRecordsSearchTokens,
+} from './records/searchQueryModel';
+import { createRecordsCoverRuntimeController } from './records/coverRuntimeController';
+import { createRecordsAdvancedConditionsController } from './records/advancedConditionsController';
+import { createRecordsViewToolbarController } from './records/viewToolbarController';
+import { createRecordsBatchSelectionController } from './records/batchSelectionController';
+import { createRecordsExportController } from './records/exportController';
+import { createRecordsSearchSuggestController } from './records/searchSuggestController';
+import { createRecordsStatsController } from './records/statsController';
+import { createRecordsListMetaController } from './records/listMetaController';
+import { createRecordsSearchResultCountController } from './records/searchResultCountController';
+import { createRecordsRenderCoordinator } from './records/renderCoordinator';
+import { bindAdvancedSearchToggleDelegation } from './records/advancedSearchToggleBinding';
+import { collectRecordsPageElements, ensureUntrackedStatusOption } from './records/pageElements';
+import { refreshRecordsSingleRecord } from './records/refreshRecordService';
+import { hideRecordsProgressModal, showRecordsProgressModal } from './records/progressModalController';
+import { createRecordsQueryRuntime, type RecordsQueryRuntime } from './records/queryRuntime';
+import { createRecordsStateRefreshController, type RecordsStateRefreshController } from './records/stateRefreshController';
+import { createRecordsItemActionsRuntime } from './records/itemActionsRuntime';
+import { createRecordsBatchOperationsRuntime, type RecordsBatchOperationsRuntime } from './records/batchOperationsRuntime';
+import { createRecordsFilterRuntime, type RecordsFilterRuntime } from './records/filterRuntime';
+import { createRecordsViewRuntime, type RecordsViewRuntime } from './records/viewRuntime';
+import { createRecordsLifecycleRuntime } from './records/lifecycleRuntime';
+import { type RecordsAdvancedCondition as AdvCondition } from './records/advancedConditionModel';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）
 let RECORDS_TAB_INITIALIZED = false;
@@ -23,104 +40,51 @@ export function initRecordsTab(): void {
         return;
     }
     RECORDS_TAB_INITIALIZED = true;
-    const searchInput = document.getElementById('searchInput') as HTMLInputElement;
-    const filterSelect = document.getElementById('filterSelect') as HTMLSelectElement;
-    const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
-    const videoList = document.getElementById('videoList') as HTMLUListElement;
-    const paginationContainer = document.querySelector('.pagination-controls .pagination') as HTMLElement;
-    const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
-    const searchResultCount = document.getElementById('searchResultCount') as HTMLDivElement;
+    const pageElements = collectRecordsPageElements();
+    const {
+        searchInput,
+        filterSelect,
+        sortSelect,
+        videoList,
+        paginationContainer,
+        recordsPerPageSelect,
+        searchResultCount,
+    } = pageElements.required;
+    ensureUntrackedStatusOption(filterSelect, {
+        untracked: VIDEO_STATUS.UNTRACKED,
+        viewed: VIDEO_STATUS.VIEWED,
+    });
 
-    // 兜底：有些旧版本 HTML/缓存可能缺少“未标记”选项，这里确保一定存在
-    try {
-        if (filterSelect && !Array.from(filterSelect.options || []).some(opt => opt.value === VIDEO_STATUS.UNTRACKED)) {
-            const opt = document.createElement('option');
-            opt.value = VIDEO_STATUS.UNTRACKED;
-            opt.textContent = '未标记';
-            const viewedOpt = Array.from(filterSelect.options || []).find(o => o.value === VIDEO_STATUS.VIEWED);
-            if (viewedOpt) {
-                filterSelect.insertBefore(opt, viewedOpt);
-            } else {
-                filterSelect.appendChild(opt);
-            }
-        }
-    } catch {}
-
-    // Tags filter elements
-    const tagsFilterInput = document.getElementById('tagsFilterInput') as HTMLInputElement;
-    const tagsFilterDropdown = document.getElementById('tagsFilterDropdown') as HTMLElement;
-    const tagsSearchInput = document.getElementById('tagsSearchInput') as HTMLInputElement;
-    const tagsFilterList = document.getElementById('tagsFilterList') as HTMLElement;
-    const selectedTagsContainer = document.getElementById('selectedTagsContainer') as HTMLElement;
-
-    const listsFilterInput = document.getElementById('listsFilterInput') as HTMLInputElement;
-    const listsFilterDropdown = document.getElementById('listsFilterDropdown') as HTMLElement;
-    const listsSearchInput = document.getElementById('listsSearchInput') as HTMLInputElement;
-    const listsFilterList = document.getElementById('listsFilterList') as HTMLElement;
-    const selectedListsContainer = document.getElementById('selectedListsContainer') as HTMLElement;
-
-    const seriesFilterInput = document.getElementById('seriesFilterInput') as HTMLInputElement;
-    const seriesFilterDropdown = document.getElementById('seriesFilterDropdown') as HTMLElement;
-    const seriesSearchInput = document.getElementById('seriesSearchInput') as HTMLInputElement;
-    const seriesFilterList = document.getElementById('seriesFilterList') as HTMLElement;
-    const selectedSeriesContainer = document.getElementById('selectedSeriesContainer') as HTMLElement;
-
-    const labelsFilterInput = document.getElementById('labelsFilterInput') as HTMLInputElement;
-    const labelsFilterDropdown = document.getElementById('labelsFilterDropdown') as HTMLElement;
-    const labelsSearchInput = document.getElementById('labelsSearchInput') as HTMLInputElement;
-    const labelsFilterList = document.getElementById('labelsFilterList') as HTMLElement;
-    const selectedLabelsContainer = document.getElementById('selectedLabelsContainer') as HTMLElement;
-
-    // Advanced search elements
-    const advAddBtn = document.getElementById('addConditionBtn') as HTMLButtonElement;
-    const advApplyBtn = document.getElementById('applyConditionsBtn') as HTMLButtonElement;
-    const advResetBtn = document.getElementById('resetConditionsBtn') as HTMLButtonElement;
-    const advConditionsEl = document.getElementById('advConditions') as HTMLDivElement;
-    const quickTimeField = document.getElementById('quickTimeField') as HTMLSelectElement;
-    const quickTimeValue = document.getElementById('quickTimeValue') as HTMLInputElement;
-    const quickTimeUnit = document.getElementById('quickTimeUnit') as HTMLSelectElement;
-    const addQuickTimeBtn = document.getElementById('addQuickTimeBtn') as HTMLButtonElement;
-
-    // 搜索自动补全集合与面板
-    const searchSuggest = document.getElementById('searchSuggest') as HTMLDivElement;
-    let suggestItems: string[] = [];
-    let suggestVisible = false;
-    let suggestActiveIndex = -1;
-
-    // 批量操作相关元素
-    const batchOperations = document.getElementById('batchOperations') as HTMLDivElement;
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox') as HTMLInputElement;
-    const selectedCount = document.getElementById('selectedCount') as HTMLSpanElement;
-    const batchActionsBtn = document.getElementById('batchActionsBtn') as HTMLButtonElement;
-    const batchActionsDropdown = document.getElementById('batchActionsDropdown') as HTMLDivElement;
-    const batchModifyListBtn = document.getElementById('batchModifyListBtn') as HTMLButtonElement;
-    const batchAddTagBtn = document.getElementById('batchAddTagBtn') as HTMLButtonElement;
-    const batchRefreshBtn = document.getElementById('batchRefreshBtn') as HTMLButtonElement;
-    const batchDeleteBtn = document.getElementById('batchDeleteBtn') as HTMLButtonElement;
-    const cancelBatchBtn = document.getElementById('cancelBatchBtn') as HTMLButtonElement;
-
-    const toggleCoversBtn = document.getElementById('toggleCoversBtn') as HTMLButtonElement;
-
-    // 视图模式切换按钮（单按钮循环切换）
-    const toggleViewModeBtn = document.getElementById('toggleViewModeBtn') as HTMLButtonElement;
+    const {
+        advConditionsEl,
+        quickTimeField,
+        quickTimeValue,
+        quickTimeUnit,
+    } = pageElements.advanced;
+    const searchSuggest = pageElements.searchSuggest;
+    const {
+        batchOperations,
+        selectAllCheckbox,
+        selectedCount,
+        batchActionsBtn,
+        batchActionsDropdown,
+        batchModifyListBtn,
+        batchAddTagBtn,
+        batchRefreshBtn,
+        batchDeleteBtn,
+        cancelBatchBtn,
+    } = pageElements.batch;
+    const {
+        toggleCoversBtn,
+        toggleViewModeBtn,
+        myFavoritesBtn,
+    } = pageElements.toolbar;
     let currentViewMode: 'list' | 'card' = STATE.settings.recordsViewMode || 'list'; // 从设置中读取，默认列表视图
+    let favoritesFilterActive = false;
 
-    let imageTooltipElement: HTMLDivElement | null = null;
-    let coverObserver: IntersectionObserver | null = null;
-
-    function ensureImageTooltipElement(): void {
-        if (!imageTooltipElement) {
-            const existing = document.querySelector('.image-tooltip') as HTMLDivElement | null;
-            if (existing) {
-                imageTooltipElement = existing;
-            } else {
-                const el = document.createElement('div');
-                el.className = 'image-tooltip';
-                document.body.appendChild(el);
-                imageTooltipElement = el;
-            }
-        }
-    }
+    const coverRuntimeController = createRecordsCoverRuntimeController({
+        fallbackUrl: chrome.runtime.getURL('assets/alternate-search.png'),
+    });
 
     // 选择状态
     let selectedRecords = new Set<string>();
@@ -140,54 +104,29 @@ export function initRecordsTab(): void {
     let selectedLabelIds = new Set<string>();
     let tokenSelectedLabelIds = new Set<string>();
 
-    let listMetaLoaded = false;
-    let listMetaLoading = false;
-    const listIdToName = new Map<string, string>();
-    const listIdToSource = new Map<string, string>(); // 存储清单来源
-    const seriesIdToName = new Map<string, string>();
-    const labelIdToName = new Map<string, string>();
-    const seriesIdToRecord = new Map<string, ListRecord>();
-    const labelIdToRecord = new Map<string, ListRecord>();
+    const listMetaController = createRecordsListMetaController({
+        loadLists: dbListsGetAllNormalized,
+        shouldRenderAfterLoad: () => {
+            try {
+                const hasAnyLists = (Array.isArray(STATE.records) ? STATE.records : [])
+                    .some((record: any) => Array.isArray(record?.listIds) && record.listIds.length > 0);
+                return hasAnyLists || selectedSeriesIds.size > 0 || selectedLabelIds.size > 0;
+            } catch {
+                return false;
+            }
+        },
+        onAfterLoaded: () => render(),
+    });
+    const {
+        listIdToName,
+        listIdToSource,
+        seriesIdToName,
+        labelIdToName,
+        seriesIdToRecord,
+        labelIdToRecord,
+    } = listMetaController.maps;
     const ensureListMetaLoaded = () => {
-        if (listMetaLoaded || listMetaLoading) return;
-
-        listMetaLoading = true;
-        dbListsGetAllNormalized()
-            .then((lists) => {
-                listIdToName.clear();
-                listIdToSource.clear();
-                seriesIdToName.clear();
-                labelIdToName.clear();
-                seriesIdToRecord.clear();
-                labelIdToRecord.clear();
-                (lists || []).forEach((l: any) => {
-                    if (l && l.id) {
-                        if (l.type === 'series') {
-                            const externalId = getCollectionExternalId(l);
-                            seriesIdToName.set(externalId, String(l.name || externalId));
-                            seriesIdToRecord.set(externalId, l as ListRecord);
-                        } else if (l.type === 'label') {
-                            const externalId = getCollectionExternalId(l);
-                            labelIdToName.set(externalId, String(l.name || externalId));
-                            labelIdToRecord.set(externalId, l as ListRecord);
-                        } else if (isVideoListRecord(l)) {
-                            listIdToName.set(String(l.id), String(l.name || l.id));
-                            listIdToSource.set(String(l.id), String(l.source || 'javdb'));
-                        }
-                    }
-                });
-                listMetaLoaded = true;
-            })
-            .catch(() => {
-                listMetaLoaded = true;
-            })
-            .finally(() => {
-                listMetaLoading = false;
-                try {
-                    const hasAnyLists = (Array.isArray(STATE.records) ? STATE.records : []).some((r: any) => Array.isArray(r?.listIds) && r.listIds.length > 0);
-                    if (hasAnyLists || selectedSeriesIds.size > 0 || selectedLabelIds.size > 0) render();
-                } catch {}
-            });
+        void listMetaController.ensureLoaded();
     };
 
     const escapeHtml = (s: string) => String(s)
@@ -206,645 +145,25 @@ export function initRecordsTab(): void {
             t = window.setTimeout(() => fn(...args), wait);
         };
     }
-    type SuggestContext =
-        | { type: 'hash'; q: string; tokenStart: number; tokenEnd: number; prefix: string; subStartInToken: number }
-        | { type: 'tag'; q: string; tokenStart: number; tokenEnd: number; prefix: string; subStartInToken: number }
-        | { type: null };
     function ensureAllTagsCollected() {
         try { if (allTagsStale) { collectAllTags(); allTagsStale = false; } } catch {}
     }
 
-    function computeSuggestContext(): SuggestContext {
-        const val = searchInput.value;
-        const caret = searchInput.selectionStart ?? val.length;
-        // 当前 token 边界（以空格分隔）
-        const tokenStart = (() => {
-            const idx = val.lastIndexOf(' ', Math.max(0, caret - 1));
-            return idx === -1 ? 0 : idx + 1;
-        })();
-        const tokenEnd = caret;
-        const token = val.slice(tokenStart, tokenEnd);
-        // # 前缀
-        if (token.startsWith('#')) {
-            const q = token.slice(1).trim();
-            return { type: 'hash', q, tokenStart, tokenEnd, prefix: '#', subStartInToken: 1 };
-        }
-        // tag:/tags: 前缀
-        const m = token.match(/^tags?:/i);
-        if (m) {
-            const prefix = m[0];
-            const content = token.slice(prefix.length);
-            // 支持多值：用 [，,;；] 分隔，取最后一段作为当前子查询
-            let lastSep = -1;
-            ['，', ',', ';', '；'].forEach(sep => {
-                const i = content.lastIndexOf(sep);
-                if (i > lastSep) lastSep = i;
-            });
-            const sub = content.slice(lastSep + 1);
-            const subStartInToken = prefix.length + (lastSep + 1);
-            const q = sub.trim();
-            return { type: 'tag', q, tokenStart, tokenEnd, prefix, subStartInToken };
-        }
-        return { type: null };
-    }
-
-    function renderSuggest() {
-        if (!searchSuggest) return;
-        if (!suggestVisible || suggestItems.length === 0) {
-            searchSuggest.style.display = 'none';
-            searchSuggest.innerHTML = '';
-            return;
-        }
-        const html = suggestItems.map((t, idx) => `<div class="suggest-item ${idx === suggestActiveIndex ? 'active' : ''}" data-tag="${t}">${t}</div>`).join('');
-        searchSuggest.innerHTML = html;
-        searchSuggest.style.display = 'block';
-        // 位置与宽度
-        try {
-            const parent = searchInput.parentElement as HTMLElement;
-            const r1 = searchInput.getBoundingClientRect();
-            const r2 = parent.getBoundingClientRect();
-            const left = r1.left - r2.left;
-            const top = r1.bottom - r2.top + 4;
-            (searchSuggest.style as any).position = 'absolute';
-            searchSuggest.style.left = `${left}px`;
-            searchSuggest.style.top = `${top}px`;
-            searchSuggest.style.minWidth = `${searchInput.offsetWidth}px`;
-            searchSuggest.style.zIndex = '20';
-        } catch {}
-    }
-
-    function updateSuggest() {
-        ensureAllTagsCollected();
-        const ctx = computeSuggestContext();
-        if (!ctx.type) {
-            suggestItems = [];
-            suggestVisible = false;
-            renderSuggest();
-            return;
-        }
-        const qLower = (ctx.q || '').toLowerCase();
-        const all = Array.from(allTags);
-        let items = all.filter(t => String(t).toLowerCase().includes(qLower));
-        items.sort((a, b) => a.localeCompare(b));
-        suggestItems = items.slice(0, 10);
-        suggestVisible = suggestItems.length > 0;
-        suggestActiveIndex = suggestVisible ? 0 : -1;
-        renderSuggest();
-    }
-
-    function applySuggestion(tag: string) {
-        const val = searchInput.value;
-        const ctx = computeSuggestContext();
-        if (!ctx.type) return;
-        if (ctx.type === 'hash') {
-            const { tokenStart, tokenEnd } = ctx;
-            const newToken = `#${tag}`;
-            const newVal = val.slice(0, tokenStart) + newToken + val.slice(tokenEnd);
-            searchInput.value = newVal;
-            const pos = tokenStart + newToken.length;
-            searchInput.setSelectionRange(pos, pos);
-        } else if (ctx.type === 'tag') {
-            const { tokenStart, tokenEnd, subStartInToken } = ctx;
-            // tag:/tags:
-            const token = val.slice(tokenStart, tokenEnd);
-            const contentBefore = token.slice(0, subStartInToken);
-            const newToken = `${contentBefore}${tag}`;
-            const newVal = val.slice(0, tokenStart) + newToken + val.slice(tokenEnd);
-            searchInput.value = newVal;
-            const pos = tokenStart + newToken.length;
-            searchInput.setSelectionRange(pos, pos);
-        }
-        suggestVisible = false;
-        renderSuggest();
-        // 触发过滤刷新
-        currentPage = 1; updateFilteredRecords(); render();
-        searchInput.focus();
-    }
-
     // 解析搜索文本中的标签前缀，如：tag:素人  或  #无码
-    function parseSearchTokens(raw: string): { text: string; tags: string[]; listIds: string[]; listNames: string[]; seriesIds: string[]; labelPrefixes: string[] } {
-        const parts = (raw || '').split(/\s+/).filter(Boolean);
-        const tags: string[] = [];
-        const listIds: string[] = [];
-        const listNames: string[] = [];
-        const seriesIds: string[] = [];
-        const labelPrefixes: string[] = [];
-        const remains: string[] = [];
-        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
+    const parseSearchTokens = parseRecordsSearchTokens;
 
-        for (const p of parts) {
-            if (/^#/.test(p)) {
-                const t = p.replace(/^#/, '').trim();
-                if (t) tags.push(...splitMulti(t));
-                continue;
-            }
-            if (/^tags?:/i.test(p)) {
-                const t = p.replace(/^tags?:/i, '').trim();
-                if (t) tags.push(...splitMulti(t));
-                continue;
-            }
-            if (/^listid:/i.test(p)) {
-                const t = p.replace(/^listid:/i, '').trim();
-                if (t) listIds.push(...splitMulti(t));
-                continue;
-            }
-            if (/^list:/i.test(p)) {
-                const t = p.replace(/^list:/i, '').trim();
-                if (t) listNames.push(...splitMulti(t));
-                continue;
-            }
-            if (/^series:/i.test(p)) {
-                const t = p.replace(/^series:/i, '').trim();
-                if (t) seriesIds.push(...splitMulti(t));
-                continue;
-            }
-            if (/^label:/i.test(p)) {
-                const t = p.replace(/^label:/i, '').trim();
-                if (t) labelPrefixes.push(...splitMulti(t).map(s => s.toUpperCase()));
-                continue;
-            }
-            remains.push(p);
-        }
-        return { text: remains.join(' ').trim(), tags, listIds, listNames, seriesIds, labelPrefixes };
-    }
-
-    function removeListIdTokenFromSearchInput(raw: string, listId: string): string {
-        const parts = String(raw || '').split(/\s+/).filter(Boolean);
-        const idLower = String(listId || '').toLowerCase();
-        const out: string[] = [];
-        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
-        for (const p of parts) {
-            if (/^listid:/i.test(p)) {
-                const t = p.replace(/^listid:/i, '').trim();
-                if (!t) continue;
-                const ids = splitMulti(t);
-                const remain = ids.filter(x => String(x).toLowerCase() !== idLower);
-                if (remain.length > 0) out.push(`listid:${remain.join(',')}`);
-                continue;
-            }
-            out.push(p);
-        }
-        return out.join(' ').trim();
-    }
-
-    function removeSeriesTokenFromSearchInput(raw: string, seriesId: string): string {
-        const parts = String(raw || '').split(/\s+/).filter(Boolean);
-        const idLower = String(seriesId || '').toLowerCase();
-        const out: string[] = [];
-        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
-        for (const p of parts) {
-            if (/^series:/i.test(p)) {
-                const t = p.replace(/^series:/i, '').trim();
-                if (!t) continue;
-                const ids = splitMulti(t);
-                const remain = ids.filter(x => String(x).toLowerCase() !== idLower);
-                if (remain.length > 0) out.push(`series:${remain.join(',')}`);
-                continue;
-            }
-            out.push(p);
-        }
-        return out.join(' ').trim();
-    }
-
-    function removeLabelTokenFromSearchInput(raw: string, labelId: string): string {
-        const parts = String(raw || '').split(/\s+/).filter(Boolean);
-        const idUpper = String(labelId || '').toUpperCase();
-        const out: string[] = [];
-        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
-        for (const p of parts) {
-            if (/^label:/i.test(p)) {
-                const t = p.replace(/^label:/i, '').trim();
-                if (!t) continue;
-                const ids = splitMulti(t);
-                const remain = ids.filter(x => String(x).toUpperCase() !== idUpper);
-                if (remain.length > 0) out.push(`label:${remain.join(',')}`);
-                continue;
-            }
-            out.push(p);
-        }
-        return out.join(' ').trim();
-    }
-
-    // 更新“显示封面”按钮文案
-    function updateToggleCoversBtnUI(): void {
-        if (!toggleCoversBtn) return;
-        const enabled = !!STATE.settings.showCoversInRecords;
-        toggleCoversBtn.innerHTML = enabled
-            ? '<i class="fas fa-image"></i> 隐藏封面'
-            : '<i class="fas fa-image"></i> 显示封面';
-        try { toggleCoversBtn.classList.toggle('toggle-on', enabled); toggleCoversBtn.classList.toggle('toggle-off', !enabled); toggleCoversBtn.title = enabled ? '隐藏封面' : '显示封面'; } catch {}
-    }
-
-    // 更新视图模式按钮状态
-    function updateViewModeBtnUI(): void {
-        if (!toggleViewModeBtn) return;
-        
-        const icon = toggleViewModeBtn.querySelector('.view-icon') as HTMLElement;
-        const text = toggleViewModeBtn.querySelector('.view-text') as HTMLElement;
-        
-        if (currentViewMode === 'list') {
-            toggleViewModeBtn.classList.remove('card-mode');
-            toggleViewModeBtn.classList.add('list-mode');
-            if (icon) {
-                icon.className = 'fas fa-list view-icon';
-            }
-            if (text) {
-                text.textContent = '列表视图';
-            }
-            toggleViewModeBtn.title = '切换到卡片视图';
-            videoList.classList.remove('card-view');
-        } else {
-            toggleViewModeBtn.classList.remove('list-mode');
-            toggleViewModeBtn.classList.add('card-mode');
-            if (icon) {
-                icon.className = 'fas fa-th-large view-icon';
-            }
-            if (text) {
-                text.textContent = '卡片视图';
-            }
-            toggleViewModeBtn.title = '切换到列表视图';
-            videoList.classList.add('card-view');
-        }
-    }
-
-    // 懒加载：创建/销毁 Observer
-    function setupCoverObserver(): void {
-        if (coverObserver) coverObserver.disconnect();
-        const rootEl = document.querySelector('.video-list-container') as Element | null;
-        coverObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target as HTMLImageElement;
-                    const src = img.getAttribute('data-src');
-                    if (src) {
-                        img.src = src;
-                        img.onload = () => {
-                            img.classList.add('loaded');
-                            (img.parentElement as HTMLElement | null)?.classList.remove('skeleton');
-                            img.removeAttribute('data-src');
-                        };
-                        img.onerror = () => {
-                            const retries = Number(img.getAttribute('data-retries') || '0');
-                            if (retries < 2) {
-                                img.setAttribute('data-retries', String(retries + 1));
-                                // 简单重试：短暂延迟后重新赋值 src
-                                const current = img.getAttribute('data-src') || src;
-                                setTimeout(() => { img.src = current; }, 300);
-                            } else {
-                                img.src = chrome.runtime.getURL('assets/alternate-search.png');
-                                img.classList.add('loaded');
-                                (img.parentElement as HTMLElement | null)?.classList.remove('skeleton');
-                                img.removeAttribute('data-src');
-                            }
-                        };
-                    }
-                    coverObserver?.unobserve(img);
-                }
-            });
-        }, {
-            root: rootEl || null,
-            rootMargin: '150px',
-            threshold: 0.01
-        });
-    }
-
-    function teardownCoverObserver(): void {
-        if (coverObserver) {
-            coverObserver.disconnect();
-            coverObserver = null;
-        }
-    }
-
-    // 立即初始化 Tooltip 容器与按钮状态
-    ensureImageTooltipElement();
-    updateToggleCoversBtnUI();
-    updateViewModeBtnUI();
+    // 立即初始化 Tooltip 容器
+    coverRuntimeController.ensureTooltipElement();
 
     // 高级搜索按钮 - 事件委托兜底（避免早期返回导致监听未绑定）
-    try {
-        const w: any = window as any;
-        if (!w.__recordsAdvToggleDelegated) {
-            document.addEventListener('click', (ev) => {
-                const target = ev.target as HTMLElement | null;
-                const btn = target && (target.closest as any)?.call(target, '#advancedSearchToggle') as HTMLButtonElement | null;
-                if (btn) {
-                    // 阻止默认与冒泡，避免与原监听重复触发导致切换两次
-                    try { ev.preventDefault(); ev.stopPropagation(); } catch {}
-                    const panel = document.getElementById('advancedSearchPanel') as HTMLDivElement | null;
-                    if (panel) {
-                        const show = (panel.style.display === 'none' || !panel.style.display);
-                        panel.style.display = show ? 'block' : 'none';
-                        try { console.info('[AdvancedSearch] toggled', { visible: panel.style.display !== 'none' }); } catch {}
-                    }
-                }
-            }, true);
-            w.__recordsAdvToggleDelegated = true;
-        }
-    } catch {}
+    bindAdvancedSearchToggleDelegation();
 
     // Advanced search state
-    type FieldKey = 'id' | 'title' | 'status' | 'tags' | 'releaseDate' | 'createdAt' | 'updatedAt' | 'javdbUrl' | 'javdbImage';
-    type Comparator =
-        | 'contains' | 'equals' | 'starts_with' | 'ends_with'
-        | 'empty' | 'not_empty'
-        | 'eq' | 'gt' | 'gte' | 'lt' | 'lte'
-        | 'includes' | 'includes_all' | 'includes_any'
-        | 'length_eq' | 'length_gt' | 'length_gte' | 'length_lt';
-    interface AdvCondition { id: string; field: FieldKey; op: Comparator; value?: string }
     let advConditions: AdvCondition[] = [];
 
     // 已移除：高级搜索方案相关逻辑（保存/载入/删除）
 
-    function createAdvConditionRow(condition?: AdvCondition) {
-        const rowId = condition?.id || `cond_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        const row = document.createElement('div');
-        row.className = 'adv-condition-row';
-        row.dataset.id = rowId;
-
-        const fieldSelect = document.createElement('select');
-        fieldSelect.className = 'adv-field';
-        const fieldOptions: { key: FieldKey; label: string }[] = [
-            { key: 'id', label: '番号(id)' },
-            { key: 'title', label: '标题(title)' },
-            { key: 'status', label: '状态(status)' },
-            { key: 'tags', label: '标签(tags)' },
-            { key: 'releaseDate', label: '发行日期(releaseDate)' },
-            { key: 'createdAt', label: '创建时间(createdAt)' },
-            { key: 'updatedAt', label: '更新时间(updatedAt)' },
-            { key: 'javdbUrl', label: 'JavDB链接(javdbUrl)' },
-            { key: 'javdbImage', label: '封面链接(javdbImage)' },
-        ];
-        fieldOptions.forEach(opt => {
-            const o = document.createElement('option');
-            o.value = opt.key;
-            o.textContent = opt.label;
-            fieldSelect.appendChild(o);
-        });
-
-        const opSelect = document.createElement('select');
-        opSelect.className = 'adv-operator';
-
-        const valueInput = document.createElement('input');
-        valueInput.className = 'adv-value';
-        valueInput.type = 'text';
-        valueInput.placeholder = '比较值';
-
-        // 人类可读时间提示
-        const hint = document.createElement('span');
-        hint.className = 'adv-value-hint';
-        const updateHumanHint = () => {
-            try {
-                const field = fieldSelect.value as FieldKey;
-                const op = opSelect.value as Comparator;
-                const raw = valueInput.value.trim();
-                const numeric = Number(raw);
-                const need = (field === 'createdAt' || field === 'updatedAt') && ['eq','gt','gte','lt','lte'].includes(op);
-                if (need && Number.isFinite(numeric) && numeric > 0) {
-                    const d = new Date(numeric);
-                    const pad = (n: number) => String(n).padStart(2,'0');
-                    hint.textContent = `${field} ${op} ${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-                    hint.style.display = '';
-                } else {
-                    hint.textContent = '';
-                    hint.style.display = 'none';
-                }
-            } catch { hint.textContent = ''; hint.style.display = 'none'; }
-        };
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'button-like adv-remove';
-        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-        removeBtn.title = '移除此条件';
-
-        function setOperatorsForField(field: FieldKey) {
-            opSelect.innerHTML = '';
-            const addOps = (ops: { value: Comparator; label: string }[]) => {
-                ops.forEach(op => {
-                    const o = document.createElement('option');
-                    o.value = op.value;
-                    o.textContent = op.label;
-                    opSelect.appendChild(o);
-                });
-            };
-            if (field === 'id' || field === 'title' || field === 'status' || field === 'releaseDate' || field === 'javdbUrl' || field === 'javdbImage') {
-                addOps([
-                    { value: 'contains', label: '包含' },
-                    { value: 'equals', label: '等于' },
-                    { value: 'starts_with', label: '开头是' },
-                    { value: 'ends_with', label: '结尾是' },
-                    { value: 'empty', label: '为空' },
-                    { value: 'not_empty', label: '非空' },
-                ]);
-            } else if (field === 'createdAt' || field === 'updatedAt') {
-                addOps([
-                    { value: 'eq', label: '等于(时间戳/毫秒)' },
-                    { value: 'gt', label: '大于' },
-                    { value: 'gte', label: '大于等于' },
-                    { value: 'lt', label: '小于' },
-                    { value: 'lte', label: '小于等于' },
-                    { value: 'empty', label: '为空' },
-                    { value: 'not_empty', label: '非空' },
-                ]);
-            } else if (field === 'tags') {
-                addOps([
-                    { value: 'includes_all', label: '包含全部标签(子串, AND)' },
-                    { value: 'includes_any', label: '包含任一标签(子串, OR)' },
-                    { value: 'includes', label: '包含某标签(精确)' },
-                    { value: 'length_eq', label: '标签数量 = ' },
-                    { value: 'length_gt', label: '标签数量 > ' },
-                    { value: 'length_gte', label: '标签数量 ≥ ' },
-                    { value: 'length_lt', label: '标签数量 < ' },
-                    { value: 'empty', label: '为空' },
-                    { value: 'not_empty', label: '非空' },
-                ]);
-                valueInput.placeholder = '多个值用 空格/逗号/分号 分隔 (子串匹配, 忽略大小写)';
-            } else {
-                valueInput.placeholder = '比较值';
-            }
-        }
-
-        function updateValueVisibility() {
-            const op = opSelect.value as Comparator;
-            if (op === 'empty' || op === 'not_empty') {
-                valueInput.style.display = 'none';
-            } else {
-                valueInput.style.display = '';
-            }
-        }
-
-        fieldSelect.addEventListener('change', () => {
-            setOperatorsForField(fieldSelect.value as FieldKey);
-            updateValueVisibility();
-            updateHumanHint();
-        });
-        opSelect.addEventListener('change', () => { updateValueVisibility(); updateHumanHint(); });
-        valueInput.addEventListener('input', updateHumanHint);
-        removeBtn.addEventListener('click', () => {
-            const id = row.dataset.id!;
-            advConditions = advConditions.filter(c => c.id !== id);
-            row.remove();
-            currentPage = 1; updateFilteredRecords(); render();
-        });
-
-        // initial values
-        fieldSelect.value = (condition?.field || 'id') as string;
-        setOperatorsForField(fieldSelect.value as FieldKey);
-        if (condition?.op) opSelect.value = condition.op;
-        else if (fieldSelect.value === 'tags') opSelect.value = 'includes_all'; // 默认 AND
-        if (condition?.value !== undefined) valueInput.value = condition.value;
-        updateValueVisibility();
-
-        row.appendChild(fieldSelect);
-        row.appendChild(opSelect);
-        row.appendChild(valueInput);
-        row.appendChild(hint);
-        row.appendChild(removeBtn);
-        advConditionsEl.appendChild(row);
-    }
-
-    function parseAdvConditionsFromUI(): AdvCondition[] {
-        const rows = Array.from(advConditionsEl.querySelectorAll('.adv-condition-row')) as HTMLDivElement[];
-        return rows.map(row => {
-            const id = row.dataset.id || `cond_${Math.random()}`;
-            const field = (row.querySelector('.adv-field') as HTMLSelectElement).value as FieldKey;
-            const op = (row.querySelector('.adv-operator') as HTMLSelectElement).value as Comparator;
-            const valueEl = row.querySelector('.adv-value') as HTMLInputElement;
-            const value = (op === 'empty' || op === 'not_empty') ? undefined : (valueEl?.value ?? '');
-            return { id, field, op, value };
-        });
-    }
-
     // 已移除：rebuildAdvRows（方案功能去除后不再需要）
-
-    function evaluateCondition(record: VideoRecord, cond: AdvCondition): boolean {
-        const getField = (key: FieldKey): any => {
-            switch (key) {
-                case 'id': return record.id ?? '';
-                case 'title': return record.title ?? '';
-                case 'status': return record.status ?? '';
-                case 'tags': return Array.isArray(record.tags) ? record.tags : [];
-                case 'releaseDate': return record.releaseDate ?? '';
-                case 'createdAt': return record.createdAt;
-                case 'updatedAt': return record.updatedAt;
-                case 'javdbUrl': return record.javdbUrl ?? '';
-                case 'javdbImage': return record.javdbImage ?? '';
-            }
-        };
-
-        const v = getField(cond.field);
-        const op = cond.op;
-        const compareVal = cond.value ?? '';
-
-        // helpers
-        const isEmpty = (val: any): boolean => {
-            if (Array.isArray(val)) return val.length === 0;
-            if (val === null || val === undefined) return true;
-            if (typeof val === 'string') return val.trim() === '';
-            return false;
-        };
-
-        if (op === 'empty') return isEmpty(v);
-        if (op === 'not_empty') return !isEmpty(v);
-
-        if (cond.field === 'id' || cond.field === 'title' || cond.field === 'status' || cond.field === 'releaseDate' || cond.field === 'javdbUrl' || cond.field === 'javdbImage') {
-            const sv = String(v).toLowerCase();
-            const cv = String(compareVal).toLowerCase();
-            switch (op) {
-                case 'contains': return sv.includes(cv);
-                case 'equals': return sv === cv;
-                case 'starts_with': return sv.startsWith(cv);
-                case 'ends_with': return sv.endsWith(cv);
-                default: return true;
-            }
-        }
-
-        if (cond.field === 'createdAt' || cond.field === 'updatedAt') {
-            const nv = Number(v);
-            const c = Number(compareVal);
-            if (Number.isNaN(nv)) return false;
-            switch (op) {
-                case 'eq': return nv === c;
-                case 'gt': return nv > c;
-                case 'gte': return nv >= c;
-                case 'lt': return nv < c;
-                case 'lte': return nv <= c;
-                default: return true;
-            }
-        }
-
-        if (cond.field === 'tags') {
-            const arr: string[] = Array.isArray(v) ? v : [];
-            const arrLower = arr.map(s => String(s).toLowerCase());
-            const tokens = String(compareVal || '').split(/[，,;；\s]+/).map(s => s.trim()).filter(Boolean).map(s => s.toLowerCase());
-            switch (op) {
-                case 'includes_all':
-                    return tokens.length === 0 ? false : tokens.every(tok => arrLower.some(tag => tag.includes(tok)));
-                case 'includes_any':
-                    return tokens.length === 0 ? false : tokens.some(tok => arrLower.some(tag => tag.includes(tok)));
-                case 'includes':
-                    return compareVal ? arr.includes(compareVal) : false; // 保留精确匹配
-                case 'length_eq': return arr.length === Number(compareVal || 0);
-                case 'length_gt': return arr.length > Number(compareVal || 0);
-                case 'length_gte': return arr.length >= Number(compareVal || 0);
-                case 'length_lt': return arr.length < Number(compareVal || 0);
-                default: return true;
-            }
-        }
-
-        return true;
-    }
-
-    // 注：高级过滤直接集成在 updateFilteredRecords 中，无需额外包装函数
-
-    // 更新搜索结果数量显示
-    function formatQueryDuration(ms: number | null): string {
-        if (ms == null || !Number.isFinite(ms)) return '';
-        if (ms < 1000) return `${Math.max(0, Math.round(ms))}ms`;
-        return `${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)}s`;
-    }
-
-    function updateSearchResultCount() {
-        if (!searchResultCount) return;
-
-        const totalCount = serverModeActive ? serverTotal : filteredRecords.length;
-        const durationText = formatQueryDuration(lastQueryDurationMs);
-        const searchTerm = searchInput?.value?.trim() || '';
-        const hasFilter = filterSelect?.value !== 'all';
-        const hasTags = selectedTags.size > 0;
-        const hasLists = selectedListIds.size > 0;
-        const hasSeries = selectedSeriesIds.size > 0;
-        const hasLabels = selectedLabelIds.size > 0;
-        const hasAdvConditions = advConditions.length > 0;
-
-        // 判断是否有任何搜索或筛选条件
-        const hasAnyCondition = searchTerm || hasFilter || hasTags || hasLists || hasSeries || hasLabels || hasAdvConditions;
-
-        if (hasAnyCondition && totalCount > 0) {
-            let conditionText = '';
-            const conditions: string[] = [];
-
-            if (searchTerm) conditions.push(`"${searchTerm}"`);
-            if (hasFilter) {
-                const filterText = filterSelect.options[filterSelect.selectedIndex]?.text || '';
-                conditions.push(filterText);
-            }
-            if (hasTags) conditions.push(`${selectedTags.size}个标签`);
-            if (hasLists) conditions.push(`${selectedListIds.size}个清单`);
-            if (hasSeries) conditions.push(`${selectedSeriesIds.size}个系列`);
-            if (hasLabels) conditions.push(`${selectedLabelIds.size}个番号`);
-            if (hasAdvConditions) conditions.push(`${advConditions.length}个高级条件`);
-            
-            conditionText = conditions.join(' + ');
-            
-            searchResultCount.innerHTML = `搜索 ${conditionText}，找到 <span class="count-number">${totalCount}</span> 个结果${durationText ? ` · 查询耗时 <span class="count-number">${durationText}</span>` : ''}`;
-            searchResultCount.style.display = 'flex';
-        } else if (totalCount > 0) {
-            searchResultCount.innerHTML = `共 <span class="count-number">${totalCount}</span> 条记录${durationText ? ` · 查询耗时 <span class="count-number">${durationText}</span>` : ''}`;
-            searchResultCount.style.display = 'flex';
-        } else {
-            searchResultCount.style.display = 'none';
-        }
-    }
 
     if (!searchInput || !videoList || !sortSelect || !recordsPerPageSelect || !paginationContainer) return;
 
@@ -856,1135 +175,252 @@ export function initRecordsTab(): void {
     let serverPageItems: VideoRecord[] = [];
     let serverTotal = 0;
     let lastQueryDurationMs: number | null = null;
-
+    let viewRuntime: RecordsViewRuntime;
+    let queryRuntime: RecordsQueryRuntime;
+    let stateRefreshController: RecordsStateRefreshController;
+    let filterRuntime: RecordsFilterRuntime;
+    let batchOperationsRuntime: RecordsBatchOperationsRuntime;
+    const searchResultCountController = createRecordsSearchResultCountController({
+        container: searchResultCount,
+        searchInput,
+        filterSelect,
+        getTotalCount: () => serverModeActive ? serverTotal : filteredRecords.length,
+        getDurationMs: () => lastQueryDurationMs,
+        getSelectedTagsCount: () => selectedTags.size,
+        getSelectedListIdsCount: () => selectedListIds.size,
+        getSelectedSeriesIdsCount: () => selectedSeriesIds.size,
+        getSelectedLabelIdsCount: () => selectedLabelIds.size,
+        getAdvancedConditionsCount: () => advConditions.length,
+    });
+    const updateSearchResultCount = () => searchResultCountController.update();
+    const exportController = createRecordsExportController({
+        getExportCountText: () => filteredRecords.length > 0
+            ? `当前筛选条件下共 ${filteredRecords.length} 条记录`
+            : `共 ${STATE.records.length} 条记录`,
+        getRecords: async () => viewRuntime.getRecordsForExport(),
+        getListName: (listId) => listIdToName.get(String(listId)) || String(listId),
+        showMessage,
+    });
+    const itemActionsController = createRecordsItemActionsRuntime({
+        getRecords: () => STATE.records,
+        selectedRecords,
+        saveRecord: dbViewedPut,
+        deleteRecord: dbViewedDelete,
+        sendRuntimeMessage: (message) => chrome.runtime.sendMessage(message),
+        showMessage,
+        showConfirmationModal,
+        videoStatus: VIDEO_STATUS,
+        updateFilteredRecords,
+        render,
+        isFavoritesFilterActive: () => favoritesFilterActive,
+    });
+    const searchSuggestController = createRecordsSearchSuggestController({
+        input: searchInput,
+        suggest: searchSuggest,
+        getTags: () => allTags,
+        ensureTagsLoaded: ensureAllTagsCollected,
+        onApply: () => {
+            stateRefreshController.resetAndRender();
+        },
+    });
+    const advancedConditionsController = createRecordsAdvancedConditionsController({
+        container: advConditionsEl,
+        quickTimeField,
+        quickTimeValue,
+        quickTimeUnit,
+        quickTimePreview: document.getElementById('quickTimePreview') as HTMLSpanElement,
+        getConditions: () => advConditions,
+        setConditions: (conditions) => {
+            advConditions = conditions;
+        },
+        onConditionsChange: () => {
+            stateRefreshController.resetAndRender();
+        },
+        showMessage,
+    });
+    const statsController = createRecordsStatsController({
+        container: document.getElementById('recordsStatsContainer'),
+        searchInput,
+        filterSelect,
+        selectedTags,
+        tokenSelectedTags,
+        selectedListIds,
+        tokenSelectedListIds,
+        refreshTagsFilter: () => tagsFilterController.refresh(),
+        refreshListsFilter: () => {
+            try { listsFilterController.refresh(); } catch {}
+        },
+        setAdvancedConditions: (conditions) => {
+            advConditions = conditions;
+        },
+        renderAdvancedConditions: () => advancedConditionsController.renderConditions(),
+        onFilterApplied: () => {
+            stateRefreshController.resetAndRender();
+        },
+        getRecords: () => STATE.records,
+        isServerModeActive: () => serverModeActive,
+        loadServerStats: dbViewedStats,
+    });
+    const batchSelectionController = createRecordsBatchSelectionController({
+        batchOperations,
+        selectAllCheckbox,
+        selectedCount,
+        batchActionsBtn,
+        selectedRecords,
+        getCurrentRecords: () => (
+            serverModeActive
+                ? serverPageItems
+                : filteredRecords.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage)
+        ),
+        onRender: () => render(),
+    });
+    batchOperationsRuntime = createRecordsBatchOperationsRuntime({
+        selectedRecords,
+        getVisibleRecords: () => (serverModeActive ? serverPageItems : filteredRecords),
+        loadLists: dbListsGetAllNormalized,
+        patchList: dbViewedPatchList,
+        bulkPatchList: dbViewedBulkPatchList,
+        showMessage,
+        render,
+        escapeHtml,
+        getSelectedIds: () => Array.from(selectedRecords),
+        refreshRecord: (recordId) => refreshRecordsSingleRecord(recordId, (message, callback) => {
+            chrome.runtime.sendMessage(message, callback);
+        }),
+        deleteRecords: async (selectedIds) => {
+            await dbViewedBulkDelete(selectedIds);
+            const idSet = new Set(selectedIds);
+            STATE.records = Array.isArray(STATE.records)
+                ? STATE.records.filter(record => !idSet.has(record.id))
+                : [];
+        },
+        clearSelection: () => {
+            selectedRecords.clear();
+        },
+        afterMutation: () => {
+            stateRefreshController.refreshAndRenderBatch();
+        },
+        toolbarElements: {
+            selectAllCheckbox,
+            batchActionsBtn,
+            batchActionsDropdown,
+            batchModifyListBtn,
+            batchAddTagBtn,
+            batchRefreshBtn,
+            batchDeleteBtn,
+            cancelBatchBtn,
+        },
+        onSelectAll: () => batchSelectionController.handleSelectAll(),
+        onClearSelection: () => batchSelectionController.clearAllSelection(),
+        getRecordById: async (id) => {
+            const { dbViewedGet } = await import('../dbClient');
+            return dbViewedGet(id);
+        },
+        putRecord: dbViewedPut,
+    });
+    const viewToolbarController = createRecordsViewToolbarController({
+        toggleCoversBtn,
+        toggleViewModeBtn,
+        favoritesButton: myFavoritesBtn,
+        videoList,
+        getCoversEnabled: () => !!STATE.settings.showCoversInRecords,
+        setCoversEnabled: (enabled) => {
+            STATE.settings.showCoversInRecords = enabled;
+        },
+        getViewMode: () => currentViewMode,
+        setViewMode: (mode) => {
+            currentViewMode = mode;
+            STATE.settings.recordsViewMode = mode;
+        },
+        getFavoritesActive: () => favoritesFilterActive,
+        setFavoritesActive: (active) => {
+            favoritesFilterActive = active;
+        },
+        persistSettings: () => {
+            chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
+        },
+        onFilterChanged: () => {
+            stateRefreshController.resetAndRender();
+        },
+        onRender: () => render(),
+    });
     recordsPerPageSelect.value = String(recordsPerPage);
 
-    // 一律优先使用 IDB（复杂条件用查询，简单条件用分页），失败再回退到内存
-    function shouldUseIDB(): boolean {
-        // Series/label filters are client-side only — IDB can't count them accurately
-        if (selectedSeriesIds.size > 0 || selectedLabelIds.size > 0) return false;
-        return true;
-    }
-
-    function parseSort(): { orderBy: 'updatedAt' | 'createdAt' | 'id' | 'title'; order: 'asc' | 'desc' } | null {
-        const sortVal = (sortSelect?.value || 'updatedAt_desc');
-        if (sortVal.startsWith('updatedAt_')) {
-            return { orderBy: 'updatedAt', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
-        }
-        if (sortVal.startsWith('createdAt_')) {
-            return { orderBy: 'createdAt', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
-        }
-        if (sortVal.startsWith('id_')) {
-            return { orderBy: 'id', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
-        }
-        if (sortVal.startsWith('title_')) {
-            return { orderBy: 'title', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
-        }
-        return null;
-    }
-
-    async function renderServerPage(): Promise<void> {
-        try {
-            serverModeActive = true;
-            const queryStart = performance.now();
-            const sort = parseSort();
-            const parsed = parseSearchTokens((searchInput?.value || '').trim());
-            const searchTerm = parsed.text;
-            const hasTags = selectedTags.size > 0;
-            const hasLists = selectedListIds.size > 0;
-            const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
-            const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
-
-            try { videoList.innerHTML = '<li class="empty-list">加载中...</li>'; } catch {}
-
-            let items: VideoRecord[] = [];
-            let total = 0;
-
-            // 复杂条件或按 id/title 排序 -> 后台查询
-            if (searchTerm || hasTags || hasLists || adv.length > 0 || parsed.tags.length > 0 || parsed.listIds.length > 0 || parsed.listNames.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title' || favoritesFilterActive) {
-                const queryParams: ViewedQueryParams = {
-                    search: searchTerm || undefined,
-                    status: statusVal,
-                    tags: Array.from(new Set([ ...Array.from(selectedTags), ...parsed.tags ])),
-                    listIds: (() => {
-                        const ids = new Set<string>();
-                        Array.from(selectedListIds).forEach((x) => { if (x) ids.add(String(x)); });
-                        (parsed.listIds || []).forEach((x) => { if (x) ids.add(String(x)); });
-                        const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
-                        if (nameTokens.length > 0) {
-                            for (const [id, name] of listIdToName.entries()) {
-                                const n = String(name || '').toLowerCase();
-                                if (nameTokens.some(tok => n.includes(tok))) ids.add(String(id));
-                            }
-                        }
-                        return Array.from(ids);
-                    })(),
-                    orderBy: sort ? sort.orderBy : 'updatedAt',
-                    order: sort ? sort.order : 'desc',
-                    offset: (currentPage - 1) * recordsPerPage,
-                    limit: recordsPerPage,
-                    adv,
-                    isFavorite: favoritesFilterActive ? true : undefined,
-                };
-                const resp = await dbViewedQuery(queryParams);
-                items = resp.items || [];
-                total = resp.total || 0;
-            } else {
-                // 简单条件 -> 高效分页
-                const params: ViewedPageParams = {
-                    offset: (currentPage - 1) * recordsPerPage,
-                    limit: recordsPerPage,
-                    orderBy: sort.orderBy,
-                    order: sort.order,
-                } as ViewedPageParams;
-                if (statusVal !== 'all') (params as any).status = statusVal;
-                const resp = await dbViewedPage(params);
-                items = resp.items || [];
-                total = resp.total || 0;
-            }
-
-            lastQueryDurationMs = performance.now() - queryStart;
-            serverPageItems = Array.isArray(items) ? items : [];
-            serverTotal = Number.isFinite(total) ? total : 0;
-            renderVideoList();
-            renderPagination();
-            updateSearchResultCount();
-        } catch (e) {
-            lastQueryDurationMs = null;
-            console.warn('[RecordsTab] IDB 查询/分页失败', e);
-            // 不回退本地模式，仅提示错误，保留当前 UI 状态
-            try { videoList.innerHTML = '<li class="empty-list">加载失败：IndexedDB 查询异常，请稍后重试</li>'; } catch {}
-            showMessage('IDB 查询失败，请稍后重试', 'error');
-        }
-    }
-
     function updateFilteredRecords() {
-        try {
-            const parsed = parseSearchTokens(searchInput.value);
-            const searchTerm = parsed.text.toLowerCase();
-
-            // 将搜索中的标签与组件所选同步：用 tokenSelectedTags 维护“来源于搜索”的集合
-            // 先把旧 token 标签从 selectedTags 移除，再加入新的 token 标签
-            tokenSelectedTags.forEach(t => selectedTags.delete(t));
-            tokenSelectedTags = new Set(parsed.tags);
-            tokenSelectedTags.forEach(t => selectedTags.add(t));
-            // 同步标签下拉与已选展示
-            try { refreshTagsFilterDisplay(); } catch {}
-
-            tokenSelectedListIds.forEach(t => selectedListIds.delete(t));
-            const resolved = new Set<string>();
-            (parsed.listIds || []).forEach(x => { if (x) resolved.add(String(x)); });
-            const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
-            if (nameTokens.length > 0) {
-                for (const [id, name] of listIdToName.entries()) {
-                    const n = String(name || '').toLowerCase();
-                    if (nameTokens.some(tok => n.includes(tok))) resolved.add(String(id));
-                }
-            }
-            tokenSelectedListIds = new Set(Array.from(resolved));
-            tokenSelectedListIds.forEach(t => selectedListIds.add(t));
-            try { refreshListsFilterDisplay(); } catch {}
-
-            // Sync series tokens → selectedSeriesIds
-            tokenSelectedSeriesIds.forEach(t => selectedSeriesIds.delete(t));
-            tokenSelectedSeriesIds = new Set(parsed.seriesIds);
-            tokenSelectedSeriesIds.forEach(t => selectedSeriesIds.add(t));
-            try { refreshSeriesFilterDisplay(); } catch {}
-
-            // Sync label tokens → selectedLabelIds
-            tokenSelectedLabelIds.forEach(t => selectedLabelIds.delete(t));
-            tokenSelectedLabelIds = new Set(parsed.labelPrefixes);
-            tokenSelectedLabelIds.forEach(t => selectedLabelIds.add(t));
-            try { refreshLabelsFilterDisplay(); } catch {}
-            const filterValue = filterSelect.value as 'all' | VideoStatus;
-
-            // 确保 STATE.records 是数组
-            const records = Array.isArray(STATE.records) ? STATE.records : [];
-
-            filteredRecords = records.filter(record => {
-                // 确保 record 对象存在且有必要的属性
-                if (!record || typeof record !== 'object') {
-                    console.warn('[Records] 无效的记录对象:', record);
-                    return false;
-                }
-
-                const tagsArr = Array.isArray(record.tags) ? record.tags : [];
-                const tagsLower = tagsArr.map(t => String(t).toLowerCase());
-
-                const matchesSearch = !searchTerm ||
-                    (record.id && record.id.toLowerCase().includes(searchTerm)) ||
-                    (record.title && record.title.toLowerCase().includes(searchTerm)) ||
-                    tagsLower.some(t => t.includes(searchTerm));
-                const matchesFilter = filterValue === 'all' || record.status === filterValue;
-
-                // Tags filter
-                const selectedTagsLower = Array.from(selectedTags).map(t => String(t).toLowerCase());
-                // 标签过滤：选中的每个标签 token 都需与记录 tags 中至少一个子串匹配（AND，忽略大小写）
-                const matchesTags = selectedTags.size === 0 || selectedTagsLower.every(token => tagsLower.some(tag => tag.includes(token)));
-
-                const matchesLists = selectedListIds.size === 0 || (() => {
-                    const recListIds = Array.isArray((record as any).listIds) ? ((record as any).listIds as string[]) : [];
-                    if (!recListIds || recListIds.length === 0) return false;
-                    return Array.from(selectedListIds).some(id => recListIds.includes(String(id)));
-                })();
-
-                const matchesSeries = selectedSeriesIds.size === 0 || [...selectedSeriesIds].some(sid => {
-                    const series = seriesIdToRecord.get(String(sid));
-                    if (series) return matchesSeriesRecord(record, series);
-                    const url = String((record as any).seriesUrl || '');
-                    if (url.endsWith(`/series/${sid}`) || url.includes(`/series/${sid}?`)) return true;
-                    return String((record as any).series || '').trim().toLowerCase() === String(sid).trim().toLowerCase();
-                });
-
-                const matchesLabels = selectedLabelIds.size === 0 || [...selectedLabelIds].some(prefix => {
-                    const label = labelIdToRecord.get(String(prefix).toUpperCase());
-                    if (label) return matchesLabelRecord(record, label);
-                    const id = String(record.id || '').toUpperCase();
-                    const normalizedPrefix = String(prefix || '').toUpperCase();
-                    return id === normalizedPrefix || id.startsWith(normalizedPrefix + '-');
-                });
-
-                // 收藏过滤
-                const matchesFavorites = !favoritesFilterActive || record.isFavorite === true;
-
-                const basicMatch = matchesSearch && matchesFilter && matchesTags && matchesLists && matchesSeries && matchesLabels && matchesFavorites;
-                if (!basicMatch) return false;
-
-                // Advanced search conditions (AND)
-                return advConditions.length === 0 || advConditions.every(c => evaluateCondition(record, c));
-            });
-
-            // Add sorting logic
-            const sortValue = sortSelect.value;
-            filteredRecords.sort((a, b) => {
-                try {
-                    switch (sortValue) {
-                        case 'createdAt_desc':
-                            return (b.createdAt || 0) - (a.createdAt || 0);
-                        case 'createdAt_asc':
-                            return (a.createdAt || 0) - (b.createdAt || 0);
-                        case 'updatedAt_asc':
-                            return (a.updatedAt || 0) - (b.updatedAt || 0);
-                        case 'id_asc':
-                            return (a.id || '').localeCompare(b.id || '');
-                        case 'id_desc':
-                            return (b.id || '').localeCompare(a.id || '');
-                        case 'updatedAt_desc':
-                        default:
-                            return (b.updatedAt || 0) - (a.updatedAt || 0);
-                    }
-                } catch (error) {
-                    console.error('[Records] 排序时出错:', error, a, b);
-                    return 0;
-                }
-            });
-        } catch (error) {
-            console.error('[Records] 更新过滤记录时出错:', error);
-            filteredRecords = [];
-        }
+        filterRuntime.updateFilteredRecords();
     }
 
     function renderVideoList() {
-        try {
-            videoList.innerHTML = '';
-
-            ensureListMetaLoaded();
-
-            const sourceRecords = serverModeActive ? serverPageItems : (Array.isArray(filteredRecords) ? filteredRecords : []);
-
-            const coversEnabled = !!STATE.settings.showCoversInRecords;
-            const shouldShowCover = currentViewMode === 'card' || coversEnabled;
-            if (shouldShowCover) setupCoverObserver(); else teardownCoverObserver();
-
-            // 更新搜索结果数量显示
-            updateSearchResultCount();
-
-            if (sourceRecords.length === 0) {
-                videoList.innerHTML = '<li class="empty-list">没有符合条件的记录。</li>';
-                return;
-            }
-
-            const startIndex = serverModeActive ? 0 : (currentPage - 1) * recordsPerPage;
-            const recordsToRender = serverModeActive ? sourceRecords : sourceRecords.slice(startIndex, startIndex + recordsPerPage);
-
-            // 确保 recordsToRender 是数组
-            if (!Array.isArray(recordsToRender)) {
-                console.warn('[Records] recordsToRender 不是数组:', recordsToRender);
-                return;
-            }
-
-            recordsToRender.forEach(record => {
-                try {
-                    // 确保 record 对象存在
-                    if (!record || typeof record !== 'object') {
-                        console.warn('[Records] 无效的记录对象:', record);
-                        return;
-                    }
-
-                    const li = document.createElement('li');
-                    li.className = 'video-item batch-mode'; // 始终使用batch-mode样式
-
-                    // 设置选中状态
-                    if (selectedRecords.has(record.id)) {
-                        li.classList.add('selected');
-                    }
-
-                    // Create a container for search engine icons
-                    const iconsContainer = document.createElement('div');
-                    iconsContainer.className = 'video-search-icons';
-
-                    // 确保 searchEngines 是数组
-                    const searchEngines = getSearchEnginesForVideo(
-                        Array.isArray(STATE.settings?.searchEngines) ? STATE.settings.searchEngines : [],
-                        record.id,
-                        'records',
-                    );
-
-                    searchEngines.forEach(engine => {
-                        try {
-                            // 确保 engine 对象有必要的属性
-                            if (!engine || !engine.urlTemplate || !engine.name) {
-                                console.warn('[Records] 无效的搜索引擎配置:', engine);
-                                return;
-                            }
-
-                            const searchUrl = buildSearchEngineUrl(engine.urlTemplate, record.id);
-                            const icon = document.createElement('a');
-                            icon.href = searchUrl;
-                            icon.target = '_blank';
-                            icon.title = `Search on ${engine.name}`;
-
-                            const img = document.createElement('img');
-                            img.src = resolveSearchEngineIcon(engine);
-                            img.alt = String(engine.name || '');
-                            img.onerror = () => { // Fallback icon
-                                img.src = chrome.runtime.getURL('assets/alternate-search.png');
-                            };
-
-                            icon.appendChild(img);
-                            iconsContainer.appendChild(icon);
-                        } catch (error) {
-                            console.error('[Records] 创建搜索引擎图标时出错:', error, engine);
-                        }
-                    });
-
-                    const createdDate = new Date(record.createdAt);
-                    const updatedDate = new Date(record.updatedAt);
-                    const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-
-                    const formattedCreatedDate = formatDate(createdDate);
-                    const formattedUpdatedDate = formatDate(updatedDate);
-
-                    // 如果创建时间和更新时间相同，只显示一个时间
-                    const timeDisplay = record.createdAt === record.updatedAt
-                        ? `创建: ${formattedCreatedDate}`
-                        : `创建: ${formattedCreatedDate}\n更新: ${formattedUpdatedDate}`;
-
-                    const refreshButton = document.createElement('button');
-                    refreshButton.className = 'refresh-button';
-                    refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                    refreshButton.title = '刷新源数据 - 从JavDB获取最新信息';
-                    refreshButton.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-
-                        refreshButton.classList.add('is-loading');
-                        refreshButton.disabled = true;
-                        refreshButton.title = '正在同步数据...';
-
-                        try {
-                            // First test if background script is responding
-                            console.log(`[Dashboard] Testing background script connection...`);
-                            const pingResponse = await chrome.runtime.sendMessage({ type: 'ping' });
-                            console.log(`[Dashboard] Ping response:`, pingResponse);
-
-                            if (!pingResponse || !pingResponse.success) {
-                                throw new Error('后台脚本无响应，请重新加载扩展');
-                            }
-
-                            console.log(`[Dashboard] Sending refresh request for videoId: ${record.id}`);
-                            const response = await chrome.runtime.sendMessage({
-                                type: 'refresh-record',
-                                videoId: record.id
-                            });
-
-                            console.log(`[Dashboard] Received response for ${record.id}:`, response);
-
-                            if (response?.success) {
-                                // Find the record in the main STATE and update it
-                                const recordIndex = STATE.records.findIndex(r => r.id === record.id);
-                                if (recordIndex !== -1) {
-                                    STATE.records[recordIndex] = response.record;
-                                }
-                                updateFilteredRecords();
-                                render();
-                                showMessage(`'${record.id}' 已成功刷新。`, 'success');
-                            } else {
-                                // Handle cases where response is undefined or success is false
-                                const errorMessage = response?.error || '刷新请求未收到响应或失败';
-                                console.error(`[Dashboard] Refresh failed for ${record.id}:`, errorMessage);
-                                throw new Error(errorMessage);
-                            }
-                        } catch (error: any) {
-                            console.error(`[Dashboard] Error during refresh for ${record.id}:`, error);
-                            showMessage(`刷新 '${record.id}' 失败: ${error.message}`, 'error');
-                        } finally {
-                            console.log(`[Dashboard] Finalizing refresh UI for ${record.id}`);
-                            // This button might not exist anymore if the list was re-rendered, so check first.
-                            const newButton = document.querySelector(`[data-record-id="${record.id}"] .refresh-button`) as HTMLButtonElement;
-                            if (newButton) {
-                                newButton.classList.remove('is-loading');
-                                newButton.removeAttribute('disabled');
-                                newButton.title = '同步数据 - 从JavDB获取最新信息';
-                            }
-                        }
-                    });
-
-                    // 创建删除按钮
-                    const deleteButton = document.createElement('button');
-                    deleteButton.className = 'delete-button';
-                    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-                    deleteButton.title = '删除此记录';
-                    deleteButton.addEventListener('click', (e) => {
-                        e.stopPropagation();
-
-                        // 使用确认modal
-                        showConfirmationModal({
-                            title: '确认删除记录',
-                            message: `确定要删除记录 "${record.id}" 吗？\n\n标题: ${record.title}\n状态: ${record.status}\n\n此操作不可撤销！`,
-                            onConfirm: async () => {
-                                try {
-                                    await dbViewedDelete(record.id);
-                                    // 从内存中移除并更新选择集
-                                    const recordIndex = STATE.records.findIndex(r => r.id === record.id);
-                                    if (recordIndex !== -1) STATE.records.splice(recordIndex, 1);
-                                    selectedRecords.delete(record.id);
-                                    // 重新渲染（服务端分页/查询会刷新）
-                                    render();
-                                    showMessage(`记录 "${record.id}" 已删除`, 'success');
-                                } catch (error: any) {
-                                    console.error('[Records] 删除记录时出错:', error);
-                                    showMessage(`删除记录失败: ${error.message}`, 'error');
-                                }
-                            },
-                            onCancel: () => {
-                                // 用户取消删除，不需要做任何操作
-                            }
-                        });
-                    });
-
-                    // 创建统一的操作按钮容器
-                    const actionButtonsContainer = document.createElement('div');
-                    actionButtonsContainer.className = 'action-buttons-container';
-
-                    // 编辑按钮
-                    const editButton = document.createElement('button');
-                    editButton.className = 'action-button edit-button';
-                    editButton.innerHTML = '<i class="fas fa-edit"></i>';
-                    editButton.title = '编辑记录';
-                    editButton.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showEditModal(record);
-                    });
-
-                    // 同步按钮（重命名refresh按钮）
-                    refreshButton.className = 'action-button sync-button';
-                    refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                    refreshButton.title = '刷新源数据';
-
-                    // 删除按钮样式调整
-                    deleteButton.className = 'action-button delete-button';
-                    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-                    deleteButton.title = '删除记录';
-
-                    // 收藏按钮
-                    const favoriteButton = document.createElement('button');
-                    favoriteButton.className = `action-button favorite-button${record.isFavorite ? ' favorited' : ''}`;
-                    favoriteButton.innerHTML = `<i class="${record.isFavorite ? 'fas' : 'far'} fa-heart"></i>`;
-                    favoriteButton.title = record.isFavorite ? '取消收藏' : '添加到收藏';
-                    favoriteButton.addEventListener('click', async (e) => {                        e.stopPropagation();
-                        try {
-                            // 切换收藏状态
-                            const newFavoriteState = !record.isFavorite;
-                            record.isFavorite = newFavoriteState;
-                            if (newFavoriteState) {
-                                record.favoritedAt = Date.now();
-                            }
-                            
-                            // 保存到数据库
-                            await dbViewedPut(record);
-                            
-                            // 更新按钮UI
-                            favoriteButton.className = `action-button favorite-button${newFavoriteState ? ' favorited' : ''}`;
-                            favoriteButton.innerHTML = `<i class="${newFavoriteState ? 'fas' : 'far'} fa-heart"></i>`;
-                            favoriteButton.title = newFavoriteState ? '取消收藏' : '添加到收藏';
-                            
-                            showMessage(newFavoriteState ? '已添加到收藏' : '已取消收藏', 'success');
-                            
-                            // 如果当前在收藏筛选模式，重新渲染列表
-                            if (favoritesFilterActive && !newFavoriteState) {
-                                updateFilteredRecords();
-                                render();
-                            }
-                        } catch (error: any) {
-                            console.error('[Records] 更新收藏状态失败:', error);
-                            showMessage(`操作失败: ${error.message}`, 'error');
-                        }
-                    });
-
-                    // 将按钮添加到容器
-                    actionButtonsContainer.appendChild(favoriteButton);
-                    actionButtonsContainer.appendChild(editButton);
-                    actionButtonsContainer.appendChild(refreshButton);
-                    actionButtonsContainer.appendChild(deleteButton);
-
-                    // 添加到清单按钮
-                    const addToListButton = document.createElement('button');
-                    addToListButton.className = 'action-button add-to-list-btn';
-                    addToListButton.setAttribute('data-record-id', record.id);
-                    addToListButton.innerHTML = '<i class="fas fa-list-ul"></i>';
-                    addToListButton.title = '添加到清单';
-                    addToListButton.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        openListPicker(record);
-                    });
-                    actionButtonsContainer.appendChild(addToListButton);
-
-                    const controlsContainer = document.createElement('div');
-                    controlsContainer.className = 'video-controls';
-                    controlsContainer.appendChild(iconsContainer);
-                    controlsContainer.appendChild(actionButtonsContainer);
-
-                    // Create the video ID element (with or without link based on javdbUrl)
-                    let videoIdHtml = '';
-                    if (record.javdbUrl && record.javdbUrl.trim() !== '' && record.javdbUrl !== '#') {
-                        videoIdHtml = `<a href="${record.javdbUrl}" target="_blank" class="video-id-link">${record.id}</a>`;
-                    } else {
-                        videoIdHtml = `<span class="video-id-text">${record.id}</span>`;
-                    }
-
-                    // 🆕 生成星星评分 HTML
-                    const generateStarsHtml = (rating: number | undefined, userRating: number | undefined) => {
-                        let starsHtml = '';
-                        
-                        // 官方评分（黄色星星）
-                        if (rating && rating > 0) {
-                            const fullStars = Math.floor(rating);
-                            const hasHalfStar = rating % 1 >= 0.5;
-                            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-                            
-                            starsHtml += '<span class="rating-stars official" title="官方评分: ' + rating.toFixed(2) + '">';
-                            for (let i = 0; i < fullStars; i++) {
-                                starsHtml += '<i class="fas fa-star"></i>';
-                            }
-                            if (hasHalfStar) {
-                                starsHtml += '<i class="fas fa-star-half-alt"></i>';
-                            }
-                            for (let i = 0; i < emptyStars; i++) {
-                                starsHtml += '<i class="far fa-star"></i>';
-                            }
-                            starsHtml += '</span>';
-                        }
-                        
-                        // 用户评分（红色星星）
-                        if (userRating && userRating > 0) {
-                            const fullStars = Math.floor(userRating);
-                            const hasHalfStar = userRating % 1 >= 0.5;
-                            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-                            
-                            starsHtml += '<span class="rating-stars user" title="我的评分: ' + userRating.toFixed(1) + '">';
-                            for (let i = 0; i < fullStars; i++) {
-                                starsHtml += '<i class="fas fa-star"></i>';
-                            }
-                            if (hasHalfStar) {
-                                starsHtml += '<i class="fas fa-star-half-alt"></i>';
-                            }
-                            for (let i = 0; i < emptyStars; i++) {
-                                starsHtml += '<i class="far fa-star"></i>';
-                            }
-                            starsHtml += '</span>';
-                        }
-                        
-                        return starsHtml;
-                    };
-
-                    const starsHtml = generateStarsHtml(record.rating, record.userRating);
-
-                    // 生成tags HTML（按所选标签子串匹配高亮，忽略大小写）
-                    const selectedTokensLower = Array.from(selectedTags).map(t => String(t).toLowerCase());
-                    const tagsHtml = record.tags && record.tags.length > 0
-                        ? `<div class="video-tags">${record.tags.map(tag => {
-                            const tagLower = String(tag).toLowerCase();
-                            const isSelected = selectedTokensLower.length > 0 && selectedTokensLower.some(tok => tagLower.includes(tok));
-                            return `<span class="video-tag ${isSelected ? 'selected' : ''}" data-tag="${tag}" title="点击筛选此标签">${tag}</span>`;
-                        }).join('')}</div>`
-                        : '';
-
-                    const listIds = Array.isArray((record as any).listIds) ? ((record as any).listIds as string[]) : [];
-                    const listNames = listIds.map((id) => listIdToName.get(String(id)) || String(id));
-                    const listNamesSafe = listNames.map((n) => escapeHtml(n));
-                    const listTitle = listNamesSafe.join('、');
-                    const listPreview = listNamesSafe.slice(0, 3);
-                    const listPreviewIds = listIds.slice(0, 3);
-                    const moreCount = Math.max(0, listNamesSafe.length - listPreview.length);
-                    const listsHtml = listPreview.length > 0
-                        ? `<div class="video-lists" title="${listTitle}">${listPreview.map((n, idx) => {
-                            const listId = listPreviewIds[idx];
-                            const isSelected = selectedListIds.has(String(listId));
-                            return `<span class="video-list-tag ${isSelected ? 'selected' : ''}" data-list-id="${listId}" title="点击筛选此清单">${n}</span>`;
-                        }).join('')}${moreCount > 0 ? `<span class="video-list-more">另有 ${moreCount} 个清单</span>` : ''}</div>`
-                        : '';
-
-                    // 根据视图模式生成不同的 HTML 结构
-                    if (currentViewMode === 'card') {
-                        // 卡片视图：状态标签稍后动态插入到封面层
-                        li.innerHTML = `
-                            <div class="video-content-wrapper">
-                                <div class="video-id-container">
-                                    ${videoIdHtml}
-                                    ${starsHtml}
-                                </div>
-                                ${tagsHtml}
-                                ${listsHtml}
-                                <span class="video-title">${record.title}</span>
-                            </div>
-                        `;
-                    } else {
-                        // 列表视图：原有布局
-                        li.innerHTML = `
-                            <div class="video-content-wrapper">
-                                <div class="video-id-container">
-                                    ${videoIdHtml}
-                                    ${starsHtml}
-                                </div>
-                                ${tagsHtml}
-                                ${listsHtml}
-                                <span class="video-title">${record.title}</span>
-                            </div>
-                            <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
-                            <span class="video-status status-${record.status}">${record.status}</span>
-                        `;
-                    }
-
-                    // 封面处理：卡片视图强制显示封面，列表视图根据设置
-                    const shouldShowCover = currentViewMode === 'card' || coversEnabled;
-                    if (shouldShowCover) {
-                        const coverUrl = (record.enhancedData?.coverImage || record.javdbImage || '').trim();
-                        const cover = document.createElement('div');
-                        cover.className = 'video-cover skeleton';
-                        const img = document.createElement('img');
-                        img.className = 'video-cover-img';
-                        img.alt = String(record.title || '');
-                        if (coverUrl) {
-                            img.setAttribute('data-src', coverUrl);
-                        } else {
-                            img.src = chrome.runtime.getURL('assets/alternate-search.png');
-                            img.classList.add('loaded');
-                            cover.classList.remove('skeleton');
-                        }
-                        cover.appendChild(img);
-                        // 悬浮显示大图
-                        const bigImageUrl = (record.javdbImage || coverUrl || '').trim();
-                        if (bigImageUrl) {
-                            const onMouseEnter = (e: MouseEvent) => {
-                                if (!imageTooltipElement) return;
-                                const tooltipContent = document.createElement('div');
-                                tooltipContent.className = 'image-tooltip-content';
-                                const bigImg = document.createElement('img');
-                                bigImg.src = bigImageUrl;
-                                bigImg.alt = String(record.title || '');
-                                bigImg.style.opacity = '0';
-                                const loadingDiv = document.createElement('div');
-                                loadingDiv.className = 'image-tooltip-loading';
-                                loadingDiv.textContent = '加载中...';
-                                bigImg.addEventListener('load', () => {
-                                    bigImg.style.opacity = '1';
-                                    loadingDiv.style.display = 'none';
-                                });
-                                bigImg.addEventListener('error', () => {
-                                    bigImg.style.display = 'none';
-                                    loadingDiv.textContent = '图片加载失败';
-                                });
-                                imageTooltipElement.innerHTML = '';
-                                tooltipContent.appendChild(bigImg);
-                                tooltipContent.appendChild(loadingDiv);
-                                imageTooltipElement.appendChild(tooltipContent);
-                                imageTooltipElement.style.display = 'block';
-                                imageTooltipElement.style.opacity = '0';
-                                // 边缘避让定位：靠近右/下边缘时自动翻转，并进行视口夹紧
-                                let lastX = e.clientX;
-                                let lastY = e.clientY;
-                                const positionAt = (x: number, y: number) => {
-                                    if (!imageTooltipElement) return;
-                                    const padding = 8;
-                                    const offset = 15;
-                                    const vw = window.innerWidth;
-                                    const vh = window.innerHeight;
-                                    const rect = imageTooltipElement.getBoundingClientRect();
-                                    let left = x + offset;
-                                    let top = y + offset;
-                                    if (left + rect.width + padding > vw) left = x - rect.width - offset;
-                                    if (top + rect.height + padding > vh) top = y - rect.height - offset;
-                                    left = Math.max(padding, Math.min(left, vw - rect.width - padding));
-                                    top = Math.max(padding, Math.min(top, vh - rect.height - padding));
-                                    imageTooltipElement.style.left = `${Math.round(left)}px`;
-                                    imageTooltipElement.style.top = `${Math.round(top)}px`;
-                                };
-                                positionAt(lastX, lastY);
-                                const onMouseMove = (event: MouseEvent) => {
-                                    lastX = event.clientX;
-                                    lastY = event.clientY;
-                                    positionAt(lastX, lastY);
-                                };
-                                (cover as any).__updateTooltipPos = onMouseMove;
-                                cover.addEventListener('mousemove', onMouseMove);
-                                setTimeout(() => {
-                                    if (imageTooltipElement && imageTooltipElement.style.display === 'block') {
-                                        imageTooltipElement.style.opacity = '1';
-                                        positionAt(lastX, lastY);
-                                    }
-                                }, 120);
-                            };
-                            const onMouseLeave = () => {
-                                if (imageTooltipElement) {
-                                    imageTooltipElement.style.display = 'none';
-                                    imageTooltipElement.style.opacity = '0';
-                                }
-                                const handler = (cover as any).__updateTooltipPos as ((ev: MouseEvent)=>void) | undefined;
-                                if (handler) {
-                                    cover.removeEventListener('mousemove', handler);
-                                    delete (cover as any).__updateTooltipPos;
-                                }
-                            };
-                            cover.addEventListener('mouseenter', onMouseEnter);
-                            cover.addEventListener('mouseleave', onMouseLeave);
-                        }
-                        // 插入封面：卡片视图在最顶部，列表视图在最左侧
-                        if (li.firstChild) {
-                            li.insertBefore(cover, li.firstChild);
-                        } else {
-                            li.appendChild(cover);
-                        }
-                    }
-
-                    // 添加图片悬浮功能到video-id-link
-                    const videoIdLink = li.querySelector('.video-id-link') as HTMLAnchorElement;
-                    if (videoIdLink && record.javdbImage) {
-                        videoIdLink.addEventListener('mouseenter', (e) => {
-                            if (!imageTooltipElement) return;
-
-                            // 创建图片悬浮内容
-                            const tooltipContent = document.createElement('div');
-                            tooltipContent.className = 'image-tooltip-content';
-
-                            const img = document.createElement('img');
-                            img.src = record.javdbImage ?? chrome.runtime.getURL('assets/alternate-search.png');
-                            img.alt = String(record.title || '');
-                            img.style.opacity = '0';
-
-                            const loadingDiv = document.createElement('div');
-                            loadingDiv.className = 'image-tooltip-loading';
-                            loadingDiv.textContent = '加载中...';
-
-                            // 添加图片加载事件监听器
-                            img.addEventListener('load', () => {
-                                img.style.opacity = '1';
-                                loadingDiv.style.display = 'none';
-                            });
-
-                            img.addEventListener('error', () => {
-                                img.style.display = 'none';
-                                loadingDiv.textContent = '图片加载失败';
-                            });
-
-                            tooltipContent.appendChild(img);
-                            tooltipContent.appendChild(loadingDiv);
-
-                            // 清空并添加新内容
-                            imageTooltipElement.innerHTML = '';
-                            imageTooltipElement.appendChild(tooltipContent);
-
-                            imageTooltipElement.style.display = 'block';
-                            imageTooltipElement.style.opacity = '0';
-
-                            // 边缘避让定位
-                            let lastX2 = e.clientX;
-                            let lastY2 = e.clientY;
-                            const positionAt2 = (x: number, y: number) => {
-                                if (!imageTooltipElement) return;
-                                const padding = 8;
-                                const offset = 15;
-                                const vw = window.innerWidth;
-                                const vh = window.innerHeight;
-                                const rect = imageTooltipElement.getBoundingClientRect();
-                                let left = x + offset;
-                                let top = y + offset;
-                                if (left + rect.width + padding > vw) left = x - rect.width - offset;
-                                if (top + rect.height + padding > vh) top = y - rect.height - offset;
-                                left = Math.max(padding, Math.min(left, vw - rect.width - padding));
-                                top = Math.max(padding, Math.min(top, vh - rect.height - padding));
-                                imageTooltipElement.style.left = `${Math.round(left)}px`;
-                                imageTooltipElement.style.top = `${Math.round(top)}px`;
-                            };
-
-                            const onMouseMoveLink = (event: MouseEvent) => {
-                                lastX2 = event.clientX;
-                                lastY2 = event.clientY;
-                                positionAt2(lastX2, lastY2);
-                            };
-
-                            positionAt2(lastX2, lastY2);
-
-                            // 延迟显示，避免快速移动时闪烁，并再次校正位置
-                            setTimeout(() => {
-                                if (imageTooltipElement && imageTooltipElement.style.display === 'block') {
-                                    imageTooltipElement.style.opacity = '1';
-                                    positionAt2(lastX2, lastY2);
-                                }
-                            }, 200);
-
-                            // 记录监听器引用，便于 mouseleave 时移除
-                            (videoIdLink as any).__tooltipMove = onMouseMoveLink;
-                            videoIdLink.addEventListener('mousemove', onMouseMoveLink);
-                        });
-
-                        videoIdLink.addEventListener('mouseleave', () => {
-                            if (imageTooltipElement) {
-                                imageTooltipElement.style.display = 'none';
-                                imageTooltipElement.style.opacity = '0';
-                            }
-                            // 移除先前注册的 mousemove 监听，防止累积
-                            const handler = (videoIdLink as any).__tooltipMove as ((ev: MouseEvent)=>void) | undefined;
-                            if (handler) {
-                                try { videoIdLink.removeEventListener('mousemove', handler); } catch {}
-                                try { delete (videoIdLink as any).__tooltipMove; } catch {}
-                            }
-                        });
-                    }
-
-                    // 添加点击事件处理
-                    li.addEventListener('click', (e) => {
-                        // 如果点击的是按钮、链接或标签，不触发选择
-                        if ((e.target as HTMLElement).closest('button, a, .video-tag, .video-list-tag, .video-list-more')) {
-                            return;
-                        }
-
-                        // 直接切换选择状态
-                        const isSelected = selectedRecords.has(record.id);
-                        handleRecordSelection(record.id, !isSelected);
-                    });
-
-                    // 如果当前项被选中，添加选中样式
-                    if (selectedRecords.has(record.id)) {
-                        li.classList.add('selected');
-                    }
-
-                    // 为video-tag添加点击事件
-                    const videoTags = li.querySelectorAll('.video-tag');
-                    videoTags.forEach(tagElement => {
-                        tagElement.addEventListener('click', (e) => {
-                            e.stopPropagation(); // 防止触发行选择
-                            const tag = tagElement.getAttribute('data-tag');
-                            if (tag) {
-                                if (selectedTags.has(tag)) {
-                                    selectedTags.delete(tag);
-                                } else {
-                                    selectedTags.add(tag);
-                                }
-                                currentPage = 1;
-                                updateFilteredRecords();
-                                render();
-                                refreshTagsFilterDisplay();
-                            }
-                        });
-                    });
-
-                    // 为清单胶囊添加点击事件
-                    const videoListTags = li.querySelectorAll('.video-list-tag');
-                    videoListTags.forEach(listElement => {
-                        listElement.addEventListener('click', (e) => {
-                            e.stopPropagation(); // 防止触发行选择
-                            const listId = listElement.getAttribute('data-list-id');
-                            if (listId) {
-                                if (selectedListIds.has(listId)) {
-                                    selectedListIds.delete(listId);
-                                } else {
-                                    selectedListIds.add(listId);
-                                }
-                                currentPage = 1;
-                                updateFilteredRecords();
-                                render();
-                                refreshListsFilterDisplay();
-                            }
-                        });
-                    });
-
-                    // 根据视图模式插入元素
-                    if (currentViewMode === 'card') {
-                        // 卡片视图：搜索图标插入到 content-wrapper 右上角，状态标签和操作按钮在封面层
-                        const contentWrapper = li.querySelector('.video-content-wrapper');
-                        if (contentWrapper) {
-                            contentWrapper.appendChild(iconsContainer);
-                        }
-                        
-                        // 状态标签插入到封面层（li 的直接子元素）
-                        const statusSpan = document.createElement('span');
-                        statusSpan.className = `video-status status-${record.status}`;
-                        statusSpan.textContent = record.status;
-                        li.appendChild(statusSpan);
-                        
-                        // 操作按钮容器单独插入
-                        const controlsDiv = document.createElement('div');
-                        controlsDiv.className = 'video-controls';
-                        controlsDiv.appendChild(actionButtonsContainer);
-                        li.appendChild(controlsDiv);
-                    } else {
-                        // 列表视图：保持原有结构
-                        li.appendChild(controlsContainer);
-                    }
-                    
-                    li.dataset.recordId = record.id;
-                    videoList.appendChild(li);
-
-                    // 注册懒加载观察
-                    if (shouldShowCover) {
-                        const coverImg = li.querySelector('.video-cover-img') as HTMLImageElement | null;
-                        if (coverImg && coverImg.getAttribute('data-src')) {
-                            coverObserver?.observe(coverImg);
-                        }
-                    }
-                } catch (error) {
-                    console.error('[Records] 渲染记录项时出错:', error, record);
-                }
-            });
-        } catch (error) {
-            console.error('[Records] 渲染视频列表时出错:', error);
-            videoList.innerHTML = '<li class="empty-list error">渲染列表时出现错误，请刷新重试。</li>';
-        }
+        viewRuntime.renderVideoList();
     }
 
     function renderPagination() {
-        paginationContainer.innerHTML = '';
-        const totalCount = serverModeActive ? serverTotal : filteredRecords.length;
-        const pageCount = Math.ceil(totalCount / recordsPerPage);
-        if (pageCount <= 1) return;
-        const goToPage = (page: number) => {
-            if (page < 1 || page > pageCount) return;
-            currentPage = page;
-            render();
-        };
-
-        const createButton = (
-            content: string | number,
-            page?: number,
-            options: { isDisabled?: boolean; isActive?: boolean; isEllipsis?: boolean; title?: string } = {}
-        ) => {
-            const button = document.createElement('button');
-            button.innerHTML = String(content);
-            button.disabled = options.isDisabled ?? false;
-            if (options.title) {
-                button.title = options.title;
-            }
-
-            const classNames = ['page-button'];
-            if (options.isActive) classNames.push('active');
-            if (options.isEllipsis) classNames.push('ellipsis');
-
-            button.className = classNames.join(' ');
-
-            if (page) {
-                button.addEventListener('click', () => goToPage(page));
-            }
-            paginationContainer.appendChild(button);
-        };
-
-        // First and Previous buttons
-        createButton('<i class="fas fa-angles-left"></i>', 1, { isDisabled: currentPage === 1, title: '首页' });
-        createButton('<i class="fas fa-angle-left"></i>', currentPage - 1, { isDisabled: currentPage === 1, title: '上一页' });
-
-        // Page numbers logic
-        const pagesToShow = new Set<number>();
-        pagesToShow.add(1);
-        pagesToShow.add(pageCount);
-
-        for (let i = -2; i <= 2; i++) {
-            const page = currentPage + i;
-            if (page > 1 && page < pageCount) {
-                pagesToShow.add(page);
-            }
-        }
-        if (currentPage > 1 && currentPage < pageCount) {
-            pagesToShow.add(currentPage);
-        }
-
-        const sortedPages = Array.from(pagesToShow).sort((a, b) => a - b);
-
-        let lastPage: number | null = null;
-        for (const page of sortedPages) {
-            if (lastPage !== null && page - lastPage > 1) {
-                createButton('...', undefined, { isDisabled: true, isEllipsis: true });
-            }
-            createButton(page, page, { isActive: page === currentPage });
-            lastPage = page;
-        }
-
-        // Next and Last buttons
-        createButton('<i class="fas fa-angle-right"></i>', currentPage + 1, { isDisabled: currentPage === pageCount, title: '下一页' });
-        createButton('<i class="fas fa-angles-right"></i>', pageCount, { isDisabled: currentPage === pageCount, title: '末页' });
-    }
-
-    function render() {
-        const useIDB = shouldUseIDB();
-        serverModeActive = useIDB;
-        if (useIDB) {
-            try { videoList.innerHTML = '<li class="empty-list">加载中...</li>'; } catch {}
-            renderServerPage().finally(() => updateStats());
-            return;
-        }
-        updateFilteredRecords();
-        renderVideoList();
-        renderPagination();
-        updateStats();
+        viewRuntime.renderPagination();
     }
 
     async function updateStats() {
-        const statsContainer = document.getElementById('recordsStatsContainer');
-        if (!statsContainer) return;
-
-        // 在 IDB 模式优先使用后端统计，更准确更快；否则回退到内存
-        let stats: { total: number; viewed: number; browsed: number; want: number; thisWeek: number; thisMonth: number };
-        if (serverModeActive) {
-            try {
-                const s: ViewedStats = await dbViewedStats();
-                stats = {
-                    total: s.total || 0,
-                    viewed: (s.byStatus?.viewed as any) ?? 0,
-                    browsed: (s.byStatus?.browsed as any) ?? 0,
-                    want: (s.byStatus?.want as any) ?? 0,
-                    thisWeek: s.last7Days || 0,
-                    thisMonth: s.last30Days || 0,
-                };
-            } catch {
-                // 回退：内存统计
-                const now = new Date();
-                const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                stats = {
-                    total: STATE.records.length,
-                    viewed: STATE.records.filter(r => r.status === 'viewed').length,
-                    browsed: STATE.records.filter(r => r.status === 'browsed').length,
-                    want: STATE.records.filter(r => r.status === 'want').length,
-                    thisWeek: STATE.records.filter(r => r.createdAt && r.createdAt >= oneWeekAgo.getTime()).length,
-                    thisMonth: STATE.records.filter(r => r.createdAt && r.createdAt >= oneMonthAgo.getTime()).length
-                };
-            }
-        } else {
-            const now = new Date();
-            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            stats = {
-                total: STATE.records.length,
-                viewed: STATE.records.filter(r => r.status === 'viewed').length,
-                browsed: STATE.records.filter(r => r.status === 'browsed').length,
-                want: STATE.records.filter(r => r.status === 'want').length,
-                thisWeek: STATE.records.filter(r => r.createdAt && r.createdAt >= oneWeekAgo.getTime()).length,
-                thisMonth: STATE.records.filter(r => r.createdAt && r.createdAt >= oneMonthAgo.getTime()).length
-            };
-        }
-
-        statsContainer.innerHTML = `
-            <div class="stat-card new-works-stat clickable" data-filter="all" title="点击查看所有番号">
-                <div class="stat-value">${stats.total}</div>
-                <div class="stat-label">总番号数</div>
-            </div>
-            <div class="stat-card new-works-stat clickable" data-filter="viewed" title="点击查看已观看">
-                <div class="stat-value">${stats.viewed}</div>
-                <div class="stat-label">已观看</div>
-            </div>
-            <div class="stat-card new-works-stat clickable" data-filter="browsed" title="点击查看已浏览">
-                <div class="stat-value">${stats.browsed}</div>
-                <div class="stat-label">已浏览</div>
-            </div>
-            <div class="stat-card new-works-stat clickable" data-filter="want" title="点击查看我想看">
-                <div class="stat-value">${stats.want}</div>
-                <div class="stat-label">我想看</div>
-            </div>
-            <div class="stat-card new-works-stat clickable" data-filter="thisWeek" title="点击查看本周新增">
-                <div class="stat-value">${stats.thisWeek}</div>
-                <div class="stat-label">本周新增</div>
-            </div>
-            <div class="stat-card new-works-stat clickable" data-filter="thisMonth" title="点击查看本月新增">
-                <div class="stat-value">${stats.thisMonth}</div>
-                <div class="stat-label">本月新增</div>
-            </div>
-        `;
-
-        // 添加统计卡片点击事件监听器
-        statsContainer.querySelectorAll('.stat-card.clickable').forEach(card => {
-            card.addEventListener('click', () => {
-                const filterType = card.getAttribute('data-filter');
-                if (!filterType) return;
-
-                // 清空搜索框和其他过滤条件
-                searchInput.value = '';
-                selectedTags.clear();
-                tokenSelectedTags.clear();
-                selectedListIds.clear();
-                tokenSelectedListIds.clear();
-                refreshTagsFilterDisplay();
-                try { refreshListsFilterDisplay(); } catch {}
-
-                // 根据点击的卡片类型设置过滤
-                if (filterType === 'all') {
-                    filterSelect.value = 'all';
-                    // 清空高级搜索条件
-                    advConditions = [];
-                    advConditionsEl.innerHTML = '';
-                } else if (filterType === 'viewed' || filterType === 'browsed' || filterType === 'want') {
-                    filterSelect.value = filterType;
-                    // 清空高级搜索条件
-                    advConditions = [];
-                    advConditionsEl.innerHTML = '';
-                } else if (filterType === 'thisWeek') {
-                    // 本周新增：使用高级搜索条件
-                    filterSelect.value = 'all';
-                    const now = Date.now();
-                    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-                    advConditions = [{
-                        id: `cond_week_${Date.now()}`,
-                        field: 'createdAt',
-                        op: 'gte',
-                        value: String(oneWeekAgo)
-                    }];
-                    // 清空并重建高级搜索UI
-                    advConditionsEl.innerHTML = '';
-                    advConditions.forEach(cond => createAdvConditionRow(cond));
-                } else if (filterType === 'thisMonth') {
-                    // 本月新增：使用高级搜索条件
-                    filterSelect.value = 'all';
-                    const now = Date.now();
-                    const oneMonthAgo = now - 30 * 24 * 60 * 60 * 1000;
-                    advConditions = [{
-                        id: `cond_month_${Date.now()}`,
-                        field: 'createdAt',
-                        op: 'gte',
-                        value: String(oneMonthAgo)
-                    }];
-                    // 清空并重建高级搜索UI
-                    advConditionsEl.innerHTML = '';
-                    advConditions.forEach(cond => createAdvConditionRow(cond));
-                }
-
-                // 重置到第一页并刷新
-                currentPage = 1;
-                updateFilteredRecords();
-                render();
-
-                // 添加视觉反馈
-                statsContainer.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-            });
-        });
+        await statsController.updateStats();
     }
+
+    queryRuntime = createRecordsQueryRuntime({
+        searchInput,
+        filterSelect,
+        sortSelect,
+        videoList,
+        getCurrentPage: () => currentPage,
+        getRecordsPerPage: () => recordsPerPage,
+        selectedTags,
+        selectedListIds,
+        selectedSeriesIds,
+        selectedLabelIds,
+        listNameById: listIdToName,
+        getAdvancedConditions: () => advConditions,
+        isFavoritesFilterActive: () => favoritesFilterActive,
+        queryRecords: dbViewedQuery,
+        pageRecords: dbViewedPage,
+        setServerModeActive: (active) => {
+            serverModeActive = active;
+        },
+        setServerPageItems: (items) => {
+            serverPageItems = items;
+        },
+        setServerTotal: (total) => {
+            serverTotal = total;
+        },
+        setLastQueryDurationMs: (duration) => {
+            lastQueryDurationMs = duration;
+        },
+        renderVideoList,
+        renderPagination,
+        updateSearchResultCount,
+        showMessage,
+    });
+
+    const renderCoordinator = createRecordsRenderCoordinator({
+        videoList,
+        shouldUseIDB: queryRuntime.shouldUseIDB,
+        setServerModeActive: (active) => {
+            serverModeActive = active;
+        },
+        renderServerPage: queryRuntime.renderServerPage,
+        updateFilteredRecords,
+        renderVideoList,
+        renderPagination,
+        updateStats,
+    });
+
+    function render() {
+        renderCoordinator.render();
+    }
+
+    stateRefreshController = createRecordsStateRefreshController({
+        resetCurrentPage: () => {
+            currentPage = 1;
+        },
+        updateFilteredRecords,
+        render,
+        updateBatchUI,
+    });
 
     function collectAllTags() {
         allTags.clear();
@@ -1995,2082 +431,178 @@ export function initRecordsTab(): void {
         });
     }
 
-    function renderTagsFilter() {
-        collectAllTags();
-        const sortedTags = Array.from(allTags).sort();
+    const handleFilterSelectionChanged = () => {
+        stateRefreshController.resetAndRender();
+    };
 
-        tagsFilterList.innerHTML = sortedTags.map(tag => `
-            <div class="tag-option ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}">
-                <input type="checkbox" ${selectedTags.has(tag) ? 'checked' : ''}>
-                <span>${tag}</span>
-            </div>
-        `).join('');
-
-        updateSelectedTagsDisplay();
-        updateTagsFilterInput();
-    }
-
-    function refreshTagsFilterDisplay() {
-        // 更新下拉框中的选择状态
-        const tagOptions = tagsFilterList.querySelectorAll('.tag-option');
-        tagOptions.forEach(option => {
-            const tag = option.getAttribute('data-tag');
-            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
-            if (tag) {
-                const isSelected = selectedTags.has(tag);
-                option.classList.toggle('selected', isSelected);
-                if (checkbox) {
-                    checkbox.checked = isSelected;
-                }
-            }
-        });
-
-        updateSelectedTagsDisplay();
-        updateTagsFilterInput();
-    }
-
-    function updateSelectedTagsDisplay() {
-        selectedTagsContainer.innerHTML = Array.from(selectedTags).map(tag => `
-            <div class="selected-tag">
-                <span>${tag}</span>
-                <span class="remove-tag" data-tag="${tag}">×</span>
-            </div>
-        `).join('');
-    }
-
-    function updateTagsFilterInput() {
-        const count = selectedTags.size;
-        tagsFilterInput.value = count > 0 ? `已选择 ${count} 个标签` : '点击选择标签';
-    }
-
-    function filterTagsList(searchTerm: string) {
-        const tagOptions = tagsFilterList.querySelectorAll('.tag-option');
-        tagOptions.forEach(option => {
-            const tagName = option.querySelector('span')?.textContent || '';
-            const matches = tagName.toLowerCase().includes(searchTerm.toLowerCase());
-            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
-        });
-    }
-
-    function renderListsFilter() {
-        if (!listsFilterList || !selectedListsContainer || !listsFilterInput) return;
-        ensureListMetaLoaded();
-        const q = String(listsSearchInput?.value || '').trim().toLowerCase();
-        const items = Array.from(listIdToName.entries())
-            .map(([id, name]) => ({ id: String(id), name: String(name || id), source: listIdToSource.get(String(id)) || 'javdb' }))
-            .filter(it => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q))
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-        listsFilterList.innerHTML = items.map(it => {
-            const badge = it.source === 'local'
-                ? `<span class="list-source-badge list-source-local">本地</span>`
-                : `<span class="list-source-badge list-source-javdb">JavDB</span>`;
-            return `
-                <div class="tag-option ${selectedListIds.has(it.id) ? 'selected' : ''}" data-list-id="${it.id}">
-                    <input type="checkbox" ${selectedListIds.has(it.id) ? 'checked' : ''}>
-                    <span>${escapeHtml(it.name)}</span>${badge}
-                </div>
-            `;
-        }).join('');
-
-        updateSelectedListsDisplay();
-        updateListsFilterInput();
-    }
-
-    function refreshListsFilterDisplay() {
-        if (!listsFilterList) return;
-        const opts = listsFilterList.querySelectorAll('.tag-option');
-        opts.forEach(option => {
-            const id = option.getAttribute('data-list-id');
-            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
-            if (id) {
-                const isSelected = selectedListIds.has(id);
-                option.classList.toggle('selected', isSelected);
-                if (checkbox) checkbox.checked = isSelected;
-            }
-        });
-        updateSelectedListsDisplay();
-        updateListsFilterInput();
-    }
-
-    function updateSelectedListsDisplay() {
-        if (!selectedListsContainer) return;
-        selectedListsContainer.innerHTML = Array.from(selectedListIds).map(id => `
-            <div class="selected-tag">
-                <span>${escapeHtml(String(listIdToName.get(String(id)) || id))}</span>
-                <span class="remove-tag" data-list-id="${id}">×</span>
-            </div>
-        `).join('');
-    }
-
-    function updateListsFilterInput() {
-        if (!listsFilterInput) return;
-        const count = selectedListIds.size;
-        listsFilterInput.value = count > 0 ? `已选择 ${count} 个清单` : '点击选择清单';
-    }
-
-    function filterListsList(searchTerm: string) {
-        if (!listsFilterList) return;
-        const opts = listsFilterList.querySelectorAll('.tag-option');
-        opts.forEach(option => {
-            const name = option.querySelector('span')?.textContent || '';
-            const id = option.getAttribute('data-list-id') || '';
-            const q = String(searchTerm || '').toLowerCase();
-            const matches = name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
-            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
-        });
-    }
-
-    function renderSeriesFilter() {
-        if (!seriesFilterList || !selectedSeriesContainer || !seriesFilterInput) return;
-        ensureListMetaLoaded();
-        const q = String(seriesSearchInput?.value || '').trim().toLowerCase();
-        const items = Array.from(seriesIdToName.entries())
-            .map(([id, name]) => ({ id: String(id), name: String(name || id) }))
-            .filter(it => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q))
-            .sort((a, b) => a.name.localeCompare(b.name));
-        seriesFilterList.innerHTML = items.map(it => `
-            <div class="tag-option ${selectedSeriesIds.has(it.id) ? 'selected' : ''}" data-series-id="${it.id}">
-                <input type="checkbox" ${selectedSeriesIds.has(it.id) ? 'checked' : ''}>
-                <span>${escapeHtml(it.name)}</span>
-            </div>
-        `).join('');
-        updateSelectedSeriesDisplay();
-        updateSeriesFilterInput();
-    }
-
-    function refreshSeriesFilterDisplay() {
-        if (!seriesFilterList) return;
-        const opts = seriesFilterList.querySelectorAll('.tag-option');
-        opts.forEach(option => {
-            const id = option.getAttribute('data-series-id');
-            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
-            if (id) {
-                const isSelected = selectedSeriesIds.has(id);
-                option.classList.toggle('selected', isSelected);
-                if (checkbox) checkbox.checked = isSelected;
-            }
-        });
-        updateSelectedSeriesDisplay();
-        updateSeriesFilterInput();
-    }
-
-    function updateSelectedSeriesDisplay() {
-        if (!selectedSeriesContainer) return;
-        selectedSeriesContainer.innerHTML = Array.from(selectedSeriesIds).map(id => `
-            <div class="selected-tag">
-                <span>${escapeHtml(String(seriesIdToName.get(String(id)) || id))}</span>
-                <span class="remove-tag" data-series-id="${id}">×</span>
-            </div>
-        `).join('');
-    }
-
-    function updateSeriesFilterInput() {
-        if (!seriesFilterInput) return;
-        const count = selectedSeriesIds.size;
-        seriesFilterInput.value = count > 0 ? `已选择 ${count} 个系列` : '点击选择系列';
-    }
-
-    function filterSeriesList(searchTerm: string) {
-        if (!seriesFilterList) return;
-        const opts = seriesFilterList.querySelectorAll('.tag-option');
-        opts.forEach(option => {
-            const name = option.querySelector('span')?.textContent || '';
-            const id = option.getAttribute('data-series-id') || '';
-            const q = String(searchTerm || '').toLowerCase();
-            const matches = name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
-            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
-        });
-    }
-
-    function renderLabelsFilter() {
-        if (!labelsFilterList || !selectedLabelsContainer || !labelsFilterInput) return;
-        ensureListMetaLoaded();
-        const q = String(labelsSearchInput?.value || '').trim().toLowerCase();
-        const items = Array.from(labelIdToName.entries())
-            .map(([id, name]) => ({ id: String(id), name: String(name || id) }))
-            .filter(it => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q))
-            .sort((a, b) => a.name.localeCompare(b.name));
-        labelsFilterList.innerHTML = items.map(it => `
-            <div class="tag-option ${selectedLabelIds.has(it.id) ? 'selected' : ''}" data-label-id="${it.id}">
-                <input type="checkbox" ${selectedLabelIds.has(it.id) ? 'checked' : ''}>
-                <span>${escapeHtml(it.name)}</span>
-            </div>
-        `).join('');
-        updateSelectedLabelsDisplay();
-        updateLabelsFilterInput();
-    }
-
-    function refreshLabelsFilterDisplay() {
-        if (!labelsFilterList) return;
-        const opts = labelsFilterList.querySelectorAll('.tag-option');
-        opts.forEach(option => {
-            const id = option.getAttribute('data-label-id');
-            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
-            if (id) {
-                const isSelected = selectedLabelIds.has(id);
-                option.classList.toggle('selected', isSelected);
-                if (checkbox) checkbox.checked = isSelected;
-            }
-        });
-        updateSelectedLabelsDisplay();
-        updateLabelsFilterInput();
-    }
-
-    function updateSelectedLabelsDisplay() {
-        if (!selectedLabelsContainer) return;
-        selectedLabelsContainer.innerHTML = Array.from(selectedLabelIds).map(id => `
-            <div class="selected-tag">
-                <span>${escapeHtml(String(labelIdToName.get(String(id)) || id))}</span>
-                <span class="remove-tag" data-label-id="${id}">×</span>
-            </div>
-        `).join('');
-    }
-
-    function updateLabelsFilterInput() {
-        if (!labelsFilterInput) return;
-        const count = selectedLabelIds.size;
-        labelsFilterInput.value = count > 0 ? `已选择 ${count} 个番号` : '点击选择番号';
-    }
-
-    function filterLabelsList(searchTerm: string) {
-        if (!labelsFilterList) return;
-        const opts = labelsFilterList.querySelectorAll('.tag-option');
-        opts.forEach(option => {
-            const name = option.querySelector('span')?.textContent || '';
-            const id = option.getAttribute('data-label-id') || '';
-            const q = String(searchTerm || '').toLowerCase();
-            const matches = name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
-            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
-        });
-    }
-
-    let dropdownBackdrop: HTMLDivElement | null = null;
-    const positionDropdownBackdrop = () => {
-        try {
-            if (!dropdownBackdrop) return;
-            const card = dropdownBackdrop.parentElement as HTMLElement | null;
-            const toolbar = document.querySelector('#tab-records .records-toolbar') as HTMLElement | null;
-            if (!card || !toolbar) {
-                dropdownBackdrop.style.top = '0px';
+    filterRuntime = createRecordsFilterRuntime({
+        elements: {
+            searchInput,
+            filterSelect,
+            sortSelect,
+            filters: pageElements.filters,
+        },
+        getRecords: () => STATE.records,
+        selectedTags,
+        selectedListIds,
+        selectedSeriesIds,
+        selectedLabelIds,
+        getTokenSelectedTags: () => tokenSelectedTags,
+        setTokenSelectedTags: (value) => {
+            tokenSelectedTags = value;
+        },
+        getTokenSelectedListIds: () => tokenSelectedListIds,
+        setTokenSelectedListIds: (value) => {
+            tokenSelectedListIds = value;
+        },
+        getTokenSelectedSeriesIds: () => tokenSelectedSeriesIds,
+        setTokenSelectedSeriesIds: (value) => {
+            tokenSelectedSeriesIds = value;
+        },
+        getTokenSelectedLabelIds: () => tokenSelectedLabelIds,
+        setTokenSelectedLabelIds: (value) => {
+            tokenSelectedLabelIds = value;
+        },
+        getAllTags: () => {
+            collectAllTags();
+            return Array.from(allTags).map(String);
+        },
+        listNameById: listIdToName,
+        listSourceById: listIdToSource,
+        seriesNameById: seriesIdToName,
+        labelNameById: labelIdToName,
+        seriesIdToRecord,
+        labelIdToRecord,
+        ensureListMetaLoaded,
+        getAdvancedConditions: () => advConditions,
+        isFavoritesFilterActive: () => favoritesFilterActive,
+        setFilteredRecords: (records) => {
+            filteredRecords = records;
+        },
+        onFilterChanged: handleFilterSelectionChanged,
+        escapeHtml,
+    });
+    const syncDropdownBackdrop = filterRuntime.syncDropdownBackdrop;
+    const filterControllers = filterRuntime.filterControllers;
+    const tagsFilterController = filterControllers.tags;
+    const listsFilterController = filterControllers.lists;
+    const seriesFilterController = filterControllers.series;
+    const labelsFilterController = filterControllers.labels;
+    viewRuntime = createRecordsViewRuntime({
+        videoList,
+        paginationContainer,
+        getSourceRecords: () => serverModeActive ? serverPageItems : (Array.isArray(filteredRecords) ? filteredRecords : []),
+        isServerModeActive: () => serverModeActive,
+        getServerTotal: () => serverTotal,
+        getFilteredCount: () => filteredRecords.length,
+        getCurrentPage: () => currentPage,
+        setCurrentPage: (page) => {
+            currentPage = page;
+        },
+        getRecordsPerPage: () => recordsPerPage,
+        getViewMode: () => currentViewMode,
+        getCoversEnabled: () => !!STATE.settings.showCoversInRecords,
+        coverRuntime: coverRuntimeController,
+        updateSearchResultCount,
+        ensureListMetaLoaded,
+        selectedRecordIds: selectedRecords,
+        selectedTags,
+        selectedListIds,
+        listNameById: listIdToName,
+        getSearchEngines: () => Array.isArray(STATE.settings?.searchEngines) ? STATE.settings.searchEngines : [],
+        fallbackIconUrl: chrome.runtime.getURL('assets/alternate-search.png'),
+        escapeHtml,
+        onToggleRecordSelection: handleRecordSelection,
+        onFilterChanged: handleFilterSelectionChanged,
+        refreshTags: () => tagsFilterController.refresh(),
+        refreshLists: () => listsFilterController.refresh(),
+        actionCallbacks: {
+            onToggleFavorite: itemActionsController.onToggleFavorite,
+            onEdit: itemActionsController.onEdit,
+            onRefresh: itemActionsController.onRefresh,
+            onDelete: itemActionsController.onDelete,
+            onOpenListPicker: (targetRecord) => {
+                batchOperationsRuntime.listPickerRuntime.openSingle(targetRecord);
+            },
+        },
+        onRenderRecordError: (error, record) => {
+            if (record?.id) {
+                console.error('[Records] 渲染记录项时出错:', error, record);
                 return;
             }
-            const cardRect = card.getBoundingClientRect();
-            const toolbarRect = toolbar.getBoundingClientRect();
-            const top = Math.max(0, toolbarRect.bottom - cardRect.top);
-            dropdownBackdrop.style.top = `${top}px`;
-        } catch {
-            try { if (dropdownBackdrop) dropdownBackdrop.style.top = '0px'; } catch {}
-        }
-    };
-    const syncDropdownBackdrop = () => {
-        const isOpen = (el: HTMLElement | null | undefined) => {
-            try {
-                if (!el) return false;
-                return window.getComputedStyle(el).display !== 'none';
-            } catch {
-                return false;
-            }
-        };
-
-        const anyOpen = isOpen(tagsFilterDropdown) || isOpen(listsFilterDropdown);
-        if (anyOpen) {
-            if (!dropdownBackdrop) {
-                const el = document.createElement('div');
-                el.className = 'dropdown-backdrop';
-                el.addEventListener('click', () => {
-                    try { tagsFilterDropdown.style.display = 'none'; } catch {}
-                    try { if (listsFilterDropdown) listsFilterDropdown.style.display = 'none'; } catch {}
-                    syncDropdownBackdrop();
-                });
-                const host = (document.querySelector('#tab-records .card') as HTMLElement | null) || document.body;
-                host.appendChild(el);
-                dropdownBackdrop = el;
-            }
-            positionDropdownBackdrop();
-            dropdownBackdrop.style.display = 'block';
-        } else {
-            if (dropdownBackdrop) dropdownBackdrop.style.display = 'none';
-        }
-    };
-
-    const triggerSuggest = debounce(() => updateSuggest(), 120);
-    const triggerFilter = debounce(() => { currentPage = 1; updateFilteredRecords(); render(); }, 150);
-    searchInput.addEventListener('input', () => { triggerSuggest(); triggerFilter(); });
-    searchInput.addEventListener('focus', () => { updateSuggest(); renderSuggest(); });
-    filterSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
-    sortSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
-
-    // 显示封面开关
-    if (toggleCoversBtn) {
-        toggleCoversBtn.addEventListener('click', () => {
-            STATE.settings.showCoversInRecords = !STATE.settings.showCoversInRecords;
-            chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
-            updateToggleCoversBtnUI();
-            // 重新渲染以应用封面开关
+            console.error('[Records] 渲染视频列表时出错:', error);
+        },
+        getFilteredRecords: () => filteredRecords,
+        getSearchText: () => (searchInput?.value || '').trim(),
+        getStatus: () => (filterSelect?.value || 'all') as 'all' | VideoStatus,
+        getSort: () => queryRuntime.parseSort(),
+        getAdvancedConditions: () => advConditions,
+        queryRecords: dbViewedQuery,
+        showProgress: showRecordsProgressModal,
+        hideProgress: hideRecordsProgressModal,
+        exportController,
+        renderPage: () => {
             render();
-        });
-    }
-
-    // 视图模式切换（单按钮循环切换）
-    if (toggleViewModeBtn) {
-        toggleViewModeBtn.addEventListener('click', () => {
-            // 添加切换动画
-            toggleViewModeBtn.classList.add('switching');
-            setTimeout(() => {
-                toggleViewModeBtn.classList.remove('switching');
-            }, 500);
-            
-            // 切换模式
-            currentViewMode = currentViewMode === 'list' ? 'card' : 'list';
-            STATE.settings.recordsViewMode = currentViewMode;
-            chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
-            updateViewModeBtnUI();
-            render();
-        });
-    }
-
-    // 导出数据按钮
-    const exportRecordsBtn = document.getElementById('exportRecordsBtn') as HTMLButtonElement;
-    if (exportRecordsBtn) {
-        exportRecordsBtn.addEventListener('click', async () => {
-            await handleExportRecords();
-        });
-    }
-
-    // 我的收藏按钮
-    const myFavoritesBtn = document.getElementById('myFavoritesBtn') as HTMLButtonElement;
-    let favoritesFilterActive = false;
-    if (myFavoritesBtn) {
-        myFavoritesBtn.addEventListener('click', () => {
-            favoritesFilterActive = !favoritesFilterActive;
-            
-            // 更新按钮状态
-            if (favoritesFilterActive) {
-                myFavoritesBtn.classList.add('active');
-            } else {
-                myFavoritesBtn.classList.remove('active');
-            }
-            
-            // 重新筛选和渲染
-            currentPage = 1;
-            updateFilteredRecords();
-            render();
-        });
-    }
-
+        },
+    });
     // 已移除：精确查询事件监听器
 
     // Advanced search 切换使用文档级事件委托（见前文注入），此处不再重复绑定
 
-    if (advAddBtn) {
-        advAddBtn.addEventListener('click', () => {
-            const newCond: AdvCondition = { id: `cond_${Date.now()}`, field: 'id', op: 'contains', value: '' };
-            advConditions.push(newCond);
-            createAdvConditionRow(newCond);
-        });
-    }
-
-    if (advApplyBtn) {
-        const debouncedApply = debounce(() => {
-            advConditions = parseAdvConditionsFromUI();
-            currentPage = 1;
-            updateFilteredRecords();
-            render();
-        }, 180);
-        advApplyBtn.addEventListener('click', () => debouncedApply());
-    }
-
-    if (advResetBtn) {
-        advResetBtn.addEventListener('click', () => {
-            advConditions = [];
-            advConditionsEl.innerHTML = '';
-            currentPage = 1;
-            updateFilteredRecords();
-            render();
-        });
-    }
-
     // 已移除：高级搜索方案事件绑定（保存/载入/删除）
-
-    // Quick relative time condition
-    // 快捷条件预览（人类可读）
-    const quickTimePreview = document.getElementById('quickTimePreview') as HTMLSpanElement;
-    function formatLocal(ms: number): string {
-        const d = new Date(ms);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-    function updateQuickTimePreview() {
-        try {
-            const field = (quickTimeField?.value || 'createdAt') as FieldKey;
-            const n = parseInt(quickTimeValue?.value || '0', 10);
-            const unit = quickTimeUnit?.value || 'days';
-            if (!Number.isNaN(n) && n > 0) {
-                const now = Date.now();
-                const delta = unit === 'hours' ? n * 60 * 60 * 1000 : n * 24 * 60 * 60 * 1000;
-                const since = now - delta;
-                if (quickTimePreview) quickTimePreview.textContent = `将添加：${field} ≥ ${formatLocal(since)}`;
-            } else {
-                if (quickTimePreview) quickTimePreview.textContent = '';
-            }
-        } catch { if (quickTimePreview) quickTimePreview.textContent = ''; }
-    }
-    quickTimeField?.addEventListener('change', updateQuickTimePreview);
-    quickTimeValue?.addEventListener('input', updateQuickTimePreview);
-    quickTimeUnit?.addEventListener('change', updateQuickTimePreview);
-    updateQuickTimePreview();
-
-    if (addQuickTimeBtn) {
-        addQuickTimeBtn.addEventListener('click', () => {
-            const field = (quickTimeField?.value || 'createdAt') as FieldKey;
-            const n = parseInt(quickTimeValue?.value || '0', 10);
-            const unit = quickTimeUnit?.value || 'days';
-            if (Number.isNaN(n) || n <= 0) {
-                showMessage('请输入有效的数字 N', 'warn');
-                return;
-            }
-            const now = Date.now();
-            const delta = unit === 'hours' ? n * 60 * 60 * 1000 : n * 24 * 60 * 60 * 1000;
-            const since = now - delta;
-            const cond: AdvCondition = { id: `cond_${Date.now()}`, field, op: 'gte', value: String(since) } as any;
-            advConditions.push(cond);
-            createAdvConditionRow(cond);
-            currentPage = 1;
-            updateFilteredRecords();
-            render();
-        });
-    }
 
     // 已移除：初始化预置下拉
 
-    // 搜索建议键盘交互
-    searchInput.addEventListener('keydown', (e) => {
-        if (!suggestVisible || suggestItems.length === 0) return;
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            suggestActiveIndex = (suggestActiveIndex + 1) % suggestItems.length;
-            renderSuggest();
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            suggestActiveIndex = (suggestActiveIndex - 1 + suggestItems.length) % suggestItems.length;
-            renderSuggest();
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            const tag = suggestItems[suggestActiveIndex] || suggestItems[0];
-            if (tag) applySuggestion(tag);
-        } else if (e.key === 'Escape') {
-            suggestVisible = false; renderSuggest();
-        }
-    });
+    const triggerSuggest = searchSuggestController.createDebouncedUpdate();
+    const triggerFilter = debounce(() => stateRefreshController.resetAndRender(), 150);
 
-    // 点击建议项
-    if (searchSuggest) {
-        searchSuggest.addEventListener('mousedown', (e) => {
-            const el = (e.target as HTMLElement).closest('.suggest-item') as HTMLElement | null;
-            if (!el) return;
-            const tag = el.getAttribute('data-tag');
-            if (tag) applySuggestion(tag);
-            e.preventDefault();
-        });
-    }
-
-    // 点击外部收起
-    document.addEventListener('click', (e) => {
-        const target = e.target as Node;
-        if (searchSuggest && !searchSuggest.contains(target) && target !== searchInput) {
-            suggestVisible = false; renderSuggest();
-        }
-    });
-
-    // Tags filter event listeners
-    tagsFilterInput.addEventListener('click', () => {
-        tagsFilterDropdown.style.display = tagsFilterDropdown.style.display === 'none' ? 'block' : 'none';
-        if (tagsFilterDropdown.style.display === 'block') {
-            renderTagsFilter();
-            tagsSearchInput.focus();
-        }
-        syncDropdownBackdrop();
-    });
-
-    tagsSearchInput.addEventListener('input', (e) => {
-        filterTagsList((e.target as HTMLInputElement).value);
-    });
-
-    tagsFilterList.addEventListener('click', (e) => {
-        const tagOption = (e.target as HTMLElement).closest('.tag-option');
-        if (tagOption) {
-            const tag = tagOption.getAttribute('data-tag');
-            if (tag) {
-                if (selectedTags.has(tag)) {
-                    selectedTags.delete(tag);
-                } else {
-                    selectedTags.add(tag);
-                }
-                refreshTagsFilterDisplay();
-                currentPage = 1;
-                updateFilteredRecords();
-                render();
-            }
-        }
-    });
-
-    selectedTagsContainer.addEventListener('click', (e) => {
-        const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
-        if (removeBtn) {
-            const tag = removeBtn.getAttribute('data-tag');
-            if (tag) {
-                selectedTags.delete(tag);
-                refreshTagsFilterDisplay();
-                currentPage = 1;
-                updateFilteredRecords();
-                render();
-            }
-        }
-    });
-
-    if (listsFilterInput && listsFilterDropdown) {
-        listsFilterInput.addEventListener('click', () => {
-            listsFilterDropdown.style.display = listsFilterDropdown.style.display === 'none' ? 'block' : 'none';
-            if (listsFilterDropdown.style.display === 'block') {
-                renderListsFilter();
-                try { listsSearchInput?.focus(); } catch {}
-            }
-            syncDropdownBackdrop();
-        });
-    }
-
-    if (listsSearchInput) {
-        listsSearchInput.addEventListener('input', (e) => {
-            filterListsList((e.target as HTMLInputElement).value);
-        });
-    }
-
-    if (listsFilterList) {
-        listsFilterList.addEventListener('click', (e) => {
-            const opt = (e.target as HTMLElement).closest('.tag-option');
-            if (opt) {
-                const id = opt.getAttribute('data-list-id');
-                if (id) {
-                    if (selectedListIds.has(id)) selectedListIds.delete(id);
-                    else selectedListIds.add(id);
-                    refreshListsFilterDisplay();
-                    currentPage = 1;
-                    updateFilteredRecords();
-                    render();
-                }
-            }
-        });
-    }
-
-    if (selectedListsContainer) {
-        selectedListsContainer.addEventListener('click', (e) => {
-            const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
-            if (removeBtn) {
-                const id = removeBtn.getAttribute('data-list-id');
-                if (id) {
-                    // 如果该清单来自 searchInput 的 token（listid:xxx），只删 selectedListIds 会被 updateFilteredRecords 再次加回
-                    try {
-                        if (tokenSelectedListIds.has(String(id))) {
-                            searchInput.value = removeListIdTokenFromSearchInput(searchInput.value, String(id));
-                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            return;
-                        }
-                    } catch {}
-                    selectedListIds.delete(id);
-                    refreshListsFilterDisplay();
-                    currentPage = 1;
-                    updateFilteredRecords();
-                    render();
-                }
-            }
-        });
-    }
-
-    // Series filter events
-    if (seriesFilterInput && seriesFilterDropdown) {
-        seriesFilterInput.addEventListener('click', () => {
-            seriesFilterDropdown.style.display = seriesFilterDropdown.style.display === 'none' ? 'block' : 'none';
-            if (seriesFilterDropdown.style.display === 'block') {
-                renderSeriesFilter();
-                try { seriesSearchInput?.focus(); } catch {}
-            }
-            syncDropdownBackdrop();
-        });
-    }
-    if (seriesSearchInput) {
-        seriesSearchInput.addEventListener('input', (e) => {
-            filterSeriesList((e.target as HTMLInputElement).value);
-        });
-    }
-    if (seriesFilterList) {
-        seriesFilterList.addEventListener('click', (e) => {
-            const opt = (e.target as HTMLElement).closest('.tag-option');
-            if (opt) {
-                const id = opt.getAttribute('data-series-id');
-                if (id) {
-                    if (selectedSeriesIds.has(id)) selectedSeriesIds.delete(id);
-                    else selectedSeriesIds.add(id);
-                    refreshSeriesFilterDisplay();
-                    currentPage = 1;
-                    updateFilteredRecords();
-                    render();
-                }
-            }
-        });
-    }
-    if (selectedSeriesContainer) {
-        selectedSeriesContainer.addEventListener('click', (e) => {
-            const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
-            if (removeBtn) {
-                const id = removeBtn.getAttribute('data-series-id');
-                if (id) {
-                    try {
-                        if (tokenSelectedSeriesIds.has(String(id))) {
-                            searchInput.value = removeSeriesTokenFromSearchInput(searchInput.value, String(id));
-                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            return;
-                        }
-                    } catch {}
-                    selectedSeriesIds.delete(id);
-                    refreshSeriesFilterDisplay();
-                    currentPage = 1;
-                    updateFilteredRecords();
-                    render();
-                }
-            }
-        });
-    }
-
-    // Labels filter events
-    if (labelsFilterInput && labelsFilterDropdown) {
-        labelsFilterInput.addEventListener('click', () => {
-            labelsFilterDropdown.style.display = labelsFilterDropdown.style.display === 'none' ? 'block' : 'none';
-            if (labelsFilterDropdown.style.display === 'block') {
-                renderLabelsFilter();
-                try { labelsSearchInput?.focus(); } catch {}
-            }
-            syncDropdownBackdrop();
-        });
-    }
-    if (labelsSearchInput) {
-        labelsSearchInput.addEventListener('input', (e) => {
-            filterLabelsList((e.target as HTMLInputElement).value);
-        });
-    }
-    if (labelsFilterList) {
-        labelsFilterList.addEventListener('click', (e) => {
-            const opt = (e.target as HTMLElement).closest('.tag-option');
-            if (opt) {
-                const id = opt.getAttribute('data-label-id');
-                if (id) {
-                    if (selectedLabelIds.has(id)) selectedLabelIds.delete(id);
-                    else selectedLabelIds.add(id);
-                    refreshLabelsFilterDisplay();
-                    currentPage = 1;
-                    updateFilteredRecords();
-                    render();
-                }
-            }
-        });
-    }
-    if (selectedLabelsContainer) {
-        selectedLabelsContainer.addEventListener('click', (e) => {
-            const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
-            if (removeBtn) {
-                const id = removeBtn.getAttribute('data-label-id');
-                if (id) {
-                    try {
-                        if (tokenSelectedLabelIds.has(String(id))) {
-                            searchInput.value = removeLabelTokenFromSearchInput(searchInput.value, String(id));
-                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            return;
-                        }
-                    } catch {}
-                    selectedLabelIds.delete(id);
-                    refreshLabelsFilterDisplay();
-                    currentPage = 1;
-                    updateFilteredRecords();
-                    render();
-                }
-            }
-        });
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!tagsFilterInput.contains(e.target as Node) && !tagsFilterDropdown.contains(e.target as Node)) {
-            tagsFilterDropdown.style.display = 'none';
-        }
-        if (listsFilterInput && listsFilterDropdown) {
-            if (!listsFilterInput.contains(e.target as Node) && !listsFilterDropdown.contains(e.target as Node)) {
-                listsFilterDropdown.style.display = 'none';
-            }
-        }
-        if (seriesFilterInput && seriesFilterDropdown) {
-            if (!seriesFilterInput.contains(e.target as Node) && !seriesFilterDropdown.contains(e.target as Node)) {
-                seriesFilterDropdown.style.display = 'none';
-            }
-        }
-        if (labelsFilterInput && labelsFilterDropdown) {
-            if (!labelsFilterInput.contains(e.target as Node) && !labelsFilterDropdown.contains(e.target as Node)) {
-                labelsFilterDropdown.style.display = 'none';
-            }
-        }
-        syncDropdownBackdrop();
-    });
-
-    recordsPerPageSelect.addEventListener('change', () => {
-        recordsPerPage = parseInt(recordsPerPageSelect.value, 10);
-        STATE.settings.recordsPerPage = recordsPerPage;
-        chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
-        currentPage = 1;
-        render();
-    });
-
-    // 批量操作事件监听器
-    selectAllCheckbox.addEventListener('change', handleSelectAll);
-    batchActionsBtn?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = batchActionsDropdown?.style.display !== 'none';
-        if (batchActionsDropdown) batchActionsDropdown.style.display = isOpen ? 'none' : 'block';
-    });
-    document.addEventListener('click', () => {
-        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
-    });
-    batchRefreshBtn?.addEventListener('click', () => {
-        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
-        handleBatchRefresh();
-    });
-    batchDeleteBtn?.addEventListener('click', () => {
-        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
-        handleBatchDelete();
-    });
-    batchModifyListBtn?.addEventListener('click', () => {
-        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
-        openBatchListPicker();
-    });
-    batchAddTagBtn?.addEventListener('click', () => {
-        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
-        openBatchAddTag();
-    });
-    cancelBatchBtn?.addEventListener('click', clearAllSelection);
-
-    // 清单浮层关闭事件
-    document.getElementById('listPickerCloseBtn')?.addEventListener('click', closeListPicker);
-    document.getElementById('listPickerDoneBtn')?.addEventListener('click', closeListPicker);
-    document.querySelector('#listPickerPanel .list-picker-backdrop')?.addEventListener('click', closeListPicker);
-
-    // 初始化
-    ensureImageTooltipElement();
-    updateToggleCoversBtnUI();
-    updateFilteredRecords();
-    render();
-    renderTagsFilter(); // 初始化标签筛选
-    try { renderListsFilter(); } catch {}
-    updateBatchUI(); // 初始化批量操作UI状态
-
-    // 编辑记录的modal功能
-    function showEditModal(record: VideoRecord) {
-        // 创建modal元素
-        const modal = document.createElement('div');
-        modal.className = 'edit-record-modal';
-        
-        // 生成星星评分选择器HTML - 支持半星评分
-        const generateStarRating = (fieldId: string, currentRating: number | undefined, label: string, color: string) => {
-            const rating = currentRating || 0;
-            let starsHtml = '';
-            
-            // 生成5个星星，每个星星分为左右两半
-            for (let i = 1; i <= 5; i++) {
-                const fullValue = i;
-                const halfValue = i - 0.5;
-                const isFull = rating >= fullValue;
-                const isHalf = !isFull && rating >= halfValue;
-                
-                starsHtml += `
-                    <span class="star-wrapper" data-star="${i}">
-                        <i class="star-half-left ${isHalf || isFull ? 'fas' : 'far'} fa-star" 
-                           data-value="${halfValue}" 
-                           style="color: ${isHalf || isFull ? color : '#ddd'}"></i>
-                        <i class="star-half-right ${isFull ? 'fas' : 'far'} fa-star" 
-                           data-value="${fullValue}" 
-                           style="color: ${isFull ? color : '#ddd'}"></i>
-                    </span>
-                `;
-            }
-            
-            return `
-                <div class="form-group star-rating-group">
-                    <div class="star-rating-input" data-field="${fieldId}" data-rating="${rating}">
-                        <span class="rating-label">${label}:</span>
-                        <span class="rating-value">${rating > 0 ? rating + ' 星' : '未评分'}</span>
-                        <div class="stars-container">
-                            ${starsHtml}
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
-        
-        // 生成带锁图标的表单组
-        const generateFormGroupWithLock = (fieldName: string, label: string, inputHtml: string, isRequired: boolean = false) => {
-            const isLocked = record.manuallyEditedFields?.includes(fieldName) || false;
-            const lockIcon = isLocked 
-                ? '<i class="fas fa-lock field-lock locked" title="此字段已锁定，不会被自动同步覆盖。点击解锁"></i>'
-                : '<i class="fas fa-lock-open field-lock unlocked" title="此字段会自动同步。编辑后将自动锁定"></i>';
-            
-            return `
-                <div class="form-group" data-field-name="${fieldName}">
-                    <label>
-                        ${label}${isRequired ? ': <span class="required">*</span>' : ':'}
-                        ${lockIcon}
-                    </label>
-                    ${inputHtml}
-                </div>
-            `;
-        };
-        
-        modal.innerHTML = `
-            <div class="edit-modal-content">
-                <div class="edit-modal-header">
-                    <h3>编辑记录: ${record.id}</h3>
-                    <button class="edit-modal-close">&times;</button>
-                </div>
-                <div class="edit-modal-body">
-                    <div class="edit-form-container">
-                        <div class="json-editor-container">
-                            <div class="json-editor">
-                                <label for="edit-json">原始JSON数据 <small style="color: #888;">(自动同步)</small>:</label>
-                                <textarea id="edit-json" rows="30">${JSON.stringify(record, null, 2)}</textarea>
-                            </div>
-                        </div>
-                        <div class="edit-form">
-                            <h4>基础信息</h4>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="edit-id">视频ID: <span class="required">*</span></label>
-                                    <input type="text" id="edit-id" value="${record.id}" />
-                                    <small class="form-hint">修改ID后会创建新记录，原记录将被删除</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="edit-status">状态:</label>
-                                    <select id="edit-status">
-                                        <option value="${VIDEO_STATUS.UNTRACKED}" ${record.status === VIDEO_STATUS.UNTRACKED ? 'selected' : ''}>未标记</option>
-                                        <option value="${VIDEO_STATUS.VIEWED}" ${record.status === VIDEO_STATUS.VIEWED ? 'selected' : ''}>已观看</option>
-                                        <option value="${VIDEO_STATUS.BROWSED}" ${record.status === VIDEO_STATUS.BROWSED ? 'selected' : ''}>已浏览</option>
-                                        <option value="${VIDEO_STATUS.WANT}" ${record.status === VIDEO_STATUS.WANT ? 'selected' : ''}>想看</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-title">标题: <span class="required">*</span></label>
-                                <input type="text" id="edit-title" value="${record.title}" />
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="edit-release-date">发布日期:</label>
-                                    <input type="date" id="edit-release-date" value="${record.releaseDate || ''}" />
-                                </div>
-                                <div class="form-group">
-                                    <label for="edit-duration">时长 (分钟):</label>
-                                    <input type="number" id="edit-duration" value="${record.duration || ''}" placeholder="120" min="0" />
-                                </div>
-                            </div>
-                            
-                            <h4>评分与收藏</h4>
-                            ${generateStarRating('userRating', record.userRating, '我的评分', '#ff4444')}
-                            <div class="form-group checkbox-group">
-                                <label>
-                                    <input type="checkbox" id="edit-is-favorite" ${record.isFavorite ? 'checked' : ''} />
-                                    <i class="fas fa-heart" style="color: #ff4444;"></i> 收藏此影片
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-user-notes">我的备注:</label>
-                                <textarea id="edit-user-notes" rows="3" placeholder="写下你对这部影片的想法...">${record.userNotes || ''}</textarea>
-                            </div>
-                            
-                            <h4>制作信息</h4>
-                            <div class="form-row">
-                                ${generateFormGroupWithLock('director', '导演', `<input type="text" id="edit-director" value="${record.director || ''}" placeholder="导演名称" />`)}
-                                ${generateFormGroupWithLock('maker', '片商', `<input type="text" id="edit-maker" value="${record.maker || ''}" placeholder="片商名称" />`)}
-                            </div>
-                            ${generateFormGroupWithLock('series', '系列', `<input type="text" id="edit-series" value="${record.series || ''}" placeholder="系列名称" />`)}
-                            
-                            <h4>链接与图片</h4>
-                            <div class="form-group">
-                                <label for="edit-javdb-url">JavDB链接:</label>
-                                <input type="url" id="edit-javdb-url" value="${record.javdbUrl || ''}" placeholder="https://javdb.com/v/..." />
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-javdb-image">封面图片链接:</label>
-                                <input type="url" id="edit-javdb-image" value="${record.javdbImage || ''}" placeholder="https://..." />
-                            </div>
-                            
-                            <h4>标签与分类</h4>
-                            ${generateFormGroupWithLock('tags', '标签 (用逗号分隔)', `<textarea id="edit-tags" rows="2" placeholder="中出, 巨乳, 单体作品">${record.tags ? record.tags.join(', ') : ''}</textarea>`)}
-                            ${generateFormGroupWithLock('categories', '类别 (用逗号分隔)', `<textarea id="edit-categories" rows="2" placeholder="已婚婦女, 出軌, 巨乳">${record.categories ? record.categories.join(', ') : ''}</textarea>`)}
-                            ${generateFormGroupWithLock('actors', '演员 (用逗号分隔)', `<textarea id="edit-actors" rows="2" placeholder="演员1, 演员2">${record.actors ? record.actors.join(', ') : ''}</textarea>`)}
-                        </div>
-                    </div>
-                </div>
-                <div class="edit-modal-footer">
-                    <button id="save-record" class="btn-primary"><i class="fas fa-save"></i> 保存</button>
-                    <button id="cancel-edit" class="btn-secondary"><i class="fas fa-times"></i> 取消</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // 获取表单元素
-        const idInput = modal.querySelector('#edit-id') as HTMLInputElement;
-        const titleInput = modal.querySelector('#edit-title') as HTMLInputElement;
-        const statusSelect = modal.querySelector('#edit-status') as HTMLSelectElement;
-        const releaseDateInput = modal.querySelector('#edit-release-date') as HTMLInputElement;
-        const javdbUrlInput = modal.querySelector('#edit-javdb-url') as HTMLInputElement;
-        const javdbImageInput = modal.querySelector('#edit-javdb-image') as HTMLInputElement;
-        const tagsInput = modal.querySelector('#edit-tags') as HTMLTextAreaElement;
-        const categoriesInput = modal.querySelector('#edit-categories') as HTMLTextAreaElement;
-        const actorsInput = modal.querySelector('#edit-actors') as HTMLTextAreaElement;
-        const directorInput = modal.querySelector('#edit-director') as HTMLInputElement;
-        const makerInput = modal.querySelector('#edit-maker') as HTMLInputElement;
-        const seriesInput = modal.querySelector('#edit-series') as HTMLInputElement;
-        const durationInput = modal.querySelector('#edit-duration') as HTMLInputElement;
-        const userNotesInput = modal.querySelector('#edit-user-notes') as HTMLTextAreaElement;
-        const isFavoriteInput = modal.querySelector('#edit-is-favorite') as HTMLInputElement;
-        const jsonTextarea = modal.querySelector('#edit-json') as HTMLTextAreaElement;
-
-        // 星星评分交互 - 支持半星
-        const userRatingContainer = modal.querySelector('[data-field="userRating"]') as HTMLElement;
-        let currentUserRating = record.userRating || 0;
-        
-        const updateStarDisplay = (container: HTMLElement, rating: number, color: string) => {
-            const valueSpan = container.querySelector('.rating-value') as HTMLElement;
-            const starWrappers = container.querySelectorAll('.star-wrapper');
-            
-            starWrappers.forEach((wrapper, index) => {
-                const starNum = index + 1;
-                const leftHalf = wrapper.querySelector('.star-half-left') as HTMLElement;
-                const rightHalf = wrapper.querySelector('.star-half-right') as HTMLElement;
-                
-                const fullValue = starNum;
-                const halfValue = starNum - 0.5;
-                const isFull = rating >= fullValue;
-                const isHalf = !isFull && rating >= halfValue;
-                
-                // 左半边
-                if (isHalf || isFull) {
-                    leftHalf.classList.remove('far');
-                    leftHalf.classList.add('fas');
-                    leftHalf.style.color = color;
-                } else {
-                    leftHalf.classList.remove('fas');
-                    leftHalf.classList.add('far');
-                    leftHalf.style.color = '#ddd';
-                }
-                
-                // 右半边
-                if (isFull) {
-                    rightHalf.classList.remove('far');
-                    rightHalf.classList.add('fas');
-                    rightHalf.style.color = color;
-                } else {
-                    rightHalf.classList.remove('fas');
-                    rightHalf.classList.add('far');
-                    rightHalf.style.color = '#ddd';
-                }
-            });
-            
-            valueSpan.textContent = rating > 0 ? rating + ' 星' : '未评分';
-            container.setAttribute('data-rating', String(rating));
-        };
-        
-        userRatingContainer.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
-            if (target.classList.contains('star-half-left') || target.classList.contains('star-half-right')) {
-                const value = parseFloat(target.getAttribute('data-value') || '0');
-                currentUserRating = value;
-                updateStarDisplay(userRatingContainer, value, '#ff4444');
-                formToJson();
-            }
-        });
-        
-        // 锁图标交互 - 点击切换锁定状态
-        const lockedFields = new Set<string>(record.manuallyEditedFields || []);
-        
-        modal.querySelectorAll('.field-lock').forEach(lockIcon => {
-            lockIcon.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const formGroup = (e.target as HTMLElement).closest('.form-group') as HTMLElement;
-                const fieldName = formGroup?.getAttribute('data-field-name');
-                
-                if (!fieldName) return;
-                
-                const isCurrentlyLocked = lockedFields.has(fieldName);
-                
-                if (isCurrentlyLocked) {
-                    // 解锁
-                    lockedFields.delete(fieldName);
-                    lockIcon.classList.remove('fas', 'fa-lock', 'locked');
-                    lockIcon.classList.add('fas', 'fa-lock-open', 'unlocked');
-                    lockIcon.setAttribute('title', '解锁状态，此字段会自动同步数据，用户编辑后将自动锁定。');
-                } else {
-                    // 锁定
-                    lockedFields.add(fieldName);
-                    lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
-                    lockIcon.classList.add('fas', 'fa-lock', 'locked');
-                    lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步的数据覆盖，点击解锁。');
-                }
-                
-                formToJson();
-            });
-        });
-        
-        // 监听字段变化，自动锁定
-        const trackableFields = {
-            'title': titleInput,
-            'director': directorInput,
-            'maker': makerInput,
-            'series': seriesInput,
-            'tags': tagsInput,
-            'categories': categoriesInput,
-            'actors': actorsInput
-        };
-        
-        Object.entries(trackableFields).forEach(([fieldName, input]) => {
-            input.addEventListener('change', () => {
-                // 检查字段是否真的被修改了
-                const originalValue = (record as any)[fieldName];
-                let currentValue: any;
-                
-                if (input instanceof HTMLTextAreaElement && (fieldName === 'tags' || fieldName === 'categories' || fieldName === 'actors')) {
-                    currentValue = input.value ? input.value.split(',').map(v => v.trim()).filter(Boolean) : [];
-                } else if (input instanceof HTMLInputElement && input.type === 'number') {
-                    currentValue = input.value ? parseInt(input.value) : undefined;
-                } else {
-                    currentValue = input.value.trim() || undefined;
-                }
-                
-                const hasChanged = JSON.stringify(originalValue) !== JSON.stringify(currentValue);
-                
-                if (hasChanged && !lockedFields.has(fieldName)) {
-                    // 自动锁定
-                    lockedFields.add(fieldName);
-                    const formGroup = modal.querySelector(`[data-field-name="${fieldName}"]`);
-                    const lockIcon = formGroup?.querySelector('.field-lock');
-                    if (lockIcon) {
-                        lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
-                        lockIcon.classList.add('fas', 'fa-lock', 'locked');
-                        lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步覆盖。点击解锁');
-                    }
-                }
-            });
-        });
-
-        // 防止循环更新的标志
-        let isUpdatingFromForm = false;
-        let isUpdatingFromJson = false;
-
-        // 表单到JSON的自动同步
-        const formToJson = () => {
-            if (isUpdatingFromJson) return;
-            isUpdatingFromForm = true;
-            
-            const formData: any = {
-                ...record,
-                id: idInput.value.trim(),
-                title: titleInput.value,
-                status: statusSelect.value as VideoStatus,
-                releaseDate: releaseDateInput.value || undefined,
-                javdbUrl: javdbUrlInput.value || undefined,
-                javdbImage: javdbImageInput.value || undefined,
-                tags: tagsInput.value ? tagsInput.value.split(',').map(tag => tag.trim()).filter(Boolean) : [],
-                categories: categoriesInput.value ? categoriesInput.value.split(',').map(c => c.trim()).filter(Boolean) : undefined,
-                actors: actorsInput.value ? actorsInput.value.split(',').map(a => a.trim()).filter(Boolean) : undefined,
-                director: directorInput.value.trim() || undefined,
-                maker: makerInput.value.trim() || undefined,
-                series: seriesInput.value.trim() || undefined,
-                duration: durationInput.value ? parseInt(durationInput.value) : undefined,
-                userRating: currentUserRating > 0 ? currentUserRating : undefined,
-                userNotes: userNotesInput.value.trim() || undefined,
-                isFavorite: isFavoriteInput.checked || undefined,
-                favoritedAt: isFavoriteInput.checked && !record.isFavorite ? Date.now() : record.favoritedAt,
-                manuallyEditedFields: Array.from(lockedFields),
-                updatedAt: Date.now()
-            };
-            
-            jsonTextarea.value = JSON.stringify(formData, null, 2);
-            isUpdatingFromForm = false;
-        };
-
-        // JSON到表单的自动同步
-        const jsonToForm = () => {
-            if (isUpdatingFromForm) return;
-            isUpdatingFromJson = true;
-            
-            try {
-                const jsonData = JSON.parse(jsonTextarea.value);
-                idInput.value = jsonData.id || '';
-                titleInput.value = jsonData.title || '';
-                statusSelect.value = jsonData.status || VIDEO_STATUS.UNTRACKED;
-                releaseDateInput.value = jsonData.releaseDate || '';
-                javdbUrlInput.value = jsonData.javdbUrl || '';
-                javdbImageInput.value = jsonData.javdbImage || '';
-                tagsInput.value = jsonData.tags ? jsonData.tags.join(', ') : '';
-                categoriesInput.value = jsonData.categories ? jsonData.categories.join(', ') : '';
-                actorsInput.value = jsonData.actors ? jsonData.actors.join(', ') : '';
-                directorInput.value = jsonData.director || '';
-                makerInput.value = jsonData.maker || '';
-                seriesInput.value = jsonData.series || '';
-                durationInput.value = jsonData.duration || '';
-                userNotesInput.value = jsonData.userNotes || '';
-                isFavoriteInput.checked = jsonData.isFavorite || false;
-                
-                // 更新星星评分
-                currentUserRating = jsonData.userRating || 0;
-                updateStarDisplay(userRatingContainer, currentUserRating, '#ff4444');
-                
-                // 更新锁定字段
-                lockedFields.clear();
-                if (jsonData.manuallyEditedFields) {
-                    jsonData.manuallyEditedFields.forEach((field: string) => lockedFields.add(field));
-                }
-                
-                // 更新锁图标显示
-                modal.querySelectorAll('.form-group[data-field-name]').forEach(formGroup => {
-                    const fieldName = formGroup.getAttribute('data-field-name');
-                    const lockIcon = formGroup.querySelector('.field-lock');
-                    if (fieldName && lockIcon) {
-                        if (lockedFields.has(fieldName)) {
-                            lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
-                            lockIcon.classList.add('fas', 'fa-lock', 'locked');
-                            lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步覆盖。点击解锁');
-                        } else {
-                            lockIcon.classList.remove('fas', 'fa-lock', 'locked');
-                            lockIcon.classList.add('fas', 'fa-lock-open', 'unlocked');
-                            lockIcon.setAttribute('title', '此字段会自动同步。编辑后将自动锁定');
-                        }
-                    }
-                });
-                
-                jsonTextarea.style.borderColor = '';
-                jsonTextarea.title = '';
-            } catch (error) {
-                jsonTextarea.style.borderColor = '#ff4444';
-                jsonTextarea.title = 'JSON格式错误';
-            }
-            
-            isUpdatingFromJson = false;
-        };
-
-        // 监听所有表单字段的变化
-        [idInput, titleInput, statusSelect, releaseDateInput, javdbUrlInput, javdbImageInput, 
-         tagsInput, categoriesInput, actorsInput, directorInput, makerInput, seriesInput, 
-         durationInput, userNotesInput, isFavoriteInput].forEach(element => {
-            element.addEventListener('input', formToJson);
-            element.addEventListener('change', formToJson);
-        });
-
-        jsonTextarea.addEventListener('input', jsonToForm);
-
-        // 关闭modal
-        const closeModal = () => {
-            document.body.removeChild(modal);
-        };
-
-        modal.querySelector('.edit-modal-close')?.addEventListener('click', closeModal);
-        modal.querySelector('#cancel-edit')?.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
-
-        // 保存记录
-        modal.querySelector('#save-record')?.addEventListener('click', async () => {
-            try {
-                const updatedRecord = JSON.parse(jsonTextarea.value);
-
-                if (!updatedRecord.id || !updatedRecord.title) {
-                    showMessage('ID和标题是必填字段', 'error');
-                    return;
-                }
-
-                updatedRecord.updatedAt = Date.now();
-
-                const originalId = record.id;
-                const newId = updatedRecord.id.trim();
-
-                if (originalId !== newId) {
-                    const existingRecord = STATE.records.find(r => r.id === newId);
-                    if (existingRecord) {
-                        showMessage(`ID "${newId}" 已存在，请使用其他ID`, 'error');
-                        return;
-                    }
-                    try { await dbViewedDelete(originalId); } catch {}
-                }
-
-                await dbViewedPut(updatedRecord);
-
-                const idx = STATE.records.findIndex(r => r.id === originalId);
-                if (idx !== -1) {
-                    STATE.records.splice(idx, 1, updatedRecord);
-                } else {
-                    STATE.records.push(updatedRecord);
-                }
-                if (originalId !== newId) {
-                    for (let i = STATE.records.length - 1; i >= 0; i--) {
-                        if (STATE.records[i].id === originalId) STATE.records.splice(i, 1);
-                    }
-                    showMessage(`记录ID从 "${originalId}" 更改为 "${newId}"`, 'success');
-                } else {
-                    showMessage(`记录 "${updatedRecord.id}" 已更新`, 'success');
-                }
-                // 刷新视图
-                render();
-                closeModal();
-            } catch (error: any) {
-                console.error('[Records] 保存记录时出错:', error);
-                showMessage(`保存失败: ${error.message}`, 'error');
-            }
-        });
-
-        // ESC键关闭
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                closeModal();
-                document.removeEventListener('keydown', handleEscape);
-            }
-        };
-        document.addEventListener('keydown', handleEscape);
-    }
-
-    // 清除所有选择
-    function clearAllSelection() {
-        selectedRecords.clear();
-        document.querySelectorAll('.video-item.selected').forEach(item => {
-            item.classList.remove('selected');
-        });
-        updateBatchUI();
-    }
-
-    function handleSelectAll() {
-        const isChecked = selectAllCheckbox.checked;
-
-        if (isChecked) {
-            // 选择当前页面的所有记录（IDB 分页或内存分页）
-            const currentRecords = serverModeActive
-                ? serverPageItems
-                : filteredRecords.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
-            currentRecords.forEach(record => selectedRecords.add(record.id));
-        } else {
-            // 取消选择当前页面的所有记录（IDB 分页或内存分页）
-            const currentRecords = serverModeActive
-                ? serverPageItems
-                : filteredRecords.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
-            currentRecords.forEach(record => selectedRecords.delete(record.id));
-        }
-
-        updateBatchUI();
-        render();
-    }
+    createRecordsLifecycleRuntime({
+        pageElements,
+        getRecordsPerPage: () => recordsPerPage,
+        setRecordsPerPage: (value) => {
+            recordsPerPage = value;
+            STATE.settings.recordsPerPage = value;
+        },
+        persistRecordsPerPage: () => {
+            chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
+        },
+        resetCurrentPage: () => {
+            currentPage = 1;
+        },
+        updateFilteredRecords,
+        render,
+        syncDropdownBackdrop,
+        triggerSuggest,
+        triggerFilter,
+        viewToolbar: viewToolbarController,
+        batchToolbar: batchOperationsRuntime.batchToolbarController,
+        searchSuggest: searchSuggestController,
+        filters: {
+            tags: tagsFilterController,
+            lists: listsFilterController,
+            series: seriesFilterController,
+            labels: labelsFilterController,
+        },
+        advancedConditions: advancedConditionsController,
+        addAdvancedCondition: (condition) => {
+            advConditions.push(condition);
+        },
+        setAdvancedConditions: (conditions) => {
+            advConditions = conditions;
+        },
+        listPickerRuntime: batchOperationsRuntime.listPickerRuntime,
+        coverRuntime: coverRuntimeController,
+        handleExportRecords: () => viewRuntime.handleExportRecords(),
+        updateBatchUI,
+        debounce,
+    }).bind();
 
     function handleRecordSelection(recordId: string, isSelected: boolean) {
-        if (isSelected) {
-            selectedRecords.add(recordId);
-        } else {
-            selectedRecords.delete(recordId);
-        }
-
-        // 更新对应的li元素的选中状态
-        const li = document.querySelector(`[data-record-id="${recordId}"]`) as HTMLElement;
-        if (li) {
-            if (isSelected) {
-                li.classList.add('selected');
-            } else {
-                li.classList.remove('selected');
-            }
-        }
-
-        updateBatchUI();
-        // 不要重新渲染整个列表，只更新UI状态
+        batchSelectionController.handleRecordSelection(recordId, isSelected);
     }
 
     function updateBatchUI() {
-        const selectedCount_element = selectedCount;
-        const count = selectedRecords.size;
-        selectedCount_element.textContent = `已选择 ${count} 项`;
-
-        // 根据选择数量显示/隐藏批量操作栏
-        if (count > 0) {
-            batchOperations.style.display = 'flex';
-        } else {
-            batchOperations.style.display = 'none';
-        }
-
-        // 更新按钮状态
-        if (batchActionsBtn) batchActionsBtn.disabled = count === 0;
-
-        // 更新全选复选框状态（IDB 分页或内存分页）
-        const currentRecords = serverModeActive
-            ? serverPageItems
-            : filteredRecords.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
-        const currentSelectedCount = currentRecords.filter(record => selectedRecords.has(record.id)).length;
-
-        if (currentSelectedCount === 0) {
-            selectAllCheckbox.checked = false;
-            selectAllCheckbox.indeterminate = false;
-        } else if (currentSelectedCount === currentRecords.length) {
-            selectAllCheckbox.checked = true;
-            selectAllCheckbox.indeterminate = false;
-        } else {
-            selectAllCheckbox.checked = false;
-            selectAllCheckbox.indeterminate = true;
-        }
-    }
-
-
-
-
-
-    async function handleBatchRefresh() {
-        if (selectedRecords.size === 0) return;
-
-        const selectedIds = Array.from(selectedRecords);
-
-        showCustomConfirm(
-            '批量刷新确认',
-            `确定要刷新 ${selectedIds.length} 个视频的源数据吗？\n\n这将重新获取视频的详细信息，可能需要一些时间。`,
-            () => {
-                performBatchRefresh(selectedIds);
-            }
-        );
-    }
-
-    // 辅助函数
-    async function refreshSingleRecord(recordId: string): Promise<void> {
-        // 发送消息到 background script 刷新单个记录
-        return new Promise((resolve, reject) => {
-            try {
-                chrome.runtime.sendMessage({
-                    type: 'refresh-record',
-                    videoId: recordId,
-                }, (response) => {
-                    if (response?.success) {
-                        resolve();
-                    } else {
-                        reject(new Error(response?.error || '刷新失败'));
-                    }
-                });
-            } catch (e: any) {
-                reject(new Error(e?.message || '刷新失败'));
-            }
-        });
-    }
-
-    async function performBatchRefresh(selectedIds: string[]) {
-
-        // 显示进度
-        const progressModal = showBatchProgress('正在刷新源数据...', selectedIds.length);
-
-        try {
-            let completed = 0;
-            const errors: string[] = [];
-
-            for (const recordId of selectedIds) {
-                try {
-                    await refreshSingleRecord(recordId);
-                    completed++;
-                    updateBatchProgress(progressModal, completed, selectedIds.length, `已完成 ${completed}/${selectedIds.length}`);
-
-                    // 添加延迟避免请求过快
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                } catch (error: any) {
-                    errors.push(`${recordId}: ${error.message}`);
-                    console.error(`[Records] 刷新记录 ${recordId} 失败:`, error);
-                }
-            }
-
-            hideBatchProgress(progressModal);
-
-            // 清空选择
-            selectedRecords.clear();
-
-            // 刷新显示
-            updateFilteredRecords();
-            render();
-            updateBatchUI();
-
-            if (errors.length > 0) {
-                showMessage(`刷新完成，但有 ${errors.length} 个失败`, 'warn');
-                console.log('[Records] 刷新失败的项目:', errors);
-            } else {
-                showMessage(`成功刷新了 ${completed} 个视频的源数据！`, 'success');
-            }
-
-        } catch (error: any) {
-            hideBatchProgress(progressModal);
-            console.error('[Records] 批量刷新失败:', error);
-            showMessage(`批量刷新失败: ${error.message}`, 'error');
-
-            // 即使失败也要刷新列表，因为可能有部分成功
-            updateFilteredRecords();
-            render();
-            updateBatchUI();
-        }
-    }
-
-    async function handleBatchDelete() {
-        if (selectedRecords.size === 0) return;
-
-        const selectedIds = Array.from(selectedRecords);
-
-        showCustomConfirm(
-            '批量删除确认',
-            `确定要删除 ${selectedIds.length} 个视频记录吗？\n\n此操作不可撤销！删除后将无法恢复这些记录。`,
-            () => {
-                performBatchDelete(selectedIds);
-            }
-        );
-    }
-
-    async function performBatchDelete(selectedIds: string[]) {
-        try {
-            await dbViewedBulkDelete(selectedIds);
-
-            // 更新内存中的 STATE.records
-            const idSet = new Set(selectedIds);
-            if (Array.isArray(STATE.records)) {
-                STATE.records = STATE.records.filter(r => !idSet.has(r.id));
-            } else {
-                STATE.records = [];
-            }
-
-            // 清空选择并刷新
-            selectedRecords.clear();
-            render();
-            updateBatchUI();
-            showMessage(`成功删除了 ${selectedIds.length} 个视频记录！`, 'success');
-        } catch (error: any) {
-            console.error('[Records] 批量删除失败:', error);
-            showMessage(`批量删除失败: ${error.message}`, 'error');
-            // 尝试刷新视图以保持同步
-            render();
-            updateBatchUI();
-        }
-    }
-
-
-
-    // 自定义确认弹窗
-    function showCustomConfirm(title: string, message: string, onConfirm: () => void, onCancel?: () => void): void {
-        const modal = document.createElement('div');
-        modal.className = 'custom-confirm-modal';
-        modal.innerHTML = `
-            <div class="custom-confirm-overlay"></div>
-            <div class="custom-confirm-content">
-                <div class="custom-confirm-header">
-                    <h3>${title}</h3>
-                </div>
-                <div class="custom-confirm-body">
-                    <p>${message}</p>
-                </div>
-                <div class="custom-confirm-footer">
-                    <button class="custom-confirm-cancel">取消</button>
-                    <button class="custom-confirm-ok">确定</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        const overlay = modal.querySelector('.custom-confirm-overlay') as HTMLElement;
-        const cancelBtn = modal.querySelector('.custom-confirm-cancel') as HTMLButtonElement;
-        const okBtn = modal.querySelector('.custom-confirm-ok') as HTMLButtonElement;
-
-        const closeModal = () => {
-            modal.remove();
-        };
-
-        overlay.addEventListener('click', () => {
-            closeModal();
-            if (onCancel) onCancel();
-        });
-
-        cancelBtn.addEventListener('click', () => {
-            closeModal();
-            if (onCancel) onCancel();
-        });
-
-        okBtn.addEventListener('click', () => {
-            closeModal();
-            onConfirm();
-        });
-
-        // ESC键关闭
-        const handleKeydown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                closeModal();
-                if (onCancel) onCancel();
-                document.removeEventListener('keydown', handleKeydown);
-            }
-        };
-        document.addEventListener('keydown', handleKeydown);
-    }
-
-    function showBatchProgress(title: string, total: number): HTMLElement {
-        const modal = document.createElement('div');
-        modal.className = 'batch-progress';
-        modal.innerHTML = `
-            <div class="batch-progress-text">${title}</div>
-            <div class="batch-progress-bar">
-                <div class="batch-progress-fill" style="width: 0%"></div>
-            </div>
-            <div class="batch-progress-details">0 / ${total}</div>
-        `;
-        document.body.appendChild(modal);
-        return modal;
-    }
-
-    function updateBatchProgress(modal: HTMLElement, current: number, total: number, details: string) {
-        const fill = modal.querySelector('.batch-progress-fill') as HTMLElement;
-        const detailsElement = modal.querySelector('.batch-progress-details') as HTMLElement;
-
-        const percentage = Math.round((current / total) * 100);
-        fill.style.width = `${percentage}%`;
-        detailsElement.textContent = details;
-    }
-
-    function hideBatchProgress(modal: HTMLElement) {
-        if (modal && modal.parentNode) {
-            modal.parentNode.removeChild(modal);
-        }
-    }
-
-    // ========== 导出功能 ==========
-    
-    async function handleExportRecords() {
-        // 显示导出格式选择弹窗
-        const modal = document.createElement('div');
-        modal.className = 'custom-confirm-modal';
-        modal.innerHTML = `
-            <div class="custom-confirm-overlay"></div>
-            <div class="custom-confirm-content">
-                <div class="custom-confirm-header">
-                    <h3>导出番号数据</h3>
-                </div>
-                <div class="custom-confirm-body">
-                    <p>请选择导出格式：</p>
-                    <div style="margin-top: 12px;">
-                        <label style="display: block; margin-bottom: 8px; cursor: pointer;">
-                            <input type="radio" name="exportFormat" value="json" checked style="margin-right: 8px;">
-                            JSON 格式（完整数据，包含所有字段）
-                        </label>
-                        <label style="display: block; cursor: pointer;">
-                            <input type="radio" name="exportFormat" value="excel" style="margin-right: 8px;">
-                            Excel 格式（CSV文件，适合表格查看）
-                        </label>
-                    </div>
-                    <p style="margin-top: 16px; font-size: 12px; color: #666;">
-                        ${filteredRecords.length > 0 ? `当前筛选条件下共 ${filteredRecords.length} 条记录` : `共 ${STATE.records.length} 条记录`}
-                    </p>
-                </div>
-                <div class="custom-confirm-footer">
-                    <button class="custom-confirm-cancel">取消</button>
-                    <button class="custom-confirm-ok">开始导出</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        const overlay = modal.querySelector('.custom-confirm-overlay') as HTMLElement;
-        const cancelBtn = modal.querySelector('.custom-confirm-cancel') as HTMLButtonElement;
-        const okBtn = modal.querySelector('.custom-confirm-ok') as HTMLButtonElement;
-
-        const closeModal = () => {
-            modal.remove();
-        };
-
-        overlay.addEventListener('click', closeModal);
-        cancelBtn.addEventListener('click', closeModal);
-
-        okBtn.addEventListener('click', async () => {
-            const selectedFormat = (modal.querySelector('input[name="exportFormat"]:checked') as HTMLInputElement)?.value || 'json';
-            closeModal();
-            
-            // 根据格式执行导出
-            if (selectedFormat === 'json') {
-                await exportAsJSON();
-            } else {
-                await exportAsExcel();
-            }
-        });
-
-        // ESC键关闭
-        const handleKeydown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                closeModal();
-                document.removeEventListener('keydown', handleKeydown);
-            }
-        };
-        document.addEventListener('keydown', handleKeydown);
-    }
-
-    async function exportAsJSON() {
-        try {
-            // 获取要导出的数据（如果有筛选条件，导出筛选后的数据）
-            let dataToExport: VideoRecord[] = [];
-            
-            if (serverModeActive) {
-                // IDB模式：需要查询所有符合条件的数据
-                const progressModal = showBatchProgress('正在准备导出数据...', 1);
-                
-                const parsed = parseSearchTokens((searchInput?.value || '').trim());
-                const searchTerm = parsed.text;
-                const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
-                const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
-                const sort = parseSort();
-
-                const queryParams: ViewedQueryParams = {
-                    search: searchTerm || undefined,
-                    status: statusVal,
-                    tags: Array.from(new Set([ ...Array.from(selectedTags), ...parsed.tags ])),
-                    listIds: (() => {
-                        const ids = new Set<string>();
-                        Array.from(selectedListIds).forEach((x) => { if (x) ids.add(String(x)); });
-                        (parsed.listIds || []).forEach((x) => { if (x) ids.add(String(x)); });
-                        const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
-                        if (nameTokens.length > 0) {
-                            for (const [id, name] of listIdToName.entries()) {
-                                const n = String(name || '').toLowerCase();
-                                if (nameTokens.some(tok => n.includes(tok))) ids.add(String(id));
-                            }
-                        }
-                        return Array.from(ids);
-                    })(),
-                    orderBy: sort ? sort.orderBy : 'updatedAt',
-                    order: sort ? sort.order : 'desc',
-                    offset: 0,
-                    limit: 999999, // 获取所有数据
-                    adv,
-                };
-
-                const resp = await dbViewedQuery(queryParams);
-                dataToExport = resp.items || [];
-                
-                hideBatchProgress(progressModal);
-            } else {
-                // 内存模式：直接使用filteredRecords
-                dataToExport = filteredRecords;
-            }
-
-            if (dataToExport.length === 0) {
-                showMessage('没有数据可导出', 'warn');
-                return;
-            }
-
-            // 显示进度（如果数据量大）
-            let progressModal: HTMLElement | null = null;
-            if (dataToExport.length > 1000) {
-                progressModal = showBatchProgress('正在生成JSON文件...', dataToExport.length);
-            }
-
-            // 生成JSON
-            const exportData = {
-                exportTime: new Date().toISOString(),
-                totalCount: dataToExport.length,
-                records: dataToExport
-            };
-
-            const jsonStr = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `javdb-records-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            if (progressModal) {
-                hideBatchProgress(progressModal);
-            }
-
-            showMessage(`成功导出 ${dataToExport.length} 条记录（JSON格式）`, 'success');
-        } catch (error: any) {
-            console.error('[Records] 导出JSON失败:', error);
-            showMessage(`导出失败: ${error.message}`, 'error');
-        }
-    }
-
-    async function exportAsExcel() {
-        try {
-            // 获取要导出的数据
-            let dataToExport: VideoRecord[] = [];
-            
-            if (serverModeActive) {
-                // IDB模式：需要查询所有符合条件的数据
-                const progressModal = showBatchProgress('正在准备导出数据...', 1);
-                
-                const parsed = parseSearchTokens((searchInput?.value || '').trim());
-                const searchTerm = parsed.text;
-                const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
-                const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
-                const sort = parseSort();
-
-                const queryParams: ViewedQueryParams = {
-                    search: searchTerm || undefined,
-                    status: statusVal,
-                    tags: Array.from(new Set([ ...Array.from(selectedTags), ...parsed.tags ])),
-                    listIds: (() => {
-                        const ids = new Set<string>();
-                        Array.from(selectedListIds).forEach((x) => { if (x) ids.add(String(x)); });
-                        (parsed.listIds || []).forEach((x) => { if (x) ids.add(String(x)); });
-                        const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
-                        if (nameTokens.length > 0) {
-                            for (const [id, name] of listIdToName.entries()) {
-                                const n = String(name || '').toLowerCase();
-                                if (nameTokens.some(tok => n.includes(tok))) ids.add(String(id));
-                            }
-                        }
-                        return Array.from(ids);
-                    })(),
-                    orderBy: sort ? sort.orderBy : 'updatedAt',
-                    order: sort ? sort.order : 'desc',
-                    offset: 0,
-                    limit: 999999,
-                    adv,
-                };
-
-                const resp = await dbViewedQuery(queryParams);
-                dataToExport = resp.items || [];
-                
-                hideBatchProgress(progressModal);
-            } else {
-                dataToExport = filteredRecords;
-            }
-
-            if (dataToExport.length === 0) {
-                showMessage('没有数据可导出', 'warn');
-                return;
-            }
-
-            // 显示进度
-            let progressModal: HTMLElement | null = null;
-            if (dataToExport.length > 1000) {
-                progressModal = showBatchProgress('正在生成CSV文件...', dataToExport.length);
-                updateBatchProgress(progressModal, 0, dataToExport.length, '正在处理数据...');
-            }
-
-            // 生成CSV内容
-            const headers = ['番号', '标题', '状态', '标签', '清单', '发行日期', '创建时间', '更新时间', 'JavDB链接', '封面链接'];
-            const csvRows: string[] = [];
-            
-            // 添加表头
-            csvRows.push(headers.map(h => `"${h}"`).join(','));
-
-            // 添加数据行
-            for (let i = 0; i < dataToExport.length; i++) {
-                const record = dataToExport[i];
-                
-                // 更新进度
-                if (progressModal && i % 100 === 0) {
-                    updateBatchProgress(progressModal, i, dataToExport.length, `已处理 ${i}/${dataToExport.length}`);
-                }
-
-                const tags = Array.isArray(record.tags) ? record.tags.join('、') : '';
-                const listIds = Array.isArray((record as any).listIds) ? ((record as any).listIds as string[]) : [];
-                const listNames = listIds.map((id) => listIdToName.get(String(id)) || String(id)).join('、');
-                const createdAt = record.createdAt ? new Date(record.createdAt).toLocaleString('zh-CN') : '';
-                const updatedAt = record.updatedAt ? new Date(record.updatedAt).toLocaleString('zh-CN') : '';
-                
-                const row = [
-                    record.id || '',
-                    record.title || '',
-                    record.status || '',
-                    tags,
-                    listNames,
-                    record.releaseDate || '',
-                    createdAt,
-                    updatedAt,
-                    record.javdbUrl || '',
-                    record.javdbImage || ''
-                ];
-                
-                // CSV转义：双引号转义为两个双引号，并用双引号包裹每个字段
-                csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','));
-            }
-
-            // 添加BOM以支持Excel正确识别UTF-8编码
-            const BOM = '\uFEFF';
-            const csvContent = BOM + csvRows.join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `javdb-records-${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            if (progressModal) {
-                hideBatchProgress(progressModal);
-            }
-
-            showMessage(`成功导出 ${dataToExport.length} 条记录（CSV格式）`, 'success');
-        } catch (error: any) {
-            console.error('[Records] 导出CSV失败:', error);
-            showMessage(`导出失败: ${error.message}`, 'error');
-        }
-    }
-
-    // ===== 清单选择浮层 =====
-
-    function closeListPicker(): void {
-        const panel = document.getElementById('listPickerPanel');
-        if (panel) panel.style.display = 'none';
-    }
-
-    async function openListPicker(record: VideoRecord): Promise<void> {
-        const panel = document.getElementById('listPickerPanel');
-        const listEl = document.getElementById('listPickerList');
-        const titleEl = document.getElementById('listPickerTitle');
-        const batchFooter = document.getElementById('listPickerBatchFooter');
-        if (!panel || !listEl) return;
-
-        if (titleEl) titleEl.textContent = `添加到清单：${record.id}`;
-        if (batchFooter) batchFooter.style.display = 'none';
-
-        let lists: any[] = [];
-        try { lists = await dbListsGetAllNormalized(); } catch {}
-        lists = lists.filter(isVideoListRecord);
-
-        const currentListIds = new Set<string>(Array.isArray(record.listIds) ? record.listIds : []);
-
-        listEl.innerHTML = lists.length === 0
-            ? '<div class="list-picker-empty">暂无清单</div>'
-            : lists.map(l => {
-                const isSelected = currentListIds.has(String(l.id));
-                const badge = l.source === 'local'
-                    ? '<span class="list-source-badge list-source-local">本地</span>'
-                    : '<span class="list-source-badge list-source-javdb">JavDB</span>';
-                return `<div class="list-picker-item ${isSelected ? 'selected' : ''}" data-list-id="${l.id}" data-record-id="${record.id}">
-                    <i class="fas ${isSelected ? 'fa-check-square' : 'fa-square'}"></i>
-                    <span>${escapeHtml(String(l.name || l.id))}</span>${badge}
-                </div>`;
-            }).join('');
-
-        listEl.querySelectorAll('.list-picker-item').forEach(item => {
-            item.addEventListener('click', async () => {
-                const listId = (item as HTMLElement).getAttribute('data-list-id') || '';
-                const recId = (item as HTMLElement).getAttribute('data-record-id') || '';
-                const isSelected = item.classList.contains('selected');
-                const action: 'add' | 'remove' = isSelected ? 'remove' : 'add';
-                try {
-                    await dbViewedPatchList(recId, listId, action);
-                    item.classList.toggle('selected', !isSelected);
-                    const icon = item.querySelector('i');
-                    if (icon) icon.className = `fas ${!isSelected ? 'fa-check-square' : 'fa-square'}`;
-                    const allItems = serverModeActive ? serverPageItems : filteredRecords;
-                    const r = allItems.find(r => r.id === recId);
-                    if (r) {
-                        const ids = new Set<string>(Array.isArray(r.listIds) ? r.listIds : []);
-                        if (action === 'add') ids.add(listId); else ids.delete(listId);
-                        r.listIds = Array.from(ids);
-                    }
-                    render();
-                } catch {
-                    showMessage('操作失败', 'error');
-                }
-            });
-        });
-
-        panel.style.display = '';
-    }
-
-    async function openBatchListPicker(): Promise<void> {
-        if (selectedRecords.size === 0) return;
-        const panel = document.getElementById('listPickerPanel');
-        const listEl = document.getElementById('listPickerList');
-        const titleEl = document.getElementById('listPickerTitle');
-        const batchFooter = document.getElementById('listPickerBatchFooter');
-        if (!panel || !listEl) return;
-
-        if (titleEl) titleEl.textContent = `批量修改清单（已选 ${selectedRecords.size} 项）`;
-        if (batchFooter) batchFooter.style.display = '';
-
-        let lists: any[] = [];
-        try { lists = await dbListsGetAllNormalized(); } catch {}
-        lists = lists.filter(isVideoListRecord);
-
-        listEl.innerHTML = lists.length === 0
-            ? '<div class="list-picker-empty">暂无清单</div>'
-            : lists.map(l => {
-                const badge = l.source === 'local'
-                    ? '<span class="list-source-badge list-source-local">本地</span>'
-                    : '<span class="list-source-badge list-source-javdb">JavDB</span>';
-                return `<div class="list-picker-item" data-list-id="${l.id}">
-                    <span>${escapeHtml(String(l.name || l.id))}</span>${badge}
-                    <div class="list-picker-item-actions">
-                        <button class="batch-list-add-btn button-like" data-list-id="${l.id}">添加</button>
-                        <button class="batch-list-remove-btn button-like" data-list-id="${l.id}">移除</button>
-                    </div>
-                </div>`;
-            }).join('');
-
-        listEl.querySelectorAll('.batch-list-add-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const listId = (btn as HTMLElement).getAttribute('data-list-id') || '';
-                await executeBatchListChange(Array.from(selectedRecords), listId, 'add');
-            });
-        });
-        listEl.querySelectorAll('.batch-list-remove-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const listId = (btn as HTMLElement).getAttribute('data-list-id') || '';
-                await executeBatchListChange(Array.from(selectedRecords), listId, 'remove');
-            });
-        });
-
-        panel.style.display = '';
-    }
-
-    async function executeBatchListChange(videoIds: string[], listId: string, action: 'add' | 'remove'): Promise<void> {
-        const actionText = action === 'add' ? '添加' : '移除';
-        try {
-            const result = await dbViewedBulkPatchList(videoIds, listId, action);
-            const msg = result.failCount > 0
-                ? `${actionText}完成：成功 ${result.successCount} 条，失败 ${result.failCount} 条`
-                : `已${actionText} ${result.successCount} 条视频到清单`;
-            showMessage(msg, result.failCount > 0 ? 'warning' : 'success');
-            const allItems = serverModeActive ? serverPageItems : filteredRecords;
-            for (const id of videoIds) {
-                const r = allItems.find(r => r.id === id);
-                if (r) {
-                    const ids = new Set<string>(Array.isArray(r.listIds) ? r.listIds : []);
-                    if (action === 'add') ids.add(listId); else ids.delete(listId);
-                    r.listIds = Array.from(ids);
-                }
-            }
-            render();
-        } catch {
-            showMessage(`批量${actionText}清单失败`, 'error');
-        }
-    }
-
-    // ===== 批量添加标签 =====
-
-    function openBatchAddTag(): void {
-        if (selectedRecords.size === 0) return;
-
-        const modal = document.createElement('div');
-        modal.className = 'custom-confirm-modal';
-        modal.innerHTML = `
-            <div class="custom-confirm-overlay"></div>
-            <div class="custom-confirm-content">
-                <div class="custom-confirm-header">
-                    <h3>批量添加标签</h3>
-                </div>
-                <div class="custom-confirm-body">
-                    <p>将为已选 <strong>${selectedRecords.size}</strong> 条视频追加标签（不影响已有标签）。</p>
-                    <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">操作完成后，这些视频的标签字段将被锁定，防止同步时被覆盖。</p>
-                    <input id="batchTagInput" type="text" placeholder="输入标签，多个用逗号分隔"
-                        style="width:100%;margin-top:12px;padding:8px 12px;border:1px solid var(--border-primary);border-radius:8px;font-size:14px;color:var(--text-primary);background:var(--surface-secondary);box-sizing:border-box;" />
-                </div>
-                <div class="custom-confirm-footer">
-                    <button class="custom-confirm-cancel">取消</button>
-                    <button class="custom-confirm-ok">确认添加</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        const input = modal.querySelector('#batchTagInput') as HTMLInputElement;
-        const overlay = modal.querySelector('.custom-confirm-overlay') as HTMLElement;
-        const cancelBtn = modal.querySelector('.custom-confirm-cancel') as HTMLButtonElement;
-        const okBtn = modal.querySelector('.custom-confirm-ok') as HTMLButtonElement;
-
-        setTimeout(() => input?.focus(), 50);
-
-        const close = () => modal.remove();
-
-        overlay.addEventListener('click', close);
-        cancelBtn.addEventListener('click', close);
-        okBtn.addEventListener('click', async () => {
-            const raw = (input?.value || '').trim();
-            if (!raw) { showMessage('请输入至少一个标签', 'warning'); return; }
-            const newTags = raw.split(/[，,;；]/).map((t: string) => t.trim()).filter(Boolean);
-            if (newTags.length === 0) { showMessage('请输入有效标签', 'warning'); return; }
-            close();
-            await executeBatchAddTag(Array.from(selectedRecords), newTags);
-        });
-
-        input?.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Enter') okBtn.click();
-            if (e.key === 'Escape') close();
-        });
-
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handleEsc); }
-        };
-        document.addEventListener('keydown', handleEsc);
-    }
-
-    async function executeBatchAddTag(videoIds: string[], newTags: string[]): Promise<void> {
-        let successCount = 0;
-        let failCount = 0;
-
-        for (const id of videoIds) {
-            try {
-                const allItems = serverModeActive ? serverPageItems : filteredRecords;
-                let record: VideoRecord | undefined = allItems.find(r => r.id === id);
-                if (!record) {
-                    const { dbViewedGet } = await import('../dbClient');
-                    record = await dbViewedGet(id);
-                }
-                if (!record) { failCount++; continue; }
-
-                // 追加新标签（去重）
-                const existingTags = new Set<string>(Array.isArray(record.tags) ? record.tags : []);
-                for (const t of newTags) existingTags.add(t);
-
-                // 锁定 tags 字段
-                const lockedFields = new Set<string>(Array.isArray(record.manuallyEditedFields) ? record.manuallyEditedFields : []);
-                lockedFields.add('tags');
-
-                const updated: VideoRecord = {
-                    ...record,
-                    tags: Array.from(existingTags),
-                    manuallyEditedFields: Array.from(lockedFields),
-                    updatedAt: Date.now(),
-                };
-
-                await dbViewedPut(updated);
-
-                // 同步内存
-                record.tags = updated.tags;
-                record.manuallyEditedFields = updated.manuallyEditedFields;
-                record.updatedAt = updated.updatedAt;
-
-                successCount++;
-            } catch {
-                failCount++;
-            }
-        }
-
-        const msg = failCount > 0
-            ? `标签添加完成：成功 ${successCount} 条，失败 ${failCount} 条`
-            : `已为 ${successCount} 条视频追加标签`;
-        showMessage(msg, failCount > 0 ? 'warning' : 'success');
-        render();
+        batchSelectionController.updateBatchUI();
     }
 
 }
