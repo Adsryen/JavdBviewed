@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { STATE } from '../../src/features/contentState';
 import { VIDEO_STATUS } from '../../src/utils/config';
 import type { VideoRecord } from '../../src/types';
+import { processVisibleItems } from '../../src/features/listEnhancement/content/itemProcessor';
 
 vi.mock('../../src/features/videoDetail', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/features/videoDetail')>();
@@ -67,7 +68,6 @@ describe('list item processor', () => {
   });
 
   it('adds a viewed status badge for known records', async () => {
-    const { processVisibleItems } = await import('../../src/features/listEnhancement/content/itemProcessor');
     const list = document.querySelector('.movie-list')!;
     list.appendChild(renderListItem('ABC-001'));
     STATE.records = {
@@ -82,7 +82,6 @@ describe('list item processor', () => {
   });
 
   it('hides VR list items when the display setting is enabled', async () => {
-    const { processVisibleItems } = await import('../../src/features/listEnhancement/content/itemProcessor');
     const list = document.querySelector('.movie-list')!;
     const item = renderListItem('ABC-002', 'Sample 【VR】');
     list.appendChild(item);
@@ -96,7 +95,6 @@ describe('list item processor', () => {
   });
 
   it('hides records by status according to display settings', async () => {
-    const { processVisibleItems } = await import('../../src/features/listEnhancement/content/itemProcessor');
     const list = document.querySelector('.movie-list')!;
     const item = renderListItem('ABC-003');
     list.appendChild(item);
