@@ -695,9 +695,42 @@
       - [x] 清理废弃专家差异分析残留和空实现
       - [x] 为上述拆分点补充单元测试
       - [x] 收尾压缩 `dashboard/webdavRestore.ts` 的兼容薄转发与装配顺序
-    - [ ] 拆分 `dashboard/tabs/insights.ts`
-    - [ ] 拆分 `dashboard/tabs/actors.ts`
-    - [ ] 拆分 `dashboard/tabs/newWorks.ts`
+    - [x] 拆分 `dashboard/tabs/insights.ts`（优先）
+      - [x] 第一批：抽出报告预览/导出模型与纯工具，保持模块颗粒度适中
+        - [x] 抽出报告预览 HTML 模型：base 注入、预览主题、fallback 样式和 runtime 脚本补齐
+        - [x] 抽出报告导出模型：当前报告文件名、历史 JSON 文件名、Markdown 占位和历史月份选择
+      - [x] 第二批：抽出提示词与生成过程弹窗 runtime
+        - [x] 抽出提示词弹窗 runtime：按钮插入、人设显示、弹窗保存和 toast
+        - [x] 抽出生成过程弹窗 runtime：按钮插入、trace 渲染和空状态
+      - [x] 第三批：抽出报告生成流程和历史导出流程 runtime
+        - [x] 抽出报告导出 runtime：当前预览导出、已选历史导出、导出菜单和资产内联
+        - [x] 抽出报告生成流程 runtime：月份解析、数据聚合、AI 生成、预览状态回写
+          - [x] 抽出月份范围、上一周期和标题月份文案模型
+          - [x] 抽出统计聚合 runtime：views/compare/auto 回退、上一周期数据读取和 trace 记录
+          - [x] 抽出 AI 生成字段模型：报告字段、保存兜底字段和页面模型覆盖解析
+          - [x] 抽出视觉字段无副作用模块：Wrapped 指标、排行条、趋势图和变化卡片
+          - [x] 抽出历史月报列表模型：空状态、标题提取、日期展示、HTML 转义和预览按钮数据
+          - [x] 抽出预览状态回写 runtime：raw HTML 保存、iframe srcdoc、主题重刷、操作按钮和网格布局
+          - [x] 抽出示例预览字段模型：示例统计、排行行、Wrapped 可视字段和示例文案
+      - [x] 收尾：入口文件保留页面装配、状态协调和事件绑定
+        - [x] 抽出确认弹窗 runtime：覆盖提示、取消/确认返回值和旧 overlay 替换
+        - [x] 抽出模型下拉状态模型：选项构造、sessionStorage 恢复、自定义选择和输入覆盖值
+        - [x] 抽出模型下拉 runtime：控件插入、AI 模型刷新、页面覆盖状态和 sessionStorage 同步
+        - [x] 抽出预览操作区 runtime：复制 HTML、保存按钮状态、按钮定位和 resize 位置同步
+        - [x] 抽出加载与状态 runtime：生成遮罩、状态条、按钮禁用和 loading 样式注入
+        - [x] 抽出页面支持 runtime：iframe 高度、模板加载、分页读取和预览容器定位
+        - [x] 抽出报告生成 runtime：月份校验、覆盖确认、统计聚合、AI 生成和预览写入
+        - [x] 抽出已保存报告 runtime：保存月报、刷新历史、保留策略、JSON 导入导出和历史预览
+    - [ ] 拆分 `dashboard/tabs/actors.ts`（第二优先级）
+      - [ ] 先补 DOM/单元测试覆盖分页、筛选、编辑弹窗和批量操作关键路径
+      - [ ] 抽出筛选/分页状态模型、演员卡片渲染、编辑弹窗、批量操作 runtime
+      - [ ] 收尾：`ActorsTab` 保留 tab 生命周期与 controller 装配
+    - [ ] 拆分 `dashboard/tabs/newWorks.ts`（第三优先级）
+      - [ ] 先补新作品列表、批量打开、刷新进度和订阅配置关键测试
+      - [ ] 抽出批量打开 runtime、列表渲染、筛选状态和订阅操作 runtime
+      - [ ] 收尾：`NewWorksTab` 保留 tab 生命周期与 controller 装配
+    - [ ] 复核 `src/apps/background`（后置）
+      - [ ] 仅在单文件重新变大或路由职责膨胀时继续拆分
     - [ ] 保持 `apps/dashboard/bootstrap.ts` 只做装配
 - [x] 清理旧目录和历史备份文件
   - [x] 处理 `src/background/*.bak`
