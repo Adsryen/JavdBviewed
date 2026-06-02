@@ -24,6 +24,17 @@ function formatDate(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
+function parseDateTextMonth(value: string): { year: number; month: number } | null {
+  const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+  };
+}
+
 export function buildMonthRangePeriod(startMonth: string, endMonth: string): MonthRangePeriod {
   let normalizedStartMonth = startMonth.trim();
   let normalizedEndMonth = endMonth.trim();
@@ -74,4 +85,20 @@ export function buildChineseMonthLabel(startDate: Date, endDate: Date): string {
     return `${startMonth}-${endMonth}月`;
   }
   return `${startYear}年${startMonth}月-${endYear}年${endMonth}月`;
+}
+
+export function buildChineseMonthLabelFromDateText(startText: string, endText: string): string | null {
+  const start = parseDateTextMonth(startText);
+  const end = parseDateTextMonth(endText);
+  if (!start || !end) {
+    return null;
+  }
+
+  if (start.year === end.year && start.month === end.month) {
+    return `${start.month}月`;
+  }
+  if (start.year === end.year) {
+    return `${start.month}-${end.month}月`;
+  }
+  return `${start.year}年${start.month}月-${end.year}年${end.month}月`;
 }
