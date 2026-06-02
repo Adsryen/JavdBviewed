@@ -721,10 +721,42 @@
         - [x] 抽出页面支持 runtime：iframe 高度、模板加载、分页读取和预览容器定位
         - [x] 抽出报告生成 runtime：月份校验、覆盖确认、统计聚合、AI 生成和预览写入
         - [x] 抽出已保存报告 runtime：保存月报、刷新历史、保留策略、JSON 导入导出和历史预览
-    - [ ] 拆分 `dashboard/tabs/actors.ts`（第二优先级）
-      - [ ] 先补 DOM/单元测试覆盖分页、筛选、编辑弹窗和批量操作关键路径
-      - [ ] 抽出筛选/分页状态模型、演员卡片渲染、编辑弹窗、批量操作 runtime
-      - [ ] 收尾：`ActorsTab` 保留 tab 生命周期与 controller 装配
+    - [x] 拆分 `dashboard/tabs/actors.ts`（第二优先级）
+      - [x] 先补单元测试覆盖订阅筛选、分页和统计卡片筛选关键路径
+      - [x] 抽出订阅演员筛选/排序/分页状态模型：`actors/queryModel.ts`
+      - [x] 抽出分页 HTML 与页码窗口模型：`actors/paginationModel.ts`
+      - [x] 抽出统计卡片筛选映射模型：`actors/statsFilterModel.ts`
+      - [x] 抽出演员卡片渲染模型：`actors/cardViewModel.ts`
+      - [x] 补单元测试覆盖编辑弹窗 HTML、表单同步和自动锁定关键路径
+      - [x] 抽出编辑弹窗 HTML 与表单模型：`actors/editModalModel.ts`
+      - [x] 补单元测试覆盖批量选择状态、确认文案和完成提示关键路径
+      - [x] 抽出批量选择与文案模型：`actors/batchOperationModel.ts`
+      - [x] 补 DOM 测试覆盖批量操作 DOM 状态关键路径
+      - [x] 抽出批量操作 runtime：`actors/batchOperationRuntime.ts`
+      - [x] 补 DOM 测试覆盖演员元数据刷新解析、清洗和合并关键路径
+      - [x] 抽出演员元数据刷新解析与合并模型：`actors/metadataRefreshModel.ts`
+      - [x] 补 DOM 测试覆盖演员卡片复制、操作按钮、刷新防重入和订阅切换关键路径
+      - [x] 抽出演员卡片事件 runtime：`actors/actorCardRuntime.ts`
+      - [x] 补 DOM 测试覆盖编辑弹窗生命周期、JSON/Form 同步、自动锁定和保存回调关键路径
+      - [x] 抽出演员编辑弹窗 runtime：`actors/actorEditModalRuntime.ts`
+      - [x] 补单元测试覆盖批量动作执行成功/失败计数、完成刷新和 toast 类型
+      - [x] 抽出批量动作执行 workflow：`actors/batchActionWorkflow.ts`
+      - [x] 补 DOM 测试覆盖演员名复制动画、Clipboard API、fallback 和失败恢复关键路径
+      - [x] 抽出演员名复制 runtime：`actors/actorClipboardRuntime.ts`
+      - [x] 补单元测试覆盖统计卡片 HTML 渲染
+      - [x] 补 DOM 测试覆盖统计卡片点击、筛选控件回填、active 状态和本周新增排序
+      - [x] 抽出演员统计视图模型与 runtime：`actors/statsViewModel.ts` / `actors/statsRuntime.ts`
+      - [x] 补 DOM 测试覆盖演员列表空状态、视图容器、头像背景、选中态和点击选择
+      - [x] 抽出演员列表渲染 runtime：`actors/actorListRuntime.ts`
+      - [x] 补 DOM 测试覆盖搜索 debounce、筛选/排序控件、视图切换动画和批量按钮绑定
+      - [x] 抽出演员控件事件绑定 runtime：`actors/actorControlsRuntime.ts`
+      - [x] 补 DOM 测试覆盖刷新元数据成功、演员缺失、页面请求失败和 Wiki 失败兜底
+      - [x] 抽出演员元数据刷新 workflow：`actors/metadataRefreshWorkflow.ts`
+      - [x] 补 DOM 测试覆盖演员别名展开/收起和溢出折叠判定
+      - [x] 抽出演员别名 DOM runtime：`actors/actorAliasRuntime.ts`
+      - [x] 补单元测试覆盖编辑入口、打开作品、删除确认、删除成功和失败提示
+      - [x] 抽出演员单体操作 workflow：`actors/actorSingleActionWorkflow.ts`
+      - [x] 收尾：`ActorsTab` 保留 tab 生命周期与 controller 装配
     - [ ] 拆分 `dashboard/tabs/newWorks.ts`（第三优先级）
       - [ ] 先补新作品列表、批量打开、刷新进度和订阅配置关键测试
       - [ ] 抽出批量打开 runtime、列表渲染、筛选状态和订阅操作 runtime
