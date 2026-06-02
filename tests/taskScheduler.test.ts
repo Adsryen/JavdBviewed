@@ -1,7 +1,40 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import type { GlobalTaskDescriptor } from '../src/shared/taskCenterTypes.ts';
 import { GlobalTaskCenter } from '../src/platform/tasks/globalTaskCenter.ts';
+
+const originalWindow = (globalThis as any).window;
+const originalDocument = (globalThis as any).document;
+const originalChrome = (globalThis as any).chrome;
+
+(globalThis as any).window = {
+  location: { href: 'https://example.com/v/test', pathname: '/v/test' },
+  setTimeout,
+  clearTimeout,
+  setInterval: () => 1,
+  clearInterval: () => undefined,
+  addEventListener: () => undefined,
+};
+(globalThis as any).document = {
+  visibilityState: 'visible',
+  hidden: false,
+  addEventListener: () => undefined,
+  removeEventListener: () => undefined,
+};
+(globalThis as any).chrome = {
+  runtime: {
+    sendMessage: async () => ({ ok: true }),
+    onMessage: { addListener: () => undefined },
+  },
+};
+
+const orchestratorModulePromise = import('../src/apps/content/orchestrator/initOrchestrator.ts');
+
+afterAll(() => {
+  (globalThis as any).window = originalWindow;
+  (globalThis as any).document = originalDocument;
+  (globalThis as any).chrome = originalChrome;
+});
 
 function createDescriptor(overrides: Partial<GlobalTaskDescriptor> & Pick<GlobalTaskDescriptor, 'taskId' | 'label'>): GlobalTaskDescriptor {
   const now = Date.now();
@@ -78,64 +111,52 @@ describe('GlobalTaskCenter scheduling', () => {
   it('dependency retries do not leak deferred concurrency slots', async () => {
     const sentMessages: Array<{ type: string; payload?: any }> = [];
 
-  const originalWindow = (globalThis as any).window;
-  const originalDocument = (globalThis as any).document;
-  const originalChrome = (globalThis as any).chrome;
+    const previousChrome = (globalThis as any).chrome;
 
-  (globalThis as any).window = {
-    location: { href: 'https://example.com/v/test', pathname: '/v/test' },
-    setTimeout,
-    clearTimeout,
-    setInterval: () => 1,
-    clearInterval: () => undefined,
-    addEventListener: () => undefined,
-  };
-  (globalThis as any).document = {
-    visibilityState: 'visible',
-    hidden: false,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-  };
-  (globalThis as any).chrome = {
-    runtime: {
-      sendMessage: async (message: { type: string; payload?: any }) => {
-        sentMessages.push(message);
-        if (message.type === 'task-center:register') {
-          return { taskId: message.payload.taskId, tabId: 1 };
-        }
-        if (message.type === 'task-center:request-lease') {
-          return { granted: true };
-        }
-        return { ok: true };
+    vi.useFakeTimers();
+    (globalThis as any).chrome = {
+      runtime: {
+        sendMessage: async (message: { type: string; payload?: any }) => {
+          sentMessages.push(message);
+          if (message.type === 'task-center:register') {
+            return { taskId: message.payload.taskId, tabId: 1 };
+          }
+          if (message.type === 'task-center:request-lease') {
+            return { granted: true };
+          }
+          return { ok: true };
+        },
+        onMessage: { addListener: () => undefined },
       },
-      onMessage: { addListener: () => undefined },
-    },
-  };
+    };
 
-  try {
-    const mod = await import('../src/content/initOrchestrator.ts');
-    const orchestrator: any = mod.initOrchestrator;
+    try {
+      const mod = await orchestratorModulePromise;
+      const orchestrator: any = mod.initOrchestrator;
 
-    orchestrator['completedTasks'].clear();
-    orchestrator['retryTimers'].clearAll();
-    orchestrator['runningDeferred'] = 0;
+      orchestrator['completedTasks'].clear();
+      orchestrator['retryTimers'].clearAll();
+      orchestrator['runningDeferred'] = 0;
 
-    orchestrator['scheduleTask']('deferred', {
-      task: async () => undefined,
-      options: { label: 'dep-task', dependsOn: ['ready-dep'] },
-    });
+      orchestrator['scheduleTask']('deferred', {
+        task: async () => undefined,
+        options: { label: 'dep-task', dependsOn: ['ready-dep'] },
+      });
 
-    await new Promise((resolve) => setTimeout(resolve, 650));
-    expect(orchestrator['runningDeferred']).toBe(0);
+      await vi.runAllTicks();
+      await vi.advanceTimersByTimeAsync(250);
+      expect(orchestrator['runningDeferred']).toBe(0);
+      expect(sentMessages.some((message) => message.type === 'task-center:request-lease')).toBe(false);
 
-    orchestrator['completedTasks'].add('ready-dep');
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    expect(orchestrator['runningDeferred']).toBe(0);
-    expect(sentMessages.some((message) => message.type === 'task-center:request-lease')).toBe(true);
-  } finally {
-    (globalThis as any).window = originalWindow;
-    (globalThis as any).document = originalDocument;
-    (globalThis as any).chrome = originalChrome;
-  }
-  });
+      orchestrator['completedTasks'].add('ready-dep');
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.runAllTicks();
+
+      expect(orchestrator['runningDeferred']).toBe(0);
+      expect(sentMessages.some((message) => message.type === 'task-center:request-lease')).toBe(true);
+    } finally {
+      vi.useRealTimers();
+      (globalThis as any).chrome = previousChrome;
+    }
+  }, 20_000);
 });
