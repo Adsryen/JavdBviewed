@@ -61,14 +61,70 @@ describe('telemetry client state', () => {
 });
 
 describe('telemetry payload', () => {
+  it('defines reportable feature flags through a display catalog', async () => {
+    const { TELEMETRY_FEATURE_CATALOG } = await import('../../src/features/telemetry');
+
+    const keys = TELEMETRY_FEATURE_CATALOG.map((feature) => feature.key);
+
+    expect(keys).toEqual([
+      'webdavEnabled',
+      'drive115Enabled',
+      'actorSyncEnabled',
+      'actorAutoSyncEnabled',
+      'aiEnabled',
+      'magnetSearchEnabled',
+      'magnetAutoSearchEnabled',
+      'newWorksAutoCheckEnabled',
+      'videoEnhancementEnabled',
+      'titleTranslationEnabled',
+      'externalSearchEnabled',
+      'onlineAvailabilityEnabled',
+      'subtitleSearchEnabled',
+      'fc2BreakerEnabled',
+      'reviewBreakerEnabled',
+      'relatedListsEnabled',
+      'actorRemarksEnabled',
+      'actorNameMarksEnabled',
+      'videoFavoriteRatingEnabled',
+      'wantSyncEnabled',
+      'autoMarkWatchedAfter115Enabled',
+      'listEnhancementEnabled',
+      'listVideoPreviewEnabled',
+      'scrollPagingEnabled',
+      'actorWatermarkEnabled',
+      'actorEnhancementEnabled',
+      'embyEnabled',
+      'embyLibraryStatusEnabled',
+      'embyRealtimeCheckEnabled',
+      'privacyScreenshotModeEnabled',
+      'privacyPrivateModeEnabled',
+      'contentFilterEnabled',
+      'anchorOptimizationEnabled',
+      'passwordHelperEnabled',
+      'superRankingEnabled',
+      'insightsAutoMonthlyEnabled',
+      'githubProxyEnabled',
+    ]);
+    expect(TELEMETRY_FEATURE_CATALOG.find((feature) => feature.key === 'onlineAvailabilityEnabled')).toMatchObject({
+      label: '在线可看检测',
+      category: 'video',
+      order: 120,
+    });
+    expect(keys).not.toContain('externalEntryPanelEnabled');
+    expect(keys).not.toContain('remoteConfigEnabled');
+  });
+
   it('builds a strict whitelist payload with bucketed metrics', async () => {
-    const { buildTelemetryPayload } = await import('../../src/features/telemetry');
+    const { buildTelemetryPayload, TELEMETRY_FEATURE_CATALOG } = await import('../../src/features/telemetry');
     setChromeStorage({
       [STORAGE_KEYS.VIEWED_RECORDS]: Object.fromEntries(Array.from({ length: 12 }, (_v, index) => [`ID-${index}`, { title: `Title ${index}` }])),
       [STORAGE_KEYS.ACTOR_RECORDS]: Object.fromEntries(Array.from({ length: 51 }, (_v, index) => [`actor-${index}`, { name: `Actor ${index}` }])),
       [STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS]: {
         a: {},
         b: {},
+      },
+      [STORAGE_KEYS.NEW_WORKS_CONFIG]: {
+        autoCheckEnabled: true,
       },
     });
 
@@ -89,16 +145,29 @@ describe('telemetry payload', () => {
           enabled: true,
           v2AccessToken: 'sensitive-115-token',
         },
+        actorSync: {
+          ...(DEFAULT_SETTINGS as any).actorSync,
+          enabled: true,
+          autoSync: true,
+        },
         ai: {
           ...(DEFAULT_SETTINGS as any).ai,
           enabled: true,
           apiKey: 'sensitive-ai-key',
         },
+        dataEnhancement: {
+          ...(DEFAULT_SETTINGS as any).dataEnhancement,
+          enableTranslation: true,
+        },
         userExperience: {
           ...(DEFAULT_SETTINGS as any).userExperience,
+          enableContentFilter: true,
           enableMagnetSearch: true,
+          enableAnchorOptimization: true,
           enableListEnhancement: true,
           enableActorEnhancement: true,
+          enablePasswordHelper: true,
+          enableSuperRanking: true,
         },
         magnetSearch: {
           ...(DEFAULT_SETTINGS as any).magnetSearch,
@@ -121,6 +190,10 @@ describe('telemetry payload', () => {
           enableReviewBreaker: true,
           enableRelatedLists: true,
           enableActorRemarks: true,
+          enableActorNameMarks: true,
+          enableVideoFavoriteRating: true,
+          enableWantSync: true,
+          autoMarkWatchedAfter115: true,
           onlineAvailabilitySites: {
             fanza: false,
             jable: true,
@@ -130,6 +203,9 @@ describe('telemetry payload', () => {
         listEnhancement: {
           ...(DEFAULT_SETTINGS as any).listEnhancement,
           enabled: true,
+          enableVideoPreview: true,
+          enableScrollPaging: true,
+          enableActorWatermark: true,
         },
         actorEnhancement: {
           ...(DEFAULT_SETTINGS as any).actorEnhancement,
@@ -138,6 +214,36 @@ describe('telemetry payload', () => {
         emby: {
           ...(DEFAULT_SETTINGS as any).emby,
           enabled: true,
+          libraryStatus: {
+            enabled: true,
+            showOnList: true,
+            showOnDetail: true,
+          },
+          realtimeCheck: {
+            enabled: true,
+          },
+        },
+        privacy: {
+          ...(DEFAULT_SETTINGS as any).privacy,
+          screenshotMode: {
+            ...(DEFAULT_SETTINGS as any).privacy.screenshotMode,
+            enabled: true,
+          },
+          privateMode: {
+            ...(DEFAULT_SETTINGS as any).privacy.privateMode,
+            enabled: true,
+          },
+        },
+        insights: {
+          ...(DEFAULT_SETTINGS as any).insights,
+          autoMonthlyEnabled: true,
+        },
+        networkAcceleration: {
+          ...(DEFAULT_SETTINGS as any).networkAcceleration,
+          github: {
+            ...(DEFAULT_SETTINGS as any).networkAcceleration.github,
+            enabled: true,
+          },
         },
         telemetry: {
           enabled: true,
@@ -176,12 +282,14 @@ describe('telemetry payload', () => {
       features: {
         webdavEnabled: true,
         drive115Enabled: true,
+        actorSyncEnabled: true,
+        actorAutoSyncEnabled: true,
         aiEnabled: true,
-        remoteConfigEnabled: false,
         magnetSearchEnabled: true,
         magnetAutoSearchEnabled: true,
+        newWorksAutoCheckEnabled: true,
         videoEnhancementEnabled: true,
-        externalEntryPanelEnabled: true,
+        titleTranslationEnabled: true,
         externalSearchEnabled: true,
         onlineAvailabilityEnabled: true,
         subtitleSearchEnabled: true,
@@ -189,9 +297,26 @@ describe('telemetry payload', () => {
         reviewBreakerEnabled: true,
         relatedListsEnabled: true,
         actorRemarksEnabled: true,
+        actorNameMarksEnabled: true,
+        videoFavoriteRatingEnabled: true,
+        wantSyncEnabled: true,
+        autoMarkWatchedAfter115Enabled: true,
         listEnhancementEnabled: true,
+        listVideoPreviewEnabled: true,
+        scrollPagingEnabled: true,
+        actorWatermarkEnabled: true,
         actorEnhancementEnabled: true,
         embyEnabled: true,
+        embyLibraryStatusEnabled: true,
+        embyRealtimeCheckEnabled: true,
+        privacyScreenshotModeEnabled: true,
+        privacyPrivateModeEnabled: true,
+        contentFilterEnabled: true,
+        anchorOptimizationEnabled: true,
+        passwordHelperEnabled: true,
+        superRankingEnabled: true,
+        insightsAutoMonthlyEnabled: true,
+        githubProxyEnabled: true,
       },
       metrics: {
         viewedCountBucket: '10-49',
@@ -204,6 +329,7 @@ describe('telemetry payload', () => {
         enabledMagnetSourceCountBucket: '1-9',
       },
     }));
+    expect(Object.keys(payload.features)).toEqual(TELEMETRY_FEATURE_CATALOG.map((feature) => feature.key));
     expect(JSON.stringify(payload)).not.toContain('sensitive-user');
     expect(JSON.stringify(payload)).not.toContain('sensitive-password');
     expect(JSON.stringify(payload)).not.toContain('sensitive-115-token');
@@ -299,7 +425,7 @@ describe('telemetry reporter', () => {
     expect(chrome.alarms.create).not.toHaveBeenCalled();
   });
 
-  it('schedules heartbeat alarms every 3 hours when reporting is configured', async () => {
+  it('schedules heartbeat alarms every 6 hours when reporting is configured', async () => {
     const { TELEMETRY_HEARTBEAT_ALARM, syncTelemetryHeartbeatAlarm } = await import('../../src/features/telemetry');
 
     syncTelemetryHeartbeatAlarm({
@@ -311,12 +437,12 @@ describe('telemetry reporter', () => {
     });
 
     expect(chrome.alarms.create).toHaveBeenCalledWith(TELEMETRY_HEARTBEAT_ALARM, {
-      delayInMinutes: 180,
-      periodInMinutes: 180,
+      delayInMinutes: 360,
+      periodInMinutes: 360,
     });
   });
 
-  it('allows another heartbeat after 3 hours', async () => {
+  it('allows another heartbeat after 6 hours', async () => {
     const { reportTelemetryEvent, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
     setChromeStorage({
       [TELEMETRY_CLIENT_STATE_KEY]: {
@@ -338,7 +464,7 @@ describe('telemetry reporter', () => {
         },
       },
       fetchImpl: fetchMock,
-      now: new Date('2026-05-26T03:00:00.000Z'),
+      now: new Date('2026-05-26T06:00:00.000Z'),
     });
 
     expect(result).toEqual({ sent: true, status: 200 });

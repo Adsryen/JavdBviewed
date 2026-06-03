@@ -11,6 +11,7 @@ import { updateFaviconForStatus } from '../videoStatus';
 import { initOrchestrator } from '../../apps/content/orchestrator';
 import { showEnhancementLoading } from '../../platform/browser/enhancementLoadingIndicator';
 import { renderDetailSearchLinks } from '../externalSearch';
+import { renderDetailLibraryStatus } from '../embyLibrary/content/statusBadges';
 
 import type { InitPhase } from '../../apps/content/orchestrator';
 import type { GlobalTaskVisibilityPolicy } from '../../shared/taskCenterTypes';
@@ -566,6 +567,12 @@ export async function handleVideoDetailPage(): Promise<void> {
     if (!videoId) {
         log('Could not find video ID using any method. Aborting.');
         return;
+    }
+
+    try {
+        renderDetailLibraryStatus(videoId);
+    } catch (e) {
+        log('renderDetailLibraryStatus failed:', e as any);
     }
 
     try {

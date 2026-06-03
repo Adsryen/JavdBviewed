@@ -1,6 +1,7 @@
 // src/features/contentState/index.ts
 
 import type { ExtensionSettings, VideoRecord } from '../../types';
+import type { EmbyLibraryState } from '../embyLibrary/types';
 
 export interface ContentState {
     settings: ExtensionSettings | null;
@@ -9,6 +10,7 @@ export interface ContentState {
     observer: MutationObserver | null;
     debounceTimer: number | null;
     originalFaviconUrl: string;
+    embyLibraryState: EmbyLibraryState | null;
     // 并发控制
     processingVideos: Set<string>; // 正在处理的视频ID
     lastProcessedVideo: string | null; // 最后处理的视频ID
@@ -21,6 +23,7 @@ export const STATE: ContentState = {
     observer: null,
     debounceTimer: null,
     originalFaviconUrl: '',
+    embyLibraryState: null,
     // 并发控制
     processingVideos: new Set<string>(),
     lastProcessedVideo: null,

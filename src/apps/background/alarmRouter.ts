@@ -4,12 +4,18 @@ import { handleTelemetryAlarm, syncTelemetryHeartbeatAlarm } from '../../feature
 import { getSettings } from '../../utils/storage';
 import { registerDynamicContentScripts } from './dynamicContentScripts';
 import {
+  handleEmbyLibraryAlarm,
+  syncEmbyLibrarySyncAlarmFromCurrentSettings,
+  syncEmbyLibrarySyncAlarmFromSettings,
+} from '../../features/embyLibrary/background/scheduler';
+import {
   handleDrive115Alarm,
   handleDrive115SettingsChange,
 } from './drive115UserRefresh';
 
 export function initializeBackgroundAlarmWiring(): void {
   syncInsightsMonthlyAlarmFromSettings();
+  syncEmbyLibrarySyncAlarmFromCurrentSettings().catch(() => {});
   registerNewWorksStartupInitializer();
   registerBackgroundAlarmRouter();
   registerBackgroundSettingsChangeRouter();
@@ -39,6 +45,7 @@ export function registerNewWorksStartupInitializer(): void {
         await newWorksScheduler.initialize();
         try {
           const settings = await getSettings();
+          syncEmbyLibrarySyncAlarmFromSettings(settings);
           const ins = settings?.insights || {};
           if (ins.autoCompensateOnStartupEnabled) {
             compensateOnStartup();
@@ -63,6 +70,7 @@ export function registerBackgroundAlarmRouter(): void {
       try {
         const p = (async () => {
           if (await handleTelemetryAlarm(alarm?.name || '')) return;
+          if (await handleEmbyLibraryAlarm(alarm?.name || '')) return;
           await handleAlarmAsync(alarm?.name || '');
         })();
         p.then(done).catch(done);
@@ -85,6 +93,7 @@ export function registerBackgroundSettingsChangeRouter(): void {
             try { chrome.alarms?.clear?.(INSIGHTS_ALARM); } catch {}
           }
           syncTelemetryHeartbeatAlarm(settings);
+          syncEmbyLibrarySyncAlarmFromSettings(settings);
 
           const oldSettings = changes['settings']?.oldValue as any;
           const newSettings = changes['settings']?.newValue as any;

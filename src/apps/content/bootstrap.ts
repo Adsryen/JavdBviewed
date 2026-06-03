@@ -1,7 +1,9 @@
 // src/apps/content/bootstrap.ts
 
 import { getSettings, getValue } from '../../utils/storage';
+import { STORAGE_KEYS } from '../../utils/config';
 import type { VideoRecord } from '../../types';
+import type { EmbyLibraryState } from '../../features/embyLibrary/types';
 import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from '../../features/contentState';
 import { processVisibleItems, setupObserver } from '../../features/listEnhancement/content/itemProcessor';
 import { handleVideoDetailPage, getVideoDetailTaskBlueprints } from '../../features/videoDetail';
@@ -221,6 +223,7 @@ async function initialize(): Promise<void> {
     const settingsPromise = getSettings();
     const recordsPromise = getValue<Record<string, VideoRecord>>('viewed', {});
     const newWorksConfigPromise = getValue<any>('new_works_config', {});
+    const embyLibraryStatePromise = getValue<EmbyLibraryState>(STORAGE_KEYS.EMBY_LIBRARY_STATE, { entries: {}, updatedAt: 0 });
 
     const settings = await settingsPromise;
     STATE.settings = settings;
@@ -297,11 +300,13 @@ async function initialize(): Promise<void> {
 
     await initOrchestrator.preregisterBlueprints(preregisterBlueprints);
 
-    const [records, newWorksConfig] = await Promise.all([
+    const [records, newWorksConfig, embyLibraryState] = await Promise.all([
         recordsPromise,
         newWorksConfigPromise,
+        embyLibraryStatePromise,
     ]);
     STATE.records = records;
+    STATE.embyLibraryState = embyLibraryState;
     log(`Loaded ${Object.keys(STATE.records).length} records.`);
     log('Display settings:', STATE.settings.display);
 
@@ -585,7 +590,7 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('high', () => actorQuickActionsManager.init(), { label: 'actorQuickActions:init', delayMs: 500, priority: 6, visibilityPolicy: 'background_allowed' });
     }
 
-    // 初始化Emby增强功能（延后执行）
+    // 初始化 Emby/Jellyfin 增强功能（延后执行）
     // 优化：缩短延迟到1500ms
     if (isCurrentPageMatchedByEmby(settings)) {
         initOrchestrator.add('deferred', async () => {

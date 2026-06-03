@@ -78,7 +78,7 @@ export function getTaskDescription(label: string): string {
     'contentFilter:init': '内容过滤初始化',
     'contentFilter:initialize': '内容过滤初始化',
     'ux:contentFilter': '内容过滤初始化',
-    'emby:badge': 'Emby徽标增强',
+    'emby:badge': 'Emby/Jellyfin 徽标增强',
     'passwordHelper:init': '密码助手初始化',
     'videoEnhancement:runCover': '影片页封面增强',
     'videoEnhancement:runTitle': '影片页标题翻译',

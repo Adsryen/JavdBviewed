@@ -2,6 +2,8 @@
 
 import { VIDEO_STATUS } from '../../../utils/config';
 import { STATE, SELECTORS, log } from '../../contentState';
+import { ensureListTagContainer, renderLibraryStatusBadges } from '../../embyLibrary/content/statusBadges';
+import { buildRealtimeCheckConfig, embyLibraryRealtimeCheckQueue } from '../../embyLibrary/content/realtimeCheck';
 import { isPageProperlyLoaded } from '../../videoDetail';
 
 export function processVisibleItems(): void {
@@ -31,7 +33,18 @@ export function processVisibleItems(): void {
         item.removeAttribute('data-filter-processed');
     });
 
-    items.forEach(processItem);
+    const visibleCodes: string[] = [];
+    items.forEach((item) => {
+        const videoId = processItem(item);
+        if (videoId && item.style.display !== 'none') {
+            visibleCodes.push(videoId);
+        }
+    });
+
+    embyLibraryRealtimeCheckQueue.enqueue(
+        visibleCodes,
+        buildRealtimeCheckConfig(STATE.settings),
+    );
 }
 
 export function setupObserver(): void {
@@ -144,20 +157,20 @@ function getHideReason(videoId: string): string {
     return '';
 }
 
-function processItem(item: HTMLElement): void {
+function processItem(item: HTMLElement): string | null {
     // 检查是否已经处理过这个项目
     if (item.hasAttribute('data-processed')) {
-        return;
+        return null;
     }
 
     const videoIdElement = item.querySelector<HTMLElement>(SELECTORS.VIDEO_ID);
     if (!videoIdElement) {
-        return;
+        return null;
     }
 
     const videoId = videoIdElement.textContent?.trim();
     if (!videoId) {
-        return;
+        return null;
     }
 
     // 标记为已处理
@@ -168,6 +181,7 @@ function processItem(item: HTMLElement): void {
 
     // 清除旧的状态标签
     item.querySelectorAll('.custom-status-tag').forEach(tag => tag.remove());
+    item.querySelectorAll('.emby-library-status-tag').forEach(tag => tag.remove());
 
     // 检查是否启用状态标签显示功能
     const showStatusBadge = STATE.settings?.listEnhancement?.showStatusBadge !== false; // 默认启用
@@ -212,6 +226,13 @@ function processItem(item: HTMLElement): void {
         }
     }
 
+    if ((STATE.settings as any)?.emby?.libraryStatus?.enabled === true) {
+        const tagContainer = ensureListTagContainer(item);
+        if (tagContainer) {
+            renderLibraryStatusBadges(tagContainer, videoId, 'list');
+        }
+    }
+
     // 检查VR标签 - 改进检测逻辑，参考油猴脚本
     const vrTag = item.querySelector('.tag.is-link');
     const isVR = vrTag?.textContent?.trim() === 'VR';
@@ -237,7 +258,7 @@ function processItem(item: HTMLElement): void {
         // 添加标记，表示被默认功能隐藏
         item.setAttribute('data-hidden-by-default', 'true');
         item.setAttribute('data-hide-reason', 'VR');
-        return;
+        return videoId;
     }
 
     if (shouldHide(videoId)) {
@@ -246,12 +267,12 @@ function processItem(item: HTMLElement): void {
         // 添加标记，表示被默认功能隐藏
         item.setAttribute('data-hidden-by-default', 'true');
         item.setAttribute('data-hide-reason', getHideReason(videoId));
-        return;
+        return videoId;
     }
 
     if (item.hasAttribute('data-hidden-by-actor')) {
         item.style.display = 'none';
-        return;
+        return videoId;
     }
 
     // 确保显示未被隐藏的项目
@@ -259,6 +280,7 @@ function processItem(item: HTMLElement): void {
     // 移除默认隐藏标记
     item.removeAttribute('data-hidden-by-default');
     item.removeAttribute('data-hide-reason');
+    return videoId;
 }
 
 function addTag(container: HTMLElement, text: string, style: string): void {

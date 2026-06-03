@@ -49,7 +49,10 @@ export const STORAGE_KEYS = {
     // IndexedDB 日志迁移状态标记（将旧的 STORAGE_KEYS.LOGS 迁移到 IDB logs 表）
     IDB_LOGS_MIGRATED: 'idb_logs_migrated',
     // IndexedDB 演员数据迁移状态标记（将旧的 STORAGE_KEYS.ACTOR_RECORDS 迁移到 IDB actors 表）
-    IDB_ACTORS_MIGRATED: 'idb_actors_migrated'
+    IDB_ACTORS_MIGRATED: 'idb_actors_migrated',
+
+    // Emby/Jellyfin 媒体库入库索引
+    EMBY_LIBRARY_STATE: 'emby_library_state'
 } as const;
 
 export const VIDEO_STATUS = {
@@ -577,7 +580,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         },
     },
 
-    // 新增：Emby增强默认配置
+    // 新增：Emby/Jellyfin 增强默认配置
     emby: {
         enabled: false, // 默认关闭，需要用户手动配置
         matchUrls: [
@@ -587,7 +590,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             'http://192.168.*.*:8096/*',
             'https://*.emby.com/*',
             'https://*.jellyfin.org/*'
-        ], // 默认匹配常见的Emby/Jellyfin地址
+        ], // 默认匹配常见的 Emby/Jellyfin 地址
         videoCodePatterns: [
             '[A-Z]{2,6}-\\d{2,6}', // 标准格式: ABC-123, ABCD-123
             'FC2-PPV-\\d+', // FC2格式
@@ -605,7 +608,20 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         },
         // 新增：右侧悬浮快捷按钮默认显示
         showQuickSearchCode: true,
-        showQuickSearchActor: true
+        showQuickSearchActor: true,
+        mediaServers: [],
+        syncIntervalMinutes: 60,
+        libraryStatus: {
+            enabled: false,
+            showOnList: true,
+            showOnDetail: true,
+        },
+        realtimeCheck: {
+            enabled: false,
+            concurrency: 1,
+            batchSize: 20,
+            cacheTtlMinutes: 10,
+        },
     },
 
     // 新增：演员同步配置

@@ -4,6 +4,11 @@ import { getSettings, getValue } from '../../../utils/storage';
 import { TELEMETRY_CLIENT_STATE_KEY } from '../../telemetry';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
 
+const LOCAL_ONLY_STORAGE_KEYS = [
+  TELEMETRY_CLIENT_STATE_KEY,
+  STORAGE_KEYS.EMBY_LIBRARY_STATE,
+] as const;
+
 export interface WebDAVBackupCollectorOptions {
   logger?: WebDAVClientLog;
 }
@@ -19,7 +24,9 @@ export function byteSizeOf(value: any): number {
 
 export function omitLocalOnlyStorageKeys(value: Record<string, any>): Record<string, any> {
   const next = { ...(value || {}) };
-  delete next[TELEMETRY_CLIENT_STATE_KEY];
+  for (const key of LOCAL_ONLY_STORAGE_KEYS) {
+    delete next[key];
+  }
   return next;
 }
 
@@ -66,13 +73,14 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
     const all = await new Promise<Record<string, any>>((resolve) => {
       try { chrome.storage.local.get(null, (res) => resolve(res || {})); } catch { resolve({}); }
     });
-    const entries = Object.entries(all);
+    const backupStorage = omitLocalOnlyStorageKeys(all);
+    const entries = Object.entries(backupStorage);
     storageKeysCount = entries.length;
     topStorageKeysByBytes = entries
       .map(([k, v]) => ({ key: k, bytes: byteSizeOf(v) }))
       .sort((a, b) => b.bytes - a.bytes)
       .slice(0, 50);
-    storageAll = omitLocalOnlyStorageKeys(all);
+    storageAll = backupStorage;
   } catch {}
 
   const stats = {

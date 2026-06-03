@@ -1,6 +1,6 @@
 /**
- * Emby增强功能
- * 在Emby/Jellyfin等媒体服务器页面中识别番号并转换为可点击的链接
+ * Emby/Jellyfin 增强功能
+ * 在 Emby/Jellyfin 等媒体服务器页面中识别番号并转换为可点击的链接
  */
 
 import { STATE, log } from '../../contentState';
@@ -25,7 +25,7 @@ interface EmbyConfig {
 }
 
 /**
- * Emby增强管理器
+ * Emby/Jellyfin 增强管理器
  */
 class EmbyEnhancementManager {
     private isInitialized = false;
@@ -61,7 +61,7 @@ class EmbyEnhancementManager {
     }
 
     /**
-     * 初始化Emby增强功能
+     * 初始化 Emby/Jellyfin 增强功能
      */
     async initialize(): Promise<void> {
         if (this.isInitialized) return;
@@ -95,7 +95,7 @@ class EmbyEnhancementManager {
     }
 
     /**
-     * 销毁Emby增强功能
+     * 销毁 Emby/Jellyfin 增强功能
      */
     destroy(): void {
         if (this.observer) {

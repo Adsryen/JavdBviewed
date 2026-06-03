@@ -1,13 +1,17 @@
-import { getSettings } from '../../utils/storage';
+import { getSettings, getValue } from '../../utils/storage';
+import { STORAGE_KEYS } from '../../utils/config';
 import { STATE, log } from '../../features/contentState';
 import { processVisibleItems } from '../../features/listEnhancement/content/itemProcessor';
 import { showToast } from '../../platform/browser/toast';
+import { extractVideoIdFromPage } from '../../platform/browser';
 import { videoDetailEnhancer } from '../../features/videoDetail';
 import { refreshActorMarksOnPage, runActorRemarksQuick } from '../../features/videoDetail';
 import { contentFilterManager } from '../../features/contentFilter';
 import { listEnhancementManager } from '../../features/listEnhancement';
 import { actorEnhancementManager } from '../../features/actorEnhancement';
 import { embyEnhancementManager } from '../../features/embyEnhancement/content';
+import { renderDetailLibraryStatus } from '../../features/embyLibrary/content/statusBadges';
+import type { EmbyLibraryState } from '../../features/embyLibrary/types';
 import { destroySuperRankingNav, initializeSuperRankingNav, isSuperRankingSupportedHost } from '../../features/rankings';
 
 export function installContentMessageRouter(): void {
@@ -35,7 +39,10 @@ export function installContentMessageRouter(): void {
         if (message.type === 'settings-updated') {
             log('Settings updated, reloading settings and reprocessing items');
             Promise.resolve((message && message.settings) || null).then(async (incomingSettings) => {
-                const settings = incomingSettings || await getSettings();
+                const loadedSettings = await getSettings();
+                const settings = incomingSettings
+                    ? { ...loadedSettings, ...incomingSettings, emby: { ...loadedSettings.emby, ...(incomingSettings as any).emby } }
+                    : loadedSettings;
                 STATE.settings = settings;
                 try {
                     if (isSuperRankingSupportedHost() && (settings.userExperience as any)?.enableSuperRanking !== false) {
@@ -89,6 +96,10 @@ export function installContentMessageRouter(): void {
 
                 try {
                     if (window.location.pathname.startsWith('/v/')) {
+                        const videoId = extractVideoIdFromPage();
+                        if (videoId) {
+                            renderDetailLibraryStatus(videoId);
+                        }
                         await videoDetailEnhancer.refreshTranslationFromSettings();
                         await refreshActorMarksOnPage();
                         await runActorRemarksQuick();
@@ -99,6 +110,22 @@ export function installContentMessageRouter(): void {
                 }
             });
             return false;
+        } else if (message.type === 'EMBY_LIBRARY_STATE_UPDATED') {
+            getValue<EmbyLibraryState>(STORAGE_KEYS.EMBY_LIBRARY_STATE, { entries: {}, updatedAt: 0 })
+                .then((state) => {
+                    STATE.embyLibraryState = state;
+                    processVisibleItems();
+                    const videoId = extractVideoIdFromPage();
+                    if (videoId) {
+                        renderDetailLibraryStatus(videoId);
+                    }
+                    sendResponse({ success: true });
+                })
+                .catch((error) => {
+                    log('Failed to reload Emby library state:', error as any);
+                    sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+                });
+            return true;
         } else if (message.type === 'show-toast') {
             log('Received toast message:', message.message, message.toastType);
             try {

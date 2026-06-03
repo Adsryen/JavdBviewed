@@ -1,4 +1,4 @@
-/* Emby增强设置样式 */
+/* Emby/Jellyfin 增强设置样式 */
 
 /* CSS变量定义 - 浅色主题 */
 :root {
@@ -26,7 +26,7 @@
     --emby-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-/* Emby设置面板特有样式 */
+/* Emby/Jellyfin 设置面板特有样式 */
 #emby-settings {
     position: relative;
     overflow: hidden;
@@ -469,6 +469,73 @@ div.url-item input.url-input:disabled {
     border: 1px solid var(--info);
 }
 
+.emby-library-status-options {
+    display: grid;
+    gap: 10px;
+}
+
+.emby-media-server-list {
+    display: grid;
+    gap: 12px;
+    margin: 14px 0;
+}
+
+.emby-media-server-list:empty::before {
+    content: "暂无媒体服务器，点击下方按钮添加";
+    display: block;
+    padding: 18px;
+    border: 1px dashed var(--border-primary);
+    border-radius: 8px;
+    color: var(--text-muted);
+    text-align: center;
+    background: var(--bg-secondary);
+}
+
+.emby-media-server-item {
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--surface-primary);
+}
+
+.emby-media-server-grid {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 1fr) minmax(220px, 1.5fr) minmax(220px, 1.5fr) auto auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.emby-server-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.emby-library-sync-status {
+    min-height: 20px;
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+#emby-settings .setting-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-primary);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    box-sizing: border-box;
+}
+
+#emby-settings .setting-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+}
+
 /* 按钮样式 */
 .btn {
     padding: 8px 16px;
@@ -509,6 +576,19 @@ div.url-item input.url-input:disabled {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+    .emby-media-server-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .emby-server-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .emby-server-actions .btn {
+        justify-content: center;
+    }
+
     .url-item {
         flex-direction: column;
         align-items: stretch;

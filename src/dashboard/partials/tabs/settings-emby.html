@@ -3,21 +3,21 @@
         <button class="settings-back-btn" data-action="back-to-settings">
             <i class="fas fa-arrow-left"></i> 返回设置
         </button>
-        <h2>Emby增强设置</h2>
-        <p class="settings-description">配置Emby/Jellyfin等媒体服务器的番号识别和跳转功能，自动将页面中的番号转换为可点击的链接。</p>
+        <h2>Emby/Jellyfin 增强设置</h2>
+        <p class="settings-description">配置 Emby/Jellyfin 等媒体服务器的番号识别和跳转功能，自动将页面中的番号转换为可点击的链接。</p>
     </div>
     <div class="settings-page-body">
         <div class="settings-card settings-section">
             <div class="enhancement-notice">
                 <i class="fas fa-info-circle"></i>
-                <span>增强功能可能存在细微问题，如遇到任何异常请在 <a href="https://github.com/Adsryen/JavdBviewed/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</span>
+                <span>影音增强功能可能还存在问题，如遇到任何异常请在 <a href="https://github.com/Adsryen/JavdBviewed/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</span>
             </div>
         </div>
         <div class="settings-card settings-section">
             <h4>基本设置</h4>
             <div class="setting-item">
                 <div class="drive115-toggle-wrapper" style="display:flex; align-items:center; gap:10px;">
-                    <span class="drive115-toggle-text">启用Emby增强功能</span>
+                    <span class="drive115-toggle-text">启用 Emby/Jellyfin 增强功能</span>
                     <label class="drive115-toggle-label" style="margin:0;">
                         <div class="drive115-toggle-switch">
                             <input type="checkbox" id="emby-enabled" class="drive115-toggle-input">
@@ -83,13 +83,60 @@
         </div>
 
         <div class="settings-card settings-section">
+            <h4>媒体库入库状态</h4>
+            <div class="setting-item">
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-library-status-enabled">
+                    <span class="setting-title">显示 Emby/Jellyfin 入库状态</span>
+                </label>
+                <p class="setting-description">在 JavDB 列表页和详情页显示本地媒体服务器是否已入库。</p>
+            </div>
+            <div class="setting-item emby-library-status-options">
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-library-show-list">
+                    <span class="setting-title">列表页显示入库标签</span>
+                </label>
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-library-show-detail">
+                    <span class="setting-title">详情页显示入库标签</span>
+                </label>
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-library-realtime-enabled">
+                    <span class="setting-title">启用实时校验队列</span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <label class="setting-label">
+                    <span class="setting-title">自动同步间隔（分钟）</span>
+                    <input type="number" id="emby-library-sync-interval" class="setting-input" min="5" max="10080" step="5">
+                </label>
+                <p class="setting-description">后台自动同步会按此间隔使用本地保存的 API Key 请求已启用服务器的影片列表，并把入库索引保存到扩展本地；点击“立即同步媒体库”会马上执行一次。</p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>媒体服务器</h4>
+            <p class="setting-description">配置 Emby/Jellyfin 服务器地址和 API Key。</p>
+            <div id="emby-media-server-list" class="emby-media-server-list"></div>
+            <div class="emby-server-actions">
+                <button type="button" id="add-emby-media-server" class="btn btn-secondary">
+                    <i class="fas fa-plus"></i> 添加服务器
+                </button>
+                <button type="button" id="sync-emby-library" class="btn btn-primary">
+                    <i class="fas fa-sync"></i> 立即同步媒体库
+                </button>
+            </div>
+            <div id="emby-library-sync-status" class="emby-library-sync-status" aria-live="polite"></div>
+        </div>
+
+        <div class="settings-card settings-section">
             <h4>使用说明</h4>
             <div class="help-content">
                 <ul>
                     <li><strong>网址模式:</strong> 使用通配符 * 匹配任意字符，如 *.emby.com/* 匹配所有emby.com的子域名</li>
                     <li><strong>番号识别:</strong> 自动识别常见的番号格式，如 ABC-123、FC2-PPV-123456 等</li>
                     <li><strong>链接跳转:</strong> 所有链接都会在新标签页中打开，不影响当前页面</li>
-                    <li><strong>兼容性:</strong> 支持Emby、Jellyfin等主流媒体服务器</li>
+                    <li><strong>兼容性:</strong> 支持 Emby、Jellyfin 等主流媒体服务器</li>
                 </ul>
             </div>
         </div>

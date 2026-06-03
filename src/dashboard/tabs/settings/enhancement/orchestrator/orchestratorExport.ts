@@ -83,7 +83,7 @@ export function getTaskDisplayNameForExport(label: string): string {
     'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
     'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
     'superRankingNav:init': '超级排行榜导航初始化 (superRankingNav:init)',
-    'emby:badge': 'Emby徽标增强 (emby:badge)',
+    'emby:badge': 'Emby/Jellyfin 徽标增强 (emby:badge)',
     'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
     'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
     'videoEnhancement:clickEnhancement': '视频增强-点击增强 (videoEnhancement:clickEnhancement)',
