@@ -109,4 +109,95 @@ describe('list item processor', () => {
     expect(item.getAttribute('data-hidden-by-default')).toBe('true');
     expect(item.getAttribute('data-hide-reason')).toBe('BROWSED');
   });
+
+  it('adds Emby and Jellyfin library badges for indexed list items', async () => {
+    const list = document.querySelector('.movie-list')!;
+    list.appendChild(renderListItem('ABC-004'));
+    (STATE.settings as any).emby = {
+      mediaServers: [
+        {
+          id: 'emby-main',
+          type: 'emby',
+          name: 'Main Emby',
+          url: 'http://emby.local:8096',
+          apiKey: 'secret',
+          enabled: true,
+        },
+        {
+          id: 'jf-main',
+          type: 'jellyfin',
+          name: 'Main Jellyfin',
+          url: 'http://jf.local:8096',
+          apiKey: 'secret',
+          enabled: true,
+        },
+      ],
+      libraryStatus: {
+        enabled: true,
+        showOnList: true,
+      },
+    };
+    (STATE as any).embyLibraryState = {
+      entries: {
+        'ABC-004': [
+          {
+            serverType: 'emby',
+            serverName: 'Main Emby',
+            serverUrl: 'http://emby.local:8096',
+            itemId: 'emby-item',
+            serverId: 'emby-server',
+            itemName: 'ABC-004',
+            updatedAt: 100,
+          },
+          {
+            serverType: 'jellyfin',
+            serverName: 'Main Jellyfin',
+            serverUrl: 'http://jf.local:8096',
+            itemId: 'jf-item',
+            serverId: 'jf-server',
+            itemName: 'ABC-004',
+            updatedAt: 100,
+          },
+        ],
+      },
+      updatedAt: 100,
+    };
+
+    processVisibleItems();
+
+    const badges = Array.from(document.querySelectorAll<HTMLAnchorElement>('.emby-library-status-tag'));
+    expect(badges.map((badge) => badge.textContent)).toEqual(['Emby已入库', 'Jellyfin已入库']);
+    expect(badges[0].href).toBe('http://emby.local:8096/web/index.html#!/item?id=emby-item&serverId=emby-server');
+    expect(badges[1].href).toBe('http://jf.local:8096/web/index.html#!/details?id=jf-item&serverId=jf-server');
+  });
+
+  it('skips library badges when library status is disabled', async () => {
+    const list = document.querySelector('.movie-list')!;
+    list.appendChild(renderListItem('ABC-005'));
+    (STATE.settings as any).emby = {
+      libraryStatus: {
+        enabled: false,
+        showOnList: true,
+      },
+    };
+    (STATE as any).embyLibraryState = {
+      entries: {
+        'ABC-005': [
+          {
+            serverType: 'emby',
+            serverName: 'Main Emby',
+            serverUrl: 'http://emby.local:8096',
+            itemId: 'emby-item',
+            itemName: 'ABC-005',
+            updatedAt: 100,
+          },
+        ],
+      },
+      updatedAt: 100,
+    };
+
+    processVisibleItems();
+
+    expect(document.querySelector('.emby-library-status-tag')).toBeNull();
+  });
 });

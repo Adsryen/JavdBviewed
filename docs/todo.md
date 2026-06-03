@@ -22,28 +22,6 @@
 
 ## Dashboard / 设置页
 
-- [x] 客户端遥测设备 ID 对齐
-  - [x] 核实 `buildTelemetryPayload.ts` 当前 `deviceId` 来源为 `telemetry_client_state.installId`
-  - [x] 改为优先上报设置页显示的 `settings.webdav.clientId`
-  - [x] 保留 `installId` 作为遥测安装归并标识
-  - [x] 补充测试：设置页 Device ID 变化后，payload 的 `deviceId` 使用最新 `webdav.clientId`
-  - [x] 补充兼容测试：无 `webdav.clientId` 时仍能用 telemetry install state 完成内部归并
-
-- [x] 客户端错误事件上报（`error_report`）
-  - [x] 设计 payload：`component`、`code`、Error 类名、`stackHash`、`fatal`
-  - [x] 保护隐私：payload 中避免采集页面 URL、番号、磁力链接、API 地址、token 和原始 stack trace
-  - [x] 扩展 telemetry 类型：event type、error payload、联合 payload、结果原因
-  - [x] 新增错误 payload 构建器：stack 归一化、敏感文本清洗、SHA-256 `stackHash`
-  - [x] 新增错误节流：会话级去重、指纹冷却
-  - [x] 新增错误 reporter：检查开关和 endpoint 后发送，全局兜底异常
-  - [x] 扩展 telemetry client 和 runtime message 处理
-  - [x] 在 background 全局 `error` / `unhandledrejection` 中接入
-  - [x] 在 content bootstrap 全局 `error` / `unhandledrejection` 中接入
-  - [x] 补充验证：payload、stackHash、节流、runtime message、隐私字段
-
-- [ ] 遥测后端线上验收
-  - [ ] 通过 admin events 回看 `error_report` 入库字段、Device ID 和 telemetry installId 展示
-
 - [ ] 报告（Insights）设置
   - [ ] 配置报告生成所用的聚合参数
   - [ ] 仅影响本地统计和 AI 提示词输入
@@ -149,8 +127,44 @@
 ## Emby
 
 - [ ] 功能优化
+  - [x] 保留现有 Emby/Jellyfin 页面番号链接化和快捷搜索能力
+  - [ ] 抽出可复用番号提取逻辑，供媒体库索引、媒体服务器页面和 JavDB 页面标记共用
+  - [ ] 规划内部文件及模块命名重构：评估 `embyEnhancement`、`EmbySettings`、`emby-settings` 等命名迁移到 Emby/Jellyfin 或媒体服务器语义
+    - [ ] 保留 `settings.emby`、`emby_library_state` 等存储兼容入口，避免破坏旧配置
+    - [ ] 梳理动态导入、设置路由、内容脚本兼容导出和回归测试覆盖后再执行文件重命名
+  - [x] 设置页按“页面增强”和“媒体库入库状态”分组，降低配置混淆
 - [ ] Emby/Jellyfin 入库状态
-  - [ ] 单独做规格设计
-  - [ ] 明确媒体库索引同步方式
-  - [ ] 设计 JavDB 列表页和详情页入库标记
-  - [ ] 设计实时媒体库校验队列
+  - [x] 规格设计
+    - [x] 配置模型：在 `settings.emby` 下新增 `mediaServers`、`libraryStatus`、`syncIntervalMinutes`、`realtimeCheck` 等字段
+    - [x] 存储模型：新增 `emby_library_state`，保存按服务类型拆分的本地索引、上次同步时间、同步错误、服务端条目摘要
+    - [x] 索引条目：以规范化番号为 key，记录 `serverType`、`serverName`、`serverUrl`、`itemId`、`itemName`、`path`、`updatedAt`
+    - [x] 跳转规则：命中 Emby/Jellyfin 时生成媒体服务器 item 链接，JavDB 页面只展示已配置服务器的结果
+  - [x] 媒体库索引同步方式
+    - [x] 后台消息 `EMBY_LIBRARY_SYNC` 读取启用服务器，调用 `/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path&api_key=...`
+    - [x] 全量同步成功后原子替换对应类型索引；单台失败只记录该服务器错误，成功服务器仍入库
+    - [x] 自动同步使用上次同步时间和 `syncIntervalMinutes` 判断，手动同步入口绕过间隔
+    - [x] API Key 属于扩展设置，可随设置备份；错误文案、日志和页面标记不暴露 API Key
+  - [x] JavDB 列表页入库标记
+    - [x] 在列表卡片 tag 区新增 `Emby已入库` / `Jellyfin已入库` 标签
+    - [x] 标签带服务类型样式和 title，点击打开对应媒体服务器 item 页面
+    - [x] 已有状态标签、VR 隐藏、演员过滤和内容过滤优先级保持稳定
+  - [x] JavDB 详情页入库标记
+    - [x] 在详情页番号/状态区域新增入库标签和跳转入口
+    - [x] 支持同一番号同时命中 Emby 与 Jellyfin
+    - [x] 本地索引为空时显示同步提示，避免误判
+  - [ ] 实时媒体库校验队列
+    - [x] 内容页收集当前可见番号后发送 `EMBY_LIBRARY_CHECK_CODES`
+    - [x] 后台按并发 1、批量上限 20、短期去重缓存执行查询
+    - [x] 校验结果修正本地索引：查到则 upsert，查无则只删除该服务器该番号的旧条目
+    - [ ] 列表页收到结果后增量更新对应卡片，避免整页重复处理
+  - [x] 风险规避
+    - [x] 默认关闭入库状态显示，用户配置服务器后手动开启
+    - [x] 所有网络请求超时可控，失败写入状态但保留上次成功索引
+    - [x] 保护 API Key：错误文案、日志、DOM、导出摘要都做敏感字段过滤
+    - [x] 备份边界清晰：`emby_library_state` 属于可重建缓存，排除出 WebDAV 备份 `storageAll`；Emby/Jellyfin API Key 属于用户设置，随设置备份
+    - [x] 控制列表页实时校验频率，避免对本地媒体服务器造成突发压力
+  - [ ] 测试验收
+    - [x] 纯函数测试：番号提取、索引构建、跳转 URL、状态查询
+    - [x] 后台 handler 测试：全量同步成功、401 错误、单服务器失败、实时校验去重
+    - [x] DOM 测试：列表页标签渲染、详情页标签渲染、设置关闭时无标记
+    - [ ] 回归测试：默认设置合并保留旧 Emby 配置，现有 Emby 页面增强仍可初始化

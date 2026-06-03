@@ -27,6 +27,10 @@ import {
   handleOpenTabBackground,
 } from './tabMessageHandlers';
 import {
+  handleEmbyLibraryCheckCodes,
+  handleEmbyLibrarySync,
+} from '../../features/embyLibrary/background/handlers';
+import {
   handleExternalDataFetch,
   handleFetchExternalCover,
   handleFetchJavbusAjaxViaTab,
@@ -157,6 +161,14 @@ export function registerMiscRouter(): void {
           handleUpdateWatchedStatus(message, sendResponse);
           return true;
         }
+        case 'EMBY_LIBRARY_SYNC': {
+          handleEmbyLibrarySync(message, sendResponse);
+          return true;
+        }
+        case 'EMBY_LIBRARY_CHECK_CODES': {
+          handleEmbyLibraryCheckCodes(message, sendResponse);
+          return true;
+        }
         case 'setup-alarms':
           setupWebDAVSyncAlarm().then(() => sendResponse({ success: true }))
             .catch((error) => sendResponse({ success: false, error: error.message }));
@@ -226,7 +238,7 @@ export function registerMiscRouter(): void {
         if (area === 'local' && changes['settings']) {
           applySchedulerConfigFromSettings().catch(() => {});
           setupWebDAVSyncAlarm().catch(() => {});
-          // 如果 Emby 设置发生变化，重新注册动态内容脚本
+          // 如果 Emby/Jellyfin 设置发生变化，重新注册动态内容脚本
           const newSettings = changes['settings'].newValue as any;
           const oldSettings = changes['settings'].oldValue as any;
           const embyChanged = JSON.stringify(newSettings?.emby) !== JSON.stringify(oldSettings?.emby);

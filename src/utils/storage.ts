@@ -247,6 +247,14 @@ export async function getSettings(): Promise<ExtensionSettings> {
         ...DEFAULT_SETTINGS.emby.highlightStyle,
         ...(storedSettings.emby?.highlightStyle || {}),
       },
+      libraryStatus: {
+        ...((DEFAULT_SETTINGS.emby as any).libraryStatus || {}),
+        ...((storedSettings.emby as any)?.libraryStatus || {}),
+      },
+      realtimeCheck: {
+        ...((DEFAULT_SETTINGS.emby as any).realtimeCheck || {}),
+        ...((storedSettings.emby as any)?.realtimeCheck || {}),
+      },
     },
   };
   mergedSettings.searchEngines = mergeSearchEngineTemplates((storedSettings as any).searchEngines);

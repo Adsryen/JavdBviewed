@@ -264,6 +264,36 @@
     color: var(--text-primary);
 }
 
+.settings-nav-card .settings-nav-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.settings-nav-beta-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    padding: 0 7px;
+    border: 1px solid #fde68a;
+    border-radius: 999px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: 0;
+}
+
+[data-theme="dark"] .settings-nav-beta-badge {
+    border-color: #92400e;
+    background: #78350f;
+    color: #fde68a;
+}
+
 .settings-nav-card .card-content p {
     margin: 0;
     font-size: 14px;

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TELEMETRY_CLIENT_STATE_KEY } from '../../src/features/telemetry';
+import { STORAGE_KEYS } from '../../src/utils/config';
 
 const root = process.cwd();
 
@@ -169,6 +170,12 @@ describe('WebDAV backup and restore baseline', () => {
     expect(omitLocalOnlyStorageKeys({
       settings: { theme: 'dark' },
       [TELEMETRY_CLIENT_STATE_KEY]: { installId: 'install-local-only' },
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: {
+        entries: {
+          'SSIS-001': [{ serverName: 'Home Jellyfin', itemId: 'movie-1' }],
+        },
+        updatedAt: 1760000000000,
+      },
     })).toEqual({
       settings: { theme: 'dark' },
     });
