@@ -632,6 +632,30 @@ describe('source architecture cleanup', () => {
     expect(source, `${entryPath} should import apps/dashboard/bootstrap`).toMatch(/apps\/dashboard\/bootstrap/);
   });
 
+  it('keeps dashboard bootstrap delegated to focused app modules', () => {
+    const bootstrapPath = 'src/apps/dashboard/bootstrap.ts';
+    const bootstrapSource = fs.readFileSync(path.resolve(root, bootstrapPath), 'utf8');
+    const delegatedModules = [
+      'src/apps/dashboard/themeBootstrap.ts',
+      'src/apps/dashboard/consoleBootstrap.ts',
+      'src/apps/dashboard/privacyBootstrap.ts',
+      'src/apps/dashboard/drive115Sidebar.ts',
+      'src/apps/dashboard/versionInfoSidebar.ts',
+    ];
+
+    for (const modulePath of delegatedModules) {
+      expect(fs.existsSync(path.resolve(root, modulePath)), `${modulePath} should exist`).toBe(true);
+      const importPattern = new RegExp(`\\./${path.basename(modulePath, '.ts')}`);
+      expect(bootstrapSource, `${bootstrapPath} should import ${modulePath}`).toMatch(importPattern);
+    }
+
+    expect(bootstrapSource, `${bootstrapPath} should delegate console proxy configuration`).not.toMatch(/\binstallConsoleProxy\(/);
+    expect(bootstrapSource, `${bootstrapPath} should delegate theme switcher details`).not.toMatch(/\bThemeSwitcher\b/);
+    expect(bootstrapSource, `${bootstrapPath} should delegate privacy initialization`).not.toMatch(/\binitializePrivacySystem\b/);
+    expect(bootstrapSource, `${bootstrapPath} should delegate 115 quota rendering`).not.toMatch(/\bgetDrive115V2Service\b|\brenderDrive115QuotaSidebar\b/);
+    expect(bootstrapSource, `${bootstrapPath} should delegate version info rendering`).not.toMatch(/\bgetDisplayVersionInfo\b|\binitInfoContainer\b/);
+  });
+
   it('keeps the popup page entry thin and boots through apps/popup', () => {
     const bootstrapPath = 'src/apps/popup/bootstrap.ts';
     expect(fs.existsSync(path.resolve(root, bootstrapPath)), `${bootstrapPath} should exist`).toBe(true);
@@ -796,7 +820,7 @@ describe('source architecture cleanup', () => {
 
     const directConsumers = [
       'src/apps/content/consoleSettingsBridge.ts',
-      'src/apps/dashboard/bootstrap.ts',
+      'src/apps/dashboard/consoleBootstrap.ts',
       'src/platform/logging/backgroundConsole.ts',
       'src/platform/logging/index.ts',
     ];

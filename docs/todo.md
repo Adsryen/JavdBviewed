@@ -49,21 +49,22 @@
 
 ## 项目结构 / 代码组织
 
-- [ ] 配置能力拆分
-  - [ ] 当前 `src/utils/config.ts` 仍是集中式配置出口，且被 apps、features、dashboard 和 tests 直接引用
-  - [ ] 评估 `utils/config.ts` 拆为 `shared/config` 与各 feature config
-  - [ ] 让旧 `utils/*` 路径逐步收缩为兼容导出
+- [x] P1：`apps/dashboard/bootstrap.ts` 装配层收口
+  - [x] 价值：入口文件边界更清楚，Dashboard 初始化逻辑更容易定位和维护
+  - [x] 风险：中等；需要保持主题、布局、隐私、115、首页图表和发布弹窗初始化顺序稳定
+  - [x] 抽出主题初始化、console proxy 配置、隐私初始化、115 配额侧栏和版本信息侧栏
+  - [x] 保持页面入口聚焦布局挂载、全局监听注册和 tab 初始化顺序
 
-- [ ] Dashboard `newWorks.ts` 收口
-  - [ ] 抽出筛选状态、选择状态、冷却状态和订阅操作 runtime
-  - [ ] 收尾：`NewWorksTab` 保留 tab 生命周期与 controller 装配
-  - [ ] 复核批量打开、刷新进度、订阅配置、选择状态和按钮状态测试覆盖
+- [x] P2：Dashboard `newWorks.ts` 收口
+  - [x] 价值：进一步降低新作品页入口复杂度，减少状态和事件桥接散落在 `NewWorksTab`
+  - [x] 风险：中高；涉及批量打开、刷新进度、订阅弹窗、按钮 loading 和选择状态
+  - [x] 抽出筛选状态、选择状态、冷却状态和订阅操作 runtime
+  - [x] 收尾：`NewWorksTab` 保留 tab 生命周期与 controller 装配
+  - [x] 复核批量打开、刷新进度、订阅配置、选择状态和按钮状态测试覆盖
 
-- [ ] `apps/dashboard/bootstrap.ts` 装配层收口
-  - [ ] 抽出主题初始化、console proxy 配置、隐私初始化、115 配额侧栏和版本信息侧栏
-  - [ ] 保持页面入口聚焦布局挂载、全局监听注册和 tab 初始化顺序
-
-- [ ] 旧兼容出口清理计划
+- [ ] P3：旧兼容出口清理计划
+  - [ ] 价值：减少旧路径干扰，长期降低导入路径维护成本
+  - [ ] 风险：中高；兼容 wrapper 影响面广，适合在稳定版本后分批处理
   - [ ] 按 release 稳定周期复核 `src/content`、`src/background`、`src/utils` 的 thin wrapper
   - [ ] 确认调用方全部迁移后，再制定移除节奏
 

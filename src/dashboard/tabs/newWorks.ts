@@ -10,12 +10,10 @@ import { showConfirm, showDanger } from '../components/confirmModal';
 import {
     MAX_UNREAD_BATCH_OPEN_COUNT,
     getNewWorksPageSize,
-    getUnreadBatchOpenCooldownRemaining,
-    getUnreadBatchOpenCooldownSeconds,
 } from './newWorksBatchOpenPolicy';
 import { runUnreadBatchOpenWorkflow } from './newWorksBatchOpenWorkflow';
 import { attachNewWorksFilterControls } from './newWorksFilterControlsRuntime';
-import type { NewWorksFilters } from './newWorksFilterTypes';
+import { createNewWorksTabState } from './newWorksTabState';
 import { renderNewWorksListRuntime } from './newWorksListRuntime';
 import {
     clearNewWorksSelection,
@@ -33,10 +31,8 @@ import {
 import { attachNewWorksHelpTooltip } from './newWorksHelpTooltipRuntime';
 import { updateNewWorksLastCheckTimeDisplay } from './newWorksLastCheckTimeRuntime';
 import { openSubscriptionManagementModal } from './newWorksSubscriptionModalRuntime';
-import { runSingleSubscriptionCheckWorkflow } from './newWorksSingleSubscriptionCheckWorkflow';
 import { runNewWorksGlobalConfigWorkflow } from './newWorksGlobalConfigWorkflow';
-import { runAddSubscriptionWorkflow } from './newWorksAddSubscriptionWorkflow';
-import { runManageSubscriptionsWorkflow } from './newWorksManageSubscriptionsWorkflow';
+import { createNewWorksSubscriptionActionsRuntime } from './newWorksSubscriptionActionsRuntime';
 import {
     attachNewWorksProgressListener,
     detachNewWorksProgressListener,
@@ -55,7 +51,6 @@ import {
     setBatchOpenSelectedButtonLoading,
 } from './newWorksSelectedBatchRuntime';
 import { runBatchDeleteSelectedWorkflow } from './newWorksBatchDeleteWorkflow';
-import type { NewWorkRecord, ActorSubscription } from '../../types';
 import { attachNewWorksButtonEvents } from './newWorksButtonEventsRuntime';
 import {
     setBatchDeleteSelectedButtonLoading as setBatchDeleteSelectedButtonLoadingState,
@@ -66,18 +61,35 @@ import {
 
 export class NewWorksTab {
     public isInitialized: boolean = false;
-    private currentPage: number = 1;
-    private currentFilters: NewWorksFilters = {
-        search: '',
-        filter: 'unread',
-        sort: 'discoveredAt_desc'
-    };
-    private selectedWorks: Set<string> = new Set();
-    private isLoading: boolean = false;
+    private readonly state = createNewWorksTabState();
+    private readonly subscriptionActions = createNewWorksSubscriptionActionsRuntime({
+        initialize: () => newWorksManager.initialize(),
+        getSubscriptions: () => newWorksManager.getSubscriptions(),
+        showActorSelector: (subscribedIds, onSelected) => actorSelector.showSelector(subscribedIds, onSelected),
+        addSubscription: actorId => newWorksManager.addSubscription(actorId),
+        getGlobalSubscriptionsForModal: () => newWorksManager.getSubscriptions(),
+        openSubscriptionManagementModal,
+        toggleSubscription: (actorId, enabled) => newWorksManager.toggleSubscription(actorId, enabled),
+        removeSubscription: actorId => newWorksManager.removeSubscription(actorId),
+        confirmRemove: actorName => showDanger(`确定要移除对演员 ${actorName} 的订阅吗？`, '移除订阅'),
+        sendSingleActorCheck: subscription => new Promise<any>((resolve) => {
+            chrome.runtime.sendMessage(
+                {
+                    type: 'new-works-check-single-actor',
+                    actorId: subscription.actorId,
+                    actorName: subscription.actorName,
+                },
+                resolve,
+            );
+        }),
+        render: () => this.render(),
+        showMessage,
+        logInfo: (message, data) => data === undefined ? console.log(message) : console.log(message, data),
+        logError: (message, error) => console.error(message, error),
+    });
     private debounceRender = this.debounce(() => this.render(), 300);
     private progressListener?: (message: any) => void;
     private progressEl?: HTMLElement;
-    private lastUnreadBatchOpenAt: number = 0;
     private unreadBatchOpenCooldownTimer?: number;
 
     /**
@@ -117,8 +129,8 @@ export class NewWorksTab {
      */
     private async batchOpenCurrentPageUnread(): Promise<void> {
         await runUnreadBatchOpenWorkflow({
-            filters: this.currentFilters,
-            page: this.currentPage,
+            filters: this.state.filters,
+            page: this.state.getPage(),
             pageSize: this.getCurrentPageSize(),
             deps: {
                 getCooldownRemaining: () => this.getUnreadBatchOpenCooldownRemaining(),
@@ -148,19 +160,19 @@ export class NewWorksTab {
     }
 
     private getCurrentPageSize(): number {
-        return getNewWorksPageSize(this.currentFilters.filter);
+        return getNewWorksPageSize(this.state.filters.filter);
     }
 
     private getUnreadBatchOpenCooldownRemaining(now: number = Date.now()): number {
-        return getUnreadBatchOpenCooldownRemaining(this.lastUnreadBatchOpenAt, now);
+        return this.state.getUnreadBatchOpenCooldownRemaining(now);
     }
 
     private getUnreadBatchOpenCooldownSeconds(now: number = Date.now()): number {
-        return getUnreadBatchOpenCooldownSeconds(this.lastUnreadBatchOpenAt, now);
+        return this.state.getUnreadBatchOpenCooldownSeconds(now);
     }
 
     private startUnreadBatchOpenCooldown(): void {
-        this.lastUnreadBatchOpenAt = Date.now();
+        this.state.startUnreadBatchOpenCooldown();
         if (this.unreadBatchOpenCooldownTimer) {
             window.clearInterval(this.unreadBatchOpenCooldownTimer);
         }
@@ -252,8 +264,8 @@ export class NewWorksTab {
      * 绑定表单事件
      */
     private bindFormEvents(): void {
-        attachNewWorksFilterControls(this.currentFilters, {
-            setPage: page => { this.currentPage = page; },
+        attachNewWorksFilterControls(this.state.filters, {
+            setPage: page => { this.state.setPage(page); },
             render: () => this.render(),
             debounceRender: () => this.debounceRender(),
         });
@@ -263,10 +275,10 @@ export class NewWorksTab {
      * 渲染页面
      */
     private async render(): Promise<void> {
-        if (this.isLoading) return;
+        if (this.state.isLoading()) return;
         
         try {
-            this.isLoading = true;
+            this.state.setLoading(true);
             await Promise.all([
                 this.renderStats(),
                 this.renderNewWorksList(),
@@ -274,7 +286,7 @@ export class NewWorksTab {
         } catch (error) {
             console.error('渲染新作品页面失败:', error);
         } finally {
-            this.isLoading = false;
+            this.state.setLoading(false);
         }
     }
 
@@ -283,10 +295,10 @@ export class NewWorksTab {
      */
     private async renderStats(): Promise<void> {
         await renderNewWorksStatsRuntime({
-            filters: this.currentFilters,
+            filters: this.state.filters,
             deps: {
                 getStats: () => newWorksManager.getStats(),
-                setPage: page => { this.currentPage = page; },
+                setPage: page => { this.state.setPage(page); },
                 render: () => this.render(),
                 openSubscriptionManager: () => {
                     const manageBtn = document.getElementById('manageSubscriptionsBtn') as HTMLButtonElement | null;
@@ -305,13 +317,13 @@ export class NewWorksTab {
      */
     private async renderNewWorksList(): Promise<void> {
         await renderNewWorksListRuntime({
-            filters: this.currentFilters,
-            page: this.currentPage,
+            filters: this.state.filters,
+            page: this.state.getPage(),
             pageSize: this.getCurrentPageSize(),
-            selectedWorks: this.selectedWorks,
+            selectedWorks: this.state.selectedWorks,
             deps: {
                 getNewWorks: query => newWorksManager.getNewWorks(query),
-                setPage: page => { this.currentPage = page; },
+                setPage: page => { this.state.setPage(page); },
                 render: () => this.render(),
                 updateBatchOpenUnreadButton: () => this.updateBatchOpenUnreadButton(),
                 markWorksAsRead: workIds => this.markWorksAsRead(workIds),
@@ -378,7 +390,7 @@ export class NewWorksTab {
             deps: {
                 confirm: message => confirm(message),
                 deleteWorks: ids => newWorksManager.deleteWorks(ids),
-                clearSelection: () => this.selectedWorks.clear(),
+                clearSelection: () => this.state.clearSelection(),
                 render: () => this.render(),
                 logError: (message, error) => console.error(message, error),
             },
@@ -445,14 +457,14 @@ export class NewWorksTab {
      * 更新批量操作状态
      */
     private updateBatchOperations(): void {
-        syncNewWorksBatchOperations(this.selectedWorks);
+        syncNewWorksBatchOperations(this.state.selectedWorks);
     }
 
     /**
      * 本页全选
      */
     private selectAllCurrentPage(): void {
-        selectAllCurrentNewWorksPage(this.selectedWorks);
+        selectAllCurrentNewWorksPage(this.state.selectedWorks);
         this.updateBatchOperations();
     }
 
@@ -460,8 +472,8 @@ export class NewWorksTab {
      * 清空选择
      */
     private clearSelection(): void {
-        console.log('执行清空选择，当前选中数量:', this.selectedWorks.size);
-        clearNewWorksSelection(this.selectedWorks);
+        console.log('执行清空选择，当前选中数量:', this.state.selectedWorks.size);
+        clearNewWorksSelection(this.state.selectedWorks);
         this.updateBatchOperations();
         console.log('清空选择完成');
     }
@@ -470,7 +482,7 @@ export class NewWorksTab {
      * 批量打开（已选）
      */
     private async batchOpenSelected(): Promise<void> {
-        const ids = Array.from(this.selectedWorks);
+        const ids = Array.from(this.state.selectedWorks);
         await runSelectedBatchOpenWorkflow({
             selectedIds: ids,
             deps: {
@@ -480,7 +492,7 @@ export class NewWorksTab {
                 findWorkById: id => findSelectedBatchWorkById(id, query => newWorksManager.getNewWorks(query)),
                 openWorkUrl: url => this.openNewWorkUrl(url),
                 markAsRead: workIds => newWorksManager.markAsRead(workIds),
-                clearSelection: () => this.selectedWorks.clear(),
+                clearSelection: () => this.state.clearSelection(),
                 render: () => this.render(),
                 showMessage,
                 updateBatchOperations: () => this.updateBatchOperations(),
@@ -493,7 +505,7 @@ export class NewWorksTab {
     private setBatchOpenSelectedLoading(loading: boolean): void {
         setBatchOpenSelectedButtonLoading({
             loading,
-            selectedCount: this.selectedWorks.size,
+            selectedCount: this.state.selectedWorks.size,
         });
     }
 
@@ -502,7 +514,7 @@ export class NewWorksTab {
      */
     private async batchDeleteSelected(): Promise<void> {
         await runBatchDeleteSelectedWorkflow({
-            selectedWorks: this.selectedWorks,
+            selectedWorks: this.state.selectedWorks,
             deps: {
                 confirm: options => showConfirm(options),
                 setDeletingButtonLoading: (loading, selectedCount) => this.setBatchDeleteSelectedLoading(loading, selectedCount),
@@ -630,74 +642,14 @@ export class NewWorksTab {
      * 显示添加订阅弹窗
      */
     private async showAddSubscriptionModal(): Promise<void> {
-        await runAddSubscriptionWorkflow({
-            deps: {
-                initialize: () => newWorksManager.initialize(),
-                getSubscriptions: () => newWorksManager.getSubscriptions(),
-                showActorSelector: (subscribedIds, onSelected) => actorSelector.showSelector(subscribedIds, onSelected),
-                addSubscription: actorId => newWorksManager.addSubscription(actorId),
-                render: () => this.render(),
-                showMessage,
-                logInfo: (message, data) => data === undefined ? console.log(message) : console.log(message, data),
-                logError: (message, error) => console.error(message, error),
-            },
-        });
+        await this.subscriptionActions.showAddSubscriptionModal();
     }
 
     /**
      * 显示管理订阅弹窗
      */
     private async showManageSubscriptionsModal(): Promise<void> {
-        await runManageSubscriptionsWorkflow({
-            deps: {
-                getSubscriptions: () => newWorksManager.getSubscriptions(),
-                openSubscriptionManagementModal: subscriptions => this.showSubscriptionManagementModal(subscriptions),
-                showMessage,
-                logError: (message, error) => console.error(message, error),
-            },
-        });
-    }
-
-    /**
-     * 显示订阅管理弹窗
-     */
-    private showSubscriptionManagementModal(subscriptions: ActorSubscription[]): void {
-        openSubscriptionManagementModal(subscriptions, {
-            showAddSubscriptionModal: () => this.showAddSubscriptionModal(),
-            toggleSubscription: (actorId, enabled) => newWorksManager.toggleSubscription(actorId, enabled),
-            removeSubscription: actorId => newWorksManager.removeSubscription(actorId),
-            confirmRemove: actorName => showDanger(`确定要移除对演员 ${actorName} 的订阅吗？`, '移除订阅'),
-            render: () => this.render(),
-            showMessage,
-            handleSingleSubscriptionCheck: (subscription, button) => this.handleSingleSubscriptionCheck(subscription, button),
-            logInfo: message => console.log(message),
-            logError: (message, error) => console.error(message, error),
-        });
-    }
-
-    /**
-     * 手动检查单个订阅演员的新作品
-     */
-    private async handleSingleSubscriptionCheck(subscription: ActorSubscription, button: HTMLButtonElement): Promise<void> {
-        await runSingleSubscriptionCheckWorkflow({
-            subscription,
-            button,
-            deps: {
-                sendSingleActorCheck: target => new Promise<any>((resolve) => {
-                    chrome.runtime.sendMessage(
-                        {
-                            type: 'new-works-check-single-actor',
-                            actorId: target.actorId,
-                            actorName: target.actorName,
-                        },
-                        resolve,
-                    );
-                }),
-                render: () => this.render(),
-                showMessage,
-                logError: (message, error) => console.error(message, error),
-            },
-        });
+        await this.subscriptionActions.showManageSubscriptionsModal();
     }
 }
 
