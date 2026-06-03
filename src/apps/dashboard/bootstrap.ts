@@ -9,7 +9,6 @@ import { ensureModalsMounted } from '../../dashboard/modals/init';
 // initializeNetworkTestTab 已迁移到模块化设置系统
 // drive115 功能已迁移到模块化设置系统
 import { initModal } from '../../dashboard/import';
-import { log } from '../../utils/logController';
 // import { logAsync } from './logger';
 // import { showMessage } from './ui/toast';
 // import { VIDEO_STATUS } from '../utils/config';
@@ -19,59 +18,37 @@ import { log } from '../../utils/logController';
 import { initUserProfileSection } from '../../dashboard/userProfile';
 // import { initDataSyncSection } from './dataSync';
 import '../../dashboard/ui/dataViewModal'; // 确保 dataViewModal 被初始化
-import { getDrive115V2Service } from '../../features/drive115/v2';
-import { installConsoleProxy } from '../../platform/logging/consoleProxy';
 import { ensureMounted } from '../../dashboard/loaders/partialsLoader';
 import { ensureStylesLoaded } from '../../dashboard/loaders/stylesLoader';
-import { loadPartial, initThemeListener } from '../../dashboard/loaders/partialsLoader';
-import { applyConsoleSettingsFromStorage_DB, bindConsoleSettingsListener } from '../../dashboard/console/settings';
 import { bindInsightsListeners } from '../../dashboard/listeners/insights';
 import { initTopbarIcons } from '../../dashboard/topbar/icons';
 import { initVersionBadge } from '../../dashboard/topbar/versionChecker';
 import { initSidebarActions as initSidebarActionsModule, updateSyncStatus as updateSyncStatusModule } from '../../dashboard/sidebar/actions';
-import { setupDashboardPrivacyMonitoring as setupDashboardPrivacyMonitoringModule } from '../../dashboard/privacy/dashboardMonitor';
 import { runQASelfCheck as runQASelfCheckModule } from '../../dashboard/qa/selfCheck';
 import { bindUiListeners } from '../../dashboard/listeners/ui';
 import { refreshHomeOverview, bindHomeChartsRangeControls, bindHomeRefreshButton } from '../../dashboard/home/charts';
 import { STORAGE_KEYS } from '../../utils/config';
 import { getSettings } from '../../utils/storage';
-import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';
-import { normalizeDrive115Settings, isDrive115EnabledState } from '../../features/drive115/app';
 import { handleCloudflareVerification } from '../../dashboard/dataSync/cloudflareVerification';
 import { mountDashboardReleaseAnnouncement } from './releaseAnnouncementBootstrap';
 import { reportDashboardOpenTelemetry } from './telemetryDashboardOpen';
-// 主题系统
-import { themeManager } from '../../dashboard/services/themeManager';
-import { ThemeSwitcher } from '../../dashboard/components/themeSwitcher';
+import { installDashboardConsoleProxy } from './consoleBootstrap';
+import {
+    bindDrive115SidebarEvents,
+    initializeDrive115SidebarAfterState,
+    installDrive115SidebarGlobals,
+} from './drive115Sidebar';
+import { initializeDashboardPrivacy, registerDashboardPrivacyLockHandler } from './privacyBootstrap';
+import {
+    initializeDashboardThemeEarly,
+    initializeDashboardThemeForDom,
+    mountDashboardThemeSwitcher,
+} from './themeBootstrap';
+import { renderDashboardVersionInfo } from './versionInfoSidebar';
 
-// 立即初始化主题系统（在 DOM 加载之前）
-// 这样可以避免页面闪烁，并确保 data-theme 属性被正确设置
-(async () => {
-    try {
-        await themeManager.initialize();
-        console.log('[Dashboard] 主题系统已提前初始化');
-    } catch (error) {
-        console.error('[Dashboard] 主题系统提前初始化失败:', error);
-    }
-})();
-
-installConsoleProxy({
-    level: 'DEBUG',
-    format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
-    categories: {
-        general: { enabled: true, match: () => true, label: 'DB', color: '#8e44ad' },
-        ai: { enabled: true, match: /\[AI\]|\bAI\b/i, label: 'AI', color: '#e67e22' },
-        insights: { enabled: true, match: /\[INSIGHTS\]|Insights|报告|统计/i, label: 'INSIGHTS', color: '#2ecc71' },
-        newworks: { enabled: true, match: /\[NewWorks|NewWorksManager|NEWWORKS\]|新作品/i, label: 'NEWWORKS', color: '#f39c12' },
-        actor: { enabled: true, match: /\[Actor|ActorManager\]|演员|Actor/i, label: 'ACTOR', color: '#2980b9' },
-        sync: { enabled: true, match: /\[Sync|DataSync\]|同步|WebDAV|Sync/i, label: 'SYNC', color: '#3498db' },
-        drive115: { enabled: true, match: /\[(Drive115|115V?2?)\]|115网盘|Drive115/i, label: '115', color: '#d35400' },
-        privacy: { enabled: true, match: /\[(Privacy|PrivacyManager|LockScreen)\]|隐私|Privacy|Lock/i, label: 'PRIVACY', color: '#c0392b' },
-    },
-});
-
-applyConsoleSettingsFromStorage_DB();
-bindConsoleSettingsListener();
+initializeDashboardThemeEarly();
+installDashboardConsoleProxy();
+installDrive115SidebarGlobals();
 
 // 首页聚合工具已迁移到 ./home/charts
 
@@ -96,112 +73,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-function updateDrive115SidebarVisibility(enabledParam?: boolean): void {
-    const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
-    if (!section) return;
-    const state = normalizeDrive115Settings(STATE.settings?.drive115 || {});
-    const enabled = typeof enabledParam === 'boolean' ? enabledParam : isDrive115EnabledState(state);
-    section.style.display = enabled ? '' : 'none';
-}
-
-// 预置一个全局占位，避免在真实函数绑定前被调用导致 ReferenceError
-(window as any).initDrive115QuotaSidebar = (window as any).initDrive115QuotaSidebar || (() => {});
-// 如需暴露为全局，待真实函数声明后再绑定到 window（避免作用域问题导致引用错误）
-
-// 隐私监控实现已迁移到 ./privacy/dashboardMonitor
-
-// Ensure global hook exists to avoid early reference errors
-(window as any).initDrive115QuotaSidebar = (window as any).initDrive115QuotaSidebar || (() => {});
-
-async function initDrive115QuotaSidebar(): Promise<void> {
-    try {
-        const state = normalizeDrive115Settings(STATE.settings?.drive115 || {});
-        const enabled = isDrive115EnabledState(state);
-        const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
-        if (!enabled) {
-            if (section) section.style.display = 'none';
-            return;
-        }
-
-        if (section) section.style.display = '';
-        const box = document.getElementById('drive115QuotaSidebar');
-        if (!box) return;
-
-        const svc = getDrive115V2Service();
-        const tokenRet = await svc.getValidAccessToken();
-        if (!('success' in tokenRet) || !tokenRet.success) {
-    box.innerHTML = '<div style="font-size:12px; color:#999;">'
-        + '无法获取配额：' + ((tokenRet as any)?.message || '未启用或缺少凭据')
-        + '<div style="margin-top:6px;">'
-        + '<a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none;">前往设置 115</a>'
-        + '</div>'
-        + '</div>';
-    return;
-}
-
-        const quotaRet = await svc.getQuotaInfo({ accessToken: tokenRet.accessToken });
-        if (!quotaRet.success) {
-            box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额失败：${quotaRet.message || '未知错误'}</div>`;
-            return;
-        }
-
-        renderDrive115QuotaSidebar(quotaRet.data || {} as any);
-    } catch (e) {
-        const box = document.getElementById('drive115QuotaSidebar');
-        if (box) box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额异常</div>`;
-        console.error('initDrive115QuotaSidebar error:', e);
-    }
-}
-
-function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surplus?: number; list?: any[] }): void {
-    const box = document.getElementById('drive115QuotaSidebar');
-    if (!box) return;
-
-    const total = typeof info.total === 'number' ? info.total : undefined;
-    const used = typeof info.used === 'number' ? info.used : undefined;
-    const surplus = typeof info.surplus === 'number'
-        ? info.surplus
-        : (typeof used === 'number' && typeof total === 'number' ? Math.max(0, total - used) : undefined);
-
-    const percent = (() => {
-        if (typeof used === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round((used / total) * 100)));
-        if (typeof surplus === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round(((total - surplus) / total) * 100)));
-        return undefined;
-    })();
-
-    const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '-');
-
-    const barHtml = (percent !== undefined)
-        ? `
-        <div style="height:8px; background:#eee; border-radius:6px; overflow:hidden;">
-            <div style="height:100%; width:${percent}%; background:linear-gradient(90deg,#4a90e2,#50c9c3);"></div>
-        </div>
-        <div style="font-size:11px; color:#777; margin-top:4px;">已用 ${percent}%</div>
-        `
-        : '<div style="font-size:12px; color:#999;">暂无总量信息</div>';
-
-    box.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:6px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>总量</span>
-                <span>${fmt(total)}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>已用</span>
-                <span>${fmt(used)}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>剩余</span>
-                <span>${fmt(surplus)}</span>
-            </div>
-            ${barHtml}
-            <div style="margin-top:2px;">
-                <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none; font-size:12px;">查看详情与刷新</a>
-            </div>
-        </div>
-    `;
-}
-
 // 首页 ECharts 兜底渲染已迁移到 ./home/charts
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -222,40 +93,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }, true); // 使用捕获阶段
     
-    // 1. 首先初始化主题系统（在任何 UI 渲染之前）
-    try {
-        await themeManager.initialize();
-        console.log('[Dashboard] 主题系统已初始化');
-        
-        // 初始化主题监听器，确保动态组件应用主题
-        initThemeListener();
-        console.log('[Dashboard] 主题监听器已初始化');
-    } catch (error) {
-        console.error('[Dashboard] 主题系统初始化失败:', error);
-    }
+    await initializeDashboardThemeForDom();
 
     // Ensure layout skeleton is mounted before any DOM access
     try {
         await ensureMounted('#app-root', 'layout/skeleton.html');
     } catch {}
 
-    // 监听来自background的锁定消息
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.type === 'privacy-lock-trigger') {
-            try {
-                const { getPrivacyManager } = require('../features/privacy');
-                const privacyManager = getPrivacyManager();
-                privacyManager.lock().catch((error: any) => {
-                    console.error('Failed to lock from message:', error);
-                });
-                sendResponse({ success: true });
-            } catch (error) {
-                console.error('Failed to handle lock trigger:', error);
-                sendResponse({ success: false });
-            }
-        }
-        return true;
-    });
+    registerDashboardPrivacyLockHandler();
 
     // Mount layout fragments and ensure layout styles are present
     try {
@@ -299,48 +144,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // QA 自检（开发期）：检查基础样式与模态框唯一性/挂载状态
     try { runQASelfCheckModule(); } catch {}
 
-    // 初始化隐私保护系统
-    try {
-        log.privacy('Initializing privacy system for Dashboard...');
-        const { initializePrivacySystem } = await import('../../features/privacy');
-        await initializePrivacySystem();
-        log.privacy('Privacy system initialized successfully for Dashboard');
-
-        // 设置 Dashboard 特定的隐私监控
-        setupDashboardPrivacyMonitoringModule();
-
-        // 初始化倒计时显示
-        const { initializeIdleTimerDisplay } = await import('../../dashboard/privacy/idleTimer');
-        initializeIdleTimerDisplay();
-
-        // 初始化手动锁定按钮
-        const { initializeManualLockButton } = await import('../../dashboard/privacy/manualLock');
-        await initializeManualLockButton();
-    } catch (error) {
-        console.error('Failed to initialize privacy system for Dashboard:', error);
-    }
+    await initializeDashboardPrivacy();
 
     initTopbarIcons();
-    
-    // 初始化主题切换器（挂载到 Topbar）
-    try {
-        const topbarRight = document.querySelector('.topbar-right');
-        if (topbarRight) {
-            const themeSwitcher = new ThemeSwitcher(themeManager);
-            // 在帮助按钮之前插入主题切换器
-            const helpBtn = document.getElementById('helpBtn');
-            if (helpBtn) {
-                topbarRight.insertBefore(themeSwitcher.getElement(), helpBtn);
-            } else {
-                themeSwitcher.mount(topbarRight as HTMLElement);
-            }
-            console.debug('[Dashboard] 主题切换器已挂载');
-        } else {
-            console.warn('[Dashboard] 未找到 .topbar-right 容器，主题切换器未挂载');
-        }
-    } catch (error) {
-        console.error('[Dashboard] 主题切换器挂载失败:', error);
-    }
+    mountDashboardThemeSwitcher();
     
     // 初始化版本检测和显示（异步，不阻塞页面）
     initVersionBadge().catch(error => {
@@ -373,29 +180,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSidebarActionsModule();
     initUserProfileSection();
     // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
-    initInfoContainer();
+    renderDashboardVersionInfo();
     initModal();
-    // 根据设置控制 115 侧边栏显示，并在启用时（V2）加载配额
-    updateDrive115SidebarVisibility();
-    if (isDrive115EnabledState(normalizeDrive115Settings(STATE.settings?.drive115 || {}))) {
-        (window as any).initDrive115QuotaSidebar?.();
-    }
+    initializeDrive115SidebarAfterState();
     updateSyncStatusModule();
     mountDashboardReleaseAnnouncement().catch(error => {
         console.warn('[Dashboard] 发布提示弹窗挂载失败:', error);
     });
-    // 监听来自设置页的配额刷新事件
-    window.addEventListener('drive115:refreshQuota' as any, () => {
-        (window as any).initDrive115QuotaSidebar?.();
-    });
-    // 监听 115 启用状态变更，动态显示侧边栏并在启用（V2）时加载配额
-    window.addEventListener('drive115:enabled-changed' as any, (e: any) => {
-        const enabled = !!(e?.detail?.enabled);
-        updateDrive115SidebarVisibility(enabled);
-        if (enabled) {
-            (window as any).initDrive115QuotaSidebar?.();
-        }
-    });
+    bindDrive115SidebarEvents();
     try {
         if (!(window as any).__HOME_TAB_SHOW_BOUND__) {
             window.addEventListener('tab:show' as any, async (e: any) => {
@@ -444,78 +236,4 @@ async function initSyncTab(): Promise<void> {
     } catch (error) {
         console.error('初始化数据同步标签页失败:', error);
     }
-}
-
-function initInfoContainer(): void {
-    const infoContainer = document.getElementById('versionInfoSidebar') || document.getElementById('infoContainer');
-    if (!infoContainer) return;
-
-    let manifestVersion = '';
-    try {
-        manifestVersion = chrome?.runtime?.getManifest?.().version || '';
-    } catch {}
-
-    const versionInfo = getDisplayVersionInfo({
-        manifestVersion,
-        env: import.meta.env,
-    });
-    const deviceId = String(STATE.settings?.webdav?.clientId || '').trim();
-
-    const getStateTitle = (state: string): string => {
-    switch (state) {
-        case 'clean':
-            return '此版本基于干净且完全提交的 Git 工作区构建。';
-        case 'staged':
-            return '此版本包含已暂存但未提交的更改。';
-        case 'dirty':
-            return '警告：此版本包含未提交或未暂存的本地修改（dirty）。';
-        default:
-            return '无法确定此版本的构建状态。';
-    }
-};
-
-    const buildLine = versionInfo.buildNumber
-        ? `
-        <div class="info-item">
-            <span class="info-label">Build:</span>
-            <span class="info-value">${versionInfo.buildNumber}</span>
-        </div>`
-        : '';
-
-    const commitLine = versionInfo.commit
-        ? `
-        <div class="info-item">
-            <span class="info-label">Commit:</span>
-            <span class="info-value">${versionInfo.commit}</span>
-        </div>`
-        : '';
-
-    const stateLine = `
-        <div class="info-item">
-            <span class="info-label">State:</span>
-            <span class="info-value version-state-${versionInfo.state}" title="${getStateTitle(versionInfo.state)}">${versionInfo.state}</span>
-        </div>`;
-
-    const builtAtLine = versionInfo.builtAt
-        ? `
-        <div class="info-item">
-            <span class="info-label">Built At:</span>
-            <span class="info-value">${versionInfo.builtAt}</span>
-        </div>`
-        : '';
-
-    const deviceIdLine = deviceId
-        ? `
-        <div class="info-item">
-            <span class="info-label">Device ID:</span>
-            <span class="info-value" title="当前 WebDAV 客户端设备 ID">${deviceId}</span>
-        </div>`
-        : '';
-
-    infoContainer.innerHTML = `
-        <div class="info-item">
-            <span class="info-label">Version:</span>
-            <span class="info-value version-state-${versionInfo.state}" title="${getStateTitle(versionInfo.state)}">${versionInfo.version}</span>
-        </div>${buildLine}${commitLine}${stateLine}${builtAtLine}${deviceIdLine}
-    `;
 }
