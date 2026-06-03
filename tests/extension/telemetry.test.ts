@@ -165,6 +165,7 @@ describe('telemetry payload', () => {
     expect(payload).toEqual(expect.objectContaining({
       schemaVersion: 1,
       deviceId: 'existing-device-id',
+      installId: 'existing-device-id',
       anonymous: true,
       event: 'startup',
       client: expect.objectContaining({
@@ -203,13 +204,82 @@ describe('telemetry payload', () => {
         enabledMagnetSourceCountBucket: '1-9',
       },
     }));
-    expect(payload).not.toHaveProperty('installId');
     expect(JSON.stringify(payload)).not.toContain('sensitive-user');
     expect(JSON.stringify(payload)).not.toContain('sensitive-password');
     expect(JSON.stringify(payload)).not.toContain('sensitive-115-token');
     expect(JSON.stringify(payload)).not.toContain('sensitive-ai-key');
     expect(JSON.stringify(payload)).not.toContain('Title 1');
     expect(JSON.stringify(payload)).not.toContain('Actor 1');
+  });
+
+  it('uses the latest settings Device ID while preserving telemetry installId', async () => {
+    const { buildTelemetryPayload } = await import('../../src/features/telemetry');
+
+    const payload = await buildTelemetryPayload({
+      event: 'heartbeat',
+      settings: {
+        ...DEFAULT_SETTINGS,
+        webdav: {
+          ...DEFAULT_SETTINGS.webdav,
+          clientId: 'new-settings-device-id',
+        },
+        telemetry: {
+          enabled: true,
+          endpoint: 'https://telemetry.example.invalid/v1/telemetry/report',
+          channel: 'stable',
+        },
+      },
+      state: {
+        installId: 'persisted-telemetry-install-id',
+        sessionId: 'session-test',
+        sessionStartedAt: '2026-05-26T01:00:00.000Z',
+      },
+      now: new Date('2026-05-26T02:00:00.000Z'),
+      runtime: {
+        version: '1.20.2',
+        build: 68,
+        browser: 'Chrome',
+        browserVersion: '125',
+        platform: 'windows',
+        locale: 'zh-CN',
+        timezone: 'Asia/Shanghai',
+      },
+    });
+
+    expect(payload.deviceId).toBe('new-settings-device-id');
+    expect(payload.installId).toBe('persisted-telemetry-install-id');
+  });
+
+  it('falls back to telemetry installId when settings Device ID is missing', async () => {
+    const { buildTelemetryPayload } = await import('../../src/features/telemetry');
+
+    const payload = await buildTelemetryPayload({
+      event: 'heartbeat',
+      settings: {
+        ...DEFAULT_SETTINGS,
+        webdav: {
+          ...DEFAULT_SETTINGS.webdav,
+          clientId: '',
+        },
+        telemetry: {
+          enabled: true,
+          endpoint: 'https://telemetry.example.invalid/v1/telemetry/report',
+          channel: 'stable',
+        },
+      },
+      state: {
+        installId: 'persisted-telemetry-install-id',
+        sessionId: 'session-test',
+        sessionStartedAt: '2026-05-26T01:00:00.000Z',
+      },
+      now: new Date('2026-05-26T02:00:00.000Z'),
+      runtime: {
+        version: '1.20.2',
+      },
+    });
+
+    expect(payload.deviceId).toBe('persisted-telemetry-install-id');
+    expect(payload.installId).toBe('persisted-telemetry-install-id');
   });
 });
 
@@ -382,5 +452,187 @@ describe('telemetry reporter', () => {
 
     expect(result).toEqual({ sent: false, reason: 'network-error' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports sanitized error payloads without touching heartbeat throttling', async () => {
+    const { reportTelemetryError, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    setChromeStorage({
+      [TELEMETRY_CLIENT_STATE_KEY]: {
+        installId: 'persisted-telemetry-install-id',
+        sessionId: 'session-existing',
+        sessionStartedAt: '2026-05-26T00:00:00.000Z',
+        lastHeartbeatAt: Date.parse('2026-05-26T02:59:00.000Z'),
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    const error = new TypeError('failed https://javdb.com/v/ABC token=secret magnet:?xt=urn:btih:abcdef');
+    error.stack = [
+      'TypeError: failed https://javdb.com/v/ABC token=secret',
+      '    at fetchActor (chrome-extension://test-runtime/background.js:11:22)',
+      '    at https://javdb.com/v/ABC:33:44',
+    ].join('\n');
+
+    const result = await reportTelemetryError({
+      component: 'background',
+      code: 'ACTOR_REMARKS_FETCH_FAILED',
+      error,
+      fatal: false,
+    }, {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        webdav: {
+          ...DEFAULT_SETTINGS.webdav,
+          clientId: 'settings-device-id',
+        },
+        telemetry: {
+          enabled: true,
+          endpoint: 'https://jbd-server.we-together.club/v1/telemetry/report',
+          channel: 'stable',
+        },
+      },
+      fetchImpl: fetchMock,
+      now: new Date('2026-05-26T03:00:00.000Z'),
+    });
+
+    expect(result).toEqual({ sent: true, status: 200 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const sentPayload = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sentPayload).toEqual(expect.objectContaining({
+      event: 'error_report',
+      deviceId: 'settings-device-id',
+      installId: 'persisted-telemetry-install-id',
+      error: {
+        component: 'background',
+        code: 'ACTOR_REMARKS_FETCH_FAILED',
+        message: 'TypeError',
+        stackHash: expect.stringMatching(/^sha256-[a-f0-9]{64}$/),
+        fatal: false,
+      },
+    }));
+    expect(JSON.stringify(sentPayload)).not.toContain('javdb.com');
+    expect(JSON.stringify(sentPayload)).not.toContain('token=secret');
+    expect(JSON.stringify(sentPayload)).not.toContain('magnet:');
+    expect(getChromeStorageSnapshot()[TELEMETRY_CLIENT_STATE_KEY].lastHeartbeatAt)
+      .toBe(Date.parse('2026-05-26T02:59:00.000Z'));
+  });
+
+  it('throttles duplicate telemetry errors by stack hash', async () => {
+    const { reportTelemetryError } = await import('../../src/features/telemetry');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      telemetry: {
+        enabled: true,
+        endpoint: 'https://jbd-server.we-together.club/v1/telemetry/report',
+        channel: 'stable',
+      },
+    };
+    const error = new Error('same private message');
+    error.stack = 'Error: same private message\n    at run (chrome-extension://test-runtime/background.js:1:2)';
+
+    const first = await reportTelemetryError({
+      component: 'background',
+      code: 'DUPLICATE_ERROR',
+      error,
+      fatal: false,
+    }, {
+      settings,
+      fetchImpl: fetchMock,
+      now: new Date('2026-05-26T03:00:00.000Z'),
+    });
+    const second = await reportTelemetryError({
+      component: 'background',
+      code: 'DUPLICATE_ERROR',
+      error,
+      fatal: false,
+    }, {
+      settings,
+      fetchImpl: fetchMock,
+      now: new Date('2026-05-26T03:01:00.000Z'),
+    });
+
+    expect(first).toEqual({ sent: true, status: 200 });
+    expect(second).toEqual({ sent: false, reason: 'throttled' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not consume duplicate error throttle while telemetry is disabled', async () => {
+    const { reportTelemetryError } = await import('../../src/features/telemetry');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    const error = new Error('same private message');
+    error.stack = 'Error: same private message\n    at run (chrome-extension://test-runtime/background.js:1:2)';
+
+    const disabled = await reportTelemetryError({
+      component: 'background',
+      code: 'TEMPORARILY_DISABLED_ERROR',
+      error,
+      fatal: false,
+    }, {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        telemetry: {
+          enabled: false,
+          endpoint: 'https://jbd-server.we-together.club/v1/telemetry/report',
+          channel: 'stable',
+        },
+      },
+      fetchImpl: fetchMock,
+      now: new Date('2026-05-26T03:00:00.000Z'),
+    });
+    const enabled = await reportTelemetryError({
+      component: 'background',
+      code: 'TEMPORARILY_DISABLED_ERROR',
+      error,
+      fatal: false,
+    }, {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        telemetry: {
+          enabled: true,
+          endpoint: 'https://jbd-server.we-together.club/v1/telemetry/report',
+          channel: 'stable',
+        },
+      },
+      fetchImpl: fetchMock,
+      now: new Date('2026-05-26T03:01:00.000Z'),
+    });
+
+    expect(disabled).toEqual({ sent: false, reason: 'disabled' });
+    expect(enabled).toEqual({ sent: true, status: 200 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles error report runtime messages silently', async () => {
+    const { handleTelemetryRuntimeMessage, TELEMETRY_ERROR_REPORT_MESSAGE } = await import('../../src/features/telemetry');
+    const reporter = vi.fn().mockResolvedValue({ sent: true, status: 200 });
+    const sendResponse = vi.fn();
+
+    const handled = handleTelemetryRuntimeMessage(
+      {
+        type: TELEMETRY_ERROR_REPORT_MESSAGE,
+        payload: {
+          component: 'content',
+          code: 'CONTENT_UNHANDLED_ERROR',
+          message: 'TypeError',
+          stackHash: 'sha256-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+          fatal: false,
+        },
+      },
+      sendResponse,
+      {
+        errorReporter: reporter,
+      },
+    );
+    await Promise.resolve();
+
+    expect(handled).toBe(true);
+    expect(reporter).toHaveBeenCalledWith({
+      component: 'content',
+      code: 'CONTENT_UNHANDLED_ERROR',
+      message: 'TypeError',
+      stackHash: 'sha256-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      fatal: false,
+    });
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
   });
 });

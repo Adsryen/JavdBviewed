@@ -28,10 +28,19 @@ export interface TelemetryRuntimeInfo {
   timezone?: string;
 }
 
+export interface TelemetryErrorPayload {
+  component?: string;
+  code?: string;
+  message?: string;
+  stackHash?: string;
+  fatal?: boolean;
+}
+
 export interface TelemetryPayload {
   schemaVersion: 1;
   eventId: string;
   deviceId: string;
+  installId: string;
   anonymous: true;
   event: TelemetryEventType;
   client: {
@@ -82,6 +91,7 @@ export interface TelemetryPayload {
     enabledOnlineAvailabilitySiteCountBucket: TelemetryCountBucket;
     enabledMagnetSourceCountBucket: TelemetryCountBucket;
   };
+  error?: TelemetryErrorPayload;
   sentAt: string;
 }
 

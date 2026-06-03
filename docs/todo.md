@@ -22,24 +22,27 @@
 
 ## Dashboard / 设置页
 
-- [ ] 客户端遥测设备 ID 对齐
-  - [ ] 核实 `buildTelemetryPayload.ts` 当前 `deviceId` 来源为 `telemetry_client_state.installId`
-  - [ ] 改为优先上报设置页显示的 `settings.webdav.clientId`
-  - [ ] 保留 `installId` 作为遥测安装归并标识
-  - [ ] 补充测试：设置页 Device ID 变化后，payload 的 `deviceId` 使用最新 `webdav.clientId`
-  - [ ] 补充兼容测试：无 `webdav.clientId` 时仍能用 telemetry install state 完成内部归并
+- [x] 客户端遥测设备 ID 对齐
+  - [x] 核实 `buildTelemetryPayload.ts` 当前 `deviceId` 来源为 `telemetry_client_state.installId`
+  - [x] 改为优先上报设置页显示的 `settings.webdav.clientId`
+  - [x] 保留 `installId` 作为遥测安装归并标识
+  - [x] 补充测试：设置页 Device ID 变化后，payload 的 `deviceId` 使用最新 `webdav.clientId`
+  - [x] 补充兼容测试：无 `webdav.clientId` 时仍能用 telemetry install state 完成内部归并
 
-- [ ] 错误事件上报（`error_report`）
-  - [ ] 设计 payload：`component`、`code`、Error 类名、`stackHash`、`fatal`
-  - [ ] 保护隐私：payload 中避免采集页面 URL、番号、磁力链接、API 地址、token 和原始 stack trace
-  - [ ] 扩展 telemetry 类型：event type、error payload、联合 payload、结果原因
-  - [ ] 新增错误 payload 构建器：stack 归一化、chunk hash 替换、MD5 `stackHash`
-  - [ ] 新增错误节流：会话级去重、指纹冷却、容量上限
-  - [ ] 新增错误 reporter：检查开关和 endpoint 后发送，全局兜底异常
-  - [ ] 扩展 telemetry client 和 runtime message 处理
-  - [ ] 在 background 全局 `error` / `unhandledrejection` 中接入
-  - [ ] 在 content bootstrap 全局 `error` / `unhandledrejection` 中接入
-  - [ ] 补充验证：payload、stackHash、节流、runtime message、隐私字段和后端 admin events
+- [x] 客户端错误事件上报（`error_report`）
+  - [x] 设计 payload：`component`、`code`、Error 类名、`stackHash`、`fatal`
+  - [x] 保护隐私：payload 中避免采集页面 URL、番号、磁力链接、API 地址、token 和原始 stack trace
+  - [x] 扩展 telemetry 类型：event type、error payload、联合 payload、结果原因
+  - [x] 新增错误 payload 构建器：stack 归一化、敏感文本清洗、SHA-256 `stackHash`
+  - [x] 新增错误节流：会话级去重、指纹冷却
+  - [x] 新增错误 reporter：检查开关和 endpoint 后发送，全局兜底异常
+  - [x] 扩展 telemetry client 和 runtime message 处理
+  - [x] 在 background 全局 `error` / `unhandledrejection` 中接入
+  - [x] 在 content bootstrap 全局 `error` / `unhandledrejection` 中接入
+  - [x] 补充验证：payload、stackHash、节流、runtime message、隐私字段
+
+- [ ] 遥测后端线上验收
+  - [ ] 通过 admin events 回看 `error_report` 入库字段、Device ID 和 telemetry installId 展示
 
 - [ ] 报告（Insights）设置
   - [ ] 配置报告生成所用的聚合参数
