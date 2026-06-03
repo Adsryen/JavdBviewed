@@ -14,6 +14,7 @@ describe('getSettings listEnhancement regression', () => {
                   listEnhancement: {
                     previewVolume: 0.65,
                     listDisplayControl: {
+                      enabled: false,
                       columnCount: 6,
                     },
                   },
@@ -54,8 +55,10 @@ describe('getSettings listEnhancement regression', () => {
     const settings = await getSettings();
 
     expect(settings.listEnhancement.previewVolume).toBe(0.65);
+    expect(settings.listEnhancement.listDisplayControl.enabled).toBe(true);
     expect(settings.listEnhancement.listDisplayControl.columnCount).toBe(6);
     expect(settings.listEnhancement.listDisplayControl.containerWidth).toBe(100);
     expect(settings.listEnhancement.enableVideoPreview).toBe(true);
+    expect(settings.listEnhancement.enableStatusQuickAction).toBe(false);
   });
 });

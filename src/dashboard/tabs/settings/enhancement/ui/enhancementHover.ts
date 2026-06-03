@@ -111,6 +111,12 @@ export function updateAllToggleStates(host: EnhancementHoverHost): void {
     if (!targetId) return;
     const hiddenCheckbox = document.getElementById(targetId) as HTMLInputElement | null;
     if (!hiddenCheckbox) return;
+    if (toggleEl.hasAttribute('data-always-on')) {
+      hiddenCheckbox.checked = true;
+      (toggleEl as HTMLButtonElement).disabled = true;
+      toggleEl.classList.add('always-on');
+      toggleEl.setAttribute('aria-disabled', 'true');
+    }
     toggleEl.classList.toggle('active', hiddenCheckbox.checked);
     host.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
     if (targetId === 'enableTranslation') {

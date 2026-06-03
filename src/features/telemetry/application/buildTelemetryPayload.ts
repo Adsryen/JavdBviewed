@@ -6,7 +6,7 @@ import {
   type SearchEngineTemplate,
 } from '../../externalSearch/domain/searchEngines';
 import { getValue } from '../../../utils/storage';
-import { bucketCount, countObjectKeys } from '../domain/buckets';
+import { bucketCount, bucketViewedCount, countObjectKeys } from '../domain/buckets';
 import { buildTelemetryFeatures } from '../domain/featureCatalog';
 import type {
   TelemetryClientState,
@@ -100,7 +100,7 @@ async function buildMetrics(settings: any): Promise<TelemetryPayload['metrics']>
   ]);
 
   return {
-    viewedCountBucket: bucketCount(countObjectKeys(viewed)),
+    viewedCountBucket: bucketViewedCount(countObjectKeys(viewed)),
     actorCountBucket: bucketCount(countObjectKeys(actors)),
     newWorksSubscriptionCountBucket: bucketCount(countObjectKeys(newWorksSubscriptions)),
     ...buildConfigMetrics(settings),

@@ -20,6 +20,7 @@ type EnhancementSaveHost = {
   listContainerWidth?: HTMLInputElement;
   enableContainerExpansion?: HTMLInputElement;
   showStatusBadge?: HTMLInputElement;
+  enableStatusQuickAction?: HTMLInputElement;
   enablePopularityEffects?: HTMLInputElement;
   popularityMinRating?: HTMLInputElement;
   popularityMinRatingCount?: HTMLInputElement;
@@ -91,6 +92,7 @@ export function mergeEnhancementSettingsForSave(
         enableContainerExpansion: host.enableContainerExpansion?.checked ?? existingListDisplayControl.enableContainerExpansion ?? false,
       },
       showStatusBadge: host.showStatusBadge?.checked ?? (existingListEnhancement as any).showStatusBadge ?? true,
+      enableStatusQuickAction: host.enableStatusQuickAction?.checked ?? (existingListEnhancement as any).enableStatusQuickAction ?? false,
       popularityEffects: {
         ...existingPopularityEffects,
         enabled: host.enablePopularityEffects?.checked ?? existingPopularityEffects.enabled ?? false,

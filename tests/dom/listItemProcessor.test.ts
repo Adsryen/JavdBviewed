@@ -200,4 +200,85 @@ describe('list item processor', () => {
 
     expect(document.querySelector('.emby-library-status-tag')).toBeNull();
   });
+
+  it('skips list status quick actions when the switch is disabled', () => {
+    const list = document.querySelector('.movie-list')!;
+    list.appendChild(renderBoxListItem('ABC-006'));
+    (STATE.settings as any).listEnhancement.enableStatusQuickAction = false;
+
+    processVisibleItems();
+
+    expect(document.querySelector('.jdb-list-status-actions')).toBeNull();
+  });
+
+  it('renders visible list status quick actions in the bottom-right of the card link', () => {
+    const list = document.querySelector('.movie-list')!;
+    const item = renderBoxListItem('ABC-007');
+    list.appendChild(item);
+    (STATE.settings as any).listEnhancement.enableStatusQuickAction = true;
+    STATE.records = {
+      'ABC-007': createRecord('ABC-007', VIDEO_STATUS.WANT),
+    };
+
+    processVisibleItems();
+
+    const link = item.querySelector('a.box')!;
+    const actions = item.querySelector('.jdb-list-status-actions') as HTMLElement | null;
+    const style = document.getElementById('jdb-list-status-actions-style')?.textContent || '';
+    expect(actions?.parentElement).toBe(link);
+    expect(actions?.classList.contains('pos-bottom-right')).toBe(true);
+    expect(Array.from(actions?.querySelectorAll('button') || []).map(button => button.textContent)).toEqual(['已阅', '想看', '已看']);
+    expect(style).toContain('right: 8px');
+    expect(style).toContain('opacity: 0.92');
+    expect(style).not.toContain('opacity: 0;');
+    expect(style).not.toContain('outline:');
+    expect(actions?.querySelector('[data-status="want"]')?.classList.contains('is-active')).toBe(true);
+  });
+
+  it('updates the local record when a list status quick action is clicked', async () => {
+    const list = document.querySelector('.movie-list')!;
+    const item = renderBoxListItem('ABC-008');
+    list.appendChild(item);
+    (STATE.settings as any).listEnhancement.enableStatusQuickAction = true;
+
+    processVisibleItems();
+
+    const button = item.querySelector<HTMLButtonElement>('.jdb-list-status-action[data-status="viewed"]')!;
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    button.dispatchEvent(clickEvent);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(STATE.records['ABC-008']?.status).toBe(VIDEO_STATUS.VIEWED);
+    expect(button.classList.contains('is-active')).toBe(true);
+    expect(document.querySelector('.custom-status-tag')?.textContent).toBe('已观看');
+    expect((chrome.runtime.sendMessage as any).mock.calls.at(-1)?.[0]).toMatchObject({
+      type: 'DB:VIEWED_PUT',
+      payload: {
+        record: {
+          id: 'ABC-008',
+          status: VIDEO_STATUS.VIEWED,
+        },
+      },
+    });
+  });
 });
+
+function renderBoxListItem(videoId: string): HTMLElement {
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.innerHTML = `
+    <a href="/v/${videoId.toLowerCase()}" class="box" title="Title ${videoId}">
+      <div class="cover contain x-cover x-preview">
+        <img loading="lazy" src="https://example.test/${videoId}.jpg">
+      </div>
+      <div class="video-title x-ellipsis x-title">
+        <span class="x-btn" title="列表功能" data-code="${videoId}" data-title="Title ${videoId}"></span>
+        <strong>${videoId}</strong> Title ${videoId}
+      </div>
+      <div class="tags has-addons"></div>
+    </a>
+  `;
+  return item;
+}

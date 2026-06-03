@@ -21,6 +21,14 @@ import {
   getMagnetSourceLabel,
 } from '../application/sourceTagState';
 import {
+  describeMagnetSourceBackoff,
+  filterMagnetSourcesByBackoff,
+  recordMagnetSourceFailure,
+  recordMagnetSourceSuccess,
+  type MagnetSourceBackoffEntry,
+  type MagnetSourceBackoffState,
+} from '../application/sourceBackoff';
+import {
   deduplicateMagnetResults,
   detectMagnetQuality,
   detectMagnetSubtitle,
@@ -51,6 +59,12 @@ import { fetchJavbusAjaxViaRuntime } from '../../../platform/browser/javbusRunti
 // 磁链缓存 TTL（默认 7 天）
 const MAGNET_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+interface MagnetSearchRunOptions {
+  manual?: boolean;
+}
+
+type MagnetSearchSource = { name: string; key: MagnetSourceKey; fn: () => Promise<MagnetResult[]> };
+
 export type {
   MagnetExternalSearchResult,
   MagnetResult,
@@ -71,6 +85,7 @@ export class MagnetSearchManager {
   private searchRunId = 0;
   private sourceTagStates: Partial<Record<MagnetSourceKey, MagnetSourceSearchState>> = {};
   private sourceTagLatestResultCounts: Partial<Record<MagnetSourceKey, number>> = {};
+  private sourceBackoffState: MagnetSourceBackoffState = {};
 
   constructor(config: Partial<MagnetSearchConfig> = {}) {
     this.config = {
@@ -210,7 +225,7 @@ export class MagnetSearchManager {
   /**
    * 搜索磁力链接
    */
-  async searchMagnets(videoId: string): Promise<void> {
+  async searchMagnets(videoId: string, options: MagnetSearchRunOptions = {}): Promise<void> {
     try {
       const runId = ++this.searchRunId;
       log(`Searching magnets for: ${videoId}`);
@@ -247,34 +262,25 @@ export class MagnetSearchManager {
       }
 
       // 2. 搜索外部源
-      const searchSources: Array<{ name: string; key: MagnetSourceKey; fn: () => Promise<MagnetResult[]> }> = [];
-
-      if (this.config.sources.sukebei) {
-        searchSources.push({ name: 'Sukebei', key: 'sukebei', fn: () => this.searchSukebei(videoId) });
-      }
-
-      if (this.config.sources.btdig) {
-        searchSources.push({ name: 'BTdig', key: 'btdig', fn: () => this.searchBtdig(videoId) });
-      }
-
-      if (this.config.sources.btsow) {
-        searchSources.push({ name: 'BTSOW', key: 'btsow', fn: () => this.searchBtsow(videoId) });
-      }
-
-      if (this.config.sources.torrentz2) {
-        searchSources.push({ name: 'Torrentz2', key: 'torrentz2', fn: () => this.searchTorrentz2(videoId) });
-      }
-
-      if (this.config.sources.javbus) {
-        searchSources.push({ name: 'JAVBUS', key: 'javbus', fn: () => this.searchJavbus(videoId) });
-      }
+      const allSearchSources = this.buildExternalSearchSources(videoId);
+      const { runnable: searchSources, skipped } = this.filterSourcesByBackoff(allSearchSources, options);
+      skipped.forEach(({ source, entry }) => {
+        log(`${source.name} search skipped by backoff:`, describeMagnetSourceBackoff(entry));
+        this.setSourceTagState(source.key, 'failed', allMagnetResults);
+      });
 
       log(`Starting search on ${searchSources.length} sources: ${searchSources.map(s => s.name).join(', ')}`);
 
       // 4. 如果没有外部搜索源，直接显示JavDB结果
-      if (searchSources.length === 0) {
+      if (allSearchSources.length === 0) {
         log('No external sources configured, displaying JavDB results only');
         this.processAndDisplayAllMagnets(allMagnetResults);
+        return;
+      }
+
+      if (searchSources.length === 0) {
+        log('All external sources are temporarily in backoff, displaying local results only');
+        this.processAndDisplayAllMagnets(allMagnetResults, { discoveredCount });
         return;
       }
 
@@ -290,6 +296,7 @@ export class MagnetSearchManager {
         .then(sourceResults => {
           if (runId !== this.searchRunId) return sourceResults;
           log(`${source.name} search completed: ${sourceResults.length} results`);
+          recordMagnetSourceSuccess(this.sourceBackoffState, source.key);
           if (sourceResults.length > 0) {
             appendAndCountResults(sourceResults);
             log(`Merged ${source.name} results, total collected: ${allMagnetResults.length}`);
@@ -301,6 +308,7 @@ export class MagnetSearchManager {
         }).catch(error => {
           if (runId !== this.searchRunId) return [];
           log(`${source.name} search failed:`, error);
+          recordMagnetSourceFailure(this.sourceBackoffState, source.key, error);
           this.setSourceTagState(source.key, 'failed', allMagnetResults);
           return []; // 返回空数组而不是抛出错误
         });
@@ -332,14 +340,23 @@ export class MagnetSearchManager {
   /**
    * 搜索外部磁力源，只返回结果，不读取或写入详情页 DOM。
    */
-  async searchExternalSources(videoId: string): Promise<MagnetExternalSearchResult> {
+  async searchExternalSources(videoId: string, options: MagnetSearchRunOptions = {}): Promise<MagnetExternalSearchResult> {
     const allResults: MagnetResult[] = [];
     const sourceStates: Partial<Record<MagnetSourceKey, MagnetSourceRunState>> = {};
-    const searchSources = this.buildExternalSearchSources(videoId);
+    const allSearchSources = this.buildExternalSearchSources(videoId);
+    const { runnable: searchSources, skipped } = this.filterSourcesByBackoff(allSearchSources, options);
 
     this.currentVideoId = videoId;
 
-    if (searchSources.length === 0) {
+    skipped.forEach(({ source, entry }) => {
+      sourceStates[source.key] = {
+        status: 'failed',
+        resultCount: 0,
+        error: describeMagnetSourceBackoff(entry),
+      };
+    });
+
+    if (allSearchSources.length === 0 || searchSources.length === 0) {
       return {
         discoveredCount: 0,
         duplicateCount: 0,
@@ -353,11 +370,13 @@ export class MagnetSearchManager {
       try {
         const sourceResults = await performanceOptimizer.scheduleRequest(() => source.fn(), 9000);
         appendMagnetResults(allResults, sourceResults);
+        recordMagnetSourceSuccess(this.sourceBackoffState, source.key);
         sourceStates[source.key] = { status: 'success', resultCount: sourceResults.length };
         return sourceResults;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         log(`${source.name} external search failed:`, error);
+        recordMagnetSourceFailure(this.sourceBackoffState, source.key, error);
         sourceStates[source.key] = { status: 'failed', resultCount: 0, error: message };
         return [];
       }
@@ -375,8 +394,8 @@ export class MagnetSearchManager {
     };
   }
 
-  private buildExternalSearchSources(videoId: string): Array<{ name: string; key: MagnetSourceKey; fn: () => Promise<MagnetResult[]> }> {
-    const searchSources: Array<{ name: string; key: MagnetSourceKey; fn: () => Promise<MagnetResult[]> }> = [];
+  private buildExternalSearchSources(videoId: string): MagnetSearchSource[] {
+    const searchSources: MagnetSearchSource[] = [];
 
     if (this.config.sources.sukebei) {
       searchSources.push({ name: 'Sukebei', key: 'sukebei', fn: () => this.searchSukebei(videoId) });
@@ -399,6 +418,13 @@ export class MagnetSearchManager {
     }
 
     return searchSources;
+  }
+
+  private filterSourcesByBackoff(
+    sources: MagnetSearchSource[],
+    options: MagnetSearchRunOptions,
+  ): { runnable: MagnetSearchSource[]; skipped: Array<{ source: MagnetSearchSource; entry: MagnetSourceBackoffEntry }> } {
+    return filterMagnetSourcesByBackoff(sources, this.sourceBackoffState, options);
   }
 
   /**
@@ -1312,7 +1338,7 @@ export class MagnetSearchManager {
         searchButton.innerHTML = '🔄 搜索中...';
 
         try {
-          await this.searchMagnets(this.currentVideoId!);
+          await this.searchMagnets(this.currentVideoId!, { manual: true });
           // 搜索完成后移除按钮
           buttonContainer.remove();
         } catch (error) {

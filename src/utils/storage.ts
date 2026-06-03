@@ -199,6 +199,7 @@ export async function getSettings(): Promise<ExtensionSettings> {
       listDisplayControl: {
         ...((DEFAULT_SETTINGS.listEnhancement as any).listDisplayControl || {}),
         ...((storedSettings.listEnhancement as any)?.listDisplayControl || {}),
+        enabled: true,
       },
     },
     drive115: {

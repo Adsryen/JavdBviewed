@@ -37,6 +37,18 @@ describe('mergeEnhancementSettingsForSave', () => {
     expect(merged.listEnhancement?.listDisplayControl?.containerWidth).toBe(120);
   });
 
+  it('persists the list status quick action toggle with a default off value', () => {
+    const current = structuredClone(DEFAULT_SETTINGS);
+
+    const defaultMerged = mergeEnhancementSettingsForSave(current, {} as any);
+    const enabledMerged = mergeEnhancementSettingsForSave(current, {
+      enableStatusQuickAction: { checked: true },
+    } as any);
+
+    expect(defaultMerged.listEnhancement?.enableStatusQuickAction).toBe(false);
+    expect(enabledMerged.listEnhancement?.enableStatusQuickAction).toBe(true);
+  });
+
   it('persists the online availability failure tag toggle with a default off value', () => {
     const current = structuredClone(DEFAULT_SETTINGS);
 

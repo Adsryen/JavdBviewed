@@ -5,6 +5,7 @@ import { STATE, SELECTORS, log } from '../../contentState';
 import { ensureListTagContainer, renderLibraryStatusBadges } from '../../embyLibrary/content/statusBadges';
 import { buildRealtimeCheckConfig, embyLibraryRealtimeCheckQueue } from '../../embyLibrary/content/realtimeCheck';
 import { isPageProperlyLoaded } from '../../videoDetail';
+import { renderListStatusQuickActions } from './statusQuickActions';
 
 export function processVisibleItems(): void {
     // 首先检查页面是否正常加载
@@ -225,6 +226,8 @@ function processItem(item: HTMLElement): string | null {
             }
         }
     }
+
+    renderListStatusQuickActions(item, videoId, STATE.settings);
 
     if ((STATE.settings as any)?.emby?.libraryStatus?.enabled === true) {
         const tagContainer = ensureListTagContainer(item);
