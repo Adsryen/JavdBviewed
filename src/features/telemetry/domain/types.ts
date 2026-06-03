@@ -64,12 +64,14 @@ export interface TelemetryPayload {
   features: {
     webdavEnabled: boolean;
     drive115Enabled: boolean;
+    actorSyncEnabled: boolean;
+    actorAutoSyncEnabled: boolean;
     aiEnabled: boolean;
-    remoteConfigEnabled: boolean;
     magnetSearchEnabled: boolean;
     magnetAutoSearchEnabled: boolean;
+    newWorksAutoCheckEnabled: boolean;
     videoEnhancementEnabled: boolean;
-    externalEntryPanelEnabled: boolean;
+    titleTranslationEnabled: boolean;
     externalSearchEnabled: boolean;
     onlineAvailabilityEnabled: boolean;
     subtitleSearchEnabled: boolean;
@@ -77,9 +79,26 @@ export interface TelemetryPayload {
     reviewBreakerEnabled: boolean;
     relatedListsEnabled: boolean;
     actorRemarksEnabled: boolean;
+    actorNameMarksEnabled: boolean;
+    videoFavoriteRatingEnabled: boolean;
+    wantSyncEnabled: boolean;
+    autoMarkWatchedAfter115Enabled: boolean;
     listEnhancementEnabled: boolean;
+    listVideoPreviewEnabled: boolean;
+    scrollPagingEnabled: boolean;
+    actorWatermarkEnabled: boolean;
     actorEnhancementEnabled: boolean;
     embyEnabled: boolean;
+    embyLibraryStatusEnabled: boolean;
+    embyRealtimeCheckEnabled: boolean;
+    privacyScreenshotModeEnabled: boolean;
+    privacyPrivateModeEnabled: boolean;
+    contentFilterEnabled: boolean;
+    anchorOptimizationEnabled: boolean;
+    passwordHelperEnabled: boolean;
+    superRankingEnabled: boolean;
+    insightsAutoMonthlyEnabled: boolean;
+    githubProxyEnabled: boolean;
   };
   metrics: {
     viewedCountBucket: TelemetryCountBucket;
