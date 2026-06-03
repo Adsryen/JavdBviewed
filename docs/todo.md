@@ -759,7 +759,55 @@
       - [x] 收尾：`ActorsTab` 保留 tab 生命周期与 controller 装配
     - [ ] 拆分 `dashboard/tabs/newWorks.ts`（第三优先级）
       - [ ] 先补新作品列表、批量打开、刷新进度和订阅配置关键测试
-      - [ ] 抽出批量打开 runtime、列表渲染、筛选状态和订阅操作 runtime
+      - [x] 补单元测试覆盖新作品项 HTML、标签截断、空态、加载态、错误态和分页窗口
+      - [x] 抽出新作品列表视图模型：`newWorksListViewModel.ts`
+      - [x] 补 DOM 测试覆盖作品项选择、操作按钮路由、本页全选、清空选择和批量按钮状态
+      - [x] 抽出新作品列表 DOM runtime：`newWorksListRuntime.ts`
+      - [x] 补单元测试覆盖当前页未读批量打开的冷却、空目标、取消确认和成功打开标记已读
+      - [x] 抽出当前页未读批量打开 workflow：`newWorksBatchOpenWorkflow.ts`
+      - [x] 补单元测试覆盖已选批量打开的空选择、取消确认、当前页链接、服务 fallback 和成功打开
+      - [x] 抽出已选批量打开 workflow：`newWorksSelectedBatchWorkflow.ts`
+      - [x] 补 DOM 测试覆盖刷新进度 UI 创建、取消、复用、更新、完成态、延迟移除和后台消息监听
+      - [x] 抽出刷新进度 DOM runtime：`newWorksProgressRuntime.ts`
+      - [x] 补单元测试覆盖统计卡片 HTML 和管理订阅徽章
+      - [x] 补 DOM 测试覆盖统计卡片点击、筛选回填、active 状态和订阅管理入口
+      - [x] 抽出统计视图模型与 runtime：`newWorksStatsViewModel.ts` / `newWorksStatsRuntime.ts`
+      - [x] 补 DOM 测试覆盖上次检查时间文案、显隐状态和帮助 tooltip 生命周期
+      - [x] 抽出上次检查时间与帮助 tooltip runtime：`newWorksLastCheckTimeRuntime.ts` / `newWorksHelpTooltipRuntime.ts`
+      - [x] 补 DOM 测试覆盖搜索输入、筛选初始化、筛选切换和排序切换
+      - [x] 抽出筛选表单 runtime 与共享筛选类型：`newWorksFilterControlsRuntime.ts` / `newWorksFilterTypes.ts`
+      - [x] 补 DOM 测试覆盖顶部按钮、批量按钮和清理已读确认流程
+      - [x] 抽出按钮事件绑定 runtime：`newWorksButtonEventsRuntime.ts`
+      - [x] 补单元测试覆盖手动检查无活跃订阅、成功结果、取消错误提示和后台失败恢复
+      - [x] 抽出手动检查 workflow：`newWorksManualCheckWorkflow.ts`
+      - [x] 补单元测试覆盖同步状态成功详情、无更新和失败恢复
+      - [x] 抽出同步状态 workflow：`newWorksStatusSyncWorkflow.ts`
+      - [x] 补单元测试覆盖订阅管理弹窗 HTML 渲染
+      - [x] 补 DOM 测试覆盖订阅管理弹窗打开/关闭、搜索、添加演员入口、启用切换、单人检查和移除
+      - [x] 抽出订阅管理弹窗 view/runtime：`newWorksSubscriptionModalViewModel.ts` / `newWorksSubscriptionModalRuntime.ts`
+      - [x] 补单元测试覆盖单人订阅检查成功、无新增和后台失败恢复
+      - [x] 抽出单人订阅检查 workflow：`newWorksSingleSubscriptionCheckWorkflow.ts`
+      - [x] 补单元测试覆盖批量删除空选择、取消确认、成功删除和失败恢复
+      - [x] 抽出批量删除 workflow：`newWorksBatchDeleteWorkflow.ts`
+      - [x] 补单元测试覆盖全局配置取消、保存、调度器重启失败和保存失败
+      - [x] 抽出全局配置 workflow：`newWorksGlobalConfigWorkflow.ts`
+      - [x] 补单元测试覆盖添加订阅初始化、演员选择回调、添加失败和加载失败
+      - [x] 抽出添加订阅 workflow：`newWorksAddSubscriptionWorkflow.ts`
+      - [x] 补单元测试覆盖管理订阅入口有订阅、空订阅和加载失败
+      - [x] 抽出管理订阅入口 workflow：`newWorksManageSubscriptionsWorkflow.ts`
+      - [x] 补单元测试覆盖自动状态同步有更新、无更新和失败静默记录
+      - [x] 抽出自动状态同步 workflow：`newWorksAutoStatusSyncWorkflow.ts`
+      - [x] 补单元测试覆盖单项作品标记已读、访问后自动标记、删除确认和失败日志
+      - [x] 抽出单项作品操作 workflow：`newWorksItemActionsWorkflow.ts`
+      - [x] 补 DOM 测试覆盖新作品列表渲染成功、空态、缺失容器、加载失败和分页点击
+      - [x] 抽出新作品列表渲染 runtime：`newWorksListRuntime.ts`
+      - [x] 补 DOM 测试覆盖新作品统计渲染成功、缺失容器和加载失败
+      - [x] 抽出新作品统计渲染 runtime：`newWorksStatsRuntime.ts`
+      - [x] 补 DOM/单元测试覆盖已选批量打开按钮状态、当前页解析和远端查找
+      - [x] 抽出已选批量打开 runtime 与远端查找辅助：`newWorksSelectedBatchRuntime.ts` / `newWorksSelectedBatchWorkflow.ts`
+      - [x] 补 DOM 测试覆盖未读批量打开、同步状态、立即检查和批量删除按钮状态
+      - [x] 抽出新作品按钮状态 runtime：`newWorksButtonStateRuntime.ts`
+      - [ ] 抽出筛选状态和订阅操作 runtime
       - [ ] 收尾：`NewWorksTab` 保留 tab 生命周期与 controller 装配
     - [ ] 复核 `src/apps/background`（后置）
       - [ ] 仅在单文件重新变大或路由职责膨胀时继续拆分

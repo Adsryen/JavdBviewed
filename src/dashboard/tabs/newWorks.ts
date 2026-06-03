@@ -12,14 +12,62 @@ import {
     getNewWorksPageSize,
     getUnreadBatchOpenCooldownRemaining,
     getUnreadBatchOpenCooldownSeconds,
-    pickUnreadBatchOpenTargets,
 } from './newWorksBatchOpenPolicy';
-import type { ActorRecord, NewWorkRecord, ActorSubscription } from '../../types';
+import { runUnreadBatchOpenWorkflow } from './newWorksBatchOpenWorkflow';
+import { attachNewWorksFilterControls } from './newWorksFilterControlsRuntime';
+import type { NewWorksFilters } from './newWorksFilterTypes';
+import { renderNewWorksListRuntime } from './newWorksListRuntime';
+import {
+    clearNewWorksSelection,
+    selectAllCurrentNewWorksPage,
+    syncNewWorksBatchOperations,
+} from './newWorksListRuntime';
+import { runNewWorksManualCheckWorkflow } from './newWorksManualCheckWorkflow';
+import { runNewWorksStatusSyncWorkflow } from './newWorksStatusSyncWorkflow';
+import { runNewWorksAutoStatusSyncWorkflow } from './newWorksAutoStatusSyncWorkflow';
+import {
+    runDeleteWorksWorkflow,
+    runMarkWorksAsReadWorkflow,
+    runVisitWorkWorkflow,
+} from './newWorksItemActionsWorkflow';
+import { attachNewWorksHelpTooltip } from './newWorksHelpTooltipRuntime';
+import { updateNewWorksLastCheckTimeDisplay } from './newWorksLastCheckTimeRuntime';
+import { openSubscriptionManagementModal } from './newWorksSubscriptionModalRuntime';
+import { runSingleSubscriptionCheckWorkflow } from './newWorksSingleSubscriptionCheckWorkflow';
+import { runNewWorksGlobalConfigWorkflow } from './newWorksGlobalConfigWorkflow';
+import { runAddSubscriptionWorkflow } from './newWorksAddSubscriptionWorkflow';
+import { runManageSubscriptionsWorkflow } from './newWorksManageSubscriptionsWorkflow';
+import {
+    attachNewWorksProgressListener,
+    detachNewWorksProgressListener,
+    ensureNewWorksProgressUI,
+    hideNewWorksProgressUIAfter,
+    updateNewWorksProgressUI,
+} from './newWorksProgressRuntime';
+import type { NewWorksProgressData } from './newWorksProgressRuntime';
+import { renderNewWorksStatsRuntime } from './newWorksStatsRuntime';
+import {
+    findSelectedBatchWorkById,
+    runSelectedBatchOpenWorkflow,
+} from './newWorksSelectedBatchWorkflow';
+import {
+    getSelectedBatchCurrentPageWork,
+    setBatchOpenSelectedButtonLoading,
+} from './newWorksSelectedBatchRuntime';
+import { runBatchDeleteSelectedWorkflow } from './newWorksBatchDeleteWorkflow';
+import type { NewWorkRecord, ActorSubscription } from '../../types';
+import { attachNewWorksButtonEvents } from './newWorksButtonEventsRuntime';
+import {
+    setBatchDeleteSelectedButtonLoading as setBatchDeleteSelectedButtonLoadingState,
+    setCheckNowButtonLoading as setCheckNowButtonLoadingState,
+    setSyncStatusButtonLoading as setSyncStatusButtonLoadingState,
+    updateBatchOpenUnreadButtonState,
+} from './newWorksButtonStateRuntime';
 
 export class NewWorksTab {
     public isInitialized: boolean = false;
     private currentPage: number = 1;
-    private currentFilters: any = {
+    private currentFilters: NewWorksFilters = {
         search: '',
         filter: 'unread',
         sort: 'discoveredAt_desc'
@@ -68,73 +116,34 @@ export class NewWorksTab {
      * 批量打开当前页的未读新作品，并标记为已读
      */
     private async batchOpenCurrentPageUnread(): Promise<void> {
-        if (this.getUnreadBatchOpenCooldownRemaining() > 0) {
-            showMessage(`批量打开冷却中，请在 ${this.getUnreadBatchOpenCooldownSeconds()} 秒后重试`, 'info');
-            this.updateBatchOpenUnreadButton();
-            return;
-        }
+        await runUnreadBatchOpenWorkflow({
+            filters: this.currentFilters,
+            page: this.currentPage,
+            pageSize: this.getCurrentPageSize(),
+            deps: {
+                getCooldownRemaining: () => this.getUnreadBatchOpenCooldownRemaining(),
+                getCooldownSeconds: () => this.getUnreadBatchOpenCooldownSeconds(),
+                updateButton: options => this.updateBatchOpenUnreadButton(options),
+                getNewWorks: query => newWorksManager.getNewWorks(query as any),
+                confirm: options => showConfirm(options),
+                openWorkUrl: url => this.openNewWorkUrl(url),
+                markAsRead: workIds => newWorksManager.markAsRead(workIds),
+                startCooldown: () => this.startUnreadBatchOpenCooldown(),
+                render: () => this.render(),
+                showMessage,
+                logWarn: (message, error) => console.warn(message, error),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
+    }
 
-        try {
-            this.updateBatchOpenUnreadButton({ loading: true });
-            const pageSize = this.getCurrentPageSize();
-
-            // 获取当前页数据（保持与 UI 同步）
-            const result = await newWorksManager.getNewWorks({
-                ...this.currentFilters,
-                page: this.currentPage,
-                pageSize,
+    private async openNewWorkUrl(url: string): Promise<void> {
+        if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.create === 'function') {
+            await new Promise<void>((resolve) => {
+                try { chrome.tabs.create({ url }, () => resolve()); } catch { resolve(); }
             });
-            const unread = result.works.filter(w => !w.isRead);
-            const targets = pickUnreadBatchOpenTargets(result.works);
-
-            if (targets.length === 0) {
-                showMessage('当前页没有未读作品', 'info');
-                return;
-            }
-
-            const confirmed = await showConfirm({
-                title: '批量打开未读',
-                message: unread.length > MAX_UNREAD_BATCH_OPEN_COUNT
-                    ? `当前页共有 ${unread.length} 个未读作品，本次将打开前 ${targets.length} 个新标签页，并标记为已读，继续吗？`
-                    : `将打开 ${targets.length} 个未读作品的新标签页，并标记为已读，继续吗？`,
-                confirmText: '继续',
-                cancelText: '取消',
-                type: 'warning'
-            });
-            if (!confirmed) return;
-
-            // 逐个打开（使用 chrome.tabs.create 或回退 window.open）
-            for (const w of targets) {
-                try {
-                    // 优先使用 chrome.tabs.create（若可用）
-                    if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.create === 'function') {
-                        await new Promise<void>((resolve) => {
-                            try { chrome.tabs.create({ url: w.javdbUrl }, () => resolve()); } catch { resolve(); }
-                        });
-                    } else {
-                        window.open(w.javdbUrl, '_blank');
-                    }
-                } catch (e) {
-                    console.warn('打开标签页失败:', e);
-                }
-            }
-
-            // 标记为已读
-            try {
-                await newWorksManager.markAsRead(targets.map(w => w.id));
-            } catch (e) {
-                console.warn('批量标记已读失败:', e);
-            }
-
-            this.startUnreadBatchOpenCooldown();
-
-            await this.render();
-            showMessage(`已打开 ${targets.length} 个未读作品并标为已读`, 'success');
-        } catch (error) {
-            console.error('批量打开未读失败:', error);
-            showMessage('批量打开失败，请重试', 'error');
-        } finally {
-            this.updateBatchOpenUnreadButton();
+        } else {
+            window.open(url, '_blank');
         }
     }
 
@@ -167,26 +176,11 @@ export class NewWorksTab {
     }
 
     private updateBatchOpenUnreadButton(options?: { loading?: boolean }): void {
-        const btn = document.getElementById('batchOpenUnreadBtn') as HTMLButtonElement | null;
-        if (!btn) return;
-
-        if (options?.loading) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打开...';
-            return;
-        }
-
-        const remainingSeconds = this.getUnreadBatchOpenCooldownSeconds();
-        if (remainingSeconds > 0) {
-            btn.disabled = true;
-            btn.title = `打开当前页所有未读新作品（最多 ${MAX_UNREAD_BATCH_OPEN_COUNT} 个，冷却剩余 ${remainingSeconds} 秒）`;
-            btn.innerHTML = `<i class="fas fa-hourglass-half"></i> 冷却中（${remainingSeconds}s）`;
-            return;
-        }
-
-        btn.disabled = false;
-        btn.title = `打开当前页所有未读新作品（最多 ${MAX_UNREAD_BATCH_OPEN_COUNT} 个，15 秒冷却）`;
-        btn.innerHTML = '<i class="fas fa-external-link-alt"></i> 批量打开未读（当页）';
+        updateBatchOpenUnreadButtonState({
+            loading: options?.loading,
+            cooldownSeconds: this.getUnreadBatchOpenCooldownSeconds(),
+            maxOpenCount: MAX_UNREAD_BATCH_OPEN_COUNT,
+        });
     }
 
     /**
@@ -232,198 +226,37 @@ export class NewWorksTab {
      * 绑定按钮事件
      */
     private bindButtonEvents(): void {
-        // 全局配置按钮
-        const configBtn = document.getElementById('newWorksGlobalConfigBtn');
-        if (configBtn) {
-            configBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('点击了全局配置按钮');
-                this.showGlobalConfigModal();
-            });
-            console.log('全局配置按钮事件已绑定');
-        } else {
-            console.warn('未找到全局配置按钮');
-        }
-
-        // 立即检查按钮
-        const checkNowBtn = document.getElementById('checkNowBtn');
-        if (checkNowBtn) {
-            checkNowBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('点击了立即检查按钮');
-                this.checkNewWorksNow();
-            });
-            console.log('立即检查按钮事件已绑定');
-            
-            // 设置帮助图标的提示
-            this.setupCheckNowHelpIcon();
-        } else {
-            console.warn('未找到立即检查按钮');
-        }
-
-        // 同步状态按钮
-        const syncStatusBtn = document.getElementById('syncStatusBtn');
-        if (syncStatusBtn) {
-            syncStatusBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                console.log('点击了同步状态按钮');
-                await this.syncNewWorksStatus();
-            });
-            console.log('同步状态按钮事件已绑定');
-            
-            // 设置帮助图标的提示
-            this.setupHelpIcon();
-        } else {
-            console.warn('未找到同步状态按钮');
-        }
-
-        // 添加订阅按钮
-        const addSubscriptionBtn = document.getElementById('addSubscriptionBtn');
-        if (addSubscriptionBtn) {
-            addSubscriptionBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('点击了添加订阅按钮');
-                this.showAddSubscriptionModal();
-            });
-            console.log('添加订阅按钮事件已绑定');
-        } else {
-            console.warn('未找到添加订阅按钮');
-        }
-
-        // 管理订阅按钮
-        const manageSubscriptionsBtn = document.getElementById('manageSubscriptionsBtn');
-        if (manageSubscriptionsBtn) {
-            manageSubscriptionsBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('点击了管理订阅按钮');
-                this.showManageSubscriptionsModal();
-            });
-            console.log('管理订阅按钮事件已绑定');
-        } else {
-            console.warn('未找到管理订阅按钮');
-        }
-
-        // 清理已读按钮
-        const cleanupReadBtn = document.getElementById('cleanupReadWorksBtn');
-        if (cleanupReadBtn) {
-            cleanupReadBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const confirmed = await showDanger('将删除所有已读的新作品，操作不可撤销，确认继续？', '清理已读');
-                if (!confirmed) return;
-                try {
-                    const deleted = await newWorksManager.cleanupReadWorks();
-                    await this.render();
-                    showMessage(`已清理 ${deleted} 条已读作品`, 'success');
-                } catch (err) {
-                    console.error('清理已读失败:', err);
-                    showMessage('清理已读失败，请重试', 'error');
-                }
-            });
-            console.log('清理已读按钮事件已绑定');
-        } else {
-            console.warn('未找到清理已读按钮');
-        }
-
-        // 批量打开未读（当页）按钮
-        const batchOpenUnreadBtn = document.getElementById('batchOpenUnreadBtn');
-        if (batchOpenUnreadBtn) {
-            batchOpenUnreadBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                console.log('点击了批量打开未读（当页）按钮');
-                await this.batchOpenCurrentPageUnread();
-            });
-            this.updateBatchOpenUnreadButton();
-            console.log('批量打开未读按钮事件已绑定');
-        } else {
-            console.warn('未找到批量打开未读按钮');
-        }
-
-        // 本页全选按钮
-        const selectAllCurrentPageBtn = document.getElementById('selectAllCurrentPageBtn');
-        if (selectAllCurrentPageBtn) {
-            selectAllCurrentPageBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.selectAllCurrentPage();
-            });
-        } else {
-            console.warn('未找到本页全选按钮');
-        }
-
-        // 清空选择按钮
-        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
-        if (clearSelectionBtn) {
-            console.log('找到清空选择按钮，准备绑定事件');
-            clearSelectionBtn.addEventListener('click', (e) => {
-                console.log('清空选择按钮被点击');
-                e.preventDefault();
-                e.stopPropagation();
-                this.clearSelection();
-            });
-        } else {
-            console.warn('未找到清空选择按钮');
-        }
-
-        // 批量打开（已选）按钮
-        const batchOpenSelectedBtn = document.getElementById('batchOpenSelectedBtn');
-        if (batchOpenSelectedBtn) {
-            batchOpenSelectedBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                await this.batchOpenSelected();
-            });
-        } else {
-            console.warn('未找到批量打开（已选）按钮');
-        }
-
-        // 批量删除（已选）按钮
-        const batchDeleteSelectedBtn = document.getElementById('batchDeleteSelectedBtn');
-        if (batchDeleteSelectedBtn) {
-            batchDeleteSelectedBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                await this.batchDeleteSelected();
-            });
-        } else {
-            console.warn('未找到批量删除（已选）按钮');
-        }
+        attachNewWorksButtonEvents({
+            openGlobalConfig: () => this.showGlobalConfigModal(),
+            checkNow: () => this.checkNewWorksNow(),
+            syncStatus: () => this.syncNewWorksStatus(),
+            setupSyncHelp: () => this.setupHelpIcon(),
+            setupCheckNowHelp: () => this.setupCheckNowHelpIcon(),
+            addSubscription: () => this.showAddSubscriptionModal(),
+            manageSubscriptions: () => this.showManageSubscriptionsModal(),
+            confirmCleanupRead: () => showDanger('将删除所有已读的新作品，操作不可撤销，确认继续？', '清理已读'),
+            cleanupReadWorks: () => newWorksManager.cleanupReadWorks(),
+            render: () => this.render(),
+            showMessage,
+            logError: (message, error) => console.error(message, error),
+            batchOpenUnread: () => this.batchOpenCurrentPageUnread(),
+            updateBatchOpenUnreadButton: () => this.updateBatchOpenUnreadButton(),
+            selectAllCurrentPage: () => this.selectAllCurrentPage(),
+            clearSelection: () => this.clearSelection(),
+            batchOpenSelected: () => this.batchOpenSelected(),
+            batchDeleteSelected: () => this.batchDeleteSelected(),
+        });
     }
 
     /**
      * 绑定表单事件
      */
     private bindFormEvents(): void {
-        // 搜索输入框
-        const searchInput = document.getElementById('newWorksSearchInput') as HTMLInputElement;
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.currentFilters.search = (e.target as HTMLInputElement).value;
-                this.currentPage = 1;
-                this.debounceRender();
-            });
-            console.log('搜索输入框事件已绑定');
-        }
-
-        // 过滤选择器
-        const filterSelect = document.getElementById('newWorksFilterSelect') as HTMLSelectElement;
-        if (filterSelect) {
-            // 初始化为未读
-            filterSelect.value = this.currentFilters.filter;
-            filterSelect.addEventListener('change', (e) => {
-                this.currentFilters.filter = (e.target as HTMLSelectElement).value;
-                this.currentPage = 1;
-                this.render();
-            });
-            console.log('过滤选择器事件已绑定');
-        }
-
-        // 排序选择器
-        const sortSelect = document.getElementById('newWorksSortSelect') as HTMLSelectElement;
-        if (sortSelect) {
-            sortSelect.addEventListener('change', (e) => {
-                this.currentFilters.sort = (e.target as HTMLSelectElement).value;
-                this.currentPage = 1;
-                this.render();
-            });
-            console.log('排序选择器事件已绑定');
-        }
+        attachNewWorksFilterControls(this.currentFilters, {
+            setPage: page => { this.currentPage = page; },
+            render: () => this.render(),
+            debounceRender: () => this.debounceRender(),
+        });
     }
 
     /**
@@ -449,351 +282,47 @@ export class NewWorksTab {
      * 渲染统计信息
      */
     private async renderStats(): Promise<void> {
-        const container = document.getElementById('newWorksStatsContainer');
-        if (!container) {
-            console.warn('未找到统计信息容器');
-            return;
-        }
-
-        try {
-            console.log('开始获取新作品统计信息');
-            const stats = await newWorksManager.getStats();
-            console.log('获取到统计信息:', stats);
-
-            container.innerHTML = `
-                <div class="stat-card new-works-stat clickable" data-filter="all" title="点击查看所有订阅演员">
-                    <div class="stat-value">${stats.totalSubscriptions}</div>
-                    <div class="stat-label">订阅演员</div>
-                </div>
-                <div class="stat-card new-works-stat clickable" data-filter="active" title="点击查看活跃订阅">
-                    <div class="stat-value">${stats.activeSubscriptions}</div>
-                    <div class="stat-label">活跃订阅</div>
-                </div>
-                <div class="stat-card new-works-stat clickable" data-filter="allWorks" title="点击查看所有新作品">
-                    <div class="stat-value">${stats.totalNewWorks}</div>
-                    <div class="stat-label">总新作品</div>
-                </div>
-                <div class="stat-card new-works-stat clickable" data-filter="unread" title="点击查看未读作品">
-                    <div class="stat-value">${stats.unreadWorks}</div>
-                    <div class="stat-label">未读作品</div>
-                </div>
-                <div class="stat-card new-works-stat clickable" data-filter="today" title="点击查看今日发现">
-                    <div class="stat-value">${stats.todayDiscovered}</div>
-                    <div class="stat-label">今日发现</div>
-                </div>
-            `;
-
-            // 添加统计卡片点击事件监听器
-            container.querySelectorAll('.stat-card.clickable').forEach(card => {
-                card.addEventListener('click', () => {
-                    const filterType = card.getAttribute('data-filter');
-                    if (!filterType) return;
-
-                    // 获取过滤器元素
-                    const searchInput = document.getElementById('newWorksSearchInput') as HTMLInputElement;
-                    const filterSelect = document.getElementById('newWorksFilterSelect') as HTMLSelectElement;
-                    const sortSelect = document.getElementById('newWorksSortSelect') as HTMLSelectElement;
-
-                    // 清空搜索框
-                    if (searchInput) {
-                        searchInput.value = '';
-                        this.currentFilters.search = '';
-                    }
-
-                    // 根据点击的卡片类型设置过滤
-                    if (filterType === 'all' || filterType === 'active') {
-                        // 订阅演员相关 - 跳转到演员管理
-                        const manageBtn = document.getElementById('manageSubscriptionsBtn') as HTMLButtonElement;
-                        if (manageBtn) {
-                            manageBtn.click();
-                        }
-                        return;
-                    } else if (filterType === 'allWorks') {
-                        // 显示所有新作品
-                        if (filterSelect) filterSelect.value = 'all';
-                        this.currentFilters.filter = 'all';
-                        if (sortSelect) sortSelect.value = 'discoveredAt_desc';
-                        this.currentFilters.sort = 'discoveredAt_desc';
-                    } else if (filterType === 'unread') {
-                        // 显示未读作品
-                        if (filterSelect) filterSelect.value = 'unread';
-                        this.currentFilters.filter = 'unread';
-                        if (sortSelect) sortSelect.value = 'discoveredAt_desc';
-                        this.currentFilters.sort = 'discoveredAt_desc';
-                    } else if (filterType === 'today') {
-                        // 今日发现 - 显示所有，按发现时间倒序
-                        if (filterSelect) filterSelect.value = 'all';
-                        this.currentFilters.filter = 'all';
-                        if (sortSelect) sortSelect.value = 'discoveredAt_desc';
-                        this.currentFilters.sort = 'discoveredAt_desc';
-                        // TODO: 可以添加日期过滤逻辑
-                    }
-
-                    // 重置到第一页并刷新
-                    this.currentPage = 1;
-                    this.render();
-
-                    // 添加视觉反馈
-                    container.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
-                    card.classList.add('active');
-                });
-            });
-            
-            // 更新管理订阅按钮的数量徽章
-            const manageBtn = document.getElementById('manageSubscriptionsBtn');
-            if (manageBtn) {
-                const count = stats.totalSubscriptions || 0;
-                manageBtn.innerHTML = `<i class="fas fa-list"></i> 管理订阅 <span class="badge">${count}</span>`;
-            }
-            
-            // 更新上一次检查时间显示
-            this.updateLastCheckTimeDisplay(stats.lastCheckTime);
-            
-            console.log('统计信息渲染完成');
-        } catch (error) {
-            console.error('渲染统计信息失败:', error);
-            container.innerHTML = '<div class="error-message">加载统计信息失败</div>';
-        }
+        await renderNewWorksStatsRuntime({
+            filters: this.currentFilters,
+            deps: {
+                getStats: () => newWorksManager.getStats(),
+                setPage: page => { this.currentPage = page; },
+                render: () => this.render(),
+                openSubscriptionManager: () => {
+                    const manageBtn = document.getElementById('manageSubscriptionsBtn') as HTMLButtonElement | null;
+                    manageBtn?.click();
+                },
+                updateLastCheckTimeDisplay: lastCheckTime => this.updateLastCheckTimeDisplay(lastCheckTime),
+                logInfo: (message, data) => data === undefined ? console.log(message) : console.log(message, data),
+                logWarn: message => console.warn(message),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
      * 渲染新作品列表
      */
     private async renderNewWorksList(): Promise<void> {
-        const container = document.getElementById('newWorksList');
-        if (!container) {
-            console.warn('未找到新作品列表容器');
-            return;
-        }
-
-        try {
-            console.log('开始渲染新作品列表，当前过滤条件:', this.currentFilters);
-
-            // 显示加载状态
-            container.innerHTML = `
-                <div class="new-works-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <div>加载中...</div>
-                </div>
-            `;
-
-            const result = await newWorksManager.getNewWorks({
-                ...this.currentFilters,
-                page: this.currentPage,
-                pageSize: this.getCurrentPageSize()
-            });
-
-            console.log('获取到新作品数据:', result);
-
-            if (result.works.length === 0) {
-                console.log('没有新作品数据，显示空状态');
-                container.innerHTML = `
-                    <div class="new-works-empty">
-                        <i class="fas fa-inbox"></i>
-                        <h3>暂无新作品</h3>
-                        <p>添加演员订阅后，系统会自动检查新作品</p>
-                    </div>
-                `;
-                this.renderPagination(0);
-                return;
-            }
-
-            console.log(`开始渲染 ${result.works.length} 个新作品`);
-
-            // 渲染作品列表
-            container.innerHTML = result.works.map(work => this.renderWorkItem(work)).join('');
-
-            // 渲染分页
-            this.renderPagination(result.total);
-
-            this.updateBatchOpenUnreadButton();
-
-            // 添加事件监听器
-            this.attachWorkItemListeners();
-
-            console.log('新作品列表渲染完成');
-
-        } catch (error) {
-            console.error('渲染新作品列表失败:', error);
-            container.innerHTML = '<div class="error-message">加载新作品列表失败</div>';
-        }
-    }
-
-    /**
-     * 渲染单个作品项
-     */
-    private renderWorkItem(work: NewWorkRecord): string {
-        const isSelected = this.selectedWorks.has(work.id);
-        const readClass = work.isRead ? 'read' : 'unread';
-        const selectedClass = isSelected ? 'selected' : '';
-        
-        const formatDate = (timestamp: number) => {
-            return new Date(timestamp).toLocaleDateString('zh-CN');
-        };
-
-        const tagsHtml = work.tags.length > 0 
-            ? `<div class="new-work-tags">
-                ${work.tags.slice(0, 3).map((tag: string) => `<span class="new-work-tag">${tag}</span>`).join('')}
-                ${work.tags.length > 3 ? `<span class="new-work-tag">+${work.tags.length - 3}</span>` : ''}
-               </div>`
-            : '';
-
-        return `
-            <li class="new-work-item ${readClass} ${selectedClass}" data-work-id="${work.id}" data-javdb-url="${work.javdbUrl}">
-                <div class="new-work-checkbox">
-                    <input type="checkbox" ${isSelected ? 'checked' : ''}>
-                </div>
-                ${work.coverImage ? `
-                <div class="new-work-cover-wrap">
-                    <img src="${work.coverImage}" alt="${work.title}" class="new-work-cover">
-                    <img src="${work.coverImage}" alt="${work.title}" class="new-work-cover-preview">
-                </div>
-                ` : '<div class="new-work-cover-wrap"><div class="new-work-cover"></div></div>'}
-                <div class="new-work-info">
-                    <h3 class="new-work-title">${work.title}</h3>
-                    <div class="new-work-meta">
-                        <span class="new-work-actor">
-                            <i class="fas fa-user"></i>
-                            ${work.actorName}
-                        </span>
-                        <span class="new-work-date">
-                            <i class="fas fa-calendar"></i>
-                            发现于 ${formatDate(work.discoveredAt)}
-                        </span>
-                        ${work.releaseDate ? `
-                            <span class="new-work-release">
-                                <i class="fas fa-film"></i>
-                                发行于 ${work.releaseDate}
-                            </span>
-                        ` : ''}
-                    </div>
-                    ${tagsHtml}
-                </div>
-                <div class="new-work-actions">
-                    ${!work.isRead ? '<button class="new-work-action-btn mark-read-btn" data-action="mark-read"><i class="fas fa-check-circle"></i> 标为已读</button>' : ''}
-                    <button class="new-work-action-btn visit-btn" data-action="visit"><i class="fas fa-play"></i> 去看看</button>
-                    <button class="new-work-action-btn delete-btn" data-action="delete"><i class="fas fa-times"></i> 移除</button>
-                </div>
-            </li>
-        `;
-    }
-
-    /**
-     * 渲染分页
-     */
-    private renderPagination(total: number): void {
-        const container = document.getElementById('newWorksPagination');
-        if (!container) return;
-
-        const pageCount = Math.ceil(total / this.getCurrentPageSize());
-        if (pageCount <= 1) {
-            container.innerHTML = '';
-            return;
-        }
-
-        let paginationHtml = '';
-
-        // 上一页
-        if (this.currentPage > 1) {
-            paginationHtml += `<button class="page-button" data-page="${this.currentPage - 1}">上一页</button>`;
-        } else {
-            paginationHtml += `<button class="page-button" disabled>上一页</button>`;
-        }
-
-        // 页码
-        const startPage = Math.max(1, this.currentPage - 2);
-        const endPage = Math.min(pageCount, this.currentPage + 2);
-
-        for (let i = startPage; i <= endPage; i++) {
-            const activeClass = i === this.currentPage ? 'active' : '';
-            paginationHtml += `<button class="page-button ${activeClass}" data-page="${i}">${i}</button>`;
-        }
-
-        // 下一页
-        if (this.currentPage < pageCount) {
-            paginationHtml += `<button class="page-button" data-page="${this.currentPage + 1}">下一页</button>`;
-        } else {
-            paginationHtml += `<button class="page-button" disabled>下一页</button>`;
-        }
-
-        container.innerHTML = paginationHtml;
-
-        // 添加分页事件监听器
-        container.querySelectorAll('.page-button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const target = e.target as HTMLElement;
-                if (target.hasAttribute('disabled')) return;
-
-                const page = parseInt(target.dataset.page || '1');
-                this.currentPage = page;
-                this.render();
-            });
+        await renderNewWorksListRuntime({
+            filters: this.currentFilters,
+            page: this.currentPage,
+            pageSize: this.getCurrentPageSize(),
+            selectedWorks: this.selectedWorks,
+            deps: {
+                getNewWorks: query => newWorksManager.getNewWorks(query),
+                setPage: page => { this.currentPage = page; },
+                render: () => this.render(),
+                updateBatchOpenUnreadButton: () => this.updateBatchOpenUnreadButton(),
+                markWorksAsRead: workIds => this.markWorksAsRead(workIds),
+                visitWork: workId => this.visitWork(workId),
+                deleteWorks: workIds => this.deleteWorks(workIds),
+                updateBatchOperations: () => this.updateBatchOperations(),
+                logInfo: (message, data) => data === undefined ? console.log(message) : console.log(message, data),
+                logWarn: message => console.warn(message),
+                logError: (message, error) => console.error(message, error),
+            },
         });
-    }
-
-    /**
-     * 添加作品项事件监听器
-     */
-    private attachWorkItemListeners(): void {
-        const workItems = document.querySelectorAll('.new-work-item');
-        
-        workItems.forEach(item => {
-            const workId = item.getAttribute('data-work-id');
-            if (!workId) return;
-
-            // 复选框事件
-            const checkbox = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
-            checkbox?.addEventListener('change', (e) => {
-                e.stopPropagation();
-                if (checkbox.checked) {
-                    this.selectedWorks.add(workId);
-                    item.classList.add('selected');
-                } else {
-                    this.selectedWorks.delete(workId);
-                    item.classList.remove('selected');
-                }
-                this.updateBatchOperations();
-            });
-
-            // 整项点击事件：操作按钮执行动作，卡片主体切换选中
-            item.addEventListener('click', async (e) => {
-                const target = e.target as HTMLElement;
-                const actionBtn = target.closest ? target.closest('.new-work-action-btn') : null;
-                if (actionBtn) {
-                    const action = (actionBtn as HTMLElement).getAttribute('data-action');
-                    switch (action) {
-                        case 'mark-read':
-                            await this.markWorksAsRead([workId]);
-                            break;
-                        case 'visit':
-                            await this.visitWork(workId);
-                            break;
-                        case 'delete':
-                            await this.deleteWorks([workId]);
-                            break;
-                        default:
-                            break;
-                    }
-                    return;
-                }
-
-                const checkboxTarget = target.closest ? target.closest('.new-work-checkbox') : null;
-                if (checkboxTarget) return;
-
-                if (this.selectedWorks.has(workId)) {
-                    this.selectedWorks.delete(workId);
-                    if (checkbox) checkbox.checked = false;
-                    item.classList.remove('selected');
-                } else {
-                    this.selectedWorks.add(workId);
-                    if (checkbox) checkbox.checked = true;
-                    item.classList.add('selected');
-                }
-                this.updateBatchOperations();
-            });
-        });
-        // 渲染后同步一次批量操作状态
-        this.updateBatchOperations();
     }
 
     /**
@@ -815,130 +344,79 @@ export class NewWorksTab {
      * 标记作品为已读
      */
     private async markWorksAsRead(workIds: string[]): Promise<void> {
-        try {
-            await newWorksManager.markAsRead(workIds);
-            await this.render();
-        } catch (error) {
-            console.error('标记已读失败:', error);
-        }
+        await runMarkWorksAsReadWorkflow({
+            workIds,
+            deps: {
+                markAsRead: ids => newWorksManager.markAsRead(ids),
+                render: () => this.render(),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
      * 访问作品
      */
     private async visitWork(workId: string): Promise<void> {
-        try {
-            const result = await newWorksManager.getNewWorks({ search: workId });
-            const work = result.works.find(w => w.id === workId);
-            if (work) {
-                window.open(work.javdbUrl, '_blank');
-                // 自动标记为已读
-                await this.markWorksAsRead([workId]);
-            }
-        } catch (error) {
-            console.error('访问作品失败:', error);
-        }
+        await runVisitWorkWorkflow({
+            workId,
+            deps: {
+                getNewWorks: query => newWorksManager.getNewWorks(query),
+                openUrl: url => window.open(url, '_blank'),
+                markWorksAsRead: ids => this.markWorksAsRead(ids),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
      * 删除作品
      */
     private async deleteWorks(workIds: string[]): Promise<void> {
-        if (!confirm(`确定要删除 ${workIds.length} 个作品吗？`)) {
-            return;
-        }
-
-        try {
-            await newWorksManager.deleteWorks(workIds);
-            this.selectedWorks.clear();
-            await this.render();
-        } catch (error) {
-            console.error('删除作品失败:', error);
-        }
+        await runDeleteWorksWorkflow({
+            workIds,
+            deps: {
+                confirm: message => confirm(message),
+                deleteWorks: ids => newWorksManager.deleteWorks(ids),
+                clearSelection: () => this.selectedWorks.clear(),
+                render: () => this.render(),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
      * 同步新作品状态
      */
     private async syncNewWorksStatus(): Promise<void> {
-        try {
-            const syncBtn = document.getElementById('syncStatusBtn') as HTMLButtonElement;
-            const btnContent = syncBtn?.querySelector('.btn-content');
-            
-            if (syncBtn) {
-                syncBtn.disabled = true;
-                if (btnContent) {
-                    btnContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
-                } else {
-                    syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
-                }
-            }
+        await runNewWorksStatusSyncWorkflow({
+            deps: {
+                setSyncButtonLoading: loading => this.setSyncStatusButtonLoading(loading),
+                syncWithVideoRecords: () => newWorksManager.syncWithVideoRecords(),
+                render: () => this.render(),
+                showMessage,
+                logInfo: (message, data) => data === undefined ? console.log(message) : console.log(message, data),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
+    }
 
-            console.log('开始同步新作品状态...');
-            const result = await newWorksManager.syncWithVideoRecords();
-
-            console.log('同步完成:', result);
-
-            // 刷新页面显示
-            await this.render();
-
-            // 显示同步结果
-            if (result.updated > 0) {
-                let message = `已同步 ${result.updated} 个作品的状态`;
-                if (result.details.length > 0) {
-                    // 显示前3个更新详情
-                    const detailsToShow = result.details.slice(0, 3);
-                    const detailsText = detailsToShow.map(d => `${d.id}: ${d.oldStatus} → ${d.newStatus}`).join('\n');
-                    message += `\n\n更新详情:\n${detailsText}`;
-                    if (result.details.length > 3) {
-                        message += `\n...还有 ${result.details.length - 3} 个作品`;
-                    }
-                }
-                showMessage(message, 'success');
-            } else {
-                showMessage('没有需要同步的作品状态', 'info');
-            }
-
-        } catch (error) {
-            console.error('同步新作品状态失败:', error);
-            showMessage('同步状态失败，请重试', 'error');
-        } finally {
-            const syncBtn = document.getElementById('syncStatusBtn') as HTMLButtonElement;
-            const btnContent = syncBtn?.querySelector('.btn-content');
-            
-            if (syncBtn) {
-                syncBtn.disabled = false;
-                if (btnContent) {
-                    btnContent.innerHTML = '<i class="fas fa-sync-alt"></i> 同步状态';
-                } else {
-                    syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 同步状态';
-                }
-            }
-        }
+    private setSyncStatusButtonLoading(loading: boolean): void {
+        setSyncStatusButtonLoadingState(loading);
     }
 
     /**
      * 初始化时自动同步状态（静默执行）
      */
     private async autoSyncStatus(): Promise<void> {
-        try {
-            console.log('自动同步新作品状态...');
-            const result = await newWorksManager.syncWithVideoRecords();
-
-            if (result.updated > 0) {
-                console.log(`自动同步完成，更新了 ${result.updated} 个作品的状态`);
-                result.details.forEach(detail => {
-                    console.log(`• ${detail.id}: ${detail.oldStatus} → ${detail.newStatus}`);
-                });
-                // 静默更新，重新渲染页面
-                await this.render();
-            } else {
-                console.log('自动同步完成，没有需要更新的作品状态');
-            }
-        } catch (error) {
-            console.error('自动同步状态失败:', error);
-            // 自动同步失败不影响用户体验，只记录日志
-        }
+        await runNewWorksAutoStatusSyncWorkflow({
+            deps: {
+                syncWithVideoRecords: () => newWorksManager.syncWithVideoRecords(),
+                render: () => this.render(),
+                logInfo: message => console.log(message),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
@@ -949,58 +427,7 @@ export class NewWorksTab {
         if (!helpIcon) return;
 
         const helpText = '将新作品列表中的作品状态与番号库同步。\n\n例如：如果某个新作品在番号库中被标记为"已看"或"已浏览"，点击此按钮后会自动更新新作品列表中的状态。\n\n建议在浏览完作品后点击此按钮，保持状态一致。';
-        
-        let tooltip: HTMLDivElement | null = null;
-
-        const showTooltip = () => {
-            // 移除旧的tooltip
-            if (tooltip) {
-                tooltip.remove();
-            }
-
-            // 创建新的tooltip
-            tooltip = document.createElement('div');
-            tooltip.className = 'help-tooltip';
-            tooltip.textContent = helpText;
-            document.body.appendChild(tooltip);
-
-            // 计算位置
-            const iconRect = helpIcon.getBoundingClientRect();
-            const tooltipRect = tooltip.getBoundingClientRect();
-            
-            // 默认显示在图标上方居中
-            let left = iconRect.left + iconRect.width / 2 - tooltipRect.width / 2;
-            let top = iconRect.top - tooltipRect.height - 10;
-
-            // 边界检查
-            if (left < 10) left = 10;
-            if (left + tooltipRect.width > window.innerWidth - 10) {
-                left = window.innerWidth - tooltipRect.width - 10;
-            }
-            if (top < 10) {
-                // 如果上方空间不够，显示在下方
-                top = iconRect.bottom + 10;
-            }
-
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-            tooltip.style.opacity = '1';
-        };
-
-        const hideTooltip = () => {
-            if (tooltip) {
-                tooltip.style.opacity = '0';
-                setTimeout(() => {
-                    if (tooltip) {
-                        tooltip.remove();
-                        tooltip = null;
-                    }
-                }, 200);
-            }
-        };
-
-        helpIcon.addEventListener('mouseenter', showTooltip);
-        helpIcon.addEventListener('mouseleave', hideTooltip);
+        attachNewWorksHelpTooltip(helpIcon, helpText);
     }
 
     /**
@@ -1011,99 +438,21 @@ export class NewWorksTab {
         if (!helpIcon) return;
 
         const helpText = '立即检查所有已启用的订阅演员的新作品。\n\n系统会根据设置的并发数量同时检查多个演员，并自动过滤已看、已浏览等状态的作品。\n\n检查完成后，新发现的作品会显示在下方列表中。';
-        
-        let tooltip: HTMLDivElement | null = null;
-
-        const showTooltip = () => {
-            // 移除旧的tooltip
-            if (tooltip) {
-                tooltip.remove();
-            }
-
-            // 创建新的tooltip
-            tooltip = document.createElement('div');
-            tooltip.className = 'help-tooltip';
-            tooltip.textContent = helpText;
-            document.body.appendChild(tooltip);
-
-            // 计算位置
-            const iconRect = helpIcon.getBoundingClientRect();
-            const tooltipRect = tooltip.getBoundingClientRect();
-            
-            // 默认显示在图标上方居中
-            let left = iconRect.left + iconRect.width / 2 - tooltipRect.width / 2;
-            let top = iconRect.top - tooltipRect.height - 10;
-
-            // 边界检查
-            if (left < 10) left = 10;
-            if (left + tooltipRect.width > window.innerWidth - 10) {
-                left = window.innerWidth - tooltipRect.width - 10;
-            }
-            if (top < 10) {
-                // 如果上方空间不够，显示在下方
-                top = iconRect.bottom + 10;
-            }
-
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${top}px`;
-            tooltip.style.opacity = '1';
-        };
-
-        const hideTooltip = () => {
-            if (tooltip) {
-                tooltip.style.opacity = '0';
-                setTimeout(() => {
-                    if (tooltip) {
-                        tooltip.remove();
-                        tooltip = null;
-                    }
-                }, 200);
-            }
-        };
-
-        helpIcon.addEventListener('mouseenter', showTooltip);
-        helpIcon.addEventListener('mouseleave', hideTooltip);
+        attachNewWorksHelpTooltip(helpIcon, helpText);
     }
 
     /**
      * 更新批量操作状态
      */
     private updateBatchOperations(): void {
-        const count = this.selectedWorks.size;
-        const label = document.getElementById('selectedCountLabel');
-        if (label) label.textContent = `已选 ${count}`;
-
-        const batchOpenSelectedBtn = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
-        if (batchOpenSelectedBtn) {
-            batchOpenSelectedBtn.disabled = count === 0;
-        }
-        
-        const batchDeleteSelectedBtn = document.getElementById('batchDeleteSelectedBtn') as HTMLButtonElement | null;
-        if (batchDeleteSelectedBtn) {
-            batchDeleteSelectedBtn.disabled = count === 0;
-        }
-        
-        // 确保清空选择按钮始终可用
-        const clearSelectionBtn = document.getElementById('clearSelectionBtn') as HTMLButtonElement | null;
-        if (clearSelectionBtn) {
-            clearSelectionBtn.disabled = false;
-            console.log('清空选择按钮状态已更新，disabled:', clearSelectionBtn.disabled);
-        }
+        syncNewWorksBatchOperations(this.selectedWorks);
     }
 
     /**
      * 本页全选
      */
     private selectAllCurrentPage(): void {
-        const items = Array.from(document.querySelectorAll('.new-work-item')) as HTMLElement[];
-        items.forEach(item => {
-            const id = item.getAttribute('data-work-id');
-            if (!id) return;
-            this.selectedWorks.add(id);
-            item.classList.add('selected');
-            const cb = item.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
-            if (cb) cb.checked = true;
-        });
+        selectAllCurrentNewWorksPage(this.selectedWorks);
         this.updateBatchOperations();
     }
 
@@ -1112,14 +461,7 @@ export class NewWorksTab {
      */
     private clearSelection(): void {
         console.log('执行清空选择，当前选中数量:', this.selectedWorks.size);
-        this.selectedWorks.clear();
-        // 反选 DOM
-        const items = Array.from(document.querySelectorAll('.new-work-item input[type="checkbox"]')) as HTMLInputElement[];
-        console.log('找到复选框数量:', items.length);
-        items.forEach(cb => { cb.checked = false; });
-        document.querySelectorAll('.new-work-item.selected').forEach(item => {
-            item.classList.remove('selected');
-        });
+        clearNewWorksSelection(this.selectedWorks);
         this.updateBatchOperations();
         console.log('清空选择完成');
     }
@@ -1129,741 +471,233 @@ export class NewWorksTab {
      */
     private async batchOpenSelected(): Promise<void> {
         const ids = Array.from(this.selectedWorks);
-        if (ids.length === 0) {
-            showMessage('未选择任何作品', 'info');
-            return;
-        }
-
-        const confirmed = await showConfirm({
-            title: '批量打开（已选）',
-            message: `将打开 ${ids.length} 个已选作品的新标签页，并为未读项标记为已读，继续吗？`,
-            confirmText: '继续',
-            cancelText: '取消',
-            type: 'warning'
+        await runSelectedBatchOpenWorkflow({
+            selectedIds: ids,
+            deps: {
+                confirm: options => showConfirm(options),
+                setLoading: loading => this.setBatchOpenSelectedLoading(loading),
+                getCurrentPageWork: id => getSelectedBatchCurrentPageWork(id),
+                findWorkById: id => findSelectedBatchWorkById(id, query => newWorksManager.getNewWorks(query)),
+                openWorkUrl: url => this.openNewWorkUrl(url),
+                markAsRead: workIds => newWorksManager.markAsRead(workIds),
+                clearSelection: () => this.selectedWorks.clear(),
+                render: () => this.render(),
+                showMessage,
+                updateBatchOperations: () => this.updateBatchOperations(),
+                logWarn: (message, error) => console.warn(message, error),
+                logError: (message, error) => console.error(message, error),
+            },
         });
-        if (!confirmed) return;
+    }
 
-        const btn = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打开...'; }
-
-        try {
-            const worksToOpen: { id: string; url: string; isRead: boolean }[] = [];
-
-            // 优先从当前 DOM 抓取（更快）
-            const onPageMap = new Map<string, { url: string; isRead: boolean }>();
-            document.querySelectorAll('.new-work-item').forEach(li => {
-                const id = li.getAttribute('data-work-id') || '';
-                const url = li.getAttribute('data-javdb-url') || '';
-                const isRead = li.classList.contains('read');
-                if (id && url) onPageMap.set(id, { url, isRead });
-            });
-
-            for (const id of ids) {
-                const cached = onPageMap.get(id);
-                if (cached) {
-                    worksToOpen.push({ id, url: cached.url, isRead: cached.isRead });
-                    continue;
-                }
-                try {
-                    const res = await newWorksManager.getNewWorks({ search: id });
-                    const w = res.works.find(x => x.id === id);
-                    if (w && w.javdbUrl) {
-                        worksToOpen.push({ id, url: w.javdbUrl, isRead: !!w.isRead });
-                    }
-                } catch {}
-            }
-
-            if (worksToOpen.length === 0) {
-                showMessage('未找到可打开的作品链接', 'warn');
-                return;
-            }
-
-            // 打开标签页
-            for (const w of worksToOpen) {
-                try {
-                    if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.create === 'function') {
-                        await new Promise<void>((resolve) => {
-                            try { chrome.tabs.create({ url: w.url }, () => resolve()); } catch { resolve(); }
-                        });
-                    } else {
-                        window.open(w.url, '_blank');
-                    }
-                } catch (e) {
-                    console.warn('打开标签页失败:', e);
-                }
-            }
-
-            // 标记选中中的未读项为已读
-            const unreadIds = worksToOpen.filter(w => !w.isRead).map(w => w.id);
-            if (unreadIds.length > 0) {
-                try { await newWorksManager.markAsRead(unreadIds); } catch {}
-            }
-
-            // 清空选择并刷新
-            this.selectedWorks.clear();
-            await this.render();
-            showMessage(`已打开 ${worksToOpen.length} 个已选作品${unreadIds.length > 0 ? '（并标记未读为已读）' : ''}`, 'success');
-        } catch (error) {
-            console.error('批量打开（已选）失败:', error);
-            showMessage('批量打开失败，请重试', 'error');
-        } finally {
-            const btn2 = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
-            if (btn2) { btn2.disabled = this.selectedWorks.size === 0; btn2.innerHTML = '<i class="fas fa-external-link-alt"></i> 批量打开（已选）'; }
-            this.updateBatchOperations();
-        }
+    private setBatchOpenSelectedLoading(loading: boolean): void {
+        setBatchOpenSelectedButtonLoading({
+            loading,
+            selectedCount: this.selectedWorks.size,
+        });
     }
 
     /**
      * 批量删除（已选）
      */
     private async batchDeleteSelected(): Promise<void> {
-        const ids = Array.from(this.selectedWorks);
-        if (ids.length === 0) {
-            showMessage('未选择任何作品', 'info');
-            return;
-        }
-
-        // 使用确认弹窗
-        const confirmed = await showConfirm({
-            title: '批量删除',
-            message: `确定要删除 ${ids.length} 个已选作品吗？\n\n此操作不可恢复！`,
-            confirmText: '删除',
-            cancelText: '取消',
-            type: 'danger'
+        await runBatchDeleteSelectedWorkflow({
+            selectedWorks: this.selectedWorks,
+            deps: {
+                confirm: options => showConfirm(options),
+                setDeletingButtonLoading: (loading, selectedCount) => this.setBatchDeleteSelectedLoading(loading, selectedCount),
+                deleteWorks: workIds => newWorksManager.deleteWorks(workIds),
+                render: () => this.render(),
+                showMessage,
+                updateBatchOperations: () => this.updateBatchOperations(),
+                logError: (message, error) => console.error(message, error),
+            },
         });
-        
-        if (!confirmed) return;
+    }
 
-        const btn = document.getElementById('batchDeleteSelectedBtn') as HTMLButtonElement | null;
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 删除中...'; }
-
-        try {
-            await newWorksManager.deleteWorks(ids);
-            this.selectedWorks.clear();
-            showMessage(`已删除 ${ids.length} 个作品`, 'success');
-            await this.render();
-        } catch (error) {
-            console.error('批量删除失败:', error);
-            showMessage('批量删除失败', 'error');
-        } finally {
-            const btn2 = document.getElementById('batchDeleteSelectedBtn') as HTMLButtonElement | null;
-            if (btn2) { btn2.disabled = this.selectedWorks.size === 0; btn2.innerHTML = '<i class="fas fa-trash-alt"></i> 删除已选'; }
-            this.updateBatchOperations();
-        }
+    private setBatchDeleteSelectedLoading(loading: boolean, selectedCount: number): void {
+        setBatchDeleteSelectedButtonLoadingState({
+            loading,
+            selectedCount,
+        });
     }
 
     /**
      * 显示全局配置弹窗
      */
     private async showGlobalConfigModal(): Promise<void> {
-        try {
-            console.log('开始显示设置弹窗');
-
-            // 初始化新作品管理器
-            await newWorksManager.initialize();
-
-            const currentConfig = await newWorksManager.getGlobalConfig();
-            console.log('当前配置:', currentConfig);
-
-            const newConfig = await newWorksConfigModal.show(currentConfig);
-
-            if (newConfig) {
-                await newWorksManager.updateGlobalConfig(newConfig);
-                // 尝试重启自动检查调度器
-                try {
-                    await new Promise<void>((resolve) => {
-                        // 忽略返回值即可
-                        chrome.runtime.sendMessage({ type: 'new-works-scheduler-restart' }, () => resolve());
-                    });
-                } catch (e) {
-                    console.warn('重启自动检查失败:', e);
-                }
-                await this.render(); // 重新渲染以反映设置变化
-                showMessage('设置已保存', 'success');
-            } else {
-                console.log('用户取消了设置');
-            }
-        } catch (error) {
-            console.error('打开或保存设置失败:', error);
-            showMessage('设置失败，请重试: ' + (error as any).message, 'error');
-        }
+        await runNewWorksGlobalConfigWorkflow({
+            deps: {
+                initialize: () => newWorksManager.initialize(),
+                getGlobalConfig: () => newWorksManager.getGlobalConfig(),
+                showConfigModal: config => newWorksConfigModal.show(config),
+                updateGlobalConfig: config => newWorksManager.updateGlobalConfig(config),
+                restartScheduler: () => new Promise<void>((resolve) => {
+                    chrome.runtime.sendMessage({ type: 'new-works-scheduler-restart' }, () => resolve());
+                }),
+                render: () => this.render(),
+                showMessage,
+                logInfo: (message, data) => data === undefined ? console.log(message) : console.log(message, data),
+                logWarn: (message, error) => console.warn(message, error),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
      * 更新上一次检查时间显示
      */
     private updateLastCheckTimeDisplay(lastCheckTime?: number): void {
-        const display = document.getElementById('lastCheckTimeDisplay');
-        const textEl = document.getElementById('lastCheckTimeText');
-        
-        if (!display || !textEl) return;
-        
-        if (lastCheckTime) {
-            const now = Date.now();
-            const diff = now - lastCheckTime;
-            
-            // 计算时间差
-            const minutes = Math.floor(diff / 60000);
-            const hours = Math.floor(diff / 3600000);
-            const days = Math.floor(diff / 86400000);
-            
-            let timeText = '';
-            if (minutes < 1) {
-                timeText = '刚刚';
-            } else if (minutes < 60) {
-                timeText = `${minutes}分钟前`;
-            } else if (hours < 24) {
-                timeText = `${hours}小时前`;
-            } else if (days < 7) {
-                timeText = `${days}天前`;
-            } else {
-                // 超过7天显示具体日期
-                const date = new Date(lastCheckTime);
-                timeText = date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
-            }
-            
-            textEl.textContent = `上次检查：${timeText}`;
-            display.style.display = 'flex';
-        } else {
-            display.style.display = 'none';
-        }
+        updateNewWorksLastCheckTimeDisplay(lastCheckTime);
     }
 
     /**
      * 立即检查新作品
      */
     private async checkNewWorksNow(): Promise<void> {
-        try {
-            const checkBtn = document.getElementById('checkNowBtn') as HTMLButtonElement;
-            if (checkBtn) {
-                checkBtn.disabled = true;
-                checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 检查中...';
-            }
+        await runNewWorksManualCheckWorkflow({
+            deps: {
+                setCheckingButtonLoading: loading => this.setCheckNowButtonLoading(loading),
+                getSubscriptions: () => newWorksManager.getSubscriptions(),
+                ensureProgressUI: () => this.ensureProgressUI(),
+                updateProgressUI: data => this.updateProgressUI(data),
+                attachProgressListener: () => this.attachProgressListener(),
+                detachProgressListener: () => this.detachProgressListener(),
+                hideProgressUIAfter: ms => this.hideProgressUIAfter(ms),
+                sendManualCheck: () => new Promise<any>((resolve) => {
+                    chrome.runtime.sendMessage({ type: 'new-works-manual-check' }, resolve);
+                }),
+                render: () => this.render(),
+                showMessage,
+                logWarn: (message, error) => console.warn(message, error),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
+    }
 
-            // 检查基本条件
-            const subscriptions = await newWorksManager.getSubscriptions();
-            const activeSubscriptions = subscriptions.filter(sub => sub.enabled);
-
-            if (activeSubscriptions.length === 0) {
-                showMessage('没有活跃的订阅演员，请先添加订阅', 'warn');
-                return;
-            }
-
-            // 配置进度UI与消息监听
-            this.ensureProgressUI();
-            this.updateProgressUI({ processed: 0, total: activeSubscriptions.length, identifiedTotal: 0, effectiveTotal: 0 });
-            this.attachProgressListener();
-
-            // 通过后台脚本执行检查
-            const response = await new Promise<any>((resolve) => {
-                chrome.runtime.sendMessage(
-                    { type: 'new-works-manual-check' },
-                    resolve
-                );
-            });
-
-            if (response.success) {
-                await this.render();
-
-                const statsTail = (() => {
-                    const idt = response?.result?.identifiedTotal;
-                    const eff = response?.result?.effectiveTotal;
-                    const parts: string[] = [];
-                    if (typeof idt === 'number') parts.push(`已识别 ${idt}`);
-                    if (typeof eff === 'number') parts.push(`有效 ${eff}`);
-                    parts.push(`新增 ${response.result.discovered}`);
-                    return parts.join('，');
-                })();
-
-                let message = response?.result?.cancelled
-                    ? `检查已取消（${statsTail}，已保留已获取数据）`
-                    : `检查完成！${statsTail}`;
-                if (response.result.errors.length > 0) {
-                    // 显示具体错误信息
-                    const firstError = response.result.errors[0];
-                    if (response.result.errors.length === 1) {
-                        message += `，错误：${firstError}`;
-                    } else {
-                        message += `，错误：${firstError}（共${response.result.errors.length}个错误，详情请查看控制台）`;
-                    }
-                    console.warn('新作品检查错误详情:', response.result.errors);
-                }
-                showMessage(message, response.result.discovered > 0 ? 'success' : (response.result.errors.length > 0 ? 'warn' : 'info'));
-                this.updateProgressUI({ done: true });
-            } else {
-                throw new Error(response.error || '检查失败');
-            }
-
-        } catch (error) {
-            console.error('立即检查失败:', error);
-            showMessage('检查失败，请重试', 'error');
-        } finally {
-            const checkBtn = document.getElementById('checkNowBtn') as HTMLButtonElement;
-            if (checkBtn) {
-                checkBtn.disabled = false;
-                checkBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 立即检查';
-            }
-            this.detachProgressListener();
-            this.hideProgressUIAfter(1500);
-        }
+    private setCheckNowButtonLoading(loading: boolean): void {
+        setCheckNowButtonLoadingState(loading);
     }
 
     /**
      * 创建进度UI（若不存在）
      */
     private ensureProgressUI(): void {
-        if (this.progressEl && document.body.contains(this.progressEl)) return;
-        const host = document.querySelector('.new-works-controls') || document.getElementById('newWorksStatsContainer') || document.getElementById('tab-new-works');
-        if (!host) return;
-        const el = document.createElement('div');
-        el.id = 'newWorksProgress';
-        el.style.cssText = 'margin:10px 0;padding:12px;border:1px dashed #999;border-radius:6px;background:rgba(0,0,0,0.03);font-size:13px;';
-        el.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                <i class="fas fa-tasks"></i>
-                <span class="text">准备中...</span>
-                <button id="newWorksCancelBtn" class="btn-secondary" style="margin-left:auto;">取消</button>
-            </div>
-            <div class="progress-bar-container" style="width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;">
-                <div class="progress-bar-fill" style="width:0%;height:100%;background:linear-gradient(90deg, #4caf50, #66bb6a);transition:width 0.3s ease;"></div>
-            </div>
-        `;
-        host.appendChild(el);
-        this.progressEl = el;
-
-        // 绑定取消按钮
-        const cancelBtn = el.querySelector('#newWorksCancelBtn') as HTMLButtonElement | null;
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => {
-                if (cancelBtn.disabled) return;
-                cancelBtn.disabled = true;
-                cancelBtn.textContent = '取消中...';
+        this.progressEl = ensureNewWorksProgressUI(this.progressEl, {
+            sendCancelMessage: () => {
                 try {
-                    chrome.runtime.sendMessage({ type: 'new-works-manual-cancel' }, (_res?: any) => {
-                        // 不论成功与否，不再重复发送
-                    });
+                    chrome.runtime.sendMessage({ type: 'new-works-manual-cancel' }, (_res?: any) => {});
                 } catch {}
-            }, { once: true });
-        }
+            },
+        });
     }
 
     /**
      * 更新进度UI
      */
-    private updateProgressUI(data: { processed?: number; total?: number; identifiedTotal?: number; effectiveTotal?: number; actorName?: string; done?: boolean }): void {
-        if (!this.progressEl) return;
-        const text = this.progressEl.querySelector('.text') as HTMLElement | null;
-        const progressBar = this.progressEl.querySelector('.progress-bar-fill') as HTMLElement | null;
-        
-        if (!text) return;
-        
-        if (data.done) {
-            text.textContent = '检查完成';
-            if (progressBar) progressBar.style.width = '100%';
-            return;
-        }
-        
-        const p = typeof data.processed === 'number' ? data.processed : undefined;
-        const t = typeof data.total === 'number' ? data.total : undefined;
-        const idt = typeof data.identifiedTotal === 'number' ? data.identifiedTotal : undefined;
-        const eff = typeof data.effectiveTotal === 'number' ? data.effectiveTotal : undefined;
-        const actor = data.actorName ? `，当前：${data.actorName}` : '';
-        
-        // 更新进度条
-        if (progressBar && p !== undefined && t !== undefined && t > 0) {
-            const percentage = Math.round((p / t) * 100);
-            progressBar.style.width = `${percentage}%`;
-        }
-        
-        const seg1 = (p !== undefined && t !== undefined) ? `进度 ${p}/${t}` : '进行中';
-        const seg2 = (idt !== undefined) ? `，已识别 ${idt}` : '';
-        const seg3 = (eff !== undefined) ? `，有效 ${eff}` : '';
-        text.textContent = `${seg1}${seg2}${seg3}${actor}`;
+    private updateProgressUI(data: NewWorksProgressData): void {
+        updateNewWorksProgressUI(this.progressEl, data);
     }
 
     /**
      * 隐藏进度UI（延迟）
      */
     private hideProgressUIAfter(ms: number): void {
-        if (!this.progressEl) return;
-        setTimeout(() => { if (this.progressEl) this.progressEl.remove(); this.progressEl = undefined; }, Math.max(0, ms));
+        hideNewWorksProgressUIAfter(this.progressEl, ms, () => {
+            this.progressEl = undefined;
+        });
     }
 
     /**
      * 绑定后台进度消息监听
      */
     private attachProgressListener(): void {
-        this.detachProgressListener();
-        const handler = (message: any) => {
-            try {
-                if (message && message.type === 'new-works-progress') {
-                    const payload = message.payload || {};
-                    this.updateProgressUI({ processed: payload.processed, total: payload.total, identifiedTotal: payload.identifiedTotal, effectiveTotal: payload.effectiveTotal, actorName: payload.actorName });
-                }
-            } catch {}
-        };
-        this.progressListener = handler;
-        chrome.runtime.onMessage.addListener(handler as any);
+        this.progressListener = attachNewWorksProgressListener(
+            this.progressListener,
+            data => this.updateProgressUI(data),
+            chrome.runtime as any,
+        );
     }
 
     /**
      * 解绑后台进度消息监听
      */
     private detachProgressListener(): void {
-        if (this.progressListener) {
-            try { chrome.runtime.onMessage.removeListener(this.progressListener as any); } catch {}
-            this.progressListener = undefined;
-        }
+        this.progressListener = detachNewWorksProgressListener(this.progressListener, chrome.runtime as any);
     }
 
     /**
      * 显示添加订阅弹窗
      */
     private async showAddSubscriptionModal(): Promise<void> {
-        try {
-            console.log('开始显示添加订阅弹窗');
-
-            // 初始化新作品管理器
-            await newWorksManager.initialize();
-
-            // 获取已订阅的演员ID列表
-            const subscriptions = await newWorksManager.getSubscriptions();
-            const subscribedIds = subscriptions.map(sub => sub.actorId);
-            console.log('已订阅演员ID:', subscribedIds);
-
-            // 显示演员选择器
-            actorSelector.showSelector(subscribedIds, async (selectedActors: ActorRecord[]) => {
-                try {
-                    console.log('选择的演员:', selectedActors);
-
-                    // 添加订阅
-                    for (const actor of selectedActors) {
-                        await newWorksManager.addSubscription(actor.id);
-                    }
-
-                    await this.render();
-                    showMessage(`成功添加 ${selectedActors.length} 个演员订阅`, 'success');
-                } catch (error) {
-                    console.error('添加订阅失败:', error);
-                    showMessage('添加订阅失败，请重试: ' + error.message, 'error');
-                }
-            });
-        } catch (error) {
-            console.error('显示添加订阅弹窗失败:', error);
-            showMessage('加载失败，请重试: ' + error.message, 'error');
-        }
+        await runAddSubscriptionWorkflow({
+            deps: {
+                initialize: () => newWorksManager.initialize(),
+                getSubscriptions: () => newWorksManager.getSubscriptions(),
+                showActorSelector: (subscribedIds, onSelected) => actorSelector.showSelector(subscribedIds, onSelected),
+                addSubscription: actorId => newWorksManager.addSubscription(actorId),
+                render: () => this.render(),
+                showMessage,
+                logInfo: (message, data) => data === undefined ? console.log(message) : console.log(message, data),
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
      * 显示管理订阅弹窗
      */
     private async showManageSubscriptionsModal(): Promise<void> {
-        try {
-            const subscriptions = await newWorksManager.getSubscriptions();
-
-            if (subscriptions.length === 0) {
-                showMessage('暂无订阅演员', 'info');
-                return;
-            }
-
-            this.showSubscriptionManagementModal(subscriptions);
-        } catch (error) {
-            console.error('显示管理订阅弹窗失败:', error);
-            showMessage('加载失败，请重试', 'error');
-        }
+        await runManageSubscriptionsWorkflow({
+            deps: {
+                getSubscriptions: () => newWorksManager.getSubscriptions(),
+                openSubscriptionManagementModal: subscriptions => this.showSubscriptionManagementModal(subscriptions),
+                showMessage,
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 
     /**
      * 显示订阅管理弹窗
      */
     private showSubscriptionManagementModal(subscriptions: ActorSubscription[]): void {
-        const modal = document.createElement('div');
-        modal.className = 'subscription-management-modal';
-        modal.innerHTML = `
-            <div class="modal-overlay">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>管理订阅演员</h3>
-                        <button class="modal-close-btn" type="button">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="subscription-management-toolbar">
-                            <div class="actor-selector-search subscription-search">
-                                <input type="text" id="subscriptionManagementSearch" placeholder="搜索演员姓名..." />
-                            </div>
-                            <button class="btn-success" id="subscriptionManagementAddActor" type="button">
-                                <i class="fas fa-user-plus"></i> 添加演员
-                            </button>
-                        </div>
-                        <div class="subscription-list">
-                            ${subscriptions.map(sub => `
-                                <div class="subscription-item" data-actor-id="${sub.actorId}">
-                                    <div class="subscription-info">
-                                        ${sub.avatarUrl ? `
-                                            <div class="subscription-avatar-wrapper">
-                                                <img src="${sub.avatarUrl}" alt="${sub.actorName}" class="subscription-avatar">
-                                            </div>
-                                        ` : '<div class="subscription-avatar-placeholder"><i class="fas fa-user"></i></div>'}
-                                        <div class="subscription-details">
-                                            <div class="subscription-name">${sub.actorName}</div>
-                                            <div class="subscription-meta">
-                                                订阅于 ${new Date(sub.subscribedAt).toLocaleDateString('zh-CN')}
-                                                ${sub.lastCheckTime ? `| 最后检查: ${new Date(sub.lastCheckTime).toLocaleDateString('zh-CN')}` : ''}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="subscription-actions">
-                                        <button class="btn-check-single" data-action="check-single" data-actor-id="${sub.actorId}" title="立即检查此演员的新作品">
-                                            <i class="fas fa-sync-alt"></i>
-                                        </button>
-                                        <label class="ui-toggle">
-                                            <input class="ui-toggle__input" type="checkbox" ${sub.enabled ? 'checked' : ''} data-action="toggle">
-                                            <span class="ui-toggle__slider"></span>
-                                        </label>
-                                        <button class="btn-danger" data-action="remove">
-                                            <i class="fas fa-trash"></i> 移除
-                                        </button>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <span class="subscription-management-summary">共 ${subscriptions.length} 个订阅演员</span>
-                        <button class="btn-secondary" id="subscriptionManagementClose">关闭</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // 设置事件监听器
-        let isClosing = false;
-        const escHandler = (ev: KeyboardEvent) => {
-            if (ev.key === 'Escape') closeModal();
-        };
-        const closeModal = () => {
-            if (isClosing) return;
-            isClosing = true;
-            const overlay = modal.querySelector('.modal-overlay');
-            if (overlay) {
-                overlay.classList.remove('visible');
-                console.log('管理订阅弹窗: 已移除visible类，开始隐藏弹窗');
-            }
-            try { document.removeEventListener('keydown', escHandler); } catch {}
-            // 等待动画完成后移除弹窗
-            setTimeout(() => {
-                modal.remove();
-                document.body.style.overflow = '';
-            }, 200); // 与CSS transition时间保持一致
-        };
-
-        const headerCloseBtn = modal.querySelector('.modal-close-btn') as HTMLButtonElement | null;
-        headerCloseBtn?.setAttribute('type', 'button');
-        headerCloseBtn?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(); }, { once: true });
-
-        const footerCloseBtn = modal.querySelector('#subscriptionManagementClose') as HTMLButtonElement | null;
-        footerCloseBtn?.setAttribute('type', 'button');
-        footerCloseBtn?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(); }, { once: true });
-
-        const addActorBtn = modal.querySelector('#subscriptionManagementAddActor') as HTMLButtonElement | null;
-        addActorBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closeModal();
-            window.setTimeout(() => {
-                this.showAddSubscriptionModal();
-            }, 220);
+        openSubscriptionManagementModal(subscriptions, {
+            showAddSubscriptionModal: () => this.showAddSubscriptionModal(),
+            toggleSubscription: (actorId, enabled) => newWorksManager.toggleSubscription(actorId, enabled),
+            removeSubscription: actorId => newWorksManager.removeSubscription(actorId),
+            confirmRemove: actorName => showDanger(`确定要移除对演员 ${actorName} 的订阅吗？`, '移除订阅'),
+            render: () => this.render(),
+            showMessage,
+            handleSingleSubscriptionCheck: (subscription, button) => this.handleSingleSubscriptionCheck(subscription, button),
+            logInfo: message => console.log(message),
+            logError: (message, error) => console.error(message, error),
         });
-
-        const overlayEl = modal.querySelector('.modal-overlay');
-        overlayEl?.addEventListener('click', (e) => {
-            if (e.target === overlayEl) {
-                closeModal();
-            }
-        });
-        document.addEventListener('keydown', escHandler);
-
-        const searchInput = modal.querySelector('#subscriptionManagementSearch') as HTMLInputElement | null;
-        const subscriptionItems = Array.from(modal.querySelectorAll('.subscription-item')) as HTMLElement[];
-        const applySearchFilter = () => {
-            const keyword = (searchInput?.value || '').trim().toLowerCase();
-            let visibleCount = 0;
-
-            subscriptionItems.forEach((item) => {
-                const nameEl = item.querySelector('.subscription-name');
-                const actorName = (nameEl?.textContent || '').trim().toLowerCase();
-                const matched = !keyword || actorName.includes(keyword);
-                item.style.display = matched ? '' : 'none';
-                if (matched) visibleCount++;
-            });
-
-            const summaryEl = modal.querySelector('.subscription-management-summary');
-            if (summaryEl) {
-                summaryEl.textContent = keyword
-                    ? `搜索结果 ${visibleCount} / ${subscriptions.length}`
-                    : `共 ${subscriptions.length} 个订阅演员`;
-            }
-        };
-        searchInput?.addEventListener('input', applySearchFilter);
-
-        // 订阅项操作
-        subscriptionItems.forEach(item => {
-            const actorId = item.getAttribute('data-actor-id');
-            if (!actorId) return;
-
-            // 头像悬浮大图定位
-            const avatarWrapper = item.querySelector('.subscription-avatar-wrapper') as HTMLElement;
-            const avatarImg = avatarWrapper?.querySelector('.subscription-avatar') as HTMLImageElement;
-            const avatarUrl = avatarImg?.src;
-            
-            if (avatarWrapper && avatarUrl) {
-                let preview: HTMLElement | null = null;
-                let isHovering = false;
-                
-                const showPreview = () => {
-                    isHovering = true;
-                    
-                    // 创建预览元素并添加到body
-                    preview = document.createElement('div');
-                    preview.className = 'subscription-avatar-preview show';
-                    preview.innerHTML = `<img src="${avatarUrl}" alt="预览" />`;
-                    document.body.appendChild(preview);
-                    
-                    const rect = avatarWrapper.getBoundingClientRect();
-                    const top = rect.top + rect.height / 2 - 100;
-                    const left = rect.right + 15;
-                    preview.style.top = `${top}px`;
-                    preview.style.left = `${left}px`;
-                };
-                
-                const hidePreview = () => {
-                    isHovering = false;
-                    setTimeout(() => {
-                        if (!isHovering && preview) {
-                            preview.remove();
-                            preview = null;
-                        }
-                    }, 100);
-                };
-                
-                avatarWrapper.addEventListener('mouseenter', showPreview);
-                avatarWrapper.addEventListener('mouseleave', hidePreview);
-            }
-
-            // 切换启用状态
-            const toggleSwitch = item.querySelector('[data-action="toggle"]') as HTMLInputElement;
-            toggleSwitch?.addEventListener('change', async () => {
-                try {
-                    await newWorksManager.toggleSubscription(actorId, toggleSwitch.checked);
-                    await this.render();
-                } catch (error) {
-                    console.error('切换订阅状态失败:', error);
-                    toggleSwitch.checked = !toggleSwitch.checked; // 恢复状态
-                }
-            });
-
-            // 单独检查演员
-            const checkBtn = item.querySelector('[data-action="check-single"]') as HTMLButtonElement | null;
-            checkBtn?.addEventListener('click', async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const subscription = subscriptions.find(sub => sub.actorId === actorId);
-                if (!subscription) {
-                    showMessage('未找到演员订阅信息', 'error');
-                    return;
-                }
-                await this.handleSingleSubscriptionCheck(subscription, checkBtn);
-            });
-
-            // 移除订阅
-            const removeBtn = item.querySelector('[data-action="remove"]');
-            removeBtn?.addEventListener('click', async () => {
-                const actorName = subscriptions.find(sub => sub.actorId === actorId)?.actorName || '未知';
-                const confirmed = await showDanger(
-                    `确定要移除对演员 ${actorName} 的订阅吗？`,
-                    '移除订阅'
-                );
-                if (confirmed) {
-                    try {
-                        await newWorksManager.removeSubscription(actorId);
-                        item.remove();
-                        const index = subscriptionItems.indexOf(item);
-                        if (index >= 0) subscriptionItems.splice(index, 1);
-                        applySearchFilter();
-                        await this.render();
-                        showMessage(`已移除演员 ${actorName} 的订阅`, 'success');
-                    } catch (error) {
-                        console.error('移除订阅失败:', error);
-                        showMessage('移除失败，请重试', 'error');
-                    }
-                }
-            });
-        });
-
-        // 显示弹窗
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-
-        // 添加visible类以显示弹窗
-        const overlay = modal.querySelector('.modal-overlay');
-        if (overlay) {
-            overlay.classList.add('visible');
-            console.log('管理订阅弹窗: 已添加visible类，弹窗应该可见');
-        }
     }
 
     /**
      * 手动检查单个订阅演员的新作品
      */
     private async handleSingleSubscriptionCheck(subscription: ActorSubscription, button: HTMLButtonElement): Promise<void> {
-        const originalHtml = button.innerHTML;
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-        try {
-            showMessage(`已开始检查 ${subscription.actorName}`, 'info');
-
-            const response = await new Promise<any>((resolve) => {
-                chrome.runtime.sendMessage(
-                    {
-                        type: 'new-works-check-single-actor',
-                        actorId: subscription.actorId,
-                        actorName: subscription.actorName
-                    },
-                    resolve
-                );
-            });
-
-            if (!response?.success) {
-                throw new Error(response?.error || '检查失败');
-            }
-
-            const result = response.result || {};
-            const statsParts: string[] = [];
-            if (typeof result.identified === 'number') {
-                statsParts.push(`识别 ${result.identified}`);
-            }
-            if (typeof result.effective === 'number') {
-                statsParts.push(`有效 ${result.effective}`);
-            }
-            statsParts.push(`新增 ${result.discovered || 0}`);
-
-            await this.render();
-            showMessage(
-                `${subscription.actorName}: ${statsParts.join('，')}`,
-                (result.discovered || 0) > 0 ? 'success' : 'info'
-            );
-        } catch (error) {
-            console.error(`检查演员 ${subscription.actorName} 失败:`, error);
-            showMessage(`检查 ${subscription.actorName} 失败: ${(error as Error).message}`, 'error');
-        } finally {
-            button.disabled = false;
-            button.innerHTML = originalHtml;
-        }
+        await runSingleSubscriptionCheckWorkflow({
+            subscription,
+            button,
+            deps: {
+                sendSingleActorCheck: target => new Promise<any>((resolve) => {
+                    chrome.runtime.sendMessage(
+                        {
+                            type: 'new-works-check-single-actor',
+                            actorId: target.actorId,
+                            actorName: target.actorName,
+                        },
+                        resolve,
+                    );
+                }),
+                render: () => this.render(),
+                showMessage,
+                logError: (message, error) => console.error(message, error),
+            },
+        });
     }
 }
 
