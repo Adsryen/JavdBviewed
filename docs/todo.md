@@ -1,825 +1,75 @@
-# 📋 Todo 计划
+# Todo 计划
+
+> 只保留待办、暂缓项和需要继续跟踪的收尾项；已完成的迁移、拆分和测试基线记录已清理。
 
 ---
 
-## 🔐 115 功能
-
----
-## 首页
----
-
-## 🎨 功能增强
-
+## 功能增强
 
 - [ ] 聚合
-- [ ] 符合 emby 的页面番号识别功能（在影片页面方便识别网友评论中的经典番号）
+- [ ] 页面番号识别
+  - [ ] 在影片页识别网友评论中的经典番号
+  - [ ] 与 Emby/Jellyfin 相关入口形成可复用能力
 - [ ] 标签高亮/折叠
   - [ ] 支持列表页按标签高亮命中项
   - [ ] 支持折叠低优先级标签区域
-  - [ ] 结合现有内容过滤规则，避免重复实现一套过滤体系
+  - [ ] 结合现有内容过滤规则，避免重复实现过滤体系
 - [ ] 状态按钮视觉优化
-  - [ ] 详情页当前状态高亮，其它状态置灰
-  - [ ] 评估是否吸收 JAV-JHS 的屏蔽、收藏、已下载、已观看四状态交互
+  - [ ] 详情页当前状态高亮，其它状态弱化
+  - [ ] 评估 JAV-JHS 的屏蔽、收藏、已下载、已观看四状态交互
 
 ---
 
-## ⚙️ Dashboard / 设置页
+## Dashboard / 设置页
 
-- [x] 设置搜索：实现类似 Windows 设置的扁平搜索
-  - [x] 设置首页新增搜索框，搜索设置项标题、描述、关键词
-  - [x] 搜索结果点击后跳转到对应设置页
-  - [x] 设置页加载后滚动到具体设置项
-  - [x] 目标设置项显示短暂高亮动画
-  - [x] 支持 Enter 进入首个结果
-  - [x] 支持 Esc 清空搜索
-  - [x] 支持少量关键词别名：字幕、迅雷、115、WebDAV、在线可看、磁力、FC2、隐私、代理、AI
-  - [x] 优先使用 DOM 自动索引，减少手工维护
-- [x] 搜索引擎设置：统一启用开关语义
-  - [x] “是否启用”同时控制详情页入口和番号库入口
-  - [x] 内置项保持只读，只允许切换启用状态
-  - [x] 放弃“隐藏内置项”方案，避免与启用开关形成重复概念
 - [ ] 客户端遥测设备 ID 对齐
   - [ ] 核实 `buildTelemetryPayload.ts` 当前 `deviceId` 来源为 `telemetry_client_state.installId`
   - [ ] 改为优先上报设置页显示的 `settings.webdav.clientId`
-  - [ ] 保留 `installId` 作为遥测安装归并标识，避免混用为管理端设备 ID
+  - [ ] 保留 `installId` 作为遥测安装归并标识
   - [ ] 补充测试：设置页 Device ID 变化后，payload 的 `deviceId` 使用最新 `webdav.clientId`
   - [ ] 补充兼容测试：无 `webdav.clientId` 时仍能用 telemetry install state 完成内部归并
 
-- [ ] 错误事件上报（error_report）
-  - [ ] 设计原则：参考浏览器错误上报，只报"什么坏了"，不报"用户在看什么"
-    - 上报三元组：`component`（在哪坏的）+ `code`（怎么坏的）+ `stackHash`（哪行代码）
-    - `message` 只保留 Error 类名（如 `TypeError`、`ReferenceError`），**丢弃 `.message` 内容**
-    - 不上报页面 URL、番号、磁力链接、API 地址、token 等任何用户数据
-    - 不上报原始 stack trace，只上报 MD5 哈希后的 `stackHash`
-  - [ ] 扩展 `domain/types.ts` 类型定义
-    - `TelemetryEventType` 加 `'error_report'`
-    - 新增 `TelemetryErrorInfo`（component / code / message[仅类名] / stackHash / fatal）
-    - 新增 `TelemetryErrorReportPayload`（轻量 payload，不含 features/metrics）
-    - 新增 `TelemetryAnyPayload` 联合类型
-    - `TelemetryReportResult.reason` 加 `'internal-error'` 和 `'deduplicated'`
-  - [ ] 新增 `application/buildErrorReportPayload.ts`
-    - 轻量 payload 构建器：只构建 client + activity + error，跳过 features/metrics
-    - `component` 截断 80 字符
-    - `message` 只取 Error 类名（如 `TypeError`），无 Error 对象时用 `UnknownError`，截断 80 字符
-    - stack 归一化（去行号/列号、取前 10 帧、替换 chunk hash）后 MD5 生成 `stackHash`
-    - 导出 `generateStackHash()` 供节流模块使用
-    - 复用 `getTelemetryRuntimeInfo()` 和 `createTelemetryEventId()`
-  - [ ] 新增 `application/errorThrottle.ts`
-    - 会话级去重：`Set<stackHash>`，同一 service worker 生命周期内同一错误只上报一次
-    - 指纹级冷却：`Map<stackHash, timestamp>`，5 分钟冷却期
-    - 上限 100 个指纹，超出淘汰最旧
-    - 导出 `shouldReportError(stackHash)` 和测试用 `__resetErrorThrottle()`
-  - [ ] 新增 `application/errorReporter.ts`
-    - `reportTelemetryError(error, options?)` 整合 payload 构建 + 节流 + 发送
-    - 全局 try-catch 包裹，永不抛异常
-    - 检查 telemetry enabled / endpoint 存在后才发送
-  - [ ] 更新 `infrastructure/telemetryClient.ts`
-    - `SendTelemetryInput.payload` 类型从 `TelemetryPayload` 扩展为 `TelemetryPayload | TelemetryErrorReportPayload`
-  - [ ] 更新 `application/runtimeMessages.ts`
-    - `handleTelemetryRuntimeMessage` 新增 `telemetry:error` 消息处理
-    - 从 content script 接收错误 payload 并转发给 `reportTelemetryError()`
-  - [ ] 更新 `apps/background/errorHandlers.ts`
-    - 在全局 `unhandledrejection` 和 `error` 监听中 fire-and-forget 调用 `reportTelemetryError()`
-    - 只提取 `error.name`（类名）和 `error.constructor.name`，**不提取 `error.message`**
-  - [ ] 更新 `apps/content/bootstrap.ts`
-    - 新增局部 `reportContentError()` 函数，通过 `chrome.runtime.sendMessage` 发送 `telemetry:error`
-    - 只传 `error.name`（类名），**不传 `error.message`、`window.location`、页面内容**
-    - 新增 `window` 级 `error` + `unhandledrejection` 全局监听器
-    - `onExecute()` 的 `.catch` 中调用 `reportContentError(err, 'init')`
-  - [ ] 更新 `index.ts` 导出
-  - [ ] 验证
-    - 单元测试：payload 构建、stackHash 一致性、节流/去重、reporter 集成、runtime message 处理
-    - 隐私测试：确认 payload 中不含任何用户数据（番号、URL、token、磁力链）
-    - 手动验证：dev 模式触发已知错误，检查 network 面板 POST body
-    - 后端验证：admin API `GET /v1/admin/events?event=error_report`
+- [ ] 错误事件上报（`error_report`）
+  - [ ] 设计 payload：`component`、`code`、Error 类名、`stackHash`、`fatal`
+  - [ ] 保护隐私：payload 中避免采集页面 URL、番号、磁力链接、API 地址、token 和原始 stack trace
+  - [ ] 扩展 telemetry 类型：event type、error payload、联合 payload、结果原因
+  - [ ] 新增错误 payload 构建器：stack 归一化、chunk hash 替换、MD5 `stackHash`
+  - [ ] 新增错误节流：会话级去重、指纹冷却、容量上限
+  - [ ] 新增错误 reporter：检查开关和 endpoint 后发送，全局兜底异常
+  - [ ] 扩展 telemetry client 和 runtime message 处理
+  - [ ] 在 background 全局 `error` / `unhandledrejection` 中接入
+  - [ ] 在 content bootstrap 全局 `error` / `unhandledrejection` 中接入
+  - [ ] 补充验证：payload、stackHash、节流、runtime message、隐私字段和后端 admin events
+
+- [ ] 报告（Insights）设置
+  - [ ] 配置报告生成所用的聚合参数
+  - [ ] 仅影响本地统计和 AI 提示词输入
 
 ---
 
-## 🧱 项目结构 / 代码组织
+## 项目结构 / 代码组织
 
-- [x] 制定 `src` 未来架构规划
-  - [x] 目标分层：`apps / features / platform / shared`
-  - [x] 明确运行入口、业务能力、基础设施、共享协议的职责边界
-  - [x] 约定新功能优先进入 `features/<featureName>`
-  - [x] 约定每个 feature 使用 `index.ts` 暴露稳定入口
-  - [x] 文档：[source-architecture.md](./source-architecture.md)
-- [x] 建立新架构骨架
-  - [x] 新建 `src/apps`
-  - [x] 新建 `src/features`
-  - [x] 新建 `src/platform`
-  - [x] 保留并收敛 `src/shared`
-  - [x] 补充最小 `index.ts` 或 README 说明，避免空目录丢失
-- [x] 第一个试点功能：`features/settingsSearch`
-  - [x] 建立 `domain/aliases.ts`、`domain/types.ts`
-  - [x] 建立 `application/buildSettingsSearchIndex.ts`
-  - [x] 建立 `application/findSettingsResults.ts`
-  - [x] 建立 `application/resolveSettingsTarget.ts`
-  - [x] 建立 `ui/settingsSearchBox.ts`
-  - [x] 建立 `ui/settingsSearchHighlight.ts`
-  - [x] Dashboard 只负责 mount 和路由生命周期
-- [x] 第二批迁移：字幕与外部搜索
-  - [x] 迁移前测试基线
-    - [x] 外部搜索：链接生成、重复模板去重、FC2 专用入口、禁用引擎过滤
-    - [x] 外部搜索：详情页插入位置优先跟随“在线可看”面板
-    - [x] 外部搜索：统一入口关闭时移除详情页外部搜索与字幕搜索面板
-    - [x] 字幕搜索：分类独立显示，支持单独关闭字幕搜索或外部搜索
-    - [x] 迅雷字幕：点击入口打开弹窗并请求 API
-    - [x] 迅雷字幕：真实 `MKMP-577` 响应字段、元信息 tag、复制和下载动作
-    - [x] 迅雷字幕：空结果、请求失败、关闭弹窗、样式注入、图标回退
-  - [x] 建立 `features/subtitles`
-  - [x] 迁移迅雷字幕弹窗与响应 normalize 逻辑
-  - [x] 建立 `features/externalSearch`
-  - [x] 迁移详情页外部搜索渲染和搜索引擎匹配逻辑
-  - [x] 旧路径保留 re-export 一轮，降低 import 震荡
-- [x] 第三批迁移：磁力功能域
-  - [x] 迁移前测试基线
-    - [x] `magnetResultMerge`：缓存结果追加、按 hash 去重、跨来源 source 合并、复合来源标签规范化
-    - [x] `magnetPagination`：10 条阈值、超过 10 条分页、页码边界夹取
-    - [x] `magnetSourceTagState`：唯一结果按来源计数、成功/失败/缓存保留 tag 文案
-    - [x] `javbusMagnetSource`：Ajax 参数提取、Ajax URL、表格解析、完整 HTML fallback、raw magnet fallback、诊断信息
-    - [x] `magnetSearch`：主搜索管理器只保留旧路径兼容，本批不拆运行时大类
-  - [x] 建立 `features/magnets`
-  - [x] 迁移 `magnetSearch.ts`
-  - [x] 迁移 `magnetResultMerge.ts`
-  - [x] 迁移 `magnetPagination.ts`
-  - [x] 迁移 `magnetSourceTagState.ts`
-  - [x] 迁移 `javbusMagnetSource.ts`
-  - [x] 旧路径保留 re-export 一轮，降低 import 震荡
-- [x] 第四批迁移：基础设施
-  - [x] 迁移前测试基线
-    - [x] `HttpClient`：background fetch 返回 HTTP 错误状态时抛出 `NetworkError`
-    - [x] `ChromeStorage`：普通值读写、空值 fallback、大对象分片、IDB 迁移读取、旧 `utils/storage` 导出兼容
-    - [x] `Tasks`：分片任务批处理、内容脚本任务消息协议、任务调度依赖重试
-    - [x] `Browser`：runtime callback 消息 Promise 化、lastError/runtime 缺失处理、JAVBUS tab fetch fallback
-    - [x] `Logging`：日志级别开关、重要日志持久化钩子、控制台输出抑制、旧 `utils/logController` 兼容
-    - [x] `RequestScheduler`：in-flight 去重、同 host 并发限制
-    - [x] `GlobalTaskCenter`：任务租约调度、bucket 策略、状态存储、跨页面完成状态
-  - [x] 建立 `platform/network`
-  - [x] 迁移 `services/dataAggregator/httpClient.ts` 到 `platform/network/httpClient.ts`
-  - [x] 沉淀 `FetchOptions`、`NetworkError` 到 `platform/network/types.ts`
-  - [x] 旧 `services/dataAggregator/httpClient.ts` 保留 re-export 兼容
-  - [x] 建立 `platform/storage`
-  - [x] 迁移 Chrome Storage 通用读写、分片存储和运行时迁移读取到 `platform/storage/chromeStorage.ts`
-  - [x] 旧 `utils/storage.ts` 保留设置合并、搜索引擎合并和 `getValue`/`setValue` 兼容导出
-  - [x] 建立 `platform/tasks`
-  - [x] 迁移 `runChunkedWork`、`yieldToMainThread` 到 `platform/tasks/chunking.ts`
-  - [x] 迁移任务中心 register/lease/progress/active tracking 到 `platform/tasks/runtimeMessaging.ts`
-  - [x] 旧 `content/taskChunking.ts`、`content/taskRuntime.ts` 保留 re-export 和页面上下文兼容
-  - [x] 建立 `platform/logging`
-  - [x] 迁移纯日志控制器到 `platform/logging/logController.ts`
-  - [x] 旧 `utils/logController.ts` 保留设置读取、consoleProxy 同步和后台日志持久化装配
-  - [x] 建立 `platform/browser`
-  - [x] 迁移通用 runtime callback 消息封装到 `platform/browser/runtimeMessages.ts`
-  - [x] 接入 `content/javbusTabFetch.ts`，保留业务响应校验
-  - [x] 迁移 `background/requestScheduler.ts` 到 `platform/network/requestScheduler.ts`
-  - [x] 旧 `background/requestScheduler.ts` 保留 re-export 兼容
-  - [x] 迁移 `background/globalTaskCenter.ts` 到 `platform/tasks/globalTaskCenter.ts`
-  - [x] 迁移 `taskPolicy`、`taskStateStore`、`taskCenterPolicyRuntime` 到 `platform/tasks`
-  - [x] 旧 `background/globalTaskCenter.ts` 与任务策略文件保留 re-export 兼容
-  - [x] 迁移 background DB 等基础设施
-    - [x] 迁移 IndexedDB 核心到 `platform/storage/indexedDb.ts`
-    - [x] 迁移 trend helper 到 `platform/storage/trendUtils.ts`
-    - [x] 旧 `background/db.ts` 与 `background/trendUtils.ts` 保留 re-export 兼容
-    - [x] background DB 路由、迁移、WebDAV、调度与新作品采集改用 `platform/storage/indexedDb.ts`
-- [x] 第五批迁移：新作品功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/newWorks` 只能作为兼容出口
-  - [x] 建立 `features/newWorks`
-  - [x] 迁移 `collector.ts`、`manager.ts`、`scheduler.ts`、`types.ts`
-  - [x] `services/newWorks/*` 保留 re-export 兼容
-  - [x] background、content、dashboard 调用方改用 `features/newWorks`
-- [x] 第六批迁移：演员库功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/actorManager.ts` 与 `services/actorSync.ts` 只能作为兼容出口
-  - [x] 建立 `features/actors`
-  - [x] 迁移 `actorManager.ts` 与 `actorSync.ts`
-  - [x] `services/actorManager.ts` 与 `services/actorSync.ts` 保留 re-export 兼容
-  - [x] content、dashboard、newWorks 调用方改用 `features/actors`
-- [x] 第七批迁移：相关清单功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/relatedLists` 只能作为兼容出口
-  - [x] 建立 `features/relatedLists`
-  - [x] 迁移相关清单 API 映射与分页响应逻辑
-  - [x] `services/relatedLists` 保留 re-export 兼容
-  - [x] 影片页增强与 DOM 测试调用方改用 `features/relatedLists`
-- [x] 第八批迁移：评论解锁功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/reviewBreaker` 只能作为兼容出口
-  - [x] 建立 `features/reviewUnlock`
-  - [x] 迁移评论 API、签名生成与过滤关键词逻辑
-  - [x] `services/reviewBreaker` 保留 re-export 兼容
-  - [x] 影片页增强、超级排行榜、FC2 与相关清单调用方改用 `features/reviewUnlock`
-- [x] 第九批迁移：FC2 破解功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/fc2Breaker` 只能作为兼容出口
-  - [x] 建立 `features/fc2Breaker`
-  - [x] 迁移 FC2 API、弹窗、磁力区与 115 推送联动逻辑
-  - [x] `services/fc2Breaker` 保留 re-export 兼容
-  - [x] 影片页增强、列表增强与 FC2 DOM 测试调用方改用 `features/fc2Breaker`
-- [x] 第十批迁移：演员备注功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/actorRemarks` 只能作为兼容出口
-  - [x] 建立 `features/actorRemarks`
-  - [x] 迁移 Wikipedia/xslist 聚合、缓存与请求去重逻辑
-  - [x] `services/actorRemarks` 保留 re-export 兼容
-  - [x] 影片页、演员页、演员增强与演员库调用方改用 `features/actorRemarks`
-- [x] 第十一批迁移：Insights 报告功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/insights` 只能作为兼容出口
-  - [x] 建立 `features/insights`
-  - [x] 迁移月度聚合、对比聚合、报告模板、提示词、人设与生成追踪逻辑
-  - [x] `services/insights` 保留 re-export 兼容
-  - [x] background scheduler、Dashboard 报告页与首页图表改用 `features/insights`
-- [x] 第十二批迁移：数据聚合功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/dataAggregator` 只能作为兼容出口
-  - [x] 建立 `features/dataAggregator`
-  - [x] 迁移数据聚合器、类型定义、BlogJav/JavLibrary/Translator/AITranslator source 与单元测试
-  - [x] `services/dataAggregator` 保留 re-export 兼容，HTTP client 继续归属 `platform/network`
-  - [x] 影片页增强、内容入口、在线可看、演员备注、字幕 API 与相关测试改用新路径
-- [x] 第十三批迁移：更新检查功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/update/checker.ts` 只能作为兼容出口
-  - [x] 建立 `features/updateChecker`
-  - [x] 迁移 GitHub Releases 更新检查、版本比较、检查策略和缓存结果逻辑
-  - [x] `services/update/checker.ts` 保留 re-export 兼容
-  - [x] Dashboard 顶栏版本检查与更新设置页改用新路径
-- [x] 第十四批迁移：AI 服务功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/ai` 只能作为兼容出口
-  - [x] 建立 `features/ai`
-  - [x] 迁移 AI 设置、模型管理、New API 客户端、速率限制和提示词配置
-  - [x] `services/ai/*` 保留 re-export 兼容
-  - [x] 影片页增强、数据聚合、Insights 和 Dashboard AI 设置改用新路径
-- [x] 第十五批迁移：隐私保护功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/privacy` 只能作为兼容出口
-  - [x] 建立 `features/privacy`
-  - [x] 迁移隐私管理、密码、会话、模糊控制、锁屏和恢复服务
-  - [x] `services/privacy/*` 保留 re-export 兼容
-  - [x] content 隐私入口、Dashboard 隐私组件、同步和全局操作改用新路径
-- [x] 第十六批迁移：115 功能域
-  - [x] 迁移前使用架构回归测试约束旧 `services/drive115*` 只能作为兼容出口
-  - [x] 建立 `features/drive115/legacy`、`app`、`router`、`v2`
-  - [x] 迁移 115 设置归一化、统一应用服务、推送日志、路由、v2 API、PKCE 和文件搜索
-  - [x] `services/drive115*` 保留 re-export 兼容
-  - [x] content、background、Dashboard、FC2 推送和 115 相关测试改用新路径
-- [x] 第十七批迁移：隐私工具收口
-  - [x] 迁移前使用架构回归测试约束旧 `utils/privacy` 只能作为兼容出口
-  - [x] 建立 `features/privacy/utils`
-  - [x] 迁移隐私加密、存储和验证工具
-  - [x] `utils/privacy/*` 保留 re-export 兼容
-  - [x] 隐私功能域和密码恢复弹窗改用新路径
-- [x] 第十八批迁移：Background 入口层
-  - [x] 迁移前使用架构回归测试约束 manifest 入口保持薄加载器
-  - [x] 建立 `apps/background/bootstrap.ts`
-  - [x] 迁移 service worker 初始化、消息监听、alarm、动态内容脚本和后台刷新装配逻辑
-  - [x] `background/background.ts` 保留 manifest service worker 入口
-  - [x] 保持 `src/manifest.json` 的 service worker 路径不变
-- [x] 第十九批迁移：Content 主入口层
-  - [x] 迁移前使用架构回归测试约束 manifest 内容脚本入口保持薄加载器
-  - [x] 建立 `apps/content/bootstrap.ts`
-  - [x] 迁移 JavDB/JavBus 主内容脚本初始化、orchestrator、列表/详情增强和页面监听装配逻辑
-  - [x] `content/index.ts` 保留 manifest content script 入口
-  - [x] 保持 `src/manifest.json` 的主内容脚本路径不变
-- [x] 第二十批迁移：115 Content 专用入口层
-  - [x] 迁移前使用架构回归测试约束 115 content script 入口保持薄加载器
-  - [x] 建立 `apps/content/drive115Content.ts` 与 `apps/content/drive115Verify.ts`
-  - [x] 迁移 115 网盘页面推送处理和验证码页面验证监听逻辑
-  - [x] `content/drive115-content.ts` 与 `content/drive115-verify.ts` 保留 manifest content script 入口
-  - [x] 保持 `src/manifest.json` 的 115 content script 路径不变
-- [x] 第二十一批迁移：Dashboard 入口层
-  - [x] 迁移前使用架构回归测试约束 Dashboard 页面入口保持薄加载器
-  - [x] 建立 `apps/dashboard/bootstrap.ts`
-  - [x] 迁移 Dashboard 初始化、主题、侧栏、标签页、用户信息、隐私和遥测装配逻辑
-  - [x] `dashboard/dashboard.ts` 保留 HTML module script 入口
-  - [x] 保持 `dashboard/dashboard.html` 的脚本路径不变
-- [x] 第二十二批迁移：Popup 入口层
-  - [x] 迁移前使用架构回归测试约束 Popup 页面入口保持薄加载器
-  - [x] 建立 `apps/popup/bootstrap.ts`
-  - [x] 迁移 Popup 设置读取、主题、筛选开关、音量和页面跳转装配逻辑
-  - [x] `popup/popup.ts` 保留 HTML module script 入口
-  - [x] 保持 `popup/popup.html` 的脚本路径不变
-- [x] 第二十三批迁移：在线可看功能域
-  - [x] 迁移前使用架构回归测试约束旧 `content/onlineAvailability.ts` 只能作为兼容出口
-  - [x] 建立 `features/onlineAvailability`
-  - [x] 迁移在线站点配置、URL 构造、响应解析、面板渲染和检查调度逻辑
-  - [x] `content/onlineAvailability.ts` 保留 re-export 兼容
-  - [x] content bootstrap 与在线可看 DOM 测试改用新路径
-- [x] 第二十四批迁移：影片状态功能域
-  - [x] 迁移前使用架构回归测试约束旧 `content/statusManager.ts` 与 `utils/statusPriority.ts` 只能作为兼容出口
-  - [x] 建立 `features/videoStatus`
-  - [x] 迁移详情页标题、favicon 状态同步逻辑
-  - [x] 迁移状态优先级工具
-  - [x] content bootstrap 与详情页状态更新改用新路径
-- [x] 第二十五批迁移：列表记录共享工具
-  - [x] 迁移前使用架构回归测试约束旧 `utils/listRecordHelpers.ts` 只能作为兼容出口
-  - [x] 迁移列表记录归一化、系列/标签匹配工具到 `shared/utils`
-  - [x] Dashboard 列表、番号库和数据同步改用共享路径
-  - [x] platform storage 改用共享路径，保持 platform 不依赖 utils 业务目录
-- [x] 第二十六批迁移：Background 小型模块瘦身
-  - [x] 迁移前使用架构回归测试约束目标旧 `background/*` 只能作为兼容出口
-  - [x] 迁移 `background/consoleConfig.ts` 到 `platform/logging/backgroundConsole.ts`
-  - [x] 迁移 `background/netProxy.ts` 到 `platform/network/backgroundFetchRouter.ts`
-  - [x] 迁移 `background/javbusTabFetch.ts` 到 `platform/browser/javbusTabFetch.ts`
-  - [x] 迁移 `background/viewedTagStats.ts` 到 `features/records/tagStats.ts`
-  - [x] 更新 `apps/background/bootstrap.ts` 与相关测试导入到新路径
-  - [x] 旧 `background/*` 文件保留 re-export 兼容
-- [x] 第二十七批迁移：Background 装配层拆分
-  - [x] 为 `apps/background/bootstrap.ts` 增加架构回归约束，限制入口只做装配
-  - [x] 拆出 `apps/background/dynamicContentScripts.ts`
-  - [x] 拆出 `apps/background/dnrRules.ts`
-  - [x] 拆出 `apps/background/routeAutoUpdate.ts`
-  - [x] 拆出 `apps/background/drive115UserRefresh.ts`
-  - [x] 拆出 `apps/background/alarmRouter.ts`
-  - [x] 拆出 `apps/background/errorHandlers.ts`
-  - [x] 保持 `background/background.ts` 作为 manifest 薄入口
-- [x] 第二十八批迁移：WebDAV 解耦测试基线
-  - [x] 统计并锁定当前 `background/webdav.ts`、`background/sync.ts` 对外消息类型
-  - [x] 补充 WebDAV URL 归一化、路径拼接、上传 ID、设备名清洗测试
-  - [x] 补充 PROPFIND XML 解析与备份文件过滤测试
-  - [x] 补充上传索引追加、去重、保留数量测试
-  - [x] 补充导入设置清洗、local-only key 过滤测试
-  - [x] 补充恢复预览、对象 map 转数组、批量写入边界测试
-  - [x] 补充连接诊断参数映射测试
-- [x] 第二十九批迁移：WebDAV 基础设施与设备档案
-  - [x] 建立 `features/webdavSync`
-  - [x] 建立 `features/webdavSync/domain/types.ts`
-  - [x] 建立 `features/webdavSync/domain/paths.ts`
-  - [x] 建立 `features/webdavSync/infrastructure/webdavClient.ts`
-  - [x] 建立 `features/webdavSync/infrastructure/propfindParser.ts`
-  - [x] 建立 `features/webdavSync/application/clientIdentity.ts`
-  - [x] 建立 `features/webdavSync/application/clientRegistry.ts`
-  - [x] `background/webdav.ts` 继续保留 router 入口，内部逐步改用新模块
-- [x] 第三十批迁移：WebDAV 备份上传链路拆分
-  - [x] 建立 `features/webdavSync/application/backupCollector.ts`
-  - [x] 建立 `features/webdavSync/application/uploadIndex.ts`
-  - [x] 建立 `features/webdavSync/application/uploadService.ts`
-  - [x] 建立 `features/webdavSync/application/cleanupService.ts`
-  - [x] 迁移备份数据采集、zip/json 生成、上传与保留数量清理
-  - [x] 保持手动备份、自动备份、上传索引和设备档案行为一致
-- [x] 第三十一批迁移：WebDAV 恢复与诊断链路拆分
-  - [x] 建立 `features/webdavSync/application/restorePreview.ts`
-  - [x] 建立 `features/webdavSync/application/restoreService.ts`
-  - [x] 建立 `features/webdavSync/application/restoreStorage.ts`
-  - [x] 建立 `features/webdavSync/application/importSanitizer.ts`
-  - [x] 建立 `features/webdavSync/application/diagnostics.ts`
-  - [x] 建立 `features/webdavSync/background/router.ts`
-  - [x] 迁移备份预览、恢复设置、恢复记录、恢复日志、恢复 IDB 数据逻辑
-  - [x] 拆出恢复集合归一化、store 清空和批量写入工具
-  - [x] `background/webdav.ts` 收缩为 `features/webdavSync` 兼容导出
-- [x] 第三十二批迁移：番号详情刷新功能域
-  - [x] 为 `background/sync.ts` 增加刷新流程和解析器测试
-  - [x] 建立 `features/records/refresh`
-  - [x] 迁移 JavDB 搜索页解析、详情页解析、Cloudflare 验证请求、FC2 刷新逻辑
-  - [x] `background/sync.ts` 保留 re-export 兼容
-  - [x] `background/dbRouter.ts` 和 WebDAV 恢复链路已复核无直接刷新调用，刷新消息入口改用 `features/records/refresh`
-- [x] 第三十三批迁移：`src/utils` 继续瘦身
-  - [x] 迁移 `utils/searchEngines.ts` 到 `features/externalSearch/domain`
-  - [x] 迁移 `utils/net.ts` 到 `platform/network`
-  - [x] 迁移 `utils/ipLookup.ts` 到 `platform/network`
-  - [x] 迁移 `utils/webdavDiagnostic.ts` 到 `features/webdavSync/application`
-  - [x] 评估 `utils/config.ts` 拆分为 `shared/config` 与各 feature config，本批先保持稳定，后续作为独立配置拆分批次处理
-  - [x] 旧 `utils/*` 路径保留兼容导出一轮
-- [x] 第三十四批迁移：Content 功能域继续瘦身
-  - [x] 修复 `tests/dom/previewVideoPreload.test.ts` 当前失败断言，恢复释放后重新激活 `<source>` 的行为
-  - [x] 迁移 `content/previewVideoPreload.ts`、`nativeJavdbPreview.ts`、`previewSourceRules.ts` 到 `features/previews`
-  - [x] 迁移 `content/superRankingNav.ts` 到 `features/rankings`
-  - [x] 评估 `content/contentFilter.ts`：当前 1144 行且与 orchestrator、快捷键、设置和列表状态强耦合，拆成后续独立批次
-  - [x] 评估 `content/enhancements/*`：`listEnhancement` 2198 行、`actorEnhancement` 1176 行、`actorQuickActions` 696 行，按列表增强/演员增强拆成后续独立批次
-  - [x] 保留 `content/*` 旧路径兼容导出，`apps/content/bootstrap.ts` 已改用 `features/previews` 与 `features/rankings`
-- [x] 第三十五批迁移：Content 复杂增强拆分
-  - [x] 迁移 `content/contentFilter.ts` 到 `features/contentFilter`
-  - [x] 迁移 `content/enhancements/listEnhancement.ts` 到 `features/listEnhancement`
-  - [x] 迁移 `content/enhancements/actorEnhancement.ts` 到 `features/actorEnhancement`
-  - [x] 迁移 `content/enhancements/actorQuickActions.ts` 到 `features/actorEnhancement`
-  - [x] 继续收缩 `apps/content/bootstrap.ts`，保留装配职责
-- [x] 第三十六批迁移：Background 杂项路由拆分
-  - [x] 迁移预览 URL 检测与预览源抓取 handler 到 `features/previews/backgroundHandlers.ts`
-  - [x] 迁移新作品手动检查、单演员检查、取消与调度状态消息到 `features/newWorks/backgroundMessages.ts`
-  - [x] 迁移 orchestrator 指标保存、聚合、任务明细与停止任务逻辑到 `apps/background/orchestratorMetrics.ts`
-  - [x] 迁移 Emby 动态内容脚本注入到 `apps/background/embyDynamicContentScripts.ts`
-  - [x] 拆出 `apps/background/tabMessageHandlers.ts`
-  - [x] 拆出 `apps/background/networkMessageHandlers.ts`
-  - [x] 拆出 `apps/background/userProfileMessageHandler.ts`
-  - [x] 拆出 `apps/background/utilityMessageHandlers.ts`
-  - [x] 收缩 `background/miscHandlers.ts` 为消息路由和少量共享 handler
-  - [x] 补充 `tests/extension/backgroundTabHandlers.test.ts`
-  - [x] 补充 network/userProfile/utility handler 单测
-- [x] 第三十七批迁移：Background DB 路由收口
-  - [x] 迁移 `background/dbRouter.ts` 到 `apps/background/dbMessageRouter.ts`
-  - [x] `apps/background/bootstrap.ts` 改用新 DB 路由入口
-  - [x] 旧 `background/dbRouter.ts` 保留兼容导出
-  - [x] 拆出 `apps/background/dbTagsMessageHandlers.ts`
-  - [x] 拆出 `apps/background/dbMagnetPushLogMessageHandlers.ts`
-  - [x] 拆出 `apps/background/dbInsightsMessageHandlers.ts`
-  - [x] 拆出 `apps/background/dbLogMessageHandlers.ts`
-  - [x] 补充 `DB:GET_ALL_TAGS` 与旧 storage 分片读取测试
-  - [x] 补充 `DB:MAGNET_PUSH_LOGS_*` handler 单测
-  - [x] 补充 `DB:INSIGHTS_*` 与 `DB:TRENDS_*` handler 单测
-  - [x] 补充 `DB:LOGS_*` handler 单测
-- [x] 第三十八批迁移：Background scheduler 收口
-  - [x] 迁移 `background/scheduler.ts` 到 `apps/background/scheduler.ts`
-  - [x] `apps/background/alarmRouter.ts` 改用新 scheduler 路径
-  - [x] WebDAV 自动同步 alarm 常量调用改用新路径
-  - [x] 旧 `background/scheduler.ts` 保留兼容导出
-- [x] 第三十九批迁移：115 v2 后台代理归位
-  - [x] 迁移 `background/drive115Proxy.ts` 到 `features/drive115/v2/backgroundProxy.ts`
-  - [x] `apps/background/bootstrap.ts` 改用 115 feature 路径
-  - [x] 旧 `background/drive115Proxy.ts` 保留兼容导出
-- [x] 第四十批迁移：WebDAV 后台 controller 收口
-  - [x] 迁移 `background/webdav.ts` 的后台装配逻辑到 `features/webdavSync/background/controller.ts`
-  - [x] `apps/background/bootstrap.ts` 改用 WebDAV feature controller
-  - [x] `apps/background/scheduler.ts` 的自动同步入口改用 WebDAV feature controller
-  - [x] 旧 `background/webdav.ts` 保留兼容导出
-- [x] 第四十一批迁移：Background misc message router 收口
-  - [x] 迁移 `background/miscHandlers.ts` 到 `apps/background/miscMessageRouter.ts`
-  - [x] `apps/background/bootstrap.ts` 改用本地 misc message router
-  - [x] 旧 `background/miscHandlers.ts` 保留兼容导出
-- [x] 第四十二批迁移：Storage migrations 收口
-  - [x] 迁移 `background/migrations.ts` 到 `platform/storage/migrations.ts`
-  - [x] `apps/background/bootstrap.ts` 改用 storage platform migrations
-  - [x] `platform/storage/index.ts` 暴露 migrations 入口
-  - [x] 旧 `background/migrations.ts` 保留兼容导出
-- [x] 第四十三批迁移：Background 测试文件与 IndexedDB 存储拆分
-  - [x] 迁移 `src/background/db.logs.test.ts` 到 `tests/regression/logRetentionSettings.test.ts`
-  - [x] 增加架构回归约束：`src/background` 不放测试文件
-  - [x] 拆出 `platform/storage/indexedDbSchema.ts`
-  - [x] 拆出 `platform/storage/indexedDbConnection.ts`
-  - [x] 拆出 `platform/storage/indexedDbLogFields.ts`
-  - [x] 拆出 `platform/storage/indexedDbViewedIndexes.ts`
-  - [x] `platform/storage/indexedDb.ts` 保持稳定 API facade
-- [x] 第四十四批迁移：磁力结果 metadata 纯逻辑拆分
-  - [x] 拆出 `features/magnets/application/resultMetadata.ts`
-  - [x] 迁移磁力大小解析、字幕识别、画质识别、破解识别、日期归一化、番号匹配和排序逻辑
-  - [x] `features/magnets/ui/magnetSearchManager.ts` 保持 UI 编排与 DOM 渲染职责
-  - [x] `features/magnets/index.ts` 暴露 result metadata 稳定入口
-  - [x] 补充 `tests/dom/magnetResultMetadata.test.ts`
-- [x] 第四十五批迁移：列表增强配置、热度和样式拆分
-  - [x] 拆出 `features/listEnhancement/domain/config.ts`
-  - [x] 拆出 `features/listEnhancement/application/actorMatching.ts`
-  - [x] 拆出 `features/listEnhancement/application/actorHiding.ts`
-  - [x] 拆出 `features/listEnhancement/application/actorHidingWorkflow.ts`
-  - [x] 拆出 `features/listEnhancement/application/actorWatermark.ts`
-  - [x] 拆出 `features/listEnhancement/application/popularityEffects.ts`
-  - [x] 拆出 `features/listEnhancement/application/scrollPaging.ts`
-  - [x] 拆出 `features/listEnhancement/ui/clickEnhancement.ts`
-  - [x] 拆出 `features/listEnhancement/ui/listItemObserver.ts`
-  - [x] 拆出 `features/listEnhancement/ui/listItemDom.ts`
-  - [x] 拆出 `features/listEnhancement/ui/listScrollState.ts`
-  - [x] 拆出 `features/listEnhancement/ui/listDisplayControl.ts`
-  - [x] 拆出 `features/listEnhancement/ui/previewHoverController.ts`
-  - [x] 拆出 `features/listEnhancement/ui/styles.ts`
-  - [x] 拆出 `features/previews/listPreviewLoader.ts`
-  - [x] `features/listEnhancement/listEnhancementManager.ts` 保持列表增强 DOM 编排和生命周期职责
-  - [x] `features/listEnhancement/index.ts` 暴露配置、演员匹配、演员隐藏决策、演员隐藏执行流程、演员水印、热度效果、滚动翻页、点击增强、列表项 DOM、列表项观察、滚动状态、列表显示控制、预览 hover 控制和样式入口
-  - [x] `features/previews/index.ts` 暴露预览加载入口
-  - [x] 补充 `tests/dom/listEnhancementHelpers.test.ts`
-  - [x] 补充 `tests/dom/actorWatermark.test.ts`
-  - [x] 补充 `tests/dom/actorHidingWorkflow.test.ts`
-  - [x] 补充 `tests/dom/listScrollPaging.test.ts`
-  - [x] 补充 `tests/dom/listClickEnhancement.test.ts`
-  - [x] 补充 `tests/dom/listItemObserver.test.ts`
-  - [x] 补充 `tests/dom/listItemDom.test.ts`
-  - [x] 补充 `tests/dom/listScrollState.test.ts`
-  - [x] 补充 `tests/dom/listDisplayControl.test.ts`
-  - [x] 补充 `tests/dom/listPreviewHoverController.test.ts`
-- [ ] 第四十六批迁移：文件夹框架遗漏收口
-  - [x] 审计旧目录真实实现残留，确认重点集中在 `src/content`、`src/utils`、`src/dashboard`
-  - [x] Content 任务运行时归位
-    - [x] 迁移 `content/pageContext.ts` 到 `platform/browser/pageContext.ts`
-    - [x] 迁移 `content/taskRuntime.ts` 到 `platform/tasks/contentRuntime.ts`
-    - [x] 迁移 `content/taskDetailReporter.ts` 到 `platform/tasks/contentTaskDetailReporter.ts`
-    - [x] 迁移 `content/taskHeartbeat.ts` 到 `platform/tasks/taskHeartbeatReporter.ts`
-    - [x] 迁移 `content/taskVisibilityReporter.ts` 到 `platform/tasks/taskVisibilityReporter.ts`
-    - [x] `content/taskChunking.ts` 保持 thin wrapper，调用方改用 `platform/tasks/chunking.ts`
-    - [x] 迁移 `content/performanceOptimizer.ts` 到 `platform/tasks/performanceOptimizer.ts`
-    - [x] 迁移 `content/itemProcessor.ts` 到 `features/listEnhancement/content/itemProcessor.ts`
-    - [x] 详情页和列表增强调用方改用 `features/listEnhancement/content` 入口
-    - [x] 迁移 `content/state.ts` 到 `features/contentState`
-    - [x] 内容脚本共享状态调用方改用 `features/contentState` 入口
-    - [x] apps/features 调用方改用 `platform/tasks` 与 `platform/browser`
-    - [x] 补充架构回归约束，防止基础设施继续回流到 `src/content`
-  - [ ] Content 页面装配与大型增强继续拆分
-    - [x] 迁移 `content/initOrchestrator.ts` 到 `apps/content/orchestrator`
-    - [x] 拆分 `apps/content/orchestrator/initOrchestrator.ts` 内部调度、依赖重试、页面生命周期和 metrics 上报逻辑
-      - [x] 拆出 `types.ts` 保存 orchestrator 类型和默认可见性策略
-      - [x] 拆出 `hardwareConcurrency.ts` 保存硬件并发决策
-      - [x] 拆出 `metrics.ts` 保存性能指标状态与统计逻辑
-      - [x] 拆出 `schedulingRules.ts` 保存任务 key、重试延迟、依赖分组、优先级排序等纯调度规则
-      - [x] 拆出 `retryTimers.ts` 保存重试定时器去重、取消和批量清理逻辑
-      - [x] 拆出 `highPhaseScheduler.ts` 保存 high 阶段优先级、依赖等待、并发限制和死锁兜底执行逻辑
-      - [x] 拆出 `pageLifecycleBindings.ts` 保存页面卸载、生命周期取消和 unload metrics 保存绑定
-      - [x] 拆出 `dashboardMetricsMessages.ts` 保存 Dashboard metrics 查询与重置消息监听
-      - [x] 拆出任务调度/依赖重试逻辑
-      - [x] 拆出页面生命周期和 Dashboard metrics 消息监听逻辑
-    - [x] 迁移 `content/javbusTabFetch.ts` 到 `platform/browser/javbusRuntimeClient.ts`
-    - [x] 磁力 JAVBUS fallback 改用 platform runtime client
-    - [x] 旧 `content/javbusTabFetch.ts` 保留兼容导出
-    - [x] 迁移 `content/insightsCollector.ts` 到 `features/insights/contentCollector.ts`
-    - [x] `apps/content/bootstrap.ts` 改用 `features/insights` 入口
-    - [x] 旧 `content/insightsCollector.ts` 保留兼容导出
-    - [x] 迁移 `content/dbClient.ts` 到 `platform/storage/dbRuntimeClient.ts`
-    - [x] 115/FC2/磁力/并发存储调用方改用 platform DB runtime client
-    - [x] 旧 `content/dbClient.ts` 保留兼容导出
-    - [x] 迁移 `content/toast.ts` 到 `platform/browser/toast.ts`
-    - [x] 迁移 `content/utils.ts` 的 DOM/主题/favicon 工具到 `platform/browser/domUtils.ts`
-    - [x] 迁移 `content/utils.ts` 的任务超时守卫到 `platform/tasks/taskTimeoutGuard.ts`
-    - [x] 迁移 `content/enhancementLoadingIndicator.ts` 到 `platform/browser/enhancementLoadingIndicator.ts`
-    - [x] 迁移 `content/videoFavoriteRating.ts` 到 `features/videoDetail/favoriteRating.ts`
-    - [x] 业务调用方改用 `platform/browser`、`platform/tasks` 和 `features/videoDetail` 稳定入口
-    - [x] 旧 `content/toast.ts`、`content/utils.ts`、`content/enhancementLoadingIndicator.ts`、`content/videoFavoriteRating.ts` 保留兼容导出
-    - [x] 迁移 `content/videoDetail.ts` 到 `features/videoDetail/pageHandler.ts`
-    - [x] 迁移 `content/enhancedVideoDetail.ts` 到 `features/videoDetail/enhancer.ts`
-    - [x] `apps/content`、Dashboard orchestrator 设计页和详情页 DOM 测试改用 `features/videoDetail`
-    - [x] 旧 `content/videoDetail.ts` 与 `content/enhancedVideoDetail.ts` 保留兼容导出
-    - [x] 迁移 `content/drive115.ts` 到 `features/drive115/content`
-    - [x] 迁移 `content/drive115.test.ts` 到 `features/drive115/content`
-    - [x] 迁移 `content/keyboardShortcuts.ts` 到 `features/keyboardShortcuts`
-    - [x] 迁移 `content/privacy/*` 到 `features/privacy/content`
-    - [x] 迁移 `content/export.ts` 到 `features/pageExport/content`
-    - [x] 页面导出功能改用 `features/privacy` 服务入口
-    - [x] 旧 `content/privacy/*` 保留兼容导出
-    - [x] 旧 `content/export.ts` 保留兼容导出
-    - [x] `content/detailSearchLinks.ts` 调用方改用 `features/externalSearch` 稳定入口
-    - [x] 迁移 `content/homeInsightsWidget.ts` 到 `features/insights/ui`
-    - [x] 迁移 `content/videoId.ts` 的页面提取逻辑到 `platform/browser/videoId.ts`
-    - [x] 详情页、磁力、115、在线可看、状态和 insights 调用方改用 `platform/browser`
-    - [x] 迁移 `content/passwordHelper.ts` 到 `features/passwordHelper/content`
-    - [x] 主内容脚本改用 `features/passwordHelper/content`，standalone manifest 入口保持稳定
-    - [x] 迁移 `content/anchorOptimization.ts` 到 `features/anchorOptimization/content`
-    - [x] 主内容脚本和锚点优化 DOM 测试改用 feature 入口
-    - [x] 迁移 `content/coverEnhancement.ts` 到 `features/coverEnhancement/content`
-    - [x] 迁移 `content/embyEnhancement.ts` 到 `features/embyEnhancement/content`
-    - [x] 主内容脚本、消息路由和生命周期清理改用 Emby feature 入口
-    - [x] 迁移 `content/concurrency.ts` 到 `features/records/content/concurrency.ts`
-    - [x] 迁移 `content/concurrencyTest.ts` 到 `features/records/content/concurrencyTest.ts`
-    - [x] 详情页记录写入和处理队列改用 `features/records/content` 入口
-    - [x] 旧 `content/concurrency.ts` 与 `content/concurrencyTest.ts` 保留兼容导出
-  - [ ] Utils 基础能力归位
-    - [x] 迁移 `utils/codeParser.ts` 到 `shared/utils/codeParser.ts`
-    - [x] 迁移 `utils/md5.ts` 到 `shared/utils/md5.ts`
-    - [x] 迁移 `utils/tagFilter.ts` 到 `shared/utils/tagFilter.ts`
-    - [x] 迁移 `utils/versionInfo.ts` 到 `shared/utils/versionInfo.ts`
-    - [x] 迁移 `content/videoId.ts` 的纯解析逻辑到 `shared/utils/videoId.ts`
-    - [x] `codeParser` 和 `versionInfo` 行为测试迁入 `shared/utils`
-    - [x] 为 `shared/utils/videoId.ts` 补充纯解析单元测试
-    - [x] 修复 `codeParser` 便捷函数独立调用时的 static `this` 绑定问题
-    - [x] 旧 `utils/codeParser.ts`、`utils/md5.ts`、`utils/tagFilter.ts`、`utils/versionInfo.ts` 保留兼容导出
-    - [x] 迁移 `utils/statusPriority.test.ts` 到 `features/videoStatus/statusPriority.test.ts`
-    - [x] 架构回归约束 `src/utils` 不再承载 feature 测试文件
-    - [x] 迁移 `utils/consoleProxy.ts` 到 `platform/logging/consoleProxy.ts`
-    - [x] Content、Dashboard、Background console 装配改用 `platform/logging/consoleProxy`
-    - [x] 旧 `utils/consoleProxy.ts` 保留兼容导出
-    - [x] 迁移 `utils/routeManager.ts` 到 `features/routeManagement`
-    - [x] Background 自动线路更新、Dashboard 网络测试、演员页、新作品采集和数据同步调用方改用 `features/routeManagement`
-    - [x] 旧 `utils/routeManager.ts` 保留兼容导出
-    - [x] 迁移 `utils/dataDiff.ts`、`utils/dataMerge.ts`、`utils/mergeKeyedMap.ts` 到 `features/webdavSync/application`
-    - [x] Dashboard WebDAV 恢复页改用 feature 内部恢复差异/合并工具
-    - [x] 旧 `utils/dataDiff.ts`、`utils/dataMerge.ts`、`utils/mergeKeyedMap.ts` 保留兼容导出
-    - [x] 迁移 `utils/cache.ts` 到 `platform/storage/cache.ts`
-    - [x] DataAggregator 和演员头像组件改用 `platform/storage/cache`
-    - [x] 旧 `utils/cache.ts` 保留兼容导出
-    - [x] 迁移 `utils/domainConfig.ts` 到 `features/networkTest/domain/domainConfig.ts`
-    - [x] 网络测试设置页改用 `features/networkTest` 稳定入口
-    - [x] 旧 `utils/domainConfig.ts` 保留兼容导出
-    - [ ] 评估 `utils/config.ts` 拆为 `shared/config` 与 feature config
-    - [ ] 旧 `utils/*` 路径逐步收缩为兼容导出
-  - [ ] Dashboard 大页拆分计划
-    - [ ] 拆分 `dashboard/tabs/records.ts`
-      - [x] 第一批：抽出搜索 token 解析、筛选 token 移除、高级条件判断和搜索结果计数模型
-        - [x] 新增 `dashboard/tabs/records/searchQueryModel.ts`
-        - [x] 新增 `dashboard/tabs/records/advancedConditionModel.ts`
-        - [x] 新增 `dashboard/tabs/records/searchResultSummaryModel.ts`
-        - [x] 补充 11 个单元测试覆盖搜索语法、高级条件和结果计数
-      - [x] 第二批：抽出标签/清单/系列/番号筛选器 DOM controller
-        - [x] 抽出通用 `dashboard/tabs/records/multiSelectFilterController.ts`
-        - [x] 标签筛选器改用 controller 管理收集、渲染、已选显示、输入文案
-        - [x] 清单筛选器改用 controller 管理清单元数据、来源 badge、已选显示、删除联动
-        - [x] 系列/番号筛选器改用 controller 管理匹配、已选显示、搜索 token 删除联动
-        - [x] 补充 DOM 测试覆盖打开、选择、过滤、删除和 token 回调
-      - [ ] 第三批：抽出分页、批量操作和记录行/card 渲染 controller
-        - [x] 拆出分页模型：总页数、页码窗口、上一页/下一页状态
-        - [x] 拆出记录行/card 展示模型：评分、标签、清单、时间、基础 HTML
-        - [x] 拆出记录行/card DOM controller：封面懒加载、tooltip、操作按钮和事件绑定
-          - [x] 抽出图片 tooltip controller：加载态、失败态、边缘避让定位、mousemove 清理
-          - [x] 抽出封面 DOM controller：封面节点创建、fallback、懒加载 observer 注册
-          - [x] 抽出操作按钮 controller：收藏、编辑、刷新、删除、添加到清单
-          - [x] 抽出搜索图标 controller：外部搜索入口、无效配置跳过、图标 fallback
-          - [x] 抽出记录项 DOM controller：列表/卡片布局、行选择、标签/清单筛选点击、封面观察注册
-          - [x] 抽出单条记录动作 controller：收藏、编辑、刷新、删除确认和本地记录更新
-          - [x] 抽出编辑弹窗 controller：表单/JSON 双向同步、半星评分、字段锁、保存回调
-          - [x] 抽出清单浮层 controller：单条添加、批量修改清单入口
-        - [x] 补充记录项 DOM 测试覆盖列表/卡片布局、行选择、标签/清单点击和封面懒加载
-        - [x] 补充编辑弹窗 DOM 测试覆盖必填校验、保存回调、关闭和字段锁同步
-        - [x] 拆出批量操作 controller：批量刷新/删除/加标签
-          - [x] 抽出批量选择 controller：选择状态、全选、当前页三态
-          - [x] 抽出批量添加标签 controller：弹窗、输入解析、空值提示
-          - [x] 抽出批量刷新/删除 controller：确认弹窗、刷新进度、删除回调
-          - [x] 抽出共享进度弹窗 controller：批量刷新和导出复用
-        - [x] 抽出导出 controller：格式选择弹窗、JSON/CSV 生成、文件下载
-        - [ ] 保持 `records.ts` 只负责查询、组合 controller 和调度 render
-          - [x] 继续拆出单条收藏/刷新/删除业务动作，减少 render 回调体积
-          - [x] 抽出搜索建议 controller：tag/list/series/label token 提示、键盘选择、点击应用
-          - [x] 抽出高级条件 UI controller：条件行创建、UI 解析、删除条件、快捷时间预览和新增
-          - [x] 抽出统计卡片 controller：统计渲染、服务端统计映射、卡片筛选、高级条件联动
-          - [x] 抽出封面运行时 controller：tooltip 容器、封面懒加载 observer、失败 fallback
-          - [x] 抽出清单元数据 controller：清单/系列/番号 map 填充、并发加载去重、加载后刷新触发
-          - [x] 抽出筛选下拉遮罩 controller：backdrop 创建、定位、关闭和显示同步
-          - [x] 抽出批量标签 service：标签去重、锁定字段、DB 保存、成功失败计数
-          - [x] 抽出查询参数模型：排序解析、复杂查询判定、list 名称解析、导出/分页查询参数构建
-          - [x] 抽出本地筛选模型：文本/状态/标签/清单/系列/番号/收藏/高级条件过滤和排序
-          - [x] 抽出列表渲染器：空态、分页切片、封面 observer、逐条记录渲染错误隔离
-          - [x] 抽出清单浮层 runtime：lazy controller、关闭、单条/批量清单变更执行和本地同步
-          - [x] 抽出分页 DOM controller：分页按钮渲染、active/disabled 状态和翻页回调
-          - [x] 抽出顶部工具栏 controller：封面开关、列表/卡片切换、收藏筛选和设置持久化
-          - [x] 抽出搜索 token 选择同步模型：标签、清单、系列、番号 token 与手动筛选合并
-          - [x] 抽出批量工具条 controller：全选、操作下拉、刷新/删除/清单/加标签入口绑定
-          - [x] 抽出搜索结果计数 controller：条件摘要、结果数量和查询耗时显示
-          - [x] 抽出导出数据 provider 与服务端分页 provider：查询分支、进度弹窗、导出输入构建
-          - [x] 抽出本地筛选 updater：搜索 token 同步、筛选器刷新、本地过滤和异常兜底
-          - [x] 抽出筛选器装配工厂：标签、清单、系列、番号四组 controller 配置与 token 删除联动
-          - [x] 抽出渲染协调器：本地/服务端分支、加载态和统计刷新调度
-          - [x] 抽出页面生命周期 controller：事件绑定顺序、闭包状态更新、分页设置持久化和初始化调度
-          - [x] 抽出高级搜索折叠委托绑定：全局 click 捕获、防重复绑定和面板显示切换
-          - [x] 抽出页面元素收集模块：DOM 查询集中管理、未标记状态选项兜底和初始化依赖整理
-          - [x] 抽出列表视图 controller：列表渲染参数装配、记录项创建依赖、标签/清单筛选切换和操作回调透传
-          - [x] 抽出分页 runtime：总数来源选择、页码边界校验和翻页重渲染调度
-          - [x] 抽出导出 runtime：本地/服务端导出数据来源、查询状态透传和导出按钮处理委托
-          - [x] 抽出批量加标签 runtime：可见/存储记录读取、成功失败提示和重渲染调度
-          - [x] 抽出查询 runtime：IDB 使用判断、排序解析、服务端分页加载状态和失败提示
-          - [x] 抽出状态刷新 controller：页码重置、筛选刷新、渲染和批量 UI 更新顺序
-          - [x] 抽出编辑保存 service：重复 ID 校验、改 ID 删除旧记录、内存记录替换和提示结果
-          - [x] 抽出本地筛选 runtime：页面输入、token 状态写回、筛选器刷新和异常兜底装配
-          - [x] 修正 token-backed 筛选器读取：支持动态 token Set getter，避免搜索 token 更新后删除判断读旧引用
-          - [x] 抽出单条记录动作 runtime：编辑弹窗、编辑保存 service 和 item actions controller 统一装配
-          - [x] 抽出批量操作 runtime：清单浮层、批量加标签、批量刷新/删除和批量工具条统一装配
-          - [x] 抽出筛选 runtime：四组筛选器、下拉遮罩、本地筛选和 token Set 写回统一装配
-          - [x] 抽出列表视图 runtime：列表渲染、分页和导出运行时统一装配
-          - [x] 抽出生命周期 runtime：页面元素到生命周期 controller 的入参组装和事件绑定入口收口
-      - [ ] 第四批：收口 `records.ts` 为页面装配层
-    - [x] 拆分 `dashboard/webdavRestore.ts`
-      - [x] 拆出旧备份格式识别与迁移：`features/webdavSync/application/backupMigration.ts`
-      - [x] 拆出恢复文件列表展示模型：`dashboard/webdavRestore/fileListModel.ts`
-      - [x] 拆出恢复内容选项配置模型：`dashboard/webdavRestore/restoreOptionsModel.ts`
-      - [x] 拆出冲突弹窗运行时控制器：`dashboard/webdavRestore/conflictController.ts`
-      - [x] 拆出冲突当前项显示状态模型：`dashboard/webdavRestore/conflictDisplayModel.ts`
-      - [x] 拆出冲突详情展示模型：`dashboard/webdavRestore/conflictDetailModel.ts`
-      - [x] 拆出冲突版本内容 HTML 模型：`dashboard/webdavRestore/conflictDetailModel.ts`
-      - [x] 拆出冲突导航状态模型：`dashboard/webdavRestore/conflictNavigationModel.ts`
-      - [x] 将冲突进度条样式状态收拢到 `dashboard/webdavRestore/conflictNavigationModel.ts`
-      - [x] 拆出恢复结果列表和结果页展示模型：`dashboard/webdavRestore/restoreResultsModel.ts`
-      - [x] 拆出恢复结果页容器规格模型：`dashboard/webdavRestore/restoreResultsModel.ts`
-      - [x] 拆出恢复结果页 UI 状态模型：`dashboard/webdavRestore/restoreResultsModel.ts`
-      - [x] 拆出向导策略预览模型：`dashboard/webdavRestore/strategyPreviewModel.ts`
-      - [x] 拆出向导确认摘要模型：`dashboard/webdavRestore/restoreConfirmationModel.ts`
-      - [x] 拆出向导步骤与导航状态模型：`dashboard/webdavRestore/restoreWizardStateModel.ts`
-      - [x] 拆出覆盖式恢复二次确认模型：`dashboard/webdavRestore/restoreExecuteConfirmModel.ts`
-      - [x] 拆出覆盖式恢复类别选择模型：`dashboard/webdavRestore/restoreExecuteConfirmModel.ts`
-      - [x] 拆出智能合并结果摘要模型：`dashboard/webdavRestore/operationSummaryModel.ts`
-      - [x] 拆出智能合并结果摘要 HTML 和结果弹窗显隐状态：`dashboard/webdavRestore/operationSummaryModel.ts`
-      - [x] 拆出云端备份预览统计模型：`dashboard/webdavRestore/previewStatsModel.ts`
-      - [x] 拆出恢复模式统计模型：`dashboard/webdavRestore/restoreModeStatsModel.ts`
-      - [x] 拆出恢复模式切换状态和废弃专家预览清理规则：`dashboard/webdavRestore/restoreModeUiModel.ts`
-      - [x] 拆出快捷恢复确认模型：`dashboard/webdavRestore/quickRestoreModel.ts`
-      - [x] 拆出设置差异弹窗展示和开关动画状态模型：`dashboard/webdavRestore/settingsDifferenceModel.ts`
-      - [x] 拆出恢复进度展示、容器规格和进度页显隐状态模型：`dashboard/webdavRestore/restoreProgressModel.ts`
-      - [x] 拆出恢复前备份 key 选择、下载文件名和旧备份清理选择模型：`dashboard/webdavRestore/restoreBackupModel.ts`
-      - [x] 拆出恢复/回滚写入计划和演员记录清洗模型：`dashboard/webdavRestore/restoreApplyPlanModel.ts`
-      - [x] 拆出恢复弹窗重置与分析加载 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
-      - [x] 拆出云端预览加载与进入预览 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
-      - [x] 拆出分析完成后进入预览 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
-      - [x] 拆出恢复提交中和失败恢复按钮 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
-      - [x] 拆出文件列表加载、进入列表和选中文件 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
-      - [x] 拆出返回文件列表和错误展示 UI 状态模型：`dashboard/webdavRestore/restoreModalStateModel.ts`
-      - [x] 拆出恢复弹窗底部按钮规格模型：`dashboard/webdavRestore/restoreFooterModel.ts`
-      - [x] 拆出恢复结果弹窗运行时控制器：`dashboard/webdavRestore/restoreResultController.ts`
-      - [x] 拆出恢复进度页与内嵌恢复结果页运行时控制器：`dashboard/webdavRestore/restoreProgressResultsController.ts`
-      - [x] 拆出恢复模式、快捷恢复和向导流程运行时控制器：`dashboard/webdavRestore/restoreWizardController.ts`
-      - [x] 拆出智能合并应用、回滚和旧备份清理运行时控制器：`dashboard/webdavRestore/restoreApplyController.ts`
-      - [x] 拆出文件列表、下载按钮、云端预览和预览统计运行时控制器：`dashboard/webdavRestore/restoreFilePreviewController.ts`
-      - [x] 拆出差异分析、本地数据读取和分析预览进入状态运行时控制器：`dashboard/webdavRestore/restoreAnalysisController.ts`
-      - [x] 拆出恢复选项 DOM 渲染运行时控制器：`dashboard/webdavRestore/restoreOptionsController.ts`
-      - [x] 拆出覆盖式恢复执行入口运行时控制器：`dashboard/webdavRestore/restoreUnifiedExecutorController.ts`
-      - [x] 拆出恢复弹窗外壳和通用 DOM helper 运行时控制器：`dashboard/webdavRestore/restoreModalShellController.ts`
-      - [x] 拆出恢复结果页回退和完成按钮 UI 状态模型：`dashboard/webdavRestore/restoreResultsModel.ts`
-      - [x] 清理废弃专家差异分析残留和空实现
-      - [x] 为上述拆分点补充单元测试
-      - [x] 收尾压缩 `dashboard/webdavRestore.ts` 的兼容薄转发与装配顺序
-    - [x] 拆分 `dashboard/tabs/insights.ts`（优先）
-      - [x] 第一批：抽出报告预览/导出模型与纯工具，保持模块颗粒度适中
-        - [x] 抽出报告预览 HTML 模型：base 注入、预览主题、fallback 样式和 runtime 脚本补齐
-        - [x] 抽出报告导出模型：当前报告文件名、历史 JSON 文件名、Markdown 占位和历史月份选择
-      - [x] 第二批：抽出提示词与生成过程弹窗 runtime
-        - [x] 抽出提示词弹窗 runtime：按钮插入、人设显示、弹窗保存和 toast
-        - [x] 抽出生成过程弹窗 runtime：按钮插入、trace 渲染和空状态
-      - [x] 第三批：抽出报告生成流程和历史导出流程 runtime
-        - [x] 抽出报告导出 runtime：当前预览导出、已选历史导出、导出菜单和资产内联
-        - [x] 抽出报告生成流程 runtime：月份解析、数据聚合、AI 生成、预览状态回写
-          - [x] 抽出月份范围、上一周期和标题月份文案模型
-          - [x] 抽出统计聚合 runtime：views/compare/auto 回退、上一周期数据读取和 trace 记录
-          - [x] 抽出 AI 生成字段模型：报告字段、保存兜底字段和页面模型覆盖解析
-          - [x] 抽出视觉字段无副作用模块：Wrapped 指标、排行条、趋势图和变化卡片
-          - [x] 抽出历史月报列表模型：空状态、标题提取、日期展示、HTML 转义和预览按钮数据
-          - [x] 抽出预览状态回写 runtime：raw HTML 保存、iframe srcdoc、主题重刷、操作按钮和网格布局
-          - [x] 抽出示例预览字段模型：示例统计、排行行、Wrapped 可视字段和示例文案
-      - [x] 收尾：入口文件保留页面装配、状态协调和事件绑定
-        - [x] 抽出确认弹窗 runtime：覆盖提示、取消/确认返回值和旧 overlay 替换
-        - [x] 抽出模型下拉状态模型：选项构造、sessionStorage 恢复、自定义选择和输入覆盖值
-        - [x] 抽出模型下拉 runtime：控件插入、AI 模型刷新、页面覆盖状态和 sessionStorage 同步
-        - [x] 抽出预览操作区 runtime：复制 HTML、保存按钮状态、按钮定位和 resize 位置同步
-        - [x] 抽出加载与状态 runtime：生成遮罩、状态条、按钮禁用和 loading 样式注入
-        - [x] 抽出页面支持 runtime：iframe 高度、模板加载、分页读取和预览容器定位
-        - [x] 抽出报告生成 runtime：月份校验、覆盖确认、统计聚合、AI 生成和预览写入
-        - [x] 抽出已保存报告 runtime：保存月报、刷新历史、保留策略、JSON 导入导出和历史预览
-    - [x] 拆分 `dashboard/tabs/actors.ts`（第二优先级）
-      - [x] 先补单元测试覆盖订阅筛选、分页和统计卡片筛选关键路径
-      - [x] 抽出订阅演员筛选/排序/分页状态模型：`actors/queryModel.ts`
-      - [x] 抽出分页 HTML 与页码窗口模型：`actors/paginationModel.ts`
-      - [x] 抽出统计卡片筛选映射模型：`actors/statsFilterModel.ts`
-      - [x] 抽出演员卡片渲染模型：`actors/cardViewModel.ts`
-      - [x] 补单元测试覆盖编辑弹窗 HTML、表单同步和自动锁定关键路径
-      - [x] 抽出编辑弹窗 HTML 与表单模型：`actors/editModalModel.ts`
-      - [x] 补单元测试覆盖批量选择状态、确认文案和完成提示关键路径
-      - [x] 抽出批量选择与文案模型：`actors/batchOperationModel.ts`
-      - [x] 补 DOM 测试覆盖批量操作 DOM 状态关键路径
-      - [x] 抽出批量操作 runtime：`actors/batchOperationRuntime.ts`
-      - [x] 补 DOM 测试覆盖演员元数据刷新解析、清洗和合并关键路径
-      - [x] 抽出演员元数据刷新解析与合并模型：`actors/metadataRefreshModel.ts`
-      - [x] 补 DOM 测试覆盖演员卡片复制、操作按钮、刷新防重入和订阅切换关键路径
-      - [x] 抽出演员卡片事件 runtime：`actors/actorCardRuntime.ts`
-      - [x] 补 DOM 测试覆盖编辑弹窗生命周期、JSON/Form 同步、自动锁定和保存回调关键路径
-      - [x] 抽出演员编辑弹窗 runtime：`actors/actorEditModalRuntime.ts`
-      - [x] 补单元测试覆盖批量动作执行成功/失败计数、完成刷新和 toast 类型
-      - [x] 抽出批量动作执行 workflow：`actors/batchActionWorkflow.ts`
-      - [x] 补 DOM 测试覆盖演员名复制动画、Clipboard API、fallback 和失败恢复关键路径
-      - [x] 抽出演员名复制 runtime：`actors/actorClipboardRuntime.ts`
-      - [x] 补单元测试覆盖统计卡片 HTML 渲染
-      - [x] 补 DOM 测试覆盖统计卡片点击、筛选控件回填、active 状态和本周新增排序
-      - [x] 抽出演员统计视图模型与 runtime：`actors/statsViewModel.ts` / `actors/statsRuntime.ts`
-      - [x] 补 DOM 测试覆盖演员列表空状态、视图容器、头像背景、选中态和点击选择
-      - [x] 抽出演员列表渲染 runtime：`actors/actorListRuntime.ts`
-      - [x] 补 DOM 测试覆盖搜索 debounce、筛选/排序控件、视图切换动画和批量按钮绑定
-      - [x] 抽出演员控件事件绑定 runtime：`actors/actorControlsRuntime.ts`
-      - [x] 补 DOM 测试覆盖刷新元数据成功、演员缺失、页面请求失败和 Wiki 失败兜底
-      - [x] 抽出演员元数据刷新 workflow：`actors/metadataRefreshWorkflow.ts`
-      - [x] 补 DOM 测试覆盖演员别名展开/收起和溢出折叠判定
-      - [x] 抽出演员别名 DOM runtime：`actors/actorAliasRuntime.ts`
-      - [x] 补单元测试覆盖编辑入口、打开作品、删除确认、删除成功和失败提示
-      - [x] 抽出演员单体操作 workflow：`actors/actorSingleActionWorkflow.ts`
-      - [x] 收尾：`ActorsTab` 保留 tab 生命周期与 controller 装配
-    - [ ] 拆分 `dashboard/tabs/newWorks.ts`（第三优先级）
-      - [ ] 先补新作品列表、批量打开、刷新进度和订阅配置关键测试
-      - [x] 补单元测试覆盖新作品项 HTML、标签截断、空态、加载态、错误态和分页窗口
-      - [x] 抽出新作品列表视图模型：`newWorksListViewModel.ts`
-      - [x] 补 DOM 测试覆盖作品项选择、操作按钮路由、本页全选、清空选择和批量按钮状态
-      - [x] 抽出新作品列表 DOM runtime：`newWorksListRuntime.ts`
-      - [x] 补单元测试覆盖当前页未读批量打开的冷却、空目标、取消确认和成功打开标记已读
-      - [x] 抽出当前页未读批量打开 workflow：`newWorksBatchOpenWorkflow.ts`
-      - [x] 补单元测试覆盖已选批量打开的空选择、取消确认、当前页链接、服务 fallback 和成功打开
-      - [x] 抽出已选批量打开 workflow：`newWorksSelectedBatchWorkflow.ts`
-      - [x] 补 DOM 测试覆盖刷新进度 UI 创建、取消、复用、更新、完成态、延迟移除和后台消息监听
-      - [x] 抽出刷新进度 DOM runtime：`newWorksProgressRuntime.ts`
-      - [x] 补单元测试覆盖统计卡片 HTML 和管理订阅徽章
-      - [x] 补 DOM 测试覆盖统计卡片点击、筛选回填、active 状态和订阅管理入口
-      - [x] 抽出统计视图模型与 runtime：`newWorksStatsViewModel.ts` / `newWorksStatsRuntime.ts`
-      - [x] 补 DOM 测试覆盖上次检查时间文案、显隐状态和帮助 tooltip 生命周期
-      - [x] 抽出上次检查时间与帮助 tooltip runtime：`newWorksLastCheckTimeRuntime.ts` / `newWorksHelpTooltipRuntime.ts`
-      - [x] 补 DOM 测试覆盖搜索输入、筛选初始化、筛选切换和排序切换
-      - [x] 抽出筛选表单 runtime 与共享筛选类型：`newWorksFilterControlsRuntime.ts` / `newWorksFilterTypes.ts`
-      - [x] 补 DOM 测试覆盖顶部按钮、批量按钮和清理已读确认流程
-      - [x] 抽出按钮事件绑定 runtime：`newWorksButtonEventsRuntime.ts`
-      - [x] 补单元测试覆盖手动检查无活跃订阅、成功结果、取消错误提示和后台失败恢复
-      - [x] 抽出手动检查 workflow：`newWorksManualCheckWorkflow.ts`
-      - [x] 补单元测试覆盖同步状态成功详情、无更新和失败恢复
-      - [x] 抽出同步状态 workflow：`newWorksStatusSyncWorkflow.ts`
-      - [x] 补单元测试覆盖订阅管理弹窗 HTML 渲染
-      - [x] 补 DOM 测试覆盖订阅管理弹窗打开/关闭、搜索、添加演员入口、启用切换、单人检查和移除
-      - [x] 抽出订阅管理弹窗 view/runtime：`newWorksSubscriptionModalViewModel.ts` / `newWorksSubscriptionModalRuntime.ts`
-      - [x] 补单元测试覆盖单人订阅检查成功、无新增和后台失败恢复
-      - [x] 抽出单人订阅检查 workflow：`newWorksSingleSubscriptionCheckWorkflow.ts`
-      - [x] 补单元测试覆盖批量删除空选择、取消确认、成功删除和失败恢复
-      - [x] 抽出批量删除 workflow：`newWorksBatchDeleteWorkflow.ts`
-      - [x] 补单元测试覆盖全局配置取消、保存、调度器重启失败和保存失败
-      - [x] 抽出全局配置 workflow：`newWorksGlobalConfigWorkflow.ts`
-      - [x] 补单元测试覆盖添加订阅初始化、演员选择回调、添加失败和加载失败
-      - [x] 抽出添加订阅 workflow：`newWorksAddSubscriptionWorkflow.ts`
-      - [x] 补单元测试覆盖管理订阅入口有订阅、空订阅和加载失败
-      - [x] 抽出管理订阅入口 workflow：`newWorksManageSubscriptionsWorkflow.ts`
-      - [x] 补单元测试覆盖自动状态同步有更新、无更新和失败静默记录
-      - [x] 抽出自动状态同步 workflow：`newWorksAutoStatusSyncWorkflow.ts`
-      - [x] 补单元测试覆盖单项作品标记已读、访问后自动标记、删除确认和失败日志
-      - [x] 抽出单项作品操作 workflow：`newWorksItemActionsWorkflow.ts`
-      - [x] 补 DOM 测试覆盖新作品列表渲染成功、空态、缺失容器、加载失败和分页点击
-      - [x] 抽出新作品列表渲染 runtime：`newWorksListRuntime.ts`
-      - [x] 补 DOM 测试覆盖新作品统计渲染成功、缺失容器和加载失败
-      - [x] 抽出新作品统计渲染 runtime：`newWorksStatsRuntime.ts`
-      - [x] 补 DOM/单元测试覆盖已选批量打开按钮状态、当前页解析和远端查找
-      - [x] 抽出已选批量打开 runtime 与远端查找辅助：`newWorksSelectedBatchRuntime.ts` / `newWorksSelectedBatchWorkflow.ts`
-      - [x] 补 DOM 测试覆盖未读批量打开、同步状态、立即检查和批量删除按钮状态
-      - [x] 抽出新作品按钮状态 runtime：`newWorksButtonStateRuntime.ts`
-      - [ ] 抽出筛选状态和订阅操作 runtime
-      - [ ] 收尾：`NewWorksTab` 保留 tab 生命周期与 controller 装配
-    - [ ] 复核 `src/apps/background`（后置）
-      - [ ] 仅在单文件重新变大或路由职责膨胀时继续拆分
-    - [ ] 保持 `apps/dashboard/bootstrap.ts` 只做装配
-- [x] 清理旧目录和历史备份文件
-  - [x] 处理 `src/background/*.bak`
-  - [x] 处理 `src/background/background.ts.step*`
-  - [x] 确认无构建引用后移动到归档目录或删除
+- [ ] 配置能力拆分
+  - [ ] 当前 `src/utils/config.ts` 仍是集中式配置出口，且被 apps、features、dashboard 和 tests 直接引用
+  - [ ] 评估 `utils/config.ts` 拆为 `shared/config` 与各 feature config
+  - [ ] 让旧 `utils/*` 路径逐步收缩为兼容导出
+
+- [ ] Dashboard `newWorks.ts` 收口
+  - [ ] 抽出筛选状态、选择状态、冷却状态和订阅操作 runtime
+  - [ ] 收尾：`NewWorksTab` 保留 tab 生命周期与 controller 装配
+  - [ ] 复核批量打开、刷新进度、订阅配置、选择状态和按钮状态测试覆盖
+
+- [ ] `apps/dashboard/bootstrap.ts` 装配层收口
+  - [ ] 抽出主题初始化、console proxy 配置、隐私初始化、115 配额侧栏和版本信息侧栏
+  - [ ] 保持页面入口聚焦布局挂载、全局监听注册和 tab 初始化顺序
+
+- [ ] 旧兼容出口清理计划
+  - [ ] 按 release 稳定周期复核 `src/content`、`src/background`、`src/utils` 的 thin wrapper
+  - [ ] 确认调用方全部迁移后，再制定移除节奏
 
 ---
 
-## 🧲 磁力 / 资源
+## 磁力 / 资源
 
 - [ ] 多源磁力负缓存和失败退避（暂缓）
   - [ ] 记录 BTdig、JAVBUS 等失败状态和短期退避时间
@@ -831,7 +81,7 @@
 
 ---
 
-## 🎞️ 影片页 / 资源入口
+## 影片页 / 资源入口
 
 - [ ] 字幕预览入口评估
   - [ ] 评估迅雷字幕 `.srt` 预览收益
@@ -848,12 +98,14 @@
 
 ---
 
-## 🆕 新作品
-- [ ] 新作品的添加演员按钮，弹窗列出的列表添加标识，是不包含拉黑的演员
+## 新作品
+
+- [ ] 添加演员弹窗优化
+  - [ ] 弹窗列出的列表添加标识排除拉黑演员
 
 ---
 
-## ☁️ WebDAV 设置
+## WebDAV 设置
 
 - [ ] Alist URL 规范化提示
   - [ ] 检测常见 Alist `/dav/` 路径问题
@@ -861,18 +113,13 @@
 
 ---
 
-## 📝 日志设置
+## 日志设置
 
-- [ ] 检查所有功能增强时候有独立的标识
-
----
-
-## 🔄 数据同步
-
+- [ ] 检查所有功能增强是否具备独立标识
 
 ---
 
-## 🎬 番号库
+## 番号库
 
 - [ ] 状态筛选 UX 优化
   - [ ] 评估批量状态变更
@@ -886,7 +133,8 @@
 
 ## 演员库
 
-- [ ] 演员库新增演员更多信息（可通过增强功能的去wiki获取保存）
+- [ ] 演员库新增演员更多信息
+  - [ ] 可通过增强功能获取 Wiki 信息并保存
 - [ ] 优化列表视图和卡片视图的切换
 - [ ] 从 JavDB 收藏演员导入
   - [ ] 评估 JavDB 收藏演员数据来源
@@ -894,15 +142,7 @@
 
 ---
 
-## 📊 报告
-
-- [ ] 报告（Insights）设置 
-  配置报告生成所用的聚合参数，仅影响本地统计、AI 提示词输入。
-
-
----
-
-## 🎥 Emby
+## Emby
 
 - [ ] 功能优化
 - [ ] Emby/Jellyfin 入库状态

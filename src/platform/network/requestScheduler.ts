@@ -40,7 +40,7 @@ export class RequestScheduler {
 
   constructor(options: RequestSchedulerOptions = {}) {
     this.config = { ...this.config, ...options.config };
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? (((...args: Parameters<typeof fetch>) => globalThis.fetch(...args)) as typeof fetch);
     this.setTimeoutImpl = options.setTimeoutImpl ?? setTimeout;
     this.now = options.now ?? Date.now;
   }
