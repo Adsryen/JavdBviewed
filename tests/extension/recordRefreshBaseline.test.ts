@@ -1,4 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { STORAGE_KEYS } from '../../src/utils/config';
+import {
+  setChromeStorage,
+  setRuntimeMessageHandler,
+} from '../setup/chrome';
+
+const viewedPutMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../src/platform/storage/indexedDb', () => ({
+  viewedPut: viewedPutMock,
+}));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('record refresh baseline', () => {
   it('parses JavDB search result links from the refresh feature module', async () => {
@@ -67,5 +82,70 @@ describe('record refresh baseline', () => {
     expect(isFC2Video('FC2-4903984')).toBe(true);
     expect(isFC2Video('fc2ppv-4903984')).toBe(true);
     expect(isFC2Video('MKMP-577')).toBe(false);
+  });
+
+  it('persists refreshed migrated records to the IndexedDB viewed store', async () => {
+    const existingRecord = {
+      createdAt: 1754054380645,
+      id: 'ZEAA-087',
+      javdbImage: null,
+      javdbUrl: 'https://javdb.com/v/k46a5z',
+      releaseDate: null,
+      status: 'browsed',
+      tags: ['tampermonkey-import'],
+      title: 'ZEAA-087',
+      updatedAt: 1756311543641,
+    };
+
+    setChromeStorage({ [STORAGE_KEYS.IDB_MIGRATED]: true });
+    setRuntimeMessageHandler((message) => {
+      if (message.type === 'DB:VIEWED_GET_ALL') {
+        return { success: true, records: [existingRecord] };
+      }
+      if (message.type === 'DB:VIEWED_PUT') {
+        return { success: true };
+      }
+      return { success: true };
+    });
+
+    const fetchMock = vi.fn(async () => new Response(`
+      <html>
+        <head><title>ZEAA-087 Milk Title | JavDB</title></head>
+        <body>
+          <div class="panel-block">
+            <strong>日期:</strong>
+            <span class="value">2023-10-12</span>
+          </div>
+          <img class="video-cover" src="https://c0.jdbstatic.com/covers/k4/k46a5z.jpg" />
+          <div class="panel-block">
+            <strong>類別:</strong>
+            <span class="value">
+              <a href="/tags?c4=15">mature</a>
+              <a href="/tags?c5=100">milk</a>
+            </span>
+          </div>
+        </body>
+      </html>
+    `, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { refreshRecordById } = await import('../../src/features/records/refresh/application/recordRefresh');
+    const updated = await refreshRecordById('ZEAA-087');
+
+    expect(updated).toMatchObject({
+      id: 'ZEAA-087',
+      releaseDate: '2023-10-12',
+      javdbUrl: 'https://javdb.com/v/k46a5z',
+      javdbImage: 'https://c0.jdbstatic.com/covers/k4/k46a5z.jpg',
+      tags: ['mature', 'milk'],
+    });
+
+    expect(viewedPutMock).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'ZEAA-087',
+      releaseDate: '2023-10-12',
+      javdbUrl: 'https://javdb.com/v/k46a5z',
+      javdbImage: 'https://c0.jdbstatic.com/covers/k4/k46a5z.jpg',
+      tags: ['mature', 'milk'],
+    }));
   });
 });
