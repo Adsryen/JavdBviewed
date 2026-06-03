@@ -7,6 +7,7 @@ import {
 } from '../../externalSearch/domain/searchEngines';
 import { getValue } from '../../../utils/storage';
 import { bucketCount, countObjectKeys } from '../domain/buckets';
+import { buildTelemetryFeatures } from '../domain/featureCatalog';
 import type {
   TelemetryClientState,
   TelemetryErrorPayload,
@@ -51,7 +52,10 @@ export async function buildTelemetryPayload(input: BuildTelemetryPayloadInput): 
   const now = input.now || new Date();
   const runtime = input.runtime || getTelemetryRuntimeInfo();
   const settings = input.settings || {};
-  const metrics = await buildMetrics(settings);
+  const [metrics, newWorksConfig] = await Promise.all([
+    buildMetrics(settings),
+    getValue<Record<string, unknown>>(STORAGE_KEYS.NEW_WORKS_CONFIG, {}).catch(() => undefined),
+  ]);
   const sessionStartedAt = normalizeDate(input.state.sessionStartedAt, now);
   const installId = normalizeTelemetryId(input.state.installId) || 'unknown-device';
   const deviceId = normalizeTelemetryId(settings?.webdav?.clientId) || installId;
@@ -81,13 +85,7 @@ export async function buildTelemetryPayload(input: BuildTelemetryPayloadInput): 
       activeDurationSeconds: Math.max(0, Math.min(86400, Math.floor((now.getTime() - sessionStartedAt.getTime()) / 1000))),
       surface: 'background',
     },
-    features: {
-      webdavEnabled: !!settings?.webdav?.enabled,
-      drive115Enabled: !!settings?.drive115?.enabled,
-      aiEnabled: !!settings?.ai?.enabled,
-      remoteConfigEnabled: false,
-      ...buildFeatureFlags(settings),
-    },
+    features: buildTelemetryFeatures(settings, { newWorksConfig }),
     metrics,
     error: input.error,
     sentAt: now.toISOString(),
@@ -106,31 +104,6 @@ async function buildMetrics(settings: any): Promise<TelemetryPayload['metrics']>
     actorCountBucket: bucketCount(countObjectKeys(actors)),
     newWorksSubscriptionCountBucket: bucketCount(countObjectKeys(newWorksSubscriptions)),
     ...buildConfigMetrics(settings),
-  };
-}
-
-function buildFeatureFlags(settings: any): Omit<TelemetryPayload['features'], 'webdavEnabled' | 'drive115Enabled' | 'aiEnabled' | 'remoteConfigEnabled'> {
-  const userExperience = settings?.userExperience || {};
-  const magnetSearch = settings?.magnetSearch || {};
-  const videoEnhancement = settings?.videoEnhancement || {};
-  const externalEntryPanelEnabled = videoEnhancement.enableExternalEntryPanel !== false;
-  const videoEnhancementEnabled = videoEnhancement.enabled === true;
-
-  return {
-    magnetSearchEnabled: userExperience.enableMagnetSearch === true,
-    magnetAutoSearchEnabled: userExperience.enableMagnetSearch === true && magnetSearch.autoSearch === true,
-    videoEnhancementEnabled,
-    externalEntryPanelEnabled,
-    externalSearchEnabled: externalEntryPanelEnabled && videoEnhancement.enableExternalSearch !== false,
-    onlineAvailabilityEnabled: externalEntryPanelEnabled && videoEnhancement.enableOnlineAvailability !== false,
-    subtitleSearchEnabled: externalEntryPanelEnabled && videoEnhancement.enableSubtitleSearch !== false,
-    fc2BreakerEnabled: videoEnhancement.enableFC2Breaker !== false,
-    reviewBreakerEnabled: videoEnhancementEnabled && videoEnhancement.enableReviewBreaker === true,
-    relatedListsEnabled: videoEnhancementEnabled && videoEnhancement.enableRelatedLists !== false,
-    actorRemarksEnabled: videoEnhancementEnabled && videoEnhancement.enableActorRemarks === true,
-    listEnhancementEnabled: userExperience.enableListEnhancement !== false && settings?.listEnhancement?.enabled !== false,
-    actorEnhancementEnabled: userExperience.enableActorEnhancement !== false && settings?.actorEnhancement?.enabled !== false,
-    embyEnabled: settings?.emby?.enabled === true,
   };
 }
 

@@ -6,9 +6,9 @@ import { sendTelemetry } from '../infrastructure/telemetryClient';
 import { buildTelemetryErrorPayload, type BuildTelemetryErrorPayloadInput } from './errorPayload';
 
 export const TELEMETRY_HEARTBEAT_ALARM = 'telemetry.heartbeat';
-const HEARTBEAT_INTERVAL_MINUTES = 180;
+const HEARTBEAT_INTERVAL_MINUTES = 360;
 const STARTUP_THROTTLE_MS = 30 * 60 * 1000;
-const HEARTBEAT_THROTTLE_MS = 3 * 60 * 60 * 1000;
+const HEARTBEAT_THROTTLE_MS = 6 * 60 * 60 * 1000;
 const ERROR_REPORT_THROTTLE_MS = 15 * 60 * 1000;
 const errorReportLastSentAt = new Map<string, number>();
 

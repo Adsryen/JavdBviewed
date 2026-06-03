@@ -11,6 +11,13 @@ export type {
 } from './domain/types';
 export { bucketCount, countObjectKeys } from './domain/buckets';
 export {
+  TELEMETRY_FEATURE_CATALOG,
+  buildTelemetryFeatures,
+  type TelemetryFeatureCatalogItem,
+  type TelemetryFeatureCategory,
+  type TelemetryFeatureKey,
+} from './domain/featureCatalog';
+export {
   TELEMETRY_CLIENT_STATE_KEY,
   createTelemetryEventId,
   getTelemetryClientState,
