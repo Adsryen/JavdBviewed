@@ -1,3 +1,4 @@
+import { viewedPut as idbViewedPut } from '../../../../platform/storage/indexedDb';
 import type { VideoRecord } from '../../../../types';
 import { STORAGE_KEYS } from '../../../../utils/config';
 import { getValue, setValue } from '../../../../utils/storage';
@@ -7,6 +8,14 @@ import { parseDetailPage, parseSearchResults } from './javdbParsers';
 
 const log = (...args: any[]) => console.log('[Sync]', ...args);
 const error = (...args: any[]) => console.error('[Sync]', ...args);
+
+async function persistRecordToIndexedDb(record: VideoRecord): Promise<void> {
+  try {
+    await idbViewedPut(record);
+  } catch (e: any) {
+    log('[refreshRecordById] WARN IndexedDB write failed:', { videoId: record.id, error: e?.message });
+  }
+}
 
 export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
   log(`[refreshRecordById] Function called with videoId: ${videoId}`);
@@ -78,6 +87,7 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
 
     allRecords[videoId] = newRecord;
     await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
+    await persistRecordToIndexedDb(newRecord);
     log(`[refreshRecordById] Inserted new record for ${videoId} and saved to storage.`);
     return newRecord;
   }
@@ -98,6 +108,7 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
 
   allRecords[videoId] = updatedRecord;
   await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
+  await persistRecordToIndexedDb(updatedRecord);
   log('[refreshRecordById] Successfully saved updated records object to storage.');
   log(`[refreshRecordById] Finished refresh for ${videoId}. Returning updated record.`);
   return updatedRecord;
