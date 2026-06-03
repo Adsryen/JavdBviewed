@@ -7,7 +7,13 @@ import {
 } from '../../externalSearch/domain/searchEngines';
 import { getValue } from '../../../utils/storage';
 import { bucketCount, countObjectKeys } from '../domain/buckets';
-import type { TelemetryClientState, TelemetryEventType, TelemetryPayload, TelemetryRuntimeInfo } from '../domain/types';
+import type {
+  TelemetryClientState,
+  TelemetryErrorPayload,
+  TelemetryEventType,
+  TelemetryPayload,
+  TelemetryRuntimeInfo,
+} from '../domain/types';
 import { createTelemetryEventId } from './clientState';
 import { getTelemetryRuntimeInfo } from './runtimeInfo';
 
@@ -38,6 +44,7 @@ export interface BuildTelemetryPayloadInput {
   state: TelemetryClientState;
   now?: Date;
   runtime?: TelemetryRuntimeInfo;
+  error?: TelemetryErrorPayload;
 }
 
 export async function buildTelemetryPayload(input: BuildTelemetryPayloadInput): Promise<TelemetryPayload> {
@@ -46,11 +53,14 @@ export async function buildTelemetryPayload(input: BuildTelemetryPayloadInput): 
   const settings = input.settings || {};
   const metrics = await buildMetrics(settings);
   const sessionStartedAt = normalizeDate(input.state.sessionStartedAt, now);
+  const installId = normalizeTelemetryId(input.state.installId) || 'unknown-device';
+  const deviceId = normalizeTelemetryId(settings?.webdav?.clientId) || installId;
 
   return {
     schemaVersion: 1,
     eventId: createTelemetryEventId(),
-    deviceId: input.state.installId,
+    deviceId,
+    installId,
     anonymous: true,
     event: input.event,
     client: removeUndefined({
@@ -79,6 +89,7 @@ export async function buildTelemetryPayload(input: BuildTelemetryPayloadInput): 
       ...buildFeatureFlags(settings),
     },
     metrics,
+    error: input.error,
     sentAt: now.toISOString(),
   };
 }
@@ -187,6 +198,11 @@ function normalizeDate(value: string | undefined, fallback: Date): Date {
 function normalizeChannel(value: unknown): 'stable' | 'beta' | 'dev' {
   if (value === 'beta' || value === 'dev') return value;
   return 'stable';
+}
+
+function normalizeTelemetryId(value: unknown): string | undefined {
+  const text = String(value || '').trim();
+  return text || undefined;
 }
 
 function removeUndefined<T extends Record<string, any>>(value: T): T {

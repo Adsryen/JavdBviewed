@@ -35,10 +35,12 @@ import { initializeSuperRankingNav, isSuperRankingSupportedHost } from '../../fe
 import { installContentConsoleSettingsBridge } from './consoleSettingsBridge';
 import { exposeContentDebugManagers, installContentLifecycleHandlers } from './contentLifecycle';
 import { installContentMessageRouter } from './contentMessageRouter';
+import { installContentTelemetryErrorReporter } from './errorReporter';
 import { installOrchestratorStateBridge } from './orchestratorStateBridge';
 import { injectNavbarBadge, removeUnwantedButtons } from './pageChrome';
 
 installContentConsoleSettingsBridge();
+installContentTelemetryErrorReporter();
 installOrchestratorStateBridge();
 installContentMessageRouter();
 void installPreviewVolumeControl();

@@ -1,19 +1,23 @@
 import { getSettings } from '../../../utils/storage';
-import type { TelemetryEventType, TelemetryReportResult } from '../domain/types';
+import type { TelemetryErrorPayload, TelemetryEventType, TelemetryReportResult } from '../domain/types';
 import { getTelemetryClientState, writeTelemetryClientState } from './clientState';
 import { buildTelemetryPayload } from './buildTelemetryPayload';
 import { sendTelemetry } from '../infrastructure/telemetryClient';
+import { buildTelemetryErrorPayload, type BuildTelemetryErrorPayloadInput } from './errorPayload';
 
 export const TELEMETRY_HEARTBEAT_ALARM = 'telemetry.heartbeat';
 const HEARTBEAT_INTERVAL_MINUTES = 180;
 const STARTUP_THROTTLE_MS = 30 * 60 * 1000;
 const HEARTBEAT_THROTTLE_MS = 3 * 60 * 60 * 1000;
+const ERROR_REPORT_THROTTLE_MS = 15 * 60 * 1000;
+const errorReportLastSentAt = new Map<string, number>();
 
 export interface ReportTelemetryEventOptions {
   settings?: any;
   fetchImpl?: typeof fetch;
   now?: Date;
   force?: boolean;
+  error?: TelemetryErrorPayload;
 }
 
 export async function initializeTelemetryReporter(): Promise<void> {
@@ -61,15 +65,14 @@ export async function reportTelemetryEvent(
 
   const now = options.now || new Date();
   const state = await getTelemetryClientState(settings, now);
-  const lastEventAt = event === 'startup' ? state.lastStartupAt : state.lastHeartbeatAt;
-  const throttleMs = event === 'startup' ? STARTUP_THROTTLE_MS : HEARTBEAT_THROTTLE_MS;
-  if (!options.force && typeof lastEventAt === 'number' && now.getTime() - lastEventAt < throttleMs) {
+  const throttle = getEventThrottle(event, state);
+  if (!options.force && throttle && typeof throttle.lastEventAt === 'number' && now.getTime() - throttle.lastEventAt < throttle.throttleMs) {
     return { sent: false, reason: 'throttled' };
   }
 
   const attemptedState = {
     ...state,
-    ...(event === 'startup' ? { lastStartupAt: now.getTime() } : { lastHeartbeatAt: now.getTime() }),
+    ...getEventStatePatch(event, now),
   };
   await writeTelemetryClientState(attemptedState);
 
@@ -79,6 +82,7 @@ export async function reportTelemetryEvent(
       settings,
       state: attemptedState,
       now,
+      error: options.error,
     });
     const result = await sendTelemetry({
       endpoint,
@@ -98,4 +102,64 @@ export async function reportTelemetryEvent(
   } catch {
     return { sent: false, reason: 'network-error' };
   }
+}
+
+export async function reportTelemetryError(
+  input: BuildTelemetryErrorPayloadInput,
+  options: ReportTelemetryEventOptions = {},
+): Promise<TelemetryReportResult> {
+  const error = await buildTelemetryErrorPayload(input);
+  return reportTelemetryErrorPayload(error, options);
+}
+
+export async function reportTelemetryErrorPayload(
+  error: TelemetryErrorPayload,
+  options: ReportTelemetryEventOptions = {},
+): Promise<TelemetryReportResult> {
+  const now = options.now || new Date();
+  const settings = options.settings || await getSettings();
+  const telemetrySettings = settings?.telemetry || {};
+  if (telemetrySettings.enabled === false) return { sent: false, reason: 'disabled' };
+
+  const endpoint = String(telemetrySettings.endpoint || '').trim();
+  if (!endpoint) return { sent: false, reason: 'missing-endpoint' };
+
+  const throttleKey = buildErrorThrottleKey(error);
+  const lastSentAt = errorReportLastSentAt.get(throttleKey);
+  if (!options.force && typeof lastSentAt === 'number' && now.getTime() - lastSentAt < ERROR_REPORT_THROTTLE_MS) {
+    return { sent: false, reason: 'throttled' };
+  }
+  errorReportLastSentAt.set(throttleKey, now.getTime());
+
+  return reportTelemetryEvent('error_report', {
+    ...options,
+    settings,
+    now,
+    force: true,
+    error,
+  });
+}
+
+function getEventThrottle(event: TelemetryEventType, state: { lastStartupAt?: number; lastHeartbeatAt?: number }): { lastEventAt?: number; throttleMs: number } | undefined {
+  if (event === 'startup') {
+    return { lastEventAt: state.lastStartupAt, throttleMs: STARTUP_THROTTLE_MS };
+  }
+  if (event === 'heartbeat') {
+    return { lastEventAt: state.lastHeartbeatAt, throttleMs: HEARTBEAT_THROTTLE_MS };
+  }
+  return undefined;
+}
+
+function getEventStatePatch(event: TelemetryEventType, now: Date): Partial<{ lastStartupAt: number; lastHeartbeatAt: number }> {
+  if (event === 'startup') return { lastStartupAt: now.getTime() };
+  if (event === 'heartbeat') return { lastHeartbeatAt: now.getTime() };
+  return {};
+}
+
+function buildErrorThrottleKey(error: TelemetryErrorPayload): string {
+  return [
+    error.component || 'unknown',
+    error.code || 'UNKNOWN_ERROR',
+    error.stackHash || error.message || 'no-stack',
+  ].join('|');
 }
