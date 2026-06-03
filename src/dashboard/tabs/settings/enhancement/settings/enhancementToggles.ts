@@ -9,10 +9,22 @@ export function initEnhancementToggles(host: EnhancementTogglesHost): void {
   toggles.forEach((toggleEl) => {
     const targetId = toggleEl.getAttribute('data-target');
     if (!targetId) return;
+    const toggleButton = toggleEl as HTMLButtonElement;
+    const alwaysOn = toggleEl.hasAttribute('data-always-on');
     const hiddenCheckbox = document.getElementById(targetId) as HTMLInputElement | null;
     if (!hiddenCheckbox) return;
 
+    if (alwaysOn) {
+      hiddenCheckbox.checked = true;
+      toggleButton.disabled = true;
+      toggleEl.classList.add('always-on');
+      toggleEl.setAttribute('aria-disabled', 'true');
+    }
+
     const updateToggleState = () => {
+      if (alwaysOn) {
+        hiddenCheckbox.checked = true;
+      }
       toggleEl.classList.toggle('active', hiddenCheckbox.checked);
     };
 
@@ -21,6 +33,10 @@ export function initEnhancementToggles(host: EnhancementTogglesHost): void {
     toggleEl.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (alwaysOn) {
+        updateToggleState();
+        return;
+      }
       if (toggleEl.hasAttribute('disabled')) return;
       hiddenCheckbox.checked = !hiddenCheckbox.checked;
       updateToggleState();
@@ -53,7 +69,13 @@ export function toggleConfigSections(host: EnhancementTogglesHost): void {
     element.setAttribute('data-enabled', enabled ? '1' : '0');
     element.style.display = 'block';
     element.querySelectorAll('.enhancement-toggle[data-target]').forEach(el => {
-      (el as HTMLButtonElement).toggleAttribute('disabled', !enabled);
+      const toggleButton = el as HTMLButtonElement;
+      if (el.hasAttribute('data-always-on')) {
+        toggleButton.disabled = true;
+        el.classList.add('always-on', 'active');
+        return;
+      }
+      toggleButton.toggleAttribute('disabled', !enabled);
     });
   };
 

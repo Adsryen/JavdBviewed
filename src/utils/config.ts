@@ -578,6 +578,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             containerWidth: 100,
             enableContainerExpansion: false,
         },
+        showStatusBadge: true,
+        enableStatusQuickAction: false,
     },
 
     // 新增：Emby/Jellyfin 增强默认配置

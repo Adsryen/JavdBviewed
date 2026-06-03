@@ -61,6 +61,71 @@ describe('telemetry client state', () => {
 });
 
 describe('telemetry payload', () => {
+  it('uses finer buckets for large viewed libraries', async () => {
+    const { bucketViewedCount } = await import('../../src/features/telemetry');
+
+    expect([
+      bucketViewedCount(999),
+      bucketViewedCount(1000),
+      bucketViewedCount(1999),
+      bucketViewedCount(2000),
+      bucketViewedCount(4999),
+      bucketViewedCount(5000),
+      bucketViewedCount(9999),
+      bucketViewedCount(10000),
+      bucketViewedCount(19999),
+      bucketViewedCount(20000),
+      bucketViewedCount(49999),
+      bucketViewedCount(50000),
+      bucketViewedCount(79999),
+      bucketViewedCount(80000),
+      bucketViewedCount(99999),
+      bucketViewedCount(100000),
+    ]).toEqual([
+      '500-999',
+      '1000-1999',
+      '1000-1999',
+      '2000-4999',
+      '2000-4999',
+      '5000-9999',
+      '5000-9999',
+      '10000-19999',
+      '10000-19999',
+      '20000-49999',
+      '20000-49999',
+      '50000-79999',
+      '50000-79999',
+      '80000-99999',
+      '80000-99999',
+      '100000+',
+    ]);
+  });
+
+  it('applies viewed-library buckets to telemetry payload metrics', async () => {
+    const { buildTelemetryPayload } = await import('../../src/features/telemetry');
+    setChromeStorage({
+      [STORAGE_KEYS.VIEWED_RECORDS]: Object.fromEntries(Array.from({ length: 2000 }, (_v, index) => [`ID-${index}`, {}])),
+    });
+
+    const payload = await buildTelemetryPayload({
+      event: 'startup',
+      settings: DEFAULT_SETTINGS,
+      state: {
+        installId: 'install-id',
+        sessionId: 'session-test',
+        sessionStartedAt: '2026-05-26T01:00:00.000Z',
+      },
+      now: new Date('2026-05-26T02:00:00.000Z'),
+      runtime: {
+        version: '1.20.2',
+      },
+    });
+
+    expect(payload.metrics.viewedCountBucket).toBe('2000-4999');
+    expect(payload.metrics.actorCountBucket).toBe('0');
+    expect(payload.metrics.enabledSearchEngineCountBucket).toBe('10-49');
+  });
+
   it('defines reportable feature flags through a display catalog', async () => {
     const { TELEMETRY_FEATURE_CATALOG } = await import('../../src/features/telemetry');
 
@@ -92,6 +157,7 @@ describe('telemetry payload', () => {
       'listVideoPreviewEnabled',
       'scrollPagingEnabled',
       'actorWatermarkEnabled',
+      'listStatusQuickActionEnabled',
       'actorEnhancementEnabled',
       'embyEnabled',
       'embyLibraryStatusEnabled',
@@ -206,6 +272,7 @@ describe('telemetry payload', () => {
           enableVideoPreview: true,
           enableScrollPaging: true,
           enableActorWatermark: true,
+          enableStatusQuickAction: true,
         },
         actorEnhancement: {
           ...(DEFAULT_SETTINGS as any).actorEnhancement,
@@ -305,6 +372,7 @@ describe('telemetry payload', () => {
         listVideoPreviewEnabled: true,
         scrollPagingEnabled: true,
         actorWatermarkEnabled: true,
+        listStatusQuickActionEnabled: true,
         actorEnhancementEnabled: true,
         embyEnabled: true,
         embyLibraryStatusEnabled: true,

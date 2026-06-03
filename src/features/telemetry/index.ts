@@ -9,7 +9,7 @@ export type {
   TelemetryRuntimeInfo,
   TelemetrySettings,
 } from './domain/types';
-export { bucketCount, countObjectKeys } from './domain/buckets';
+export { bucketCount, bucketViewedCount, countObjectKeys } from './domain/buckets';
 export {
   TELEMETRY_FEATURE_CATALOG,
   buildTelemetryFeatures,

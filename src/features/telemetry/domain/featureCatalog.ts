@@ -221,6 +221,13 @@ export const TELEMETRY_FEATURE_CATALOG = [
     select: (settings) => isListEnhancementEnabled(settings) && settings?.listEnhancement?.enableActorWatermark === true,
   },
   {
+    key: 'listStatusQuickActionEnabled',
+    label: '列表状态快捷标识',
+    category: 'list',
+    order: 255,
+    select: (settings) => isListEnhancementEnabled(settings) && settings?.listEnhancement?.enableStatusQuickAction === true,
+  },
+  {
     key: 'actorEnhancementEnabled',
     label: '演员页增强',
     category: 'actor',

@@ -1,6 +1,22 @@
 export type TelemetryEventType = 'startup' | 'heartbeat' | 'error_report';
 export type TelemetryChannel = 'stable' | 'beta' | 'dev';
-export type TelemetryCountBucket = '0' | '1-9' | '10-49' | '50-99' | '100-499' | '500-999' | '1000+' | 'unknown';
+export type TelemetryCountBucket =
+  | '0'
+  | '1-9'
+  | '10-49'
+  | '50-99'
+  | '100-499'
+  | '500-999'
+  | '1000-1999'
+  | '2000-4999'
+  | '5000-9999'
+  | '10000-19999'
+  | '20000-49999'
+  | '50000-79999'
+  | '80000-99999'
+  | '100000+'
+  | '1000+'
+  | 'unknown';
 
 export interface TelemetrySettings {
   enabled: boolean;
@@ -87,6 +103,7 @@ export interface TelemetryPayload {
     listVideoPreviewEnabled: boolean;
     scrollPagingEnabled: boolean;
     actorWatermarkEnabled: boolean;
+    listStatusQuickActionEnabled: boolean;
     actorEnhancementEnabled: boolean;
     embyEnabled: boolean;
     embyLibraryStatusEnabled: boolean;

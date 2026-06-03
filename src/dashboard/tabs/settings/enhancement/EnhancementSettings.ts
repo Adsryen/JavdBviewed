@@ -130,6 +130,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enableContainerExpansion!: HTMLInputElement;
     // 🆕 状态标签显示
     private showStatusBadge!: HTMLInputElement;
+    private enableStatusQuickAction!: HTMLInputElement;
     private enablePopularityEffects!: HTMLInputElement;
     private popularityMinRating!: HTMLInputElement;
     private popularityMinRatingCount!: HTMLInputElement;

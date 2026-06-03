@@ -46,6 +46,7 @@
                                     <input type="checkbox" id="enableListDisplayControl">
                                     <input type="checkbox" id="enableContainerExpansion">
                                     <input type="checkbox" id="showStatusBadge">
+                                    <input type="checkbox" id="enableStatusQuickAction">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
                                     <input type="checkbox" id="veShowLoadingIndicator">
                                     <input type="checkbox" id="veEnableReviewEnhancement">
@@ -760,6 +761,26 @@
                                         </p>
                                     </div>
                                     <!-- 状态标签显示 结束 -->
+
+                                    <!-- 🆕 列表页状态快捷标识 -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">⚡ 状态快捷标识</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableStatusQuickAction"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在列表页卡片左下角显示状态快捷标识，可直接标记已浏览、想看、已观看。<br>
+                                            <strong>说明：</strong>点击标识只更新本地番号库状态，并刷新当前卡片状态显示。
+                                        </p>
+                                    </div>
+                                    <!-- 状态快捷标识 结束 -->
 
                                     <div class="form-group" data-subtab="other">
                                         <input type="checkbox" id="enablePopularityEffects" hidden>

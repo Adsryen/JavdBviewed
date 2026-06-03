@@ -27,6 +27,7 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.enableScrollPaging?.addEventListener('change', host.handleSettingChange.bind(host));
   host.enableActorWatermark?.addEventListener('change', host.handleSettingChange.bind(host));
   host.showStatusBadge?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.enableStatusQuickAction?.addEventListener('change', host.handleSettingChange.bind(host));
   host.enablePopularityEffects?.addEventListener('change', host.handleSettingChange.bind(host));
   host.popularityMinRating?.addEventListener('change', host.handleSettingChange.bind(host));
   host.popularityMinRatingCount?.addEventListener('change', host.handleSettingChange.bind(host));

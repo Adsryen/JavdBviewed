@@ -24,6 +24,17 @@ export {
   type MagnetSourceTagView,
 } from './application/sourceTagState';
 export {
+  MAGNET_SOURCE_BACKOFF_MS,
+  clearMagnetSourceBackoff,
+  describeMagnetSourceBackoff,
+  getMagnetSourceBackoff,
+  recordMagnetSourceFailure,
+  recordMagnetSourceSuccess,
+  shouldSkipMagnetSource,
+  type MagnetSourceBackoffEntry,
+  type MagnetSourceBackoffState,
+} from './application/sourceBackoff';
+export {
   deduplicateMagnetResults,
   detectMagnetQuality,
   detectMagnetSubtitle,
