@@ -701,6 +701,31 @@ export async function viewedBulkPut(records: VideoRecord[]): Promise<void> {
   }
 }
 
+export async function viewedReplaceAll(records: VideoRecord[]): Promise<number> {
+  const db = await initDB();
+  const tx = db.transaction(['viewedRecords', 'viewedByTag', 'viewedByList'], 'readwrite');
+  const viewedStore = tx.objectStore('viewedRecords');
+  const tagStore = tx.objectStore('viewedByTag');
+  const listStore = tx.objectStore('viewedByList');
+  try {
+    await viewedStore.clear();
+    await tagStore.clear();
+    await listStore.clear();
+    let written = 0;
+    for (const r of Array.isArray(records) ? records : []) {
+      const normalized = normalizeViewedRecord(r);
+      await viewedStore.put(normalized as any);
+      await syncViewedSecondaryIndexes(tagStore, listStore, null, normalized);
+      written++;
+    }
+    await tx.done;
+    return written;
+  } catch (e) {
+    try { await tx.done; } catch {}
+    throw e;
+  }
+}
+
 export async function viewedGet(videoId: string): Promise<VideoRecord | undefined> {
   const db = await initDB();
   return db.get('viewedRecords', videoId);

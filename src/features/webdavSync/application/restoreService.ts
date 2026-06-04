@@ -1,4 +1,4 @@
-import { logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear } from '../../../platform/storage/indexedDb';
+import { logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear, viewedReplaceAll as idbViewedReplaceAll } from '../../../platform/storage/indexedDb';
 import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings, saveSettings, setValue } from '../../../utils/storage';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
@@ -14,18 +14,6 @@ import {
 import { performWebDAVUpload } from './uploadService';
 
 let restoreInProgress = false;
-
-export interface LegacyRestoreOptions {
-  restoreSettings: boolean;
-  restoreRecords: boolean;
-  restoreUserProfile: boolean;
-  restoreActorRecords: boolean;
-  restoreLogs: boolean;
-  restoreMagnetPushLogs?: boolean;
-  restoreImportStats: boolean;
-  restoreIdb: boolean;
-  preview: boolean;
-}
 
 export interface RestoreServiceOptions {
   logger?: WebDAVClientLog;
@@ -112,8 +100,7 @@ export async function applyImportDataDirect(importData: any, options?: {
         else if (importData?.data) items = toArrayFromObjMap(importData.data);
         else if (importData?.viewed) items = toArrayFromObjMap(importData.viewed);
         else if (importData?.storageAll?.[STORAGE_KEYS.VIEWED_RECORDS]) items = toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.VIEWED_RECORDS]);
-        await clearStore(db, 'viewedRecords', logger);
-        const written = await putRecordsInBatches(db, 'viewedRecords', items, RESTORE_BATCH_SIZE, logger);
+        const written = await idbViewedReplaceAll(items);
         mark('viewed', { cleared: true, written, durationMs: Date.now() - c0 });
       } catch (e: any) {
         mark('viewed', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
@@ -275,143 +262,5 @@ export async function performRestoreUnified(filename: string, options?: {
     return { success: false, error: e?.message, summary };
   } finally {
     restoreInProgress = false;
-  }
-}
-
-export async function performRestore(filename: string, options: LegacyRestoreOptions = {
-  restoreSettings: true,
-  restoreRecords: true,
-  restoreUserProfile: true,
-  restoreActorRecords: true,
-  restoreLogs: false,
-  restoreImportStats: false,
-  restoreIdb: false,
-  preview: false,
-}, serviceOptions: RestoreServiceOptions = {}): Promise<{ success: boolean; error?: string; data?: any }> {
-  const logger = serviceOptions.logger;
-  logger?.('INFO', 'Attempting to restore from WebDAV.', { filename, options });
-  const settings = await getSettings();
-  if (!settings.webdav.enabled || !settings.webdav.url) {
-    const errorMsg = 'WebDAV is not enabled or URL is not configured.';
-    logger?.('WARN', errorMsg);
-    return { success: false, error: errorMsg };
-  }
-  try {
-    const finalUrl = resolveWebDavUrl(filename, settings.webdav.url);
-    logger?.('INFO', `Attempting to restore from WebDAV URL: ${finalUrl}`);
-    const importData = await parseBackupFromUrl(finalUrl, { username: settings.webdav.username, password: settings.webdav.password });
-
-    logger?.('INFO', 'Parsed backup data', {
-      hasSettings: !!importData.settings,
-      hasData: !!importData.data,
-      hasUserProfile: !!importData.userProfile,
-      hasActorRecords: !!importData.actorRecords,
-      hasLogs: !!importData.logs,
-      hasImportStats: !!importData.importStats,
-      hasNewWorks: !!importData.newWorks,
-      version: importData.version || '1.0',
-      preview: options.preview,
-    });
-
-    if (options.preview) {
-      return {
-        success: true,
-        data: {
-          version: importData.version || '1.0',
-          timestamp: importData.timestamp,
-          settings: importData.settings || null,
-          data: importData.data || importData.viewed || null,
-          viewed: importData.viewed || null,
-          userProfile: importData.userProfile || null,
-          actorRecords: importData.actorRecords || null,
-          logs: importData.logs || null,
-          importStats: importData.importStats || null,
-          newWorks: importData.newWorks || null,
-        },
-      };
-    }
-
-    if (importData.settings && options.restoreSettings) {
-      const currentSettings = await getCurrentSettingsWithIdentity();
-      await saveSettings(sanitizeImportedSettings(importData.settings, currentSettings));
-      logger?.('INFO', 'Restored settings');
-    }
-    if (importData.data && options.restoreRecords) {
-      await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
-      logger?.('INFO', 'Restored video records');
-    } else if (options.restoreRecords) {
-      await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
-      logger?.('INFO', 'Restored video records (legacy format)');
-    }
-    if (importData.userProfile && options.restoreUserProfile) {
-      await setValue(STORAGE_KEYS.USER_PROFILE, importData.userProfile);
-      logger?.('INFO', 'Restored user profile');
-    }
-    if (importData.actorRecords && options.restoreActorRecords) {
-      await setValue(STORAGE_KEYS.ACTOR_RECORDS, importData.actorRecords);
-      logger?.('INFO', 'Restored actor records');
-    }
-    if (importData.importStats && options.restoreImportStats) {
-      await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, importData.importStats);
-      logger?.('INFO', 'Restored import stats');
-    }
-    if (importData.newWorks) {
-      if (importData.newWorks.subscriptions) await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, importData.newWorks.subscriptions);
-      if (importData.newWorks.records) await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, importData.newWorks.records);
-      if (importData.newWorks.config) await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, importData.newWorks.config);
-      logger?.('INFO', 'Restored new works data');
-    }
-    if (importData.logs && options.restoreLogs) {
-      try {
-        await idbLogsBulkAdd(importData.logs);
-        logger?.('INFO', 'Restored logs to IDB', { count: importData.logs.length });
-      } catch (e: any) {
-        logger?.('WARN', 'Failed to restore logs to IDB', { error: e?.message });
-      }
-    }
-    if ((importData.magnetPushLogs || importData.data?.magnetPushLogs) && options.restoreMagnetPushLogs) {
-      const mpLogs = importData.magnetPushLogs || importData.data?.magnetPushLogs || [];
-      try {
-        await idbMagnetPushLogsBulkAdd(mpLogs);
-        logger?.('INFO', 'Restored magnet push logs to IDB', { count: mpLogs.length });
-      } catch (e: any) {
-        logger?.('WARN', 'Failed to restore magnet push logs to IDB', { error: e?.message });
-      }
-    }
-    if (options.restoreIdb && importData.idb) {
-      try {
-        const db = await initDB();
-        if (Array.isArray(importData.idb.viewedRecords)) {
-          const tx = db.transaction('viewedRecords', 'readwrite');
-          for (const r of importData.idb.viewedRecords) { try { await tx.store.put(r); } catch {} }
-          try { await tx.done; } catch {}
-          logger?.('INFO', 'Restored IDB viewedRecords', { count: importData.idb.viewedRecords.length });
-        }
-        if (Array.isArray(importData.idb.actors)) {
-          const tx = db.transaction('actors', 'readwrite');
-          for (const r of importData.idb.actors) { try { await tx.store.put(r); } catch {} }
-          try { await tx.done; } catch {}
-          logger?.('INFO', 'Restored IDB actors', { count: importData.idb.actors.length });
-        }
-        if (Array.isArray(importData.idb.newWorks)) {
-          const tx = db.transaction('newWorks', 'readwrite');
-          for (const r of importData.idb.newWorks) { try { await tx.store.put(r); } catch {} }
-          try { await tx.done; } catch {}
-          logger?.('INFO', 'Restored IDB newWorks', { count: importData.idb.newWorks.length });
-        }
-        if (Array.isArray(importData.idb.magnets)) {
-          const tx = db.transaction('magnets', 'readwrite');
-          for (const r of importData.idb.magnets) { try { await tx.store.put(r); } catch {} }
-          try { await tx.done; } catch {}
-          logger?.('INFO', 'Restored IDB magnets', { count: importData.idb.magnets.length });
-        }
-      } catch (e: any) {
-        logger?.('WARN', 'IDB restore encountered an error', { error: e?.message });
-      }
-    }
-    return { success: true };
-  } catch (error: any) {
-    logger?.('ERROR', 'Failed to restore from WebDAV.', { error: error.message, filename });
-    return { success: false, error: error.message };
   }
 }

@@ -2,7 +2,6 @@ export interface WebDAVRouterHandlers {
   listFiles: () => Promise<any>;
   previewBackup: (filename: string) => Promise<any>;
   performRestoreUnified: (filename: string, options?: any) => Promise<any>;
-  performRestore: (filename: string, options?: any) => Promise<any>;
   testWebDAVConnection: () => Promise<any>;
   testWebDAVConnectionWithConfig: (config: any) => Promise<any>;
   diagnoseWebDAVConnection: () => Promise<any>;
@@ -14,6 +13,22 @@ export interface WebDAVRouterHandlers {
   collectBackupData: () => Promise<any>;
   downloadBackupFileAsBase64: (filename: string) => Promise<any>;
   applyImportDataDirect: (importData: any, options?: any) => Promise<any>;
+}
+
+function buildUnifiedOptionsFromLegacyRestore(options: any = {}): any {
+  return {
+    categories: {
+      settings: options.restoreSettings !== false,
+      viewed: options.restoreRecords !== false,
+      userProfile: options.restoreUserProfile !== false,
+      actors: options.restoreActorRecords !== false,
+      logs: options.restoreLogs === true,
+      magnetPushLogs: options.restoreMagnetPushLogs === true,
+      importStats: options.restoreImportStats !== false,
+      newWorks: options.restoreNewWorks === true,
+    },
+    autoBackupBeforeRestore: options.autoBackupBeforeRestore !== false,
+  };
 }
 
 export function registerWebDAVRouterListener(handlers: WebDAVRouterHandlers): void {
@@ -36,8 +51,13 @@ export function registerWebDAVRouterListener(handlers: WebDAVRouterHandlers): vo
         }
         case 'webdav-restore': {
           const { filename, options, preview } = message;
-          const restoreOptions = { ...options, preview: preview || false };
-          handlers.performRestore(filename, restoreOptions).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          if (preview) {
+            handlers.previewBackup(filename).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+            return true;
+          }
+          handlers.performRestoreUnified(filename, buildUnifiedOptionsFromLegacyRestore(options))
+            .then(sendResponse)
+            .catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
         }
         case 'webdav-test':
