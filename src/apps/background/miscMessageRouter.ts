@@ -1,8 +1,6 @@
 ﻿// src/apps/background/miscMessageRouter.ts
 // 抽离杂项 handlers 与消息路由
 
-import { getValue, setValue } from '../../utils/storage';
-import { STORAGE_KEYS } from '../../utils/config';
 import { refreshRecordById } from '../../features/records/refresh';
 import { logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from '../../platform/storage/indexedDb';
 import { handleNewWorksRuntimeMessage } from '../../features/newWorks/backgroundMessages';
@@ -42,6 +40,7 @@ import {
   handleUpdateWatchedStatus,
   setupWebDAVSyncAlarm,
 } from './utilityMessageHandlers';
+import { handleClearAllRecords } from './clearRecordsHandler';
 
 export { registerEmbyDynamicScripts };
 
@@ -111,9 +110,7 @@ export function registerMiscRouter(): void {
           return true;
         }
         case 'clear-all-records':
-          setValue(STORAGE_KEYS.VIEWED_RECORDS, {})
-            .then(() => sendResponse({ success: true }))
-            .catch((error) => sendResponse({ success: false, error: error.message }));
+          void handleClearAllRecords(sendResponse);
           return true;
         case 'refresh-record': {
           const { videoId } = message;

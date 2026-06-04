@@ -35,9 +35,7 @@ import {
 } from '../application/restorePreview';
 import {
   applyImportDataDirect as applyImportDataDirectCore,
-  performRestore as performRestoreCore,
   performRestoreUnified as performRestoreUnifiedCore,
-  type LegacyRestoreOptions,
 } from '../application/restoreService';
 import {
   diagnoseWebDAVConnection as diagnoseWebDAVConnectionCore,
@@ -249,10 +247,6 @@ async function performRestoreUnified(filename: string, options?: Parameters<type
   return performRestoreUnifiedCore(filename, options, { logger: bgLog });
 }
 
-async function performRestore(filename: string, options?: LegacyRestoreOptions): Promise<{ success: boolean; error?: string; data?: any }> {
-  return performRestoreCore(filename, options, { logger: bgLog });
-}
-
 async function listFiles(): Promise<{ success: boolean; error?: string; files?: WebDAVFile[] }> {
   return listWebDAVFiles({ getSettings, logger: bgLog });
 }
@@ -278,7 +272,6 @@ export function registerWebDAVRouter(): void {
     listFiles,
     previewBackup,
     performRestoreUnified,
-    performRestore,
     testWebDAVConnection,
     testWebDAVConnectionWithConfig,
     diagnoseWebDAVConnection,

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TELEMETRY_CLIENT_STATE_KEY } from '../../src/features/telemetry';
 import { STORAGE_KEYS } from '../../src/utils/config';
 
@@ -19,6 +19,11 @@ function collectExportedFunctions(source: string): string[] {
 }
 
 describe('WebDAV backup and restore baseline', () => {
+  afterEach(() => {
+    vi.doUnmock('../../src/platform/storage/indexedDb');
+    vi.resetModules();
+  });
+
   it('locks current WebDAV router message contract and sync export contract', () => {
     expect(collectSwitchCases(readSource('src/features/webdavSync/background/router.ts'))).toEqual([
       'webdav-list-files',
@@ -42,6 +47,135 @@ describe('WebDAV backup and restore baseline', () => {
     expect(collectExportedFunctions(readSource('src/background/sync.ts'))).toEqual([
       'refreshRecordById',
     ]);
+  });
+
+  it('routes the legacy webdav-restore message through unified restore', async () => {
+    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const performRestoreUnified = vi.fn().mockResolvedValue({ success: true, summary: { restored: true } });
+
+    registerWebDAVRouterListener({
+      listFiles: vi.fn(),
+      previewBackup: vi.fn(),
+      performRestoreUnified,
+      testWebDAVConnection: vi.fn(),
+      testWebDAVConnectionWithConfig: vi.fn(),
+      diagnoseWebDAVConnection: vi.fn(),
+      performUpload: vi.fn(),
+      getCurrentWebDAVClientProfile: vi.fn(),
+      listWebDAVClients: vi.fn(),
+      updateCurrentWebDAVDeviceLabel: vi.fn(),
+      updateWebDAVClientDeviceLabel: vi.fn(),
+      collectBackupData: vi.fn(),
+      downloadBackupFileAsBase64: vi.fn(),
+      applyImportDataDirect: vi.fn(),
+    });
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls.at(-1)?.[0];
+    expect(listener).toBeTypeOf('function');
+
+    const response = await new Promise<any>((resolve) => {
+      const asyncResult = listener!(
+        {
+          type: 'webdav-restore',
+          filename: '/backup.zip',
+          options: {
+            restoreSettings: false,
+            restoreRecords: true,
+            restoreUserProfile: true,
+            restoreActorRecords: false,
+            restoreLogs: true,
+            restoreMagnetPushLogs: true,
+            restoreImportStats: false,
+            restoreNewWorks: true,
+          },
+        },
+        {} as chrome.runtime.MessageSender,
+        resolve,
+      );
+      expect(asyncResult).toBe(true);
+    });
+
+    expect(response).toEqual({ success: true, summary: { restored: true } });
+    expect(performRestoreUnified).toHaveBeenCalledWith('/backup.zip', {
+      categories: {
+        settings: false,
+        viewed: true,
+        userProfile: true,
+        actors: false,
+        logs: true,
+        magnetPushLogs: true,
+        importStats: false,
+        newWorks: true,
+      },
+      autoBackupBeforeRestore: true,
+    });
+  });
+
+  it('restores viewed records through the IndexedDB viewed facade', async () => {
+    vi.resetModules();
+    const viewedReplaceAll = vi.fn().mockResolvedValue(1);
+    const fakeStore = {
+      clear: vi.fn().mockResolvedValue(undefined),
+      put: vi.fn().mockResolvedValue(undefined),
+    };
+    const fakeTx = {
+      objectStore: vi.fn(() => fakeStore),
+      complete: Promise.resolve(),
+    };
+    const initDB = vi.fn().mockResolvedValue({
+      transaction: vi.fn(() => fakeTx),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedReplaceAll,
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const record = {
+      id: 'ZEAA-087',
+      title: 'ZEAA-087',
+      status: 'browsed',
+      tags: ['熟女'],
+      listIds: ['list-1'],
+      updatedAt: 1756311543641,
+    };
+
+    await applyImportDataDirect(
+      { data: { [record.id]: record } },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: true,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: false,
+          importStats: false,
+        },
+      },
+    );
+
+    expect(viewedReplaceAll).toHaveBeenCalledWith([record]);
+  });
+
+  it('clears viewed records from chrome storage and IndexedDB', async () => {
+    const setValue = vi.fn().mockResolvedValue(undefined);
+    const viewedReplaceAll = vi.fn().mockResolvedValue(0);
+    const sendResponse = vi.fn();
+
+    const { handleClearAllRecords } = await import('../../src/apps/background/clearRecordsHandler');
+    await handleClearAllRecords(sendResponse, { setValue, viewedReplaceAll });
+
+    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+    expect(setValue).toHaveBeenCalledWith(STORAGE_KEYS.VIEWED_RECORDS, {});
+    expect(viewedReplaceAll).toHaveBeenCalledWith([]);
   });
 
   it('normalizes WebDAV URLs, upload ids, and device labels', async () => {
