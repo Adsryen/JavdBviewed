@@ -136,4 +136,29 @@ describe('actor metadata refresh workflow', () => {
     expect(runtimeDeps.log).toHaveBeenCalledWith('WARN', 'Wiki数据获取出错', expect.any(Object));
     expect(result.wikiData).toBeUndefined();
   });
+
+  it('keeps wiki lookup failure details when remarks diagnostics report source errors', async () => {
+    const runtimeDeps = deps({
+      getActorRemarks: vi.fn(async () => ({
+        data: null,
+        failures: [
+          { source: 'wikipedia', message: 'HTTP 404', statusCode: 404, url: 'https://ja.wikipedia.org/wiki/New_Name' },
+          { source: 'xslist', message: 'HTTP 403', statusCode: 403, url: 'https://xslist.org/search?query=New%20Name&lg=zh', reason: 'cloudflare_challenge' },
+        ],
+      } as any)),
+    });
+
+    const result = await refreshActorMetadataWorkflow('actor-1', runtimeDeps);
+
+    expect(result.success).toBe(true);
+    expect(result.wikiData).toBeUndefined();
+    expect(result.wikiFailures).toEqual([
+      { source: 'wikipedia', message: 'HTTP 404', statusCode: 404, url: 'https://ja.wikipedia.org/wiki/New_Name' },
+      { source: 'xslist', message: 'HTTP 403', statusCode: 403, url: 'https://xslist.org/search?query=New%20Name&lg=zh', reason: 'cloudflare_challenge' },
+    ]);
+    expect(runtimeDeps.saveActor).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'New Name',
+      wikiData: undefined,
+    }));
+  });
 });

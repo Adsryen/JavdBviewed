@@ -23,6 +23,14 @@ export interface ActorRefreshChanges {
 
 export type ActorRefreshWikiData = NonNullable<ActorRecord['wikiData']>;
 
+export interface ActorWikiFetchFailure {
+  source: 'wikipedia' | 'xslist';
+  message: string;
+  statusCode?: number;
+  url?: string;
+  reason?: string;
+}
+
 export interface RefreshedActorRecordResult {
   updatedActor: ActorRecord;
   changes: ActorRefreshChanges;
@@ -32,11 +40,12 @@ export interface ActorMetadataRefreshResult {
   success: boolean;
   changes: ActorRefreshChanges;
   wikiData?: ActorRefreshWikiData;
+  wikiFailures?: ActorWikiFetchFailure[];
 }
 
 export interface ActorMetadataRefreshToast {
   message: string;
-  type: 'success' | 'info';
+  type: 'success' | 'info' | 'warning';
 }
 
 export function sanitizeActorProfileHtml(html: string): string {
@@ -158,6 +167,11 @@ export function buildActorMetadataRefreshToast(result: ActorMetadataRefreshResul
       changesList.push(`  XsList: ${result.wikiData.xslistUrl}`);
     }
     changesList.push(`  数据来源: ${result.wikiData.source || 'unknown'}`);
+  } else if (result.wikiFailures?.length) {
+    changesList.push('\n📚 Wiki数据: 获取失败');
+    for (const failure of result.wikiFailures) {
+      changesList.push(`  ${formatWikiFailure(failure)}`);
+    }
   } else {
     changesList.push('\n📚 Wiki数据: 未获取到数据');
   }
@@ -165,7 +179,7 @@ export function buildActorMetadataRefreshToast(result: ActorMetadataRefreshResul
   if (changesList.length > 0) {
     return {
       message: `演员元数据已刷新\n\n${changesList.join('\n')}`,
-      type: 'success',
+      type: result.wikiFailures?.length && !result.wikiData ? 'warning' : 'success',
     };
   }
 
@@ -173,6 +187,14 @@ export function buildActorMetadataRefreshToast(result: ActorMetadataRefreshResul
     message: '演员元数据已刷新（无变化）',
     type: 'info',
   };
+}
+
+function formatWikiFailure(failure: ActorWikiFetchFailure): string {
+  const source = failure.source === 'wikipedia' ? 'Wikipedia' : 'xslist';
+  const reason = failure.reason === 'cloudflare_challenge'
+    ? '（Cloudflare challenge）'
+    : '';
+  return `${source}: ${failure.message}${reason}`;
 }
 
 function cleanActorNameText(doc: Document): string {

@@ -27,8 +27,7 @@ import {
     updateActorBatchUi,
 } from './actors/batchOperationRuntime';
 import {
-    type ActorRefreshChanges,
-    type ActorRefreshWikiData,
+    type ActorMetadataRefreshResult,
 } from './actors/metadataRefreshModel';
 import { refreshActorMetadataWorkflow } from './actors/metadataRefreshWorkflow';
 import { setupActorCardRuntime } from './actors/actorCardRuntime';
@@ -440,11 +439,7 @@ export class ActorsTab {
     /**
      * 刷新演员元数据
      */
-    async refreshActorMetadata(actorId: string): Promise<{
-        success: boolean;
-        changes: ActorRefreshChanges;
-        wikiData?: ActorRefreshWikiData;
-    }> {
+    async refreshActorMetadata(actorId: string): Promise<ActorMetadataRefreshResult> {
         try {
             return await refreshActorMetadataWorkflow(actorId, {
                 getActorById: id => actorManager.getActorById(id),
@@ -452,7 +447,7 @@ export class ActorsTab {
                 fetchActorPage: url => fetch(url),
                 getActorRemarks: async actorName => {
                     const { actorExtraInfoService } = await import('../../features/actorRemarks');
-                    return actorExtraInfoService.getActorRemarks(actorName);
+                    return actorExtraInfoService.getActorRemarksWithDiagnostics(actorName);
                 },
                 saveActor: actor => actorManager.saveActor(actor),
                 reloadActors: () => this.loadActors(),

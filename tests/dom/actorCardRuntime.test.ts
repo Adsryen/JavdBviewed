@@ -98,6 +98,34 @@ describe('actor card runtime', () => {
     expect(refreshBtn.classList.contains('refreshing')).toBe(false);
   });
 
+  it('shows wiki fetch failures from actor metadata refresh results', async () => {
+    renderActorCard();
+    const h = handlers({
+      refreshActorMetadata: vi.fn().mockResolvedValue({
+        success: true,
+        changes: {
+          nameChanged: false,
+          avatarChanged: false,
+          genderChanged: false,
+          categoryChanged: false,
+        },
+        wikiFailures: [
+          { source: 'xslist', message: 'HTTP 403', statusCode: 403, reason: 'cloudflare_challenge' },
+        ],
+      }),
+    });
+
+    setupActorCardRuntime('actor-1', h);
+    document.querySelector<HTMLButtonElement>('.actor-refresh-btn')?.click();
+
+    await vi.waitFor(() => {
+      expect(h.showMessage).toHaveBeenCalledWith(
+        expect.stringContaining('xslist: HTTP 403（Cloudflare challenge）'),
+        'warning',
+      );
+    });
+  });
+
   it('toggles blacklist and subscription states', async () => {
     renderActorCard();
     const h = handlers();
