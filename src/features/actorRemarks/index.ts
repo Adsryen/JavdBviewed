@@ -20,6 +20,24 @@ export interface ActorRemarks {
   fetchedAt: number;
 }
 
+export interface ActorRemarksFailure {
+  source: ActorRemarksSource;
+  message: string;
+  statusCode?: number;
+  url?: string;
+  reason?: 'cloudflare_challenge';
+}
+
+export interface ActorRemarksDiagnostics {
+  data: ActorRemarks | null;
+  failures: ActorRemarksFailure[];
+}
+
+interface ActorRemarksFetchResult {
+  data: ActorRemarks | null;
+  failure?: ActorRemarksFailure;
+}
+
 interface CacheEntry {
   data: ActorRemarks;
   ts: number;
@@ -79,14 +97,27 @@ async function putToCache(name: string, data: ActorRemarks): Promise<void> {
   } catch {}
 }
 
-async function fetchWikipedia(name: string): Promise<ActorRemarks | null> {
+function buildFailure(source: ActorRemarksSource, error: any): ActorRemarksFailure {
+  const message = error instanceof Error ? error.message : String(error || 'Unknown error');
+  const statusCode = typeof error?.statusCode === 'number' ? error.statusCode : undefined;
+  const url = typeof error?.url === 'string' ? error.url : undefined;
+  return {
+    source,
+    message,
+    statusCode,
+    url,
+    ...(source === 'xslist' && statusCode === 403 ? { reason: 'cloudflare_challenge' as const } : {}),
+  };
+}
+
+async function fetchWikipedia(name: string): Promise<ActorRemarksFetchResult> {
   const startTime = Date.now();
   try {
     const url = `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
     console.log(`[actorRemarks] 开始请求 Wikipedia: ${name}`);
     const doc = await defaultHttpClient.getDocument(url, { responseType: 'document', timeout: 6500 });
     const info = (doc.querySelector('.infobox') || doc.querySelector('table.infobox')) as HTMLElement | null;
-    if (!info) return null;
+    if (!info) return { data: null };
 
     let age: number | undefined;
     let heightCm: number | undefined;
@@ -170,19 +201,24 @@ async function fetchWikipedia(name: string): Promise<ActorRemarks | null> {
       fetchedAt: Date.now(),
     };
     console.log(`[actorRemarks] Wikipedia 成功: ${name}, 耗时: ${Date.now() - startTime}ms`);
-    return data;
+    return { data };
   } catch (err) {
     console.log(`[actorRemarks] Wikipedia 失败: ${name}, 耗时: ${Date.now() - startTime}ms, 错误:`, err);
-    return null;
+    return { data: null, failure: buildFailure('wikipedia', err) };
   }
 }
 
-async function fetchXslist(name: string): Promise<ActorRemarks | null> {
+async function fetchXslist(name: string): Promise<ActorRemarksFetchResult> {
   const startTime = Date.now();
   try {
     const searchUrl = `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
     console.log(`[actorRemarks] 开始请求 xslist 搜索: ${name}`);
-    const searchDoc = await defaultHttpClient.getDocument(searchUrl, { responseType: 'document', timeout: 5000 });
+    const searchDoc = await defaultHttpClient.getDocument(searchUrl, {
+      responseType: 'document',
+      timeout: 5000,
+      retries: 0,
+      referrer: 'https://xslist.org/',
+    });
     const links = Array.from(searchDoc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
     let targetUrl = '';
 
@@ -214,16 +250,21 @@ async function fetchXslist(name: string): Promise<ActorRemarks | null> {
     }
     if (!targetUrl) {
       console.log(`[actorRemarks] xslist 未找到目标链接: ${name}, 耗时: ${Date.now() - startTime}ms`);
-      return null;
+      return { data: null };
     }
     console.log(`[actorRemarks] 开始请求 xslist 详情: ${name}`);
-    const doc = await defaultHttpClient.getDocument(targetUrl, { responseType: 'document', timeout: 5000 });
+    const doc = await defaultHttpClient.getDocument(targetUrl, {
+      responseType: 'document',
+      timeout: 5000,
+      retries: 0,
+      referrer: 'https://xslist.org/',
+    });
     // 取首段或第二段（避开“别名”）
     let p = doc.querySelector('p');
     const ps = Array.from(doc.querySelectorAll('p')) as HTMLParagraphElement[];
     if (ps.length >= 2 && /别名/.test(ps[0].innerText)) p = ps[1];
     const text = (p?.innerText || '').trim();
-    if (!text) return null;
+    if (!text) return { data: null };
 
     const nowYear = new Date().getFullYear();
     let age: number | undefined;
@@ -254,35 +295,40 @@ async function fetchXslist(name: string): Promise<ActorRemarks | null> {
         fetchedAt: Date.now(),
       } as ActorRemarks;
       console.log(`[actorRemarks] xslist 成功: ${name}, 耗时: ${Date.now() - startTime}ms`);
-      return result;
+      return { data: result };
     }
     console.log(`[actorRemarks] xslist 无有效数据: ${name}, 耗时: ${Date.now() - startTime}ms`);
-    return null;
+    return { data: null };
   } catch (err) {
     console.log(`[actorRemarks] xslist 失败: ${name}, 耗时: ${Date.now() - startTime}ms, 错误:`, err);
-    return null;
+    return { data: null, failure: buildFailure('xslist', err) };
   }
 }
 
 class ActorExtraInfoService {
   private memCache: Map<string, ActorRemarks> = new Map();
   private requestCooldowns: Map<string, number> = new Map();
-  private inFlight: Map<string, Promise<ActorRemarks | null>> = new Map();
+  private inFlight: Map<string, Promise<ActorRemarksDiagnostics>> = new Map();
 
   async getActorRemarks(rawName: string, settings?: ExtensionSettings): Promise<ActorRemarks | null> {
+    const result = await this.getActorRemarksWithDiagnostics(rawName, settings);
+    return result.data;
+  }
+
+  async getActorRemarksWithDiagnostics(rawName: string, settings?: ExtensionSettings): Promise<ActorRemarksDiagnostics> {
     const startTime = Date.now();
     const name = normalizeName(rawName);
-    if (!name) return null;
+    if (!name) return { data: null, failures: [] };
 
     const cooldownUntil = this.requestCooldowns.get(name) || 0;
     if (Date.now() < cooldownUntil && this.memCache.has(name)) {
       console.log(`[actorRemarks] 冷却期命中: ${name}`);
-      return this.memCache.get(name)!;
+      return { data: this.memCache.get(name)!, failures: [] };
     }
 
     if (this.memCache.has(name)) {
       console.log(`[actorRemarks] 内存缓存命中: ${name}`);
-      return this.memCache.get(name)!;
+      return { data: this.memCache.get(name)!, failures: [] };
     }
 
     const pending = this.inFlight.get(name);
@@ -298,13 +344,16 @@ class ActorExtraInfoService {
     if (cached) { 
       console.log(`[actorRemarks] 存储缓存命中: ${name}`);
       this.memCache.set(name, cached); 
-      return cached; 
+      return { data: cached, failures: [] };
     }
 
     console.log(`[actorRemarks] 开始获取演员信息: ${name}`);
-    const task = (async () => {
+    const task = (async (): Promise<ActorRemarksDiagnostics> => {
+      const failures: ActorRemarksFailure[] = [];
       // 数据源顺序：以原脚本为准 Wikipedia -> xslist
-      const wiki = await fetchWikipedia(name);
+      const wikiResult = await fetchWikipedia(name);
+      if (wikiResult.failure) failures.push(wikiResult.failure);
+      const wiki = wikiResult.data;
 
       const wikiHasFields = Boolean(
         wiki && (
@@ -318,7 +367,9 @@ class ActorExtraInfoService {
       );
 
       // 若 Wiki 只有外链/空壳，则继续尝试 xslist
-      const xs = (!wiki || !wikiHasFields) ? (await fetchXslist(name)) : null;
+      const xsResult = (!wiki || !wikiHasFields) ? (await fetchXslist(name)) : { data: null };
+      if (xsResult.failure) failures.push(xsResult.failure);
+      const xs = xsResult.data;
 
       const data: ActorRemarks | null = (wiki || xs)
         ? {
@@ -343,7 +394,7 @@ class ActorExtraInfoService {
       } else {
         console.log(`[actorRemarks] 获取失败: ${name}, 总耗时: ${Date.now() - startTime}ms`);
       }
-      return data || null;
+      return { data: data || null, failures };
     })();
 
     this.inFlight.set(name, task);

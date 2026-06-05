@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ActorRecord } from '../../src/types';
 import {
   buildRefreshedActorRecord,
+  buildActorMetadataRefreshToast,
   parseActorProfileHtml,
   sanitizeActorProfileHtml,
 } from '../../src/dashboard/tabs/actors/metadataRefreshModel';
@@ -115,5 +116,26 @@ describe('actor metadata refresh model', () => {
       },
       wikiData,
     });
+  });
+
+  it('shows actor wiki fetch failures in the refresh toast', () => {
+    const toast = buildActorMetadataRefreshToast({
+      success: true,
+      changes: {
+        nameChanged: false,
+        avatarChanged: false,
+        genderChanged: false,
+        categoryChanged: false,
+      },
+      wikiFailures: [
+        { source: 'wikipedia', message: 'HTTP 404', statusCode: 404 },
+        { source: 'xslist', message: 'HTTP 403', statusCode: 403, reason: 'cloudflare_challenge' },
+      ],
+    });
+
+    expect(toast.type).toBe('warning');
+    expect(toast.message).toContain('📚 Wiki数据: 获取失败');
+    expect(toast.message).toContain('Wikipedia: HTTP 404');
+    expect(toast.message).toContain('xslist: HTTP 403（Cloudflare challenge）');
   });
 });
