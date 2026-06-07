@@ -196,7 +196,7 @@
     line-height: 1.6;
 }
 
-/* URL列表容器 */
+/* 额外匹配地址列表容器 */
 .url-list-container {
     margin-top: 10px;
 }
@@ -498,11 +498,79 @@ div.url-item input.url-input:disabled {
     background: var(--surface-primary);
 }
 
+.emby-media-server-create-item {
+    border: 1px dashed var(--primary);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--bg-secondary);
+}
+
 .emby-media-server-grid {
     display: grid;
-    grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 1fr) minmax(220px, 1.5fr) minmax(220px, 1.5fr) auto auto;
+    grid-template-columns: minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(220px, 1.6fr) minmax(220px, 1.6fr) minmax(74px, auto) auto;
     gap: 12px;
     align-items: end;
+}
+
+.emby-media-server-grid .setting-label {
+    min-width: 0;
+}
+
+.emby-media-server-grid .setting-select,
+.emby-media-server-grid .setting-input {
+    min-width: 0;
+}
+
+.emby-server-enabled-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.emby-server-toggle-switch {
+    display: inline-block;
+}
+
+.emby-server-inline-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.emby-server-inline-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.emby-server-inline-btn:active {
+    transform: scale(0.95);
+}
+
+.emby-server-inline-confirm {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+}
+
+.emby-server-inline-confirm:hover {
+    background: rgba(34, 197, 94, 0.28);
+}
+
+.emby-server-inline-cancel {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc2626;
+}
+
+.emby-server-inline-cancel:hover {
+    background: rgba(220, 53, 69, 0.2);
 }
 
 .emby-server-actions {
@@ -517,6 +585,91 @@ div.url-item input.url-input:disabled {
     margin-top: 10px;
     color: var(--text-secondary);
     font-size: 13px;
+}
+
+.emby-library-check-tool {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-primary);
+}
+
+.emby-library-check-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.emby-library-check-row .btn {
+    white-space: nowrap;
+}
+
+.emby-library-check-result {
+    min-height: 20px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.emby-library-check-result.is-loading {
+    color: var(--text-secondary);
+}
+
+.emby-library-check-result.is-empty {
+    color: var(--warning);
+}
+
+.emby-library-check-result.is-error {
+    color: var(--error);
+}
+
+.emby-library-check-result.is-success {
+    display: grid;
+    gap: 8px;
+}
+
+.emby-library-check-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--success);
+    font-weight: 600;
+}
+
+.emby-library-check-matches {
+    display: grid;
+    gap: 6px;
+}
+
+.emby-library-check-match {
+    display: grid;
+    grid-template-columns: minmax(90px, auto) minmax(72px, auto) minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.emby-library-check-match:hover {
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+}
+
+.emby-library-check-server,
+.emby-library-check-code {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.emby-library-check-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #emby-settings .setting-input {
@@ -653,7 +806,7 @@ div.url-item input.url-input:disabled {
 
 /* 空状态样式 */
 .url-list:empty::before {
-    content: "暂无配置的网址模式，点击下方按钮添加";
+    content: "暂无额外匹配地址；通常使用上方媒体服务器地址即可";
     display: block;
     text-align: center;
     color: var(--text-muted);

@@ -585,14 +585,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     // 新增：Emby/Jellyfin 增强默认配置
     emby: {
         enabled: false, // 默认关闭，需要用户手动配置
-        matchUrls: [
-            'http://localhost:8096/*',
-            'https://localhost:8920/*',
-            'http://127.0.0.1:8096/*',
-            'http://192.168.*.*:8096/*',
-            'https://*.emby.com/*',
-            'https://*.jellyfin.org/*'
-        ], // 默认匹配常见的 Emby/Jellyfin 地址
+        matchUrls: [], // 额外匹配地址；媒体服务器 URL 会自动参与匹配
         videoCodePatterns: [
             '[A-Z]{2,6}-\\d{2,6}', // 标准格式: ABC-123, ABCD-123
             'FC2-PPV-\\d+', // FC2格式

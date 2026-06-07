@@ -1,3 +1,5 @@
+import { getEffectiveEmbyMatchUrls, matchesEmbyUrlPattern } from '../../features/embyEnhancement/domain/matchUrls';
+
 export async function registerEmbyDynamicScripts(embyConfig: any): Promise<void> {
   setupEmbyTabListener(embyConfig);
 }
@@ -10,14 +12,12 @@ function setupEmbyTabListener(embyConfig: any): void {
     embyTabListener = null;
   }
 
-  if (!embyConfig?.enabled || !embyConfig?.matchUrls?.length) {
+  if (!embyConfig?.enabled) {
     console.info('[Background] Emby 未启用或无 URL，移除 tab 监听器');
     return;
   }
 
-  const matchPatterns: string[] = embyConfig.matchUrls
-    .map((u: string) => u.trim())
-    .filter((u: string) => u.length > 0);
+  const matchPatterns = getEffectiveEmbyMatchUrls(embyConfig);
 
   if (matchPatterns.length === 0) return;
 
@@ -37,7 +37,7 @@ function setupEmbyTabListener(embyConfig: any): void {
     if (changeInfo.status !== 'complete' || !tab.url) return;
 
     const tabUrl = tab.url;
-    const matched = matchPatterns.some(pattern => urlMatchesPattern(tabUrl, pattern));
+    const matched = matchPatterns.some(pattern => matchesEmbyUrlPattern(tabUrl, pattern));
     if (!matched) return;
 
     if (cssFiles.length > 0) {
@@ -69,18 +69,4 @@ function setupEmbyTabListener(embyConfig: any): void {
 
   chrome.tabs.onUpdated.addListener(embyTabListener);
   console.info('[Background] Emby tab 监听器已设置，匹配模式:', matchPatterns);
-}
-
-function urlMatchesPattern(url: string, pattern: string): boolean {
-  try {
-    const p = pattern.trim();
-    if (!p) return false;
-    const regexStr = p
-      .replace(/\*/g, '\x00')
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      .replace(/\x00/g, '.*');
-    return new RegExp('^' + regexStr).test(url);
-  } catch {
-    return false;
-  }
 }

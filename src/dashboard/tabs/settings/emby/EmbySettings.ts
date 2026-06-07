@@ -7,9 +7,10 @@ import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { saveSettings } from '../../../../utils/storage';
 import { showMessage } from '../../../ui/toast';
+import { buildMediaItemUrl } from '../../../../features/embyLibrary/domain/libraryIndex';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import type { ExtensionSettings } from '../../../../types';
-import type { EmbyMediaServer } from '../../../../features/embyLibrary/types';
+import type { EmbyLibraryIndexEntry, EmbyMediaServer } from '../../../../features/embyLibrary/types';
 
 /**
  * Emby/Jellyfin 设置面板类
@@ -30,6 +31,10 @@ export class EmbySettings extends BaseSettingsPanel {
     private addMediaServerBtn!: HTMLButtonElement;
     private syncLibraryBtn!: HTMLButtonElement;
     private syncStatusEl!: HTMLDivElement;
+    private libraryCheckCodeInput!: HTMLInputElement;
+    private testLibraryCheckBtn!: HTMLButtonElement;
+    private libraryCheckResultEl!: HTMLDivElement;
+    private isCreatingMediaServer = false;
 
     constructor() {
         super({
@@ -57,6 +62,9 @@ export class EmbySettings extends BaseSettingsPanel {
         this.addMediaServerBtn = document.getElementById('add-emby-media-server') as HTMLButtonElement;
         this.syncLibraryBtn = document.getElementById('sync-emby-library') as HTMLButtonElement;
         this.syncStatusEl = document.getElementById('emby-library-sync-status') as HTMLDivElement;
+        this.libraryCheckCodeInput = document.getElementById('emby-library-check-code') as HTMLInputElement;
+        this.testLibraryCheckBtn = document.getElementById('test-emby-library-check') as HTMLButtonElement;
+        this.libraryCheckResultEl = document.getElementById('emby-library-check-result') as HTMLDivElement;
 
         if (!this.enabledToggle || !this.matchUrlsList || !this.addUrlBtn ||
             !this.linkBehaviorSelect ||
@@ -64,7 +72,8 @@ export class EmbySettings extends BaseSettingsPanel {
             !this.libraryStatusEnabledToggle || !this.libraryShowListToggle ||
             !this.libraryShowDetailToggle || !this.realtimeCheckEnabledToggle ||
             !this.syncIntervalInput || !this.mediaServerList ||
-            !this.addMediaServerBtn || !this.syncLibraryBtn || !this.syncStatusEl) {
+            !this.addMediaServerBtn || !this.syncLibraryBtn || !this.syncStatusEl ||
+            !this.libraryCheckCodeInput || !this.testLibraryCheckBtn || !this.libraryCheckResultEl) {
             throw new Error('Emby/Jellyfin 设置相关的DOM元素未找到');
         }
     }
@@ -85,9 +94,12 @@ export class EmbySettings extends BaseSettingsPanel {
         this.syncIntervalInput.addEventListener('input', this.handleSettingsChange.bind(this), { signal });
         this.addMediaServerBtn.addEventListener('click', this.handleAddMediaServer.bind(this), { signal });
         this.syncLibraryBtn.addEventListener('click', this.handleManualLibrarySync.bind(this), { signal });
-        this.mediaServerList.addEventListener('input', this.handleSettingsChange.bind(this), { signal });
-        this.mediaServerList.addEventListener('change', this.handleSettingsChange.bind(this), { signal });
+        this.testLibraryCheckBtn.addEventListener('click', this.handleTestLibraryCheck.bind(this), { signal });
+        this.libraryCheckCodeInput.addEventListener('keydown', this.handleLibraryCheckKeydown.bind(this), { signal });
+        this.mediaServerList.addEventListener('input', this.handleMediaServerListInput.bind(this), { signal });
+        this.mediaServerList.addEventListener('change', this.handleMediaServerListChange.bind(this), { signal });
         this.mediaServerList.addEventListener('click', this.handleMediaServerListClick.bind(this), { signal });
+        this.mediaServerList.addEventListener('keydown', this.handleMediaServerListKeydown.bind(this), { signal });
     }
 
     protected unbindEvents(): void {
@@ -159,11 +171,11 @@ export class EmbySettings extends BaseSettingsPanel {
         const urls = this.getUrlsFromUI();
         for (const url of urls) {
             if (!url.trim()) {
-                errors.push('URL模式不能为空');
+                errors.push('额外匹配地址不能为空');
                 continue;
             }
             if (!this.isValidUrlPattern(url)) {
-                warnings.push(`URL模式可能无效: ${url}`);
+                warnings.push(`额外匹配地址可能无效: ${url}`);
             }
         }
 
@@ -239,7 +251,7 @@ export class EmbySettings extends BaseSettingsPanel {
 
         this.matchUrlsList.innerHTML = urls.map((url: string, index: number) => `
             <div class="url-item" data-index="${index}">
-                <input type="text" class="url-input" value="${url}" placeholder="输入URL模式，如 http://192.168.1.6:8096/*">
+                <input type="text" class="url-input" value="${url}" placeholder="备用域名或反代地址，如 https://media.example.com/*">
                 <button type="button" class="remove-url-btn" title="删除">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -257,7 +269,7 @@ export class EmbySettings extends BaseSettingsPanel {
         urlItem.className = 'url-item';
         urlItem.dataset.index = index.toString();
         urlItem.innerHTML = `
-            <input type="text" class="url-input" value="" placeholder="输入URL模式，如 http://192.168.1.6:8096/*">
+            <input type="text" class="url-input" value="" placeholder="备用域名或反代地址，如 https://media.example.com/*">
             <button type="button" class="remove-url-btn" title="删除">
                 <i class="fas fa-trash"></i>
             </button>
@@ -287,6 +299,7 @@ export class EmbySettings extends BaseSettingsPanel {
 
     private renderMediaServers(): void {
         const servers = this.getStoredMediaServers();
+        this.isCreatingMediaServer = false;
         this.mediaServerList.innerHTML = servers.map((server, index) => this.renderMediaServerItem(server, index)).join('');
     }
 
@@ -315,8 +328,11 @@ export class EmbySettings extends BaseSettingsPanel {
                         <input type="password" class="emby-server-api-key setting-input" value="${this.escapeHtml(server.apiKey || '')}" placeholder="媒体服务器 API Key">
                     </label>
                     <label class="setting-label emby-server-enabled-field">
-                        <input type="checkbox" class="emby-server-enabled" ${server.enabled !== false ? 'checked' : ''}>
                         <span class="setting-title">启用</span>
+                        <span class="drive115-toggle-switch emby-server-toggle-switch">
+                            <input type="checkbox" class="emby-server-enabled drive115-toggle-input" ${server.enabled !== false ? 'checked' : ''}>
+                            <span class="drive115-toggle-slider"></span>
+                        </span>
                     </label>
                     <button type="button" class="remove-emby-media-server remove-url-btn" title="删除服务器">
                         <i class="fas fa-trash"></i>
@@ -327,26 +343,29 @@ export class EmbySettings extends BaseSettingsPanel {
     }
 
     private handleAddMediaServer(): void {
-        const servers = this.getStoredMediaServers();
-        const now = Date.now();
-        servers.push({
-            id: `media-server-${now}`,
-            type: 'emby',
-            name: 'Emby',
-            url: '',
-            apiKey: '',
-            enabled: true,
-        });
-        STATE.settings.emby = {
-            ...STATE.settings.emby,
-            mediaServers: servers,
-        };
-        this.renderMediaServers();
-        this.handleSettingsChange();
+        if (this.isCreatingMediaServer) {
+            this.focusMediaServerCreateInput();
+            return;
+        }
+
+        this.isCreatingMediaServer = true;
+        this.mediaServerList.insertAdjacentHTML('beforeend', this.renderMediaServerCreateItem());
+        this.focusMediaServerCreateInput();
     }
 
     private handleMediaServerListClick(event: Event): void {
         const target = event.target as HTMLElement;
+
+        if (target.closest('.create-emby-media-server-confirm')) {
+            this.commitMediaServerCreate();
+            return;
+        }
+
+        if (target.closest('.create-emby-media-server-cancel')) {
+            this.cancelMediaServerCreate();
+            return;
+        }
+
         const button = target.closest('.remove-emby-media-server');
         if (!button) return;
         const item = button.closest('.emby-media-server-item') as HTMLElement | null;
@@ -360,6 +379,130 @@ export class EmbySettings extends BaseSettingsPanel {
         };
         this.renderMediaServers();
         this.handleSettingsChange();
+    }
+
+    private handleMediaServerListInput(event: Event): void {
+        if (this.isMediaServerCreateTarget(event.target)) return;
+        this.handleSettingsChange();
+    }
+
+    private handleMediaServerListChange(event: Event): void {
+        if (this.isMediaServerCreateTarget(event.target)) return;
+        this.handleSettingsChange();
+    }
+
+    private handleMediaServerListKeydown(event: KeyboardEvent): void {
+        if (!this.isMediaServerCreateTarget(event.target)) return;
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.commitMediaServerCreate();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            this.cancelMediaServerCreate();
+        }
+    }
+
+    private renderMediaServerCreateItem(): string {
+        return `
+            <div class="emby-media-server-create-item">
+                <div class="emby-media-server-grid">
+                    <label class="setting-label">
+                        <span class="setting-title">类型</span>
+                        <select class="emby-create-server-type setting-select">
+                            <option value="emby" selected>Emby</option>
+                            <option value="jellyfin">Jellyfin</option>
+                        </select>
+                    </label>
+                    <label class="setting-label">
+                        <span class="setting-title">名称</span>
+                        <input type="text" class="emby-create-server-name setting-input" value="Emby" placeholder="主服务器">
+                    </label>
+                    <label class="setting-label emby-server-url-field">
+                        <span class="setting-title">服务器地址</span>
+                        <input type="text" class="emby-create-server-url setting-input" value="" placeholder="http://192.168.1.10:8096">
+                    </label>
+                    <label class="setting-label emby-server-key-field">
+                        <span class="setting-title">API Key</span>
+                        <input type="password" class="emby-create-server-api-key setting-input" value="" placeholder="媒体服务器 API Key">
+                    </label>
+                    <label class="setting-label emby-server-enabled-field">
+                        <span class="setting-title">启用</span>
+                        <span class="drive115-toggle-switch emby-server-toggle-switch">
+                            <input type="checkbox" class="emby-create-server-enabled drive115-toggle-input" checked>
+                            <span class="drive115-toggle-slider"></span>
+                        </span>
+                    </label>
+                    <div class="emby-server-inline-actions">
+                        <button type="button" class="create-emby-media-server-confirm emby-server-inline-btn emby-server-inline-confirm" title="确认">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button type="button" class="create-emby-media-server-cancel emby-server-inline-btn emby-server-inline-cancel" title="取消">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    private commitMediaServerCreate(): void {
+        const item = this.mediaServerList.querySelector<HTMLElement>('.emby-media-server-create-item');
+        if (!item) {
+            this.isCreatingMediaServer = false;
+            return;
+        }
+
+        const type: EmbyMediaServer['type'] = item.querySelector<HTMLSelectElement>('.emby-create-server-type')?.value === 'jellyfin' ? 'jellyfin' : 'emby';
+        const name = item.querySelector<HTMLInputElement>('.emby-create-server-name')?.value.trim() || (type === 'jellyfin' ? 'Jellyfin' : 'Emby');
+        const url = item.querySelector<HTMLInputElement>('.emby-create-server-url')?.value.trim().replace(/\/+$/, '') || '';
+        const apiKey = item.querySelector<HTMLInputElement>('.emby-create-server-api-key')?.value.trim() || '';
+        const enabled = item.querySelector<HTMLInputElement>('.emby-create-server-enabled')?.checked !== false;
+
+        if (!this.isValidServerUrl(url)) {
+            showMessage('媒体服务器地址需要使用 http 或 https', 'warning');
+            item.querySelector<HTMLInputElement>('.emby-create-server-url')?.focus();
+            return;
+        }
+
+        if (!apiKey) {
+            showMessage('媒体服务器 API Key 不能为空', 'warning');
+            item.querySelector<HTMLInputElement>('.emby-create-server-api-key')?.focus();
+            return;
+        }
+
+        const servers = this.getMediaServersFromUI();
+        servers.push({
+            id: `media-server-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type,
+            name,
+            url,
+            apiKey,
+            enabled,
+        });
+        STATE.settings.emby = {
+            ...STATE.settings.emby,
+            mediaServers: servers,
+        };
+        this.isCreatingMediaServer = false;
+        this.renderMediaServers();
+        this.handleSettingsChange();
+    }
+
+    private cancelMediaServerCreate(): void {
+        this.mediaServerList.querySelector('.emby-media-server-create-item')?.remove();
+        this.isCreatingMediaServer = false;
+    }
+
+    private focusMediaServerCreateInput(): void {
+        window.setTimeout(() => {
+            const input = this.mediaServerList.querySelector<HTMLInputElement>('.emby-create-server-url');
+            input?.focus();
+        }, 30);
+    }
+
+    private isMediaServerCreateTarget(target: EventTarget | null): boolean {
+        return target instanceof HTMLElement && Boolean(target.closest('.emby-media-server-create-item'));
     }
 
     private getStoredMediaServers(): EmbyMediaServer[] {
@@ -379,13 +522,14 @@ export class EmbySettings extends BaseSettingsPanel {
 
     private getMediaServersFromUI(): EmbyMediaServer[] {
         const items = Array.from(this.mediaServerList.querySelectorAll<HTMLElement>('.emby-media-server-item'));
+        const storedServers = this.getStoredMediaServers();
         return items.map((item, index): EmbyMediaServer => {
             const type: EmbyMediaServer['type'] = item.querySelector<HTMLSelectElement>('.emby-server-type')?.value === 'jellyfin' ? 'jellyfin' : 'emby';
             const name = item.querySelector<HTMLInputElement>('.emby-server-name')?.value.trim() || (type === 'jellyfin' ? 'Jellyfin' : 'Emby');
             const url = item.querySelector<HTMLInputElement>('.emby-server-url')?.value.trim().replace(/\/+$/, '') || '';
             const apiKey = item.querySelector<HTMLInputElement>('.emby-server-api-key')?.value.trim() || '';
             const enabled = item.querySelector<HTMLInputElement>('.emby-server-enabled')?.checked !== false;
-            const existing = this.getStoredMediaServers()[index];
+            const existing = storedServers[index];
             return {
                 id: existing?.id || `media-server-${Date.now()}-${index}`,
                 type,
@@ -424,6 +568,89 @@ export class EmbySettings extends BaseSettingsPanel {
         }
     }
 
+    private handleLibraryCheckKeydown(event: KeyboardEvent): void {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        this.handleTestLibraryCheck();
+    }
+
+    private async handleTestLibraryCheck(): Promise<void> {
+        const code = this.libraryCheckCodeInput.value.trim();
+        if (!code) {
+            showMessage('请输入要测试的番号', 'warning');
+            this.libraryCheckCodeInput.focus();
+            return;
+        }
+
+        if (!this.validateSettings()) return;
+        await this.saveSettings();
+
+        this.testLibraryCheckBtn.disabled = true;
+        this.libraryCheckResultEl.className = 'emby-library-check-result is-loading';
+        this.libraryCheckResultEl.textContent = '正在检测入库状态...';
+
+        try {
+            const response = await this.sendRuntimeMessage({
+                type: 'EMBY_LIBRARY_CHECK_CODES',
+                codes: [code],
+            });
+
+            if (!response?.success) {
+                const error = response?.error || '检测失败';
+                this.renderLibraryCheckError(`检测失败：${error}`);
+                showMessage(`入库检测失败：${error}`, 'error');
+                return;
+            }
+
+            this.renderLibraryCheckResult(response?.matches || {});
+            this.broadcastLibraryStateUpdated();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.renderLibraryCheckError(`检测失败：${message}`);
+            showMessage(`入库检测失败：${message}`, 'error');
+        } finally {
+            this.testLibraryCheckBtn.disabled = false;
+        }
+    }
+
+    private renderLibraryCheckResult(matchesByCode: Record<string, EmbyLibraryIndexEntry[]>): void {
+        const entries = Object.entries(matchesByCode)
+            .flatMap(([code, entries]) => (Array.isArray(entries) ? entries : []).map((entry) => ({ code, entry })));
+
+        if (entries.length === 0) {
+            this.libraryCheckResultEl.className = 'emby-library-check-result is-empty';
+            this.libraryCheckResultEl.textContent = '未检测到入库记录';
+            return;
+        }
+
+        this.libraryCheckResultEl.className = 'emby-library-check-result is-success';
+        this.libraryCheckResultEl.innerHTML = `
+            <div class="emby-library-check-summary">
+                <i class="fas fa-check-circle"></i>
+                已入库：命中 ${entries.length} 个媒体条目
+            </div>
+            <div class="emby-library-check-matches">
+                ${entries.map(({ code, entry }) => this.renderLibraryCheckMatch(code, entry)).join('')}
+            </div>
+        `;
+    }
+
+    private renderLibraryCheckMatch(code: string, entry: EmbyLibraryIndexEntry): string {
+        const href = buildMediaItemUrl(entry);
+        return `
+            <a class="emby-library-check-match" href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+                <span class="emby-library-check-server">${this.escapeHtml(entry.serverName || entry.serverType)}</span>
+                <span class="emby-library-check-code">${this.escapeHtml(code)}</span>
+                <span class="emby-library-check-title">${this.escapeHtml(entry.itemName || entry.itemId)}</span>
+            </a>
+        `;
+    }
+
+    private renderLibraryCheckError(message: string): void {
+        this.libraryCheckResultEl.className = 'emby-library-check-result is-error';
+        this.libraryCheckResultEl.textContent = message;
+    }
+
     private getUrlsFromUI(): string[] {
         const inputs = this.matchUrlsList.querySelectorAll('.url-input') as NodeListOf<HTMLInputElement>;
         return Array.from(inputs).map(input => input.value.trim()).filter(url => url);
@@ -433,14 +660,7 @@ export class EmbySettings extends BaseSettingsPanel {
         if (!STATE.settings.emby) {
             STATE.settings.emby = {
                 enabled: false,
-                matchUrls: [
-                    'http://localhost:8096/*',
-                    'https://localhost:8920/*',
-                    'http://127.0.0.1:8096/*',
-                    'http://192.168.*.*:8096/*',
-                    'https://*.emby.com/*',
-                    'https://*.jellyfin.org/*'
-                ],
+                matchUrls: [],
                 videoCodePatterns: [
                     '[A-Z]{2,6}-\\d{2,6}',
                     'FC2-PPV-\\d+',
