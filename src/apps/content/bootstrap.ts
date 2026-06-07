@@ -40,6 +40,7 @@ import { installContentMessageRouter } from './contentMessageRouter';
 import { installContentTelemetryErrorReporter } from './errorReporter';
 import { installOrchestratorStateBridge } from './orchestratorStateBridge';
 import { injectNavbarBadge, removeUnwantedButtons } from './pageChrome';
+import { getEffectiveEmbyMatchUrls, matchesEmbyUrlPattern } from '../../features/embyEnhancement/domain/matchUrls';
 
 installContentConsoleSettingsBridge();
 installContentTelemetryErrorReporter();
@@ -57,17 +58,12 @@ function getActorRemarksTaskTimeoutMs(settings: any): number {
 }
 
 function isCurrentPageMatchedByEmby(settings: any): boolean {
-    const matchUrls = settings?.emby?.matchUrls;
-    if (!settings?.emby?.enabled || !Array.isArray(matchUrls) || matchUrls.length === 0) {
+    const matchUrls = getEffectiveEmbyMatchUrls(settings?.emby);
+    if (!settings?.emby?.enabled || matchUrls.length === 0) {
         return false;
     }
     const currentUrl = window.location.href;
-    return matchUrls.some((pattern: string) => {
-        const rawPattern = String(pattern || '').trim();
-        if (!rawPattern) return false;
-        const normalized = rawPattern.replace(/\*/g, '');
-        return normalized ? currentUrl.includes(normalized) : false;
-    });
+    return matchUrls.some((pattern) => matchesEmbyUrlPattern(currentUrl, pattern));
 }
 
 async function runActorRemarksOnActorPage(settings: any, timeoutMs?: number): Promise<void> {

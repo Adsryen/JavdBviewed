@@ -6,10 +6,12 @@
 import { STATE, log } from '../../contentState';
 import { extractVideoId } from '../../../platform/browser';
 import { showToast } from '../../../platform/browser/toast';
+import { getEffectiveEmbyMatchUrls, matchesEmbyUrlPattern } from '../domain/matchUrls';
 
 interface EmbyConfig {
     enabled: boolean;
     matchUrls: string[];
+    mediaServers?: unknown;
     videoCodePatterns: string[];
     linkBehavior: 'javdb-direct' | 'javdb-search';
     enableAutoDetection: boolean;
@@ -119,25 +121,15 @@ class EmbyEnhancementManager {
     }
 
     /**
-     * 检查当前页面是否匹配配置的URL模式
+     * 检查当前页面是否匹配媒体服务器地址或额外匹配地址
      */
     private isCurrentPageMatched(): boolean {
-        if (!this.config?.matchUrls?.length) return false;
+        const matchUrls = getEffectiveEmbyMatchUrls(this.config);
+        if (matchUrls.length === 0) return false;
 
         const currentUrl = window.location.href;
 
-        return this.config.matchUrls.some(pattern => {
-            try {
-                const regex = new RegExp(
-                    pattern
-                        .replace(/\*/g, '.*')
-                        .replace(/\./g, '\\.')
-                );
-                return regex.test(currentUrl);
-            } catch {
-                return false;
-            }
-        });
+        return matchUrls.some(pattern => matchesEmbyUrlPattern(currentUrl, pattern));
     }
 
     /**

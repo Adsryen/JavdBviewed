@@ -32,17 +32,45 @@
         </div>
 
         <div class="settings-card settings-section">
-            <h4>网址匹配</h4>
+            <h4>媒体服务器</h4>
+            <p class="setting-description">配置 Emby/Jellyfin 服务器地址和 API Key。</p>
+            <div id="emby-media-server-list" class="emby-media-server-list"></div>
+            <div class="emby-server-actions">
+                <button type="button" id="add-emby-media-server" class="btn btn-secondary">
+                    <i class="fas fa-plus"></i> 添加服务器
+                </button>
+                <button type="button" id="sync-emby-library" class="btn btn-primary">
+                    <i class="fas fa-sync"></i> 立即同步媒体库
+                </button>
+            </div>
+            <div id="emby-library-sync-status" class="emby-library-sync-status" aria-live="polite"></div>
+            <div class="emby-library-check-tool">
+                <label class="setting-label">
+                    <span class="setting-title">测试入库检测</span>
+                    <div class="emby-library-check-row">
+                        <input type="text" id="emby-library-check-code" class="setting-input" placeholder="ABC-123 / FC2-PPV-123456">
+                        <button type="button" id="test-emby-library-check" class="btn btn-secondary">
+                            <i class="fas fa-search"></i> 测试入库检测
+                        </button>
+                    </div>
+                </label>
+                <p class="setting-description">输入番号后按当前已启用服务器实时查询，结果会同时更新本地入库索引。</p>
+                <div id="emby-library-check-result" class="emby-library-check-result" aria-live="polite"></div>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>额外匹配地址（高级）</h4>
             <p class="setting-description">
-                配置需要启用番号识别功能的网址模式。支持通配符 * 匹配任意字符。
+                已启用媒体服务器的地址会自动匹配。仅在反向代理、备用域名或网页登录地址不同于服务器地址时，在这里补充匹配模式；支持通配符 *。
             </p>
             <div class="setting-item">
                 <div class="url-list-container">
                     <div id="emby-match-urls-list" class="url-list">
-                        <!-- URL列表将通过JavaScript动态生成 -->
+                        <!-- 额外匹配地址列表将通过JavaScript动态生成 -->
                     </div>
                     <button type="button" id="add-emby-url" class="btn btn-secondary">
-                        <i class="fas fa-plus"></i> 添加网址模式
+                        <i class="fas fa-plus"></i> 添加额外匹配地址
                     </button>
                 </div>
             </div>
@@ -115,25 +143,11 @@
         </div>
 
         <div class="settings-card settings-section">
-            <h4>媒体服务器</h4>
-            <p class="setting-description">配置 Emby/Jellyfin 服务器地址和 API Key。</p>
-            <div id="emby-media-server-list" class="emby-media-server-list"></div>
-            <div class="emby-server-actions">
-                <button type="button" id="add-emby-media-server" class="btn btn-secondary">
-                    <i class="fas fa-plus"></i> 添加服务器
-                </button>
-                <button type="button" id="sync-emby-library" class="btn btn-primary">
-                    <i class="fas fa-sync"></i> 立即同步媒体库
-                </button>
-            </div>
-            <div id="emby-library-sync-status" class="emby-library-sync-status" aria-live="polite"></div>
-        </div>
-
-        <div class="settings-card settings-section">
             <h4>使用说明</h4>
             <div class="help-content">
                 <ul>
-                    <li><strong>网址模式:</strong> 使用通配符 * 匹配任意字符，如 *.emby.com/* 匹配所有emby.com的子域名</li>
+                    <li><strong>媒体服务器匹配:</strong> 已启用服务器的地址会自动用于页面匹配，一般不需要额外配置网址</li>
+                    <li><strong>额外匹配地址:</strong> 仅用于反向代理、备用域名或网页登录地址不同于服务器地址的情况；支持通配符 * 匹配任意字符</li>
                     <li><strong>番号识别:</strong> 自动识别常见的番号格式，如 ABC-123、FC2-PPV-123456 等</li>
                     <li><strong>链接跳转:</strong> 所有链接都会在新标签页中打开，不影响当前页面</li>
                     <li><strong>兼容性:</strong> 支持 Emby、Jellyfin 等主流媒体服务器</li>
