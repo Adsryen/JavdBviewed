@@ -1,3 +1,5 @@
+import { DEFAULT_ONLINE_AVAILABILITY_SITES } from '../../../../../features/onlineAvailability';
+
 export type OnlineAvailabilitySitePreferenceMap = Record<string, boolean>;
 
 export type OnlineAvailabilitySiteOption = {
@@ -6,24 +8,14 @@ export type OnlineAvailabilitySiteOption = {
   enabled: boolean;
 };
 
-export const ONLINE_AVAILABILITY_SITE_OPTIONS: OnlineAvailabilitySiteOption[] = [
-  { key: 'fanza', name: 'FANZA 動画', enabled: true },
-  { key: 'jable', name: 'Jable', enabled: true },
-  { key: 'missav', name: 'MISSAV', enabled: true },
-  { key: '123av', name: '123AV', enabled: true },
-  { key: 'supjav', name: 'Supjav', enabled: true },
-  { key: 'netflav', name: 'NETFLAV', enabled: true },
-  { key: 'avgle', name: 'Avgle', enabled: true },
-  { key: 'javhhh', name: 'JAVHHH', enabled: true },
-  { key: 'javguru', name: 'Jav.Guru', enabled: true },
-  { key: 'javbus', name: 'JavBus', enabled: true },
-];
+export const ONLINE_AVAILABILITY_SITE_OPTIONS: OnlineAvailabilitySiteOption[] = DEFAULT_ONLINE_AVAILABILITY_SITES
+  .map(({ key, name, enabled }) => ({ key, name, enabled }));
 
 export function renderOnlineAvailabilitySiteOptions(container: HTMLElement | null | undefined): void {
   if (!container || container.dataset.rendered === '1') return;
 
   container.innerHTML = ONLINE_AVAILABILITY_SITE_OPTIONS.map(site => `
-    <label class="online-availability-site-item">
+    <label class="online-availability-site-item" data-settings-search-target="online-availability-site:${site.key}">
       <span class="online-availability-site-name">${site.name}</span>
       <span class="ui-toggle ui-toggle--sm">
         <input class="ui-toggle__input online-availability-site-input" type="checkbox" data-site-key="${site.key}" aria-label="${site.name}" ${site.enabled ? 'checked' : ''}>

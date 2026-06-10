@@ -2,6 +2,7 @@ import type { SettingsSearchItem, SettingsSearchResult } from '../domain/types';
 import { expandSettingsSearchQuery, normalizeSettingsSearchText } from '../domain/aliases';
 
 export function findSettingsResults(index: SettingsSearchItem[], query: string, limit = 12): SettingsSearchResult[] {
+  const normalizedQuery = normalizeSettingsSearchText(query);
   const queryTerms = expandSettingsSearchQuery(query);
   if (queryTerms.length === 0) return [];
 
@@ -10,9 +11,14 @@ export function findSettingsResults(index: SettingsSearchItem[], query: string, 
       const title = normalizeSettingsSearchText(item.title);
       const pageTitle = normalizeSettingsSearchText(item.pageTitle);
       const sectionTitle = normalizeSettingsSearchText(item.sectionTitle);
+      const targetSelector = normalizeSettingsSearchText(item.targetSelector);
       const body = normalizeSettingsSearchText(item.searchableText);
 
       let score = 0;
+      if (title === normalizedQuery) score += 160;
+      if (title.includes(normalizedQuery)) score += 110;
+      if (targetSelector.includes(normalizedQuery)) score += 95;
+
       for (const term of queryTerms) {
         if (!term) continue;
         if (title === term) score += 120;

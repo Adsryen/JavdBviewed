@@ -19,7 +19,7 @@ export function mountSettingsSearch(options: MountSettingsSearchOptions): void {
     <div class="jdb-settings-search-input-wrap">
       <i class="fas fa-search" aria-hidden="true"></i>
       <input type="search" class="jdb-settings-search-input" placeholder="搜索设置，例如 字幕、115、WebDAV、磁力" autocomplete="off">
-      <button type="button" class="jdb-settings-search-clear" aria-label="清空搜索">×</button>
+      <button type="button" class="jdb-settings-search-clear" aria-label="清空搜索" hidden>×</button>
     </div>
     <div class="jdb-settings-search-results" role="listbox" hidden style="display: none;"></div>
   `;
@@ -42,6 +42,10 @@ export function mountSettingsSearch(options: MountSettingsSearchOptions): void {
     resultsBox.style.display = visible ? '' : 'none';
   };
 
+  const syncClearButton = () => {
+    clearBtn.hidden = input.value.length === 0;
+  };
+
   const jumpToResult = (result: SettingsSearchResult | undefined) => {
     if (!result) return;
     const target = resolveSettingsTarget(result);
@@ -58,6 +62,7 @@ export function mountSettingsSearch(options: MountSettingsSearchOptions): void {
   };
 
   const render = () => {
+    syncClearButton();
     const results = findSettingsResults(index, input.value);
     const hasQuery = input.value.trim().length > 0;
     currentResults = hasQuery ? results : [];
@@ -116,6 +121,7 @@ export function mountSettingsSearch(options: MountSettingsSearchOptions): void {
     render();
     input.focus();
   });
+  syncClearButton();
 }
 
 function escapeHtml(value: string): string {

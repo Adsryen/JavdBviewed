@@ -115,6 +115,21 @@
     background: var(--bg-secondary);
 }
 
+#search-engine-settings .search-engine-item.jdb-settings-search-highlight {
+    overflow: visible;
+    border-color: var(--settings-search-pulse-ring);
+    background:
+        linear-gradient(0deg, var(--settings-search-pulse-fill), var(--settings-search-pulse-fill)),
+        var(--bg-primary);
+    box-shadow: 0 0 0 3px rgba(var(--settings-search-pulse-ring-rgb), 0.22);
+}
+
+#search-engine-settings .search-engine-item.is-bundled.jdb-settings-search-highlight {
+    background:
+        linear-gradient(0deg, var(--settings-search-pulse-fill), var(--settings-search-pulse-fill)),
+        var(--bg-secondary);
+}
+
 #search-engine-settings .icon-preview {
     display: flex;
     align-items: center;

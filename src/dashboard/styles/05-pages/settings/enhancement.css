@@ -414,6 +414,21 @@
     box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb, 59, 130, 246), 0.08);
 }
 
+#enhancement-settings .online-availability-site-item.jdb-settings-search-highlight {
+    overflow: visible;
+    border-color: var(--settings-search-pulse-ring);
+    background:
+        linear-gradient(0deg, var(--settings-search-pulse-fill), var(--settings-search-pulse-fill)),
+        var(--enhancement-card-bg);
+    box-shadow: 0 0 0 3px rgba(var(--settings-search-pulse-ring-rgb), 0.22);
+}
+
+#enhancement-settings .online-availability-site-item.jdb-settings-search-highlight:has(.online-availability-site-input:checked) {
+    background:
+        linear-gradient(0deg, var(--settings-search-pulse-fill), var(--settings-search-pulse-fill)),
+        var(--surface-secondary);
+}
+
 #enhancement-settings .form-group {
     margin-bottom: 1rem;
 }
@@ -538,6 +553,17 @@
     align-items: center;
     gap: 8px;
     white-space: nowrap; /* 避免“标签/单位”被拆行 */
+}
+
+#enhancement-settings .magnet-concurrency-config .form-group-inline.jdb-settings-search-highlight {
+    overflow: visible;
+    margin: -4px -6px;
+    padding: 4px 6px;
+    border-radius: var(--settings-search-pulse-radius);
+    background:
+        linear-gradient(0deg, var(--settings-search-pulse-fill), var(--settings-search-pulse-fill)),
+        var(--enhancement-card-bg);
+    box-shadow: 0 0 0 3px rgba(var(--settings-search-pulse-ring-rgb), 0.22);
 }
 
 #enhancement-settings .magnet-concurrency-config .form-group-inline label {
