@@ -4,11 +4,15 @@ export const SETTINGS_SEARCH_ALIASES: Record<string, string[]> = {
   '115': ['115网盘', '离线下载', '推送115', 'drive115'],
   webdav: ['同步', '备份', '云端', 'alist'],
   在线可看: ['在线可看性', '可播放', '资源站', 'jable', 'missav', '123av'],
-  磁力: ['磁链', 'bt', 'sukebei', 'btdig', 'btsow'],
+  磁力: ['磁链', 'bt', 'sukebei', 'btdig', 'btsow', 'torrentz2', 'javbus'],
   fc2: ['fc2破解', 'fc2ppv', 'fc2-ppv'],
   隐私: ['截图模式', '私密模式', '模糊'],
   代理: ['网络', 'proxy', '连通性'],
   ai: ['模型', 'api', '翻译', 'openai'],
+  数据洞察: ['报告', '月报', '统计', 'insights'],
+  emby: ['jellyfin', '媒体库', '入库状态'],
+  openlist: ['115', '授权', '扫码授权'],
+  搜索引擎: ['外部搜索', '搜索网站'],
 };
 
 export function expandSettingsSearchQuery(query: string): string[] {
@@ -19,9 +23,14 @@ export function expandSettingsSearchQuery(query: string): string[] {
   for (const [key, aliases] of Object.entries(SETTINGS_SEARCH_ALIASES)) {
     const keyNorm = normalizeSettingsSearchText(key);
     const aliasNorms = aliases.map(normalizeSettingsSearchText);
-    if (normalized.includes(keyNorm) || aliasNorms.some(alias => normalized.includes(alias))) {
+    if (normalized === keyNorm) {
       terms.add(keyNorm);
       aliasNorms.forEach(alias => terms.add(alias));
+      continue;
+    }
+
+    if (aliasNorms.some(alias => normalized === alias)) {
+      terms.add(keyNorm);
     }
   }
 

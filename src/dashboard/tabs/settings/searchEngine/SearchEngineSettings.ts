@@ -207,10 +207,15 @@ export class SearchEngineSettings extends BaseSettingsPanel {
             const readonlyAttr = isBundled ? 'disabled aria-disabled="true"' : '';
             const bundledLabel = isBundled ? '<span class="search-engine-builtin-label">内置</span>' : '';
             const index = fullEngines.indexOf(engine);
+            const engineId = String(engine.id || '').trim();
+            const searchTargetEngineId = engineId.toLowerCase();
             const engineDiv = document.createElement('div');
             engineDiv.className = `search-engine-item${isBundled ? ' is-bundled' : ''}`;
-            engineDiv.dataset.engineId = engine.id || '';
+            engineDiv.dataset.engineId = engineId;
             engineDiv.dataset.index = String(index);
+            if (searchTargetEngineId) {
+                engineDiv.dataset.settingsSearchTarget = `search-engine:${searchTargetEngineId}`;
+            }
 
             const iconSrc = resolveSearchEngineIcon(engine);
             const engineName = this.escapeAttr(engine.name || '');

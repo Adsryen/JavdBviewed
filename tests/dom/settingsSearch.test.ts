@@ -5,6 +5,8 @@ import {
   mountSettingsSearch,
   resolveSettingsTarget,
 } from '../../src/features/settingsSearch';
+import { DEFAULT_ONLINE_AVAILABILITY_SITES } from '../../src/features/onlineAvailability';
+import { DEFAULT_SETTINGS } from '../../src/utils/config';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -240,6 +242,132 @@ describe('settings search feature', () => {
     }));
   });
 
+  it('keeps select control titles clean when labels wrap the control', () => {
+    const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-emby.html'), 'utf8');
+    const index = buildSettingsSearchIndex([
+      {
+        pageId: 'emby-settings',
+        pageTitle: 'Emby/Jellyfin 增强设置',
+        hash: '#tab-settings/emby-settings',
+        html,
+      },
+    ]);
+
+    const result = findSettingsResults(index, '点击番号后的行为', 5)[0];
+
+    expect(result).toEqual(expect.objectContaining({
+      title: '点击番号后的行为',
+      targetSelector: '#emby-link-behavior',
+    }));
+    expect(result.title).not.toContain('跳转到JavDB搜索页面');
+    expect(result.title).not.toContain('直接跳转到JavDB详情页');
+  });
+
+  it('matches common user aliases for insights and magnet source settings', () => {
+    const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-insights.html'), 'utf8');
+    const index = buildSettingsSearchIndex([
+      {
+        pageId: 'insights-settings',
+        pageTitle: '报告设置',
+        hash: '#tab-settings/insights-settings',
+        html,
+        keywords: ['报告设置', 'insights-settings'],
+      },
+      {
+        pageId: 'enhancement-settings',
+        pageTitle: '功能增强设置',
+        hash: '#tab-settings/enhancement-settings',
+        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
+      },
+    ]);
+
+    expect(findSettingsResults(index, '数据洞察', 5)[0]).toEqual(expect.objectContaining({
+      pageId: 'insights-settings',
+      title: '报告设置',
+    }));
+    expect(findSettingsResults(index, 'torrentz2', 10)[0]).toEqual(expect.objectContaining({
+      pageId: 'enhancement-settings',
+      targetSelector: '#magnetSourceTorrentz2',
+    }));
+  });
+
+  it('adds index metadata for settings rendered dynamically at runtime', () => {
+    const index = buildSettingsSearchIndex([
+      {
+        pageId: 'search-engine-settings',
+        pageTitle: '搜索引擎设置',
+        hash: '#tab-settings/search-engine-settings',
+        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8'),
+      },
+      {
+        pageId: 'enhancement-settings',
+        pageTitle: '功能增强设置',
+        hash: '#tab-settings/enhancement-settings',
+        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
+      },
+    ]);
+
+    expect(findSettingsResults(index, 'Jable', 5)[0]).toEqual(expect.objectContaining({
+      title: 'Jable',
+      targetSelector: '[data-settings-search-target="online-availability-site:jable"]',
+    }));
+    expect(findSettingsResults(index, 'Google', 5)[0]).toEqual(expect.objectContaining({
+      pageId: 'search-engine-settings',
+      title: 'Google',
+      targetSelector: '[data-settings-search-target="search-engine:google"]',
+    }));
+    expect(findSettingsResults(index, '页面内并发', 5)[0]).toEqual(expect.objectContaining({
+      title: '页面内并发',
+      targetSelector: '[data-settings-search-target="magnet-concurrency:magnetPageMaxConcurrentRequests"]',
+    }));
+  });
+
+  it('derives dynamic search metadata from default setting sources', () => {
+    const defaultSearchEngines = (DEFAULT_SETTINGS.searchEngines || [])
+      .filter(engine => engine.name && engine.id)
+      .map(engine => ({
+        id: String(engine.id).trim().toLowerCase(),
+        name: String(engine.name),
+      }));
+    const defaultOnlineSites = DEFAULT_ONLINE_AVAILABILITY_SITES.map(site => ({
+      key: site.key,
+      name: site.name,
+    }));
+
+    const index = buildSettingsSearchIndex([
+      {
+        pageId: 'search-engine-settings',
+        pageTitle: '搜索引擎设置',
+        hash: '#tab-settings/search-engine-settings',
+        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8'),
+      },
+      {
+        pageId: 'enhancement-settings',
+        pageTitle: '功能增强设置',
+        hash: '#tab-settings/enhancement-settings',
+        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
+      },
+    ]);
+
+    for (const engine of defaultSearchEngines) {
+      expect(findSettingsResults(index, engine.name, 10)).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          title: engine.name,
+          targetSelector: `[data-settings-search-target="search-engine:${engine.id}"]`,
+        }),
+      ]));
+    }
+
+    for (const site of defaultOnlineSites) {
+      expect(findSettingsResults(index, site.name, 10)).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          title: site.name,
+          targetSelector: `[data-settings-search-target="online-availability-site:${site.key}"]`,
+        }),
+      ]));
+    }
+  });
+
   it('indexes search-engine static settings labels', () => {
     const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8');
     const index = buildSettingsSearchIndex([
@@ -315,6 +443,70 @@ describe('settings search feature', () => {
     expect(wrapper.classList.contains('jdb-settings-search-highlight')).toBe(true);
   });
 
+  it('highlights dynamic setting row containers when the matched element is nested', async () => {
+    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../src/features/settingsSearch');
+    const scrollIntoView = vi.fn();
+
+    document.body.innerHTML = `
+      <div id="search-engine-list">
+        <div class="search-engine-item" data-settings-search-target="search-engine:google">
+          <input id="google-engine-name" value="Google">
+        </div>
+      </div>
+    `;
+    Object.defineProperty(document.querySelector('.search-engine-item'), 'scrollIntoView', {
+      value: scrollIntoView,
+      configurable: true,
+    });
+
+    storeSettingsSearchTarget({
+      hash: '#tab-settings/search-engine-settings',
+      targetSelector: '#google-engine-name',
+      title: 'Google',
+    });
+
+    const revealed = await revealStoredSettingsSearchTarget({
+      waitMs: 10,
+      highlightMs: 20,
+    });
+
+    const row = document.querySelector('.search-engine-item')!;
+    expect(revealed).toBe(true);
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(row.classList.contains('jdb-settings-search-highlight')).toBe(true);
+  });
+
+  it('prefers the form container over a data-targeted control for ordinary settings', async () => {
+    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../src/features/settingsSearch');
+    const scrollIntoView = vi.fn();
+
+    document.body.innerHTML = `
+      <div class="form-group" id="ordinary-setting">
+        <input id="ordinary-input" data-settings-search-target="ordinary-setting:input">
+      </div>
+    `;
+    Object.defineProperty(document.getElementById('ordinary-setting'), 'scrollIntoView', {
+      value: scrollIntoView,
+      configurable: true,
+    });
+
+    storeSettingsSearchTarget({
+      hash: '#tab-settings/advanced-settings',
+      targetSelector: '#ordinary-input',
+      title: '普通设置',
+    });
+
+    const revealed = await revealStoredSettingsSearchTarget({
+      waitMs: 10,
+      highlightMs: 20,
+    });
+
+    const wrapper = document.getElementById('ordinary-setting')!;
+    expect(revealed).toBe(true);
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(wrapper.classList.contains('jdb-settings-search-highlight')).toBe(true);
+  });
+
   it('reveals enhancement cards inside hidden subtabs and collapsed sub-settings', async () => {
     const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../src/features/settingsSearch');
     const scrollIntoView = vi.fn();
@@ -372,6 +564,30 @@ describe('settings search feature', () => {
     const results = document.querySelector<HTMLElement>('.jdb-settings-search-results')!;
     expect(results.hidden).toBe(true);
     expect(results.style.display).toBe('none');
+  });
+
+  it('shows the clear button only while the search input has content', () => {
+    document.body.innerHTML = '<div class="settings-index"><div class="settings-index-header"></div></div>';
+
+    mountSettingsSearch({
+      container: document.querySelector('.settings-index')!,
+      index: [],
+    });
+
+    const input = document.querySelector<HTMLInputElement>('.jdb-settings-search-input')!;
+    const clearButton = document.querySelector<HTMLButtonElement>('.jdb-settings-search-clear')!;
+
+    expect(clearButton.hidden).toBe(true);
+
+    input.value = '字幕';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(clearButton.hidden).toBe(false);
+
+    clearButton.click();
+
+    expect(input.value).toBe('');
+    expect(clearButton.hidden).toBe(true);
   });
 
   it('supports keyboard selection before jumping to a result', () => {
@@ -440,5 +656,24 @@ describe('settings search feature', () => {
     expect(css).not.toContain('.settings-panel:not(#enhancement-settings) .form-group.jdb-settings-search-highlight');
     expect(css).not.toContain('animation: jdbSettingsSearchPulseRing');
     expect(css).toContain('@keyframes jdbSettingsSearchPulseHalo');
+  });
+
+  it('styles dynamic row search highlights across settings layouts', () => {
+    const searchEngineCss = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/searchEngine.css'),
+      'utf8',
+    );
+    const enhancementCss = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/enhancement.css'),
+      'utf8',
+    );
+
+    expect(searchEngineCss).toContain('#search-engine-settings .search-engine-item.jdb-settings-search-highlight');
+    expect(searchEngineCss).toContain('var(--settings-search-pulse-fill)');
+    expect(searchEngineCss).toContain('var(--settings-search-pulse-ring)');
+    expect(enhancementCss).toContain('#enhancement-settings .online-availability-site-item.jdb-settings-search-highlight');
+    expect(enhancementCss).toContain('#enhancement-settings .magnet-concurrency-config .form-group-inline.jdb-settings-search-highlight');
+    expect(enhancementCss).toContain('var(--settings-search-pulse-fill)');
+    expect(enhancementCss).toContain('var(--settings-search-pulse-ring)');
   });
 });

@@ -42,7 +42,19 @@ export async function revealStoredSettingsSearchTarget(options: RevealSettingsSe
 }
 
 function findHighlightContainer(element: Element): HTMLElement {
-  return (element.closest('.form-group, .form-group-checkbox, .setting-item, .settings-card, .settings-section') as HTMLElement | null)
+  const structuredContainer = element.closest([
+    '.search-engine-item',
+    '.online-availability-site-item',
+    '.magnet-concurrency-config .form-group-inline',
+    '.form-group',
+    '.form-group-checkbox',
+    '.setting-item',
+    '.settings-card',
+    '.settings-section',
+  ].join(',')) as HTMLElement | null;
+
+  return structuredContainer
+    || (element.closest('[data-settings-search-target]') as HTMLElement | null)
     || (element as HTMLElement);
 }
 

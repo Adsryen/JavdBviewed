@@ -1,5 +1,6 @@
 import type { SettingsSearchItem, SettingsSearchPageSource } from '../domain/types';
 import { normalizeSettingsSearchText } from '../domain/aliases';
+import { createSettingsSearchExtraItems } from './settingsSearchExtraItems';
 
 const CONTROL_SELECTOR = [
   'input[id]',
@@ -86,9 +87,23 @@ export function buildSettingsSearchIndex(sources: SettingsSearchPageSource[]): S
         searchableText,
       });
     }
+
+    addExtraItems(items, seen, source);
   }
 
   return items;
+}
+
+function addExtraItems(
+  items: SettingsSearchItem[],
+  seen: Set<string>,
+  source: SettingsSearchPageSource,
+): void {
+  for (const item of createSettingsSearchExtraItems(source)) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    items.push(item);
+  }
 }
 
 function addPageItem(
@@ -169,12 +184,14 @@ function addSectionItems(
 
 function extractControlTitle(document: Document, control: HTMLElement, wrapper: HTMLElement | null, controlId: string): string {
   const featureName = extractDirectFeatureName(wrapper);
-  if (featureName) return featureName;
+  if (control.matches('.enhancement-toggle[data-target]') && featureName) return featureName;
 
   const labelFromFor = document.querySelector<HTMLLabelElement>(`label[for="${cssEscape(controlId)}"]`);
   const label = labelFromFor || control.closest('label');
-  const explicit = label ? cleanDisplayText(label.textContent || '') : '';
+  const explicit = label ? extractLabelTitle(label, control) : '';
   if (explicit) return explicit;
+
+  if (featureName) return featureName;
 
   const aria = cleanDisplayText(control.getAttribute('aria-label') || control.getAttribute('title') || '');
   if (aria) return aria;
@@ -216,6 +233,27 @@ function extractSectionDescription(section: HTMLElement): string {
     .filter(child => child.matches('.input-description, .setting-description, .section-description, .settings-description, .setting-desc, .sub-description, p'))
     .map(child => child.textContent || '');
   return cleanText(descriptions.join(' '));
+}
+
+function extractLabelTitle(label: HTMLLabelElement, control: HTMLElement): string {
+  const titledChild = label.querySelector<HTMLElement>(':scope > .setting-title, :scope .setting-title, :scope .enhancement-feature-name');
+  const titledText = cleanDisplayText(titledChild?.textContent || '');
+  if (titledText) return titledText;
+
+  const directText = Array.from(label.childNodes)
+    .filter(node => node.nodeType === 3)
+    .map(node => node.textContent || '')
+    .join(' ');
+  const directTitle = cleanDisplayText(directText);
+  if (directTitle) return directTitle;
+
+  const clone = label.cloneNode(true) as HTMLLabelElement;
+  const controlClone = control.id
+    ? clone.querySelector<HTMLElement>(`#${cssEscape(control.id)}`)
+    : null;
+  controlClone?.remove();
+  clone.querySelectorAll('option').forEach(option => option.remove());
+  return cleanDisplayText(clone.textContent || '');
 }
 
 function extractHeadingText(container: HTMLElement | null | undefined): string {
@@ -267,9 +305,13 @@ function getControlTargetSelector(control: HTMLElement, id: string): string {
 }
 
 function isHiddenStateSource(control: HTMLElement): boolean {
-  return control.tagName === 'INPUT'
-    && (control as HTMLInputElement).type === 'checkbox'
-    && Boolean(control.closest('[style*="display: none"], [style*="display:none"]') || control.hidden);
+  if (control.tagName !== 'INPUT' || (control as HTMLInputElement).type !== 'checkbox') return false;
+  if (control.hidden) return true;
+
+  const hiddenAncestor = control.closest<HTMLElement>('[style*="display: none"], [style*="display:none"]');
+  if (!hiddenAncestor) return false;
+
+  return !hiddenAncestor.matches('.sub-settings, .translation-provider-config, .form-group, .settings-card');
 }
 
 function cleanText(value: string): string {

@@ -286,12 +286,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const row1 = document.createElement('div');
             row1.className = 'form-row';
             row1.innerHTML = `
-                <div class="form-group-inline">
+                <div class="form-group-inline" data-settings-search-target="magnet-concurrency:magnetPageMaxConcurrentRequests">
                     <label for="magnetPageMaxConcurrentRequests">页面内并发:</label>
                     <input type="number" id="magnetPageMaxConcurrentRequests" class="number-input" min="1" max="8" value="2">
                     <span class="input-suffix">请求</span>
                 </div>
-                <div class="form-group-inline">
+                <div class="form-group-inline" data-settings-search-target="magnet-concurrency:magnetBgGlobalMaxConcurrent">
                     <label for="magnetBgGlobalMaxConcurrent">后台全局并发:</label>
                     <input type="number" id="magnetBgGlobalMaxConcurrent" class="number-input" min="1" max="16" value="4">
                     <span class="input-suffix">请求</span>
@@ -303,12 +303,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const row2 = document.createElement('div');
             row2.className = 'form-row';
             row2.innerHTML = `
-                <div class="form-group-inline">
+                <div class="form-group-inline" data-settings-search-target="magnet-concurrency:magnetBgPerHostMaxConcurrent">
                     <label for="magnetBgPerHostMaxConcurrent">每域并发:</label>
                     <input type="number" id="magnetBgPerHostMaxConcurrent" class="number-input" min="1" max="4" value="1">
                     <span class="input-suffix">请求</span>
                 </div>
-                <div class="form-group-inline">
+                <div class="form-group-inline" data-settings-search-target="magnet-concurrency:magnetBgPerHostRateLimitPerMin">
                     <label for="magnetBgPerHostRateLimitPerMin">每域速率:</label>
                     <input type="number" id="magnetBgPerHostRateLimitPerMin" class="number-input" min="1" max="120" value="12">
                     <span class="input-suffix">次/分钟</span>
