@@ -75,26 +75,81 @@ export async function cleanupOldBackups(retentionCount: number, options: WebDAVC
   const settings = await options.getSettings();
   if (!settings.webdav.enabled || !settings.webdav.url) return;
   try {
-    logger?.('INFO', 'cleanupOldBackups started', { retentionCount });
+    logger?.('INFO', 'cleanupOldBackups started (per-device)', { retentionCount });
     const result = await listWebDAVFiles(options);
     if (!result.success || !result.files || result.files.length === 0) {
       logger?.('WARN', 'cleanupOldBackups: listFiles returned no files', { success: result.success, fileCount: result.files?.length });
       return;
     }
-    const files = result.files
-      .filter((f) => f.name.includes('javdb-extension-backup-') && (f.name.endsWith('.json') || f.name.endsWith('.zip')))
-      .sort((a, b) => (a.name > b.name ? -1 : 1));
+    const allBackupFiles = result.files
+      .filter((f) => f.name.includes('javdb-extension-backup-') && (f.name.endsWith('.json') || f.name.endsWith('.zip')));
 
-    logger?.('INFO', 'cleanupOldBackups: filtered backup files', { total: files.length, retentionCount, toDelete: Math.max(0, files.length - retentionCount) });
+    logger?.('INFO', 'cleanupOldBackups: total backup files found', { total: allBackupFiles.length });
 
-    if (retentionCount <= 0 || files.length <= retentionCount) {
-      logger?.('INFO', 'cleanupOldBackups: no cleanup needed', { files: files.length, retentionCount });
+    if (retentionCount <= 0) {
+      logger?.('INFO', 'cleanupOldBackups: retention disabled (retentionCount <= 0)');
       return;
     }
 
-    const toDelete = files.slice(retentionCount);
-    logger?.('INFO', 'cleanupOldBackups: deleting files', { count: toDelete.length, names: toDelete.map(f => f.name) });
-    for (const file of toDelete) {
+    // 按设备分组
+    const filesByDevice = new Map<string, WebDAVFile[]>();
+    for (const file of allBackupFiles) {
+      const deviceKey = file.uploaderClientId || 'unknown';
+      if (!filesByDevice.has(deviceKey)) {
+        filesByDevice.set(deviceKey, []);
+      }
+      filesByDevice.get(deviceKey)!.push(file);
+    }
+
+    logger?.('INFO', 'cleanupOldBackups: grouped by device', {
+      deviceCount: filesByDevice.size,
+      devices: Array.from(filesByDevice.entries()).map(([device, files]) => ({
+        device,
+        fileCount: files.length,
+        deviceLabel: files[0]?.uploaderDeviceLabel || 'unknown',
+      })),
+    });
+
+    // 每个设备分别清理
+    const filesToDelete: WebDAVFile[] = [];
+    for (const [deviceKey, deviceFiles] of filesByDevice.entries()) {
+      // 按文件名排序（文件名包含时间戳，新的在前）
+      const sortedFiles = deviceFiles.sort((a, b) => (a.name > b.name ? -1 : 1));
+
+      if (sortedFiles.length > retentionCount) {
+        const toDeleteFromDevice = sortedFiles.slice(retentionCount);
+        filesToDelete.push(...toDeleteFromDevice);
+
+        logger?.('INFO', 'cleanupOldBackups: device cleanup plan', {
+          device: deviceKey,
+          deviceLabel: sortedFiles[0]?.uploaderDeviceLabel || 'unknown',
+          totalFiles: sortedFiles.length,
+          toKeep: retentionCount,
+          toDelete: toDeleteFromDevice.length,
+          deleteNames: toDeleteFromDevice.map(f => f.name),
+        });
+      } else {
+        logger?.('INFO', 'cleanupOldBackups: device needs no cleanup', {
+          device: deviceKey,
+          deviceLabel: sortedFiles[0]?.uploaderDeviceLabel || 'unknown',
+          fileCount: sortedFiles.length,
+          retentionCount,
+        });
+      }
+    }
+
+    if (filesToDelete.length === 0) {
+      logger?.('INFO', 'cleanupOldBackups: no files to delete across all devices');
+      return;
+    }
+
+    logger?.('INFO', 'cleanupOldBackups: starting deletion', {
+      totalToDelete: filesToDelete.length,
+      fileNames: filesToDelete.map(f => f.name),
+    });
+
+    // 执行删除
+    for (const file of filesToDelete) {
       try {
         let fileUrl: string;
         if (file.path.startsWith('http://') || file.path.startsWith('https://')) {
@@ -103,7 +158,12 @@ export async function cleanupOldBackups(retentionCount: number, options: WebDAVC
           const origin = new URL(settings.webdav.url).origin;
           fileUrl = origin + (file.path.startsWith('/') ? file.path : '/' + file.path);
         }
-        logger?.('INFO', 'cleanupOldBackups: deleting', { name: file.name, url: fileUrl });
+        logger?.('INFO', 'cleanupOldBackups: deleting file', {
+          name: file.name,
+          device: file.uploaderClientId || 'unknown',
+          deviceLabel: file.uploaderDeviceLabel || 'unknown',
+          url: fileUrl,
+        });
         const deleteResp = await fetch(fileUrl, {
           method: 'DELETE',
           headers: { Authorization: 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`), 'User-Agent': 'JavDB-Extension/1.0' },
@@ -117,6 +177,11 @@ export async function cleanupOldBackups(retentionCount: number, options: WebDAVC
         logger?.('WARN', 'Failed to delete old WebDAV backup', { name: file.name, error: e?.message });
       }
     }
+
+    logger?.('INFO', 'cleanupOldBackups completed', {
+      totalDeleted: filesToDelete.length,
+      devicesProcessed: filesByDevice.size,
+    });
   } catch (e: any) {
     logger?.('WARN', 'cleanupOldBackups encountered an error', { error: e?.message });
   }
