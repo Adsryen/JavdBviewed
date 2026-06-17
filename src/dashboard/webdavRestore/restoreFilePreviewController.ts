@@ -79,6 +79,7 @@ export class WebDAVRestoreFilePreviewController {
     });
 
     this.updateBackupSummary(sortedFiles);
+    this.buildDeviceFilter(sortedFiles);
 
     const pathMap = new Map<string, { file: WebDAVFile; el: HTMLElement }>();
 
@@ -88,6 +89,7 @@ export class WebDAVRestoreFilePreviewController {
       li.className = item.className;
       li.dataset.filename = file.name;
       li.dataset.filepath = file.path;
+      li.dataset.deviceId = file.uploaderClientId || 'unknown';
       li.innerHTML = buildFileListItemHtml(item);
 
       this.bindDownloadButton(li);
@@ -215,6 +217,79 @@ export class WebDAVRestoreFilePreviewController {
     } catch (error) {
       this.options.logWarn('日期范围计算失败', { error });
     }
+  }
+
+  private buildDeviceFilter(files: WebDAVFile[]): void {
+    const filterSelect = this.options.queryInModal<HTMLSelectElement>('#webdavDeviceFilter');
+    if (!filterSelect) return;
+
+    // 收集所有设备
+    const deviceMap = new Map<string, { label: string; count: number }>();
+
+    files.forEach(file => {
+      const deviceId = file.uploaderClientId || 'unknown';
+      const deviceLabel = file.uploaderDeviceLabel || file.uploaderClientId || '未知设备';
+
+      if (deviceMap.has(deviceId)) {
+        deviceMap.get(deviceId)!.count++;
+      } else {
+        deviceMap.set(deviceId, { label: deviceLabel, count: 1 });
+      }
+    });
+
+    // 清空并重建选项
+    filterSelect.innerHTML = '<option value="all">所有设备</option>';
+
+    // 按备份数量排序设备
+    const sortedDevices = Array.from(deviceMap.entries()).sort((a, b) => b[1].count - a[1].count);
+
+    sortedDevices.forEach(([deviceId, info]) => {
+      const option = document.createElement('option');
+      option.value = deviceId;
+      option.textContent = `${info.label} (${info.count})`;
+      filterSelect.appendChild(option);
+    });
+
+    // 绑定筛选事件
+    filterSelect.addEventListener('change', () => {
+      this.filterFilesByDevice(filterSelect.value);
+    });
+
+    this.options.logInfo('设备筛选器已构建', {
+      deviceCount: deviceMap.size,
+      devices: Array.from(deviceMap.entries()).map(([id, info]) => ({ id, ...info })),
+    });
+  }
+
+  private filterFilesByDevice(deviceId: string): void {
+    const fileList = this.options.queryInModal<HTMLElement>('#webdavFileList');
+    if (!fileList) return;
+
+    const allItems = fileList.querySelectorAll<HTMLElement>('.webdav-file-item');
+    let visibleCount = 0;
+
+    allItems.forEach(item => {
+      const itemDeviceId = item.dataset.deviceId || 'unknown';
+
+      if (deviceId === 'all' || itemDeviceId === deviceId) {
+        item.style.display = '';
+        visibleCount++;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+
+    // 更新统计信息
+    const countEl = this.options.queryInModal<HTMLElement>('#webdavBackupCount');
+    if (countEl) {
+      if (deviceId === 'all') {
+        countEl.textContent = String(allItems.length);
+      } else {
+        countEl.textContent = `${visibleCount} / ${allItems.length}`;
+      }
+    }
+
+    this.options.logInfo('已应用设备筛选', { deviceId, visibleCount, totalCount: allItems.length });
   }
 
   private applyFileListLoadingState(): void {

@@ -492,7 +492,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
 
             const days = parseInt(this.webdavRetentionDays.value, 10);
             if (isNaN(days) || days < 0 || days > 9999) {
-                errors.push('保留备份数量必须在0-9999之间');
+                errors.push('每设备保留备份数量必须在0-9999之间');
             }
 
             const warnDays = parseInt(this.webdavWarningDays.value, 10);
