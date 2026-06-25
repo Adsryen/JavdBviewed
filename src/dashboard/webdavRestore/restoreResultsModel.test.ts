@@ -34,11 +34,12 @@ describe('WebDAV restore results model', () => {
         logs: [{ id: 1 }],
         idb: {
           magnets: [{ hash: 'a' }],
+          lists: [{ id: 'local_1' }, { id: 'series:abc' }],
         },
       },
     );
 
-    expect(items).toHaveLength(9);
+    expect(items).toHaveLength(10);
     expect(items.find(item => item.key === 'settings')).toMatchObject({
       title: '扩展设置',
       statusText: '已覆盖',
@@ -55,6 +56,7 @@ describe('WebDAV restore results model', () => {
       iconClass: 'fas fa-times text-danger',
     });
     expect(items.find(item => item.key === 'newWorks')?.details).toEqual(['云端：订阅 1 · 记录 2']);
+    expect(items.find(item => item.key === 'lists')?.details).toEqual(['云端：2 条', '未选择']);
     expect(items.find(item => item.key === 'magnets')?.details).toEqual(['云端：1 条', '未选择']);
   });
 

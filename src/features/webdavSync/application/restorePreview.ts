@@ -45,6 +45,7 @@ export function buildBackupPreview(importData: any): any {
       actors: (stats?.idb?.actors?.count) ?? (Array.isArray(importData?.idb?.actors) ? importData.idb.actors.length : Object.keys(importData?.actorRecords || {}).length),
       newWorks: (stats?.idb?.newWorks?.count) ?? (Array.isArray(importData?.idb?.newWorks) ? importData.idb.newWorks.length : Object.keys(importData?.newWorks?.records || {}).length),
       magnets: (stats?.idb?.magnets?.count) ?? (Array.isArray(importData?.idb?.magnets) ? importData.idb.magnets.length : 0),
+      lists: (stats?.idb?.lists?.count) ?? (Array.isArray(importData?.idb?.lists) ? importData.idb.lists.length : 0),
       logs: (stats?.idb?.logs?.count) ?? (Array.isArray(importData?.idb?.logs) ? importData.idb.logs.length : Array.isArray(importData?.logs) ? importData.logs.length : 0),
     },
     bytes: {
@@ -54,6 +55,7 @@ export function buildBackupPreview(importData: any): any {
       actors: byteSizeOf(importData?.idb?.actors || importData?.actorRecords),
       newWorks: byteSizeOf(importData?.idb?.newWorks || importData?.newWorks),
       magnets: byteSizeOf(importData?.idb?.magnets),
+      lists: byteSizeOf(importData?.idb?.lists),
       logs: byteSizeOf(importData?.idb?.logs || importData?.logs),
       importStats: byteSizeOf(importData?.importStats),
     },

@@ -10,6 +10,7 @@ export interface RestoreCategorySelectionInput {
     restoreLogs?: boolean;
     restoreMagnetPushLogs?: boolean;
     restoreImportStats?: boolean;
+    restoreLists?: boolean;
   };
   restoreMagnetPushLogs: boolean;
   restoreMagnets: boolean;
@@ -21,6 +22,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   viewed: '观看记录',
   actors: '演员库',
   newWorks: '新作品',
+  lists: '清单 / 系列 / 番号',
   logs: '日志记录',
   magnetPushLogs: '磁力推送日志',
   importStats: '导入统计',
@@ -44,6 +46,7 @@ export function buildRestoreCategorySelection(input: RestoreCategorySelectionInp
     viewed: Boolean(input.mergeOptions.restoreRecords),
     actors: Boolean(input.mergeOptions.restoreActorRecords),
     newWorks: Boolean(input.mergeOptions.restoreNewWorks),
+    lists: Boolean(input.mergeOptions.restoreLists ?? input.mergeOptions.restoreRecords),
     logs: Boolean(input.mergeOptions.restoreLogs),
     magnetPushLogs: input.restoreMagnetPushLogs,
     importStats: Boolean(input.mergeOptions.restoreImportStats),

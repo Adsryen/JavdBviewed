@@ -64,6 +64,7 @@ describe('WebDAV quick restore model', () => {
       restoreLogs: false,
       restoreImportStats: true,
       restoreNewWorks: true,
+      restoreLists: true,
     });
   });
 

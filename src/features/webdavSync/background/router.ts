@@ -26,6 +26,7 @@ function buildUnifiedOptionsFromLegacyRestore(options: any = {}): any {
       magnetPushLogs: options.restoreMagnetPushLogs === true,
       importStats: options.restoreImportStats !== false,
       newWorks: options.restoreNewWorks === true,
+      lists: options.restoreLists !== false,
     },
     autoBackupBeforeRestore: options.autoBackupBeforeRestore !== false,
   };

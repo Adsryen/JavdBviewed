@@ -13,6 +13,7 @@ describe('WebDAV restore execute confirm model', () => {
     expect(getRestoreCategoryLabel('viewed')).toBe('观看记录');
     expect(getRestoreCategoryLabel('actors')).toBe('演员库');
     expect(getRestoreCategoryLabel('newWorks')).toBe('新作品');
+    expect(getRestoreCategoryLabel('lists')).toBe('清单 / 系列 / 番号');
     expect(getRestoreCategoryLabel('logs')).toBe('日志记录');
     expect(getRestoreCategoryLabel('magnetPushLogs')).toBe('磁力推送日志');
     expect(getRestoreCategoryLabel('importStats')).toBe('导入统计');
@@ -40,6 +41,7 @@ describe('WebDAV restore execute confirm model', () => {
         restoreMagnetPushLogs: true,
         restoreImportStats: true,
         restoreNewWorks: true,
+        restoreLists: false,
       },
       restoreMagnetPushLogs: false,
       restoreMagnets: true,
@@ -49,6 +51,7 @@ describe('WebDAV restore execute confirm model', () => {
       viewed: true,
       actors: true,
       newWorks: true,
+      lists: false,
       logs: false,
       magnetPushLogs: false,
       importStats: true,

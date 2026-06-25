@@ -58,12 +58,14 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
   let idbActors: any[] = [];
   let idbNewWorks: any[] = [];
   let idbMagnets: any[] = [];
+  let idbLists: any[] = [];
   try {
     const db = await initDB();
     try { idbViewed = await db.getAll('viewedRecords'); } catch {}
     try { idbActors = await db.getAll('actors'); } catch {}
     try { idbNewWorks = await db.getAll('newWorks'); } catch {}
     try { idbMagnets = await db.getAll('magnets'); } catch {}
+    try { idbLists = await db.getAll('lists'); } catch {}
   } catch {}
 
   let storageKeysCount = 0;
@@ -107,6 +109,7 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
       actors: { count: Array.isArray(idbActors) ? idbActors.length : 0 },
       newWorks: { count: Array.isArray(idbNewWorks) ? idbNewWorks.length : 0 },
       magnets: { count: Array.isArray(idbMagnets) ? idbMagnets.length : 0 },
+      lists: { count: Array.isArray(idbLists) ? idbLists.length : 0 },
       logs: { count: Array.isArray(logs) ? logs.length : 0 },
       magnetPushLogs: { count: Array.isArray(magnetPushLogs) ? magnetPushLogs.length : 0 },
     },
@@ -134,6 +137,7 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
       actors: idbActors,
       newWorks: idbNewWorks,
       magnets: idbMagnets,
+      lists: idbLists,
       logs,
       magnetPushLogs,
     },
@@ -148,6 +152,7 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
     idbActorsCount: stats.idb.actors.count,
     idbNewWorksCount: stats.idb.newWorks.count,
     idbMagnetsCount: stats.idb.magnets.count,
+    idbListsCount: stats.idb.lists.count,
     logsCount: stats.idb.logs.count,
     magnetPushLogsCount: stats.idb.magnetPushLogs.count,
     storageKeys: stats.storage.keys,
