@@ -89,7 +89,7 @@ build.bat
 # IDE specific
 .windsurf/
 .kiro/
-
+.trae/
 .codex/
 .claude/
 

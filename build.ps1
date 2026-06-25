@@ -1,4 +1,4 @@
-﻿# JavDB Extension - Interactive Build Assistant (PowerShell Version)
+﻿﻿# JavDB Extension - Interactive Build Assistant (PowerShell Version)
 param()
 
 # Set console encoding to UTF-8
@@ -810,6 +810,16 @@ if ($autoNotes) {
     }
 
     # 发布时去掉预览专用的 Title/Body 行
+    # 交互步骤 7: 询问是否发布为预览版
+    $isPrerelease = $false
+    $preReleaseChoice = Get-UserChoice "Publish as Pre-release or Release? (p/r)" "r"
+    if ($preReleaseChoice.ToLower() -eq "p") {
+        $isPrerelease = $true
+        Write-Host "Will publish as Pre-release" -ForegroundColor Yellow
+    } else {
+        Write-Host "Will publish as Release" -ForegroundColor Green
+    }
+
     Write-Host "Creating GitHub Release..." -ForegroundColor Gray
     $notesRelease = "release-notes-$tagName.release.md"
     try {
@@ -817,7 +827,11 @@ if ($autoNotes) {
     } catch {}
 
     try {
-        & gh release create $tagName $zipPath --title $releaseTitle -F $notesRelease
+        if ($isPrerelease) {
+            & gh release create $tagName $zipPath --title $releaseTitle --pre-release -F $notesRelease
+        } else {
+            & gh release create $tagName $zipPath --title $releaseTitle -F $notesRelease
+        }
         if ($LASTEXITCODE -ne 0) { throw "GitHub release creation failed" }
         Write-Host "GitHub Release created successfully!" -ForegroundColor Green
         Show-Success
