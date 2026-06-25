@@ -30,6 +30,7 @@ export async function applyImportDataDirect(importData: any, options?: {
     viewed?: boolean;
     actors?: boolean;
     newWorks?: boolean;
+    lists?: boolean;
     magnets?: boolean;
     logs?: boolean;
     magnetPushLogs?: boolean;
@@ -44,6 +45,7 @@ export async function applyImportDataDirect(importData: any, options?: {
       viewed: true,
       actors: true,
       newWorks: true,
+      lists: true,
       importStats: true,
       logs: false,
       magnetPushLogs: false,
@@ -142,6 +144,19 @@ export async function applyImportDataDirect(importData: any, options?: {
       }
     }
 
+    if (opts.categories.lists) {
+      const c0 = Date.now();
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.lists)) items = importData.idb.lists;
+        await clearStore(db, 'lists', logger);
+        const written = await putRecordsInBatches(db, 'lists', items, RESTORE_BATCH_SIZE, logger);
+        mark('lists', { cleared: true, written, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        mark('lists', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
     if (opts.categories.magnets) {
       const c0 = Date.now();
       try {
@@ -211,6 +226,7 @@ export async function performRestoreUnified(filename: string, options?: {
     viewed?: boolean;
     actors?: boolean;
     newWorks?: boolean;
+    lists?: boolean;
     magnets?: boolean;
     logs?: boolean;
     magnetPushLogs?: boolean;
@@ -226,6 +242,7 @@ export async function performRestoreUnified(filename: string, options?: {
       viewed: true,
       actors: true,
       newWorks: true,
+      lists: true,
       importStats: true,
       logs: false,
       magnetPushLogs: false,

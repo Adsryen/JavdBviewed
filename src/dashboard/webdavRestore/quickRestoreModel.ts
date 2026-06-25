@@ -53,6 +53,7 @@ export function buildQuickRestoreMergeOptions(): MergeOptions {
     restoreLogs: false,
     restoreImportStats: true,
     restoreNewWorks: true,
+    restoreLists: true,
   };
 }
 

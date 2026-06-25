@@ -131,6 +131,7 @@ export interface MergeOptions {
     restoreMagnetPushLogs?: boolean;
     restoreImportStats: boolean;
     restoreNewWorks?: boolean; // 新增：是否恢复新作品（订阅/记录/配置）
+    restoreLists?: boolean;
     customConflictResolutions?: Record<string, 'local' | 'cloud' | 'merge'>;
 }
 

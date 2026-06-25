@@ -87,6 +87,7 @@ describe('WebDAV backup and restore baseline', () => {
             restoreMagnetPushLogs: true,
             restoreImportStats: false,
             restoreNewWorks: true,
+            restoreLists: true,
           },
         },
         {} as chrome.runtime.MessageSender,
@@ -106,9 +107,77 @@ describe('WebDAV backup and restore baseline', () => {
         magnetPushLogs: true,
         importStats: false,
         newWorks: true,
+        lists: true,
       },
       autoBackupBeforeRestore: true,
     });
+  });
+
+  it('backs up list, series, and label records from IndexedDB', async () => {
+    vi.resetModules();
+    const listRecords = [
+      { id: 'local_1', name: '本地清单', type: 'local', source: 'local' },
+      { id: 'series:abc', name: '系列 A', type: 'series', source: 'javdb' },
+      { id: 'label:FC2', name: 'FC2', type: 'label', source: 'javdb' },
+    ];
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn(async (storeName: string) => storeName === 'lists' ? listRecords : []),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        logsGetAll: vi.fn().mockResolvedValue([]),
+        magnetPushLogsGetAll: vi.fn().mockResolvedValue([]),
+      };
+    });
+
+    const { collectBackupData } = await import('../../src/features/webdavSync/application/backupCollector');
+
+    const snapshot = await collectBackupData();
+
+    expect(snapshot.idb.lists).toEqual(listRecords);
+    expect(snapshot.stats.idb.lists.count).toBe(3);
+  });
+
+  it('restores list, series, and label records by default', async () => {
+    vi.resetModules();
+    const put = vi.fn().mockResolvedValue(undefined);
+    const clear = vi.fn().mockResolvedValue(undefined);
+    const fakeStore = { clear, put };
+    const fakeTx = {
+      objectStore: vi.fn(() => fakeStore),
+      complete: Promise.resolve(),
+    };
+    const initDB = vi.fn().mockResolvedValue({
+      transaction: vi.fn(() => fakeTx),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedReplaceAll: vi.fn().mockResolvedValue(0),
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const records = [
+      { id: 'local_1', name: '本地清单', type: 'local', source: 'local' },
+      { id: 'series:abc', name: '系列 A', type: 'series', source: 'javdb' },
+      { id: 'label:FC2', name: 'FC2', type: 'label', source: 'javdb' },
+    ];
+
+    const result = await applyImportDataDirect({ idb: { lists: records } });
+
+    expect(result.success).toBe(true);
+    expect(initDB).toHaveBeenCalled();
+    expect(fakeTx.objectStore).toHaveBeenCalledWith('lists');
+    expect(put).toHaveBeenCalledTimes(3);
+    expect(result.summary?.categories?.lists).toMatchObject({ cleared: true, written: 3 });
   });
 
   it('restores viewed records through the IndexedDB viewed facade', async () => {
@@ -158,6 +227,7 @@ describe('WebDAV backup and restore baseline', () => {
           logs: false,
           magnetPushLogs: false,
           importStats: false,
+          lists: false,
         },
       },
     );
@@ -343,6 +413,7 @@ describe('WebDAV backup and restore baseline', () => {
         actors: [{ id: 'actor-1' }],
         newWorks: [{ id: 'work-1' }],
         magnets: [{ hash: 'abc' }],
+        lists: [{ id: 'local_1' }],
         logs: [{ level: 'INFO' }],
       },
       importStats: { last: true },
@@ -353,6 +424,7 @@ describe('WebDAV backup and restore baseline', () => {
           actors: { count: 2 },
           newWorks: { count: 3 },
           magnets: { count: 4 },
+          lists: { count: 6 },
           logs: { count: 5 },
         },
       },
@@ -364,6 +436,7 @@ describe('WebDAV backup and restore baseline', () => {
         actors: 2,
         newWorks: 3,
         magnets: 4,
+        lists: 6,
         logs: 5,
       },
       storageKeys: 9,
@@ -382,10 +455,14 @@ describe('WebDAV backup and restore baseline', () => {
           'SSIS-003': { id: 'SSIS-003' },
         },
       },
+      idb: {
+        lists: [{ id: 'local_1' }, { id: 'series:abc' }],
+      },
     }).counts).toMatchObject({
       viewed: 2,
       actors: 1,
       newWorks: 1,
+      lists: 2,
     });
   });
 

@@ -76,6 +76,7 @@ const CATEGORY_NAMES: Record<string, string> = {
   viewed: '观看记录',
   actors: '演员库',
   newWorks: '新作品',
+  lists: '清单 / 系列 / 番号',
   logs: '日志记录',
   magnetPushLogs: '磁力推送日志',
   importStats: '导入统计',
@@ -286,6 +287,10 @@ function getCloudDetails(category: string, cloudData: any): string[] {
       const subscriptions = countObjectEntries(cloudData?.newWorks?.subscriptions || sa[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS]);
       const records = countObjectEntries(cloudData?.newWorks?.records || sa[STORAGE_KEYS.NEW_WORKS_RECORDS]);
       return [`云端：订阅 ${subscriptions} · 记录 ${records}`];
+    }
+    case 'lists': {
+      const idbLists = Array.isArray(cloudData?.idb?.lists) ? cloudData.idb.lists : [];
+      return [`云端：${idbLists.length} 条`];
     }
     case 'logs': {
       const idbLogs = Array.isArray(cloudData?.idb?.logs) ? cloudData.idb.logs : [];
