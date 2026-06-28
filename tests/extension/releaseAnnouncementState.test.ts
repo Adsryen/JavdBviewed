@@ -119,13 +119,17 @@ describe('release announcement state', () => {
   });
 
   it('ships user-facing release notes for recent versions', () => {
-    expect(RELEASE_NOTES.map(note => note.version)).toEqual(['1.20.2', '1.20.1', '1.20.0']);
+    expect(RELEASE_NOTES.map(note => note.version)).toEqual(['1.20.3', '1.20.2', '1.20.1', '1.20.0']);
     expect(RELEASE_NOTES[0]?.highlights).toEqual(expect.arrayContaining([
+      'WebDAV 支持按设备筛选、清理和恢复备份。',
+      'Emby/Jellyfin 新增入库状态和服务器识别。',
+    ]));
+    expect(RELEASE_NOTES[1]?.highlights).toEqual(expect.arrayContaining([
       '影片页新增在线可看、外部搜索和字幕搜索入口。',
       '磁力升级多源聚合、分页、来源筛选和 JAVBUS 兜底。',
     ]));
-    expect(RELEASE_NOTES[1]?.highlights).toContain('115 离线下载支持选择目标文件夹。');
-    expect(RELEASE_NOTES[2]?.highlights).toContain('全局任务中心接入详情页增强和后台任务。');
+    expect(RELEASE_NOTES[2]?.highlights).toContain('115 离线下载支持选择目标文件夹。');
+    expect(RELEASE_NOTES[3]?.highlights).toContain('全局任务中心接入详情页增强和后台任务。');
     for (const note of RELEASE_NOTES) {
       expect(note.highlights.length).toBeGreaterThanOrEqual(3);
       expect(note.highlights.every(item => item.length >= 12 && item.length <= 42)).toBe(true);

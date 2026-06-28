@@ -164,6 +164,7 @@ describe('WebDAV restore wizard controller', () => {
       restoreLogs: false,
       restoreImportStats: true,
       restoreNewWorks: true,
+      restoreLists: true,
     });
   });
 
@@ -220,6 +221,7 @@ describe('WebDAV restore wizard controller', () => {
       restoreMagnetPushLogs: false,
       restoreImportStats: true,
       restoreNewWorks: true,
+      restoreLists: true,
     });
   });
 });

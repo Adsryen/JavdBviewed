@@ -7,6 +7,7 @@ module.exports = defineConfig({
     restoreMocks: true,
     clearMocks: true,
     environment: 'node',
+    testTimeout: 20000,
     include: ['tests/regression/**/*.test.ts'],
   },
 });

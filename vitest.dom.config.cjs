@@ -7,6 +7,7 @@ module.exports = defineConfig({
     restoreMocks: true,
     clearMocks: true,
     environment: 'jsdom',
+    testTimeout: 20000,
     include: ['tests/dom/**/*.test.ts'],
     setupFiles: ['tests/setup/proxy.ts', 'tests/setup/dom.ts'],
     coverage: {

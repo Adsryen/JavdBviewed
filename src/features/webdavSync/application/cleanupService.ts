@@ -10,6 +10,7 @@ export interface WebDAVSettingsProvider {
 
 export interface WebDAVCleanupOptions extends WebDAVClientOptions, WebDAVSettingsProvider {
   logger?: WebDAVClientLog;
+  listFiles?: (options: WebDAVCleanupOptions) => Promise<{ success: boolean; error?: string; files?: WebDAVFile[] }>;
 }
 
 export async function listWebDAVFiles(options: WebDAVCleanupOptions): Promise<{ success: boolean; error?: string; files?: WebDAVFile[] }> {
@@ -76,7 +77,7 @@ export async function cleanupOldBackups(retentionCount: number, options: WebDAVC
   if (!settings.webdav.enabled || !settings.webdav.url) return;
   try {
     logger?.('INFO', 'cleanupOldBackups started (per-device)', { retentionCount });
-    const result = await listWebDAVFiles(options);
+    const result = await (options.listFiles || listWebDAVFiles)(options);
     if (!result.success || !result.files || result.files.length === 0) {
       logger?.('WARN', 'cleanupOldBackups: listFiles returned no files', { success: result.success, fileCount: result.files?.length });
       return;
