@@ -49,14 +49,12 @@ describe('WebDAV cleanup service - per-device retention', () => {
       },
     };
 
-    // Mock listWebDAVFiles - 需要在导入 cleanupOldBackups 之前进行 mock
     const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
-    const listSpy = vi.spyOn(cleanupModule, 'listWebDAVFiles').mockResolvedValue({ success: true, files: mockFiles });
+    const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
-    await cleanupModule.cleanupOldBackups(3, options as any);
+    await cleanupModule.cleanupOldBackups(3, { ...options, listFiles } as any);
 
-    // 验证 listWebDAVFiles 被调用
-    expect(listSpy).toHaveBeenCalled();
+    expect(listFiles).toHaveBeenCalled();
 
     // 验证删除的文件数量（Device A: 2个，Device B: 1个，Device C: 0个）
     expect(deletedFiles.length).toBe(3);
@@ -79,9 +77,9 @@ describe('WebDAV cleanup service - per-device retention', () => {
 
   it('handles devices with unknown clientId', async () => {
     const mockFiles: WebDAVFile[] = [
-      { path: '/dav/backup-1.zip', name: 'javdb-extension-backup-2026-06-10.zip', lastModified: '2026-06-10T10:00:00Z' },
-      { path: '/dav/backup-2.zip', name: 'javdb-extension-backup-2026-06-09.zip', lastModified: '2026-06-09T10:00:00Z' },
-      { path: '/dav/backup-3.zip', name: 'javdb-extension-backup-2026-06-08.zip', lastModified: '2026-06-08T10:00:00Z' },
+      { path: '/dav/javdb-extension-backup-2026-06-10.zip', name: 'javdb-extension-backup-2026-06-10.zip', lastModified: '2026-06-10T10:00:00Z' },
+      { path: '/dav/javdb-extension-backup-2026-06-09.zip', name: 'javdb-extension-backup-2026-06-09.zip', lastModified: '2026-06-09T10:00:00Z' },
+      { path: '/dav/javdb-extension-backup-2026-06-08.zip', name: 'javdb-extension-backup-2026-06-08.zip', lastModified: '2026-06-08T10:00:00Z' },
     ];
 
     const deletedFiles: string[] = [];
@@ -107,11 +105,11 @@ describe('WebDAV cleanup service - per-device retention', () => {
     };
 
     const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
-    const listSpy = vi.spyOn(cleanupModule, 'listWebDAVFiles').mockResolvedValue({ success: true, files: mockFiles });
+    const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
-    await cleanupModule.cleanupOldBackups(2, options as any);
+    await cleanupModule.cleanupOldBackups(2, { ...options, listFiles } as any);
 
-    expect(listSpy).toHaveBeenCalled();
+    expect(listFiles).toHaveBeenCalled();
 
     // 所有文件都归到 'unknown' 设备，应该保留 2 个，删除 1 个
     expect(deletedFiles.length).toBe(1);
@@ -139,9 +137,9 @@ describe('WebDAV cleanup service - per-device retention', () => {
     };
 
     const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
-    vi.spyOn(cleanupModule, 'listWebDAVFiles').mockResolvedValue({ success: true, files: mockFiles });
+    const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
-    await cleanupModule.cleanupOldBackups(0, options as any);
+    await cleanupModule.cleanupOldBackups(0, { ...options, listFiles } as any);
 
     expect(deletedFiles.length).toBe(0);
   });
@@ -169,9 +167,9 @@ describe('WebDAV cleanup service - per-device retention', () => {
     };
 
     const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
-    vi.spyOn(cleanupModule, 'listWebDAVFiles').mockResolvedValue({ success: true, files: mockFiles });
+    const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
-    await cleanupModule.cleanupOldBackups(5, options as any);
+    await cleanupModule.cleanupOldBackups(5, { ...options, listFiles } as any);
 
     // 每个设备的文件都少于 5 个，不应该删除任何文件
     expect(deletedFiles.length).toBe(0);

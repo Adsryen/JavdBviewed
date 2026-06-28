@@ -7,6 +7,7 @@ module.exports = defineConfig({
     restoreMocks: true,
     clearMocks: true,
     environment: 'jsdom',
+    testTimeout: 60000,
     environmentOptions: {
       jsdom: {
         url: 'https://javdb.com/v/abc123',

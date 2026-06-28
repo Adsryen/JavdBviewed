@@ -197,16 +197,19 @@ export class WebDAVRestoreWizardController {
       selectedContent: this.state.selectedContent,
     });
 
+    const restoreRecords = this.readCheckboxValue('webdavRestoreRecords', true);
+
     void this.options.executeRestore({
       strategy: this.state.strategy as any,
       restoreSettings: this.readCheckboxValue('webdavRestoreSettings', true),
-      restoreRecords: this.readCheckboxValue('webdavRestoreRecords', true),
+      restoreRecords,
       restoreUserProfile: this.readCheckboxValue('webdavRestoreUserProfile', true),
       restoreActorRecords: this.readCheckboxValue('webdavRestoreActorRecords', true),
       restoreLogs: this.readCheckboxValue('webdavRestoreLogs', false),
       restoreMagnetPushLogs: this.readCheckboxValue('webdavRestoreMagnetPushLogs', false),
       restoreImportStats: this.readCheckboxValue('webdavRestoreImportStats', false),
       restoreNewWorks: this.readCheckboxValue('webdavRestoreNewWorks', false),
+      restoreLists: this.readCheckboxValue('webdavRestoreLists', restoreRecords),
     });
   }
 
