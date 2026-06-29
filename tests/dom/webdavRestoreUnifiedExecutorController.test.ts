@@ -33,6 +33,8 @@ function createController(overrides: Partial<ConstructorParameters<typeof WebDAV
     showConfirm: vi.fn(async () => true),
     showMessage: vi.fn(),
     showRestoreProgress: vi.fn(),
+    bindRestoreProgressListener: vi.fn(() => () => undefined),
+    updateRestoreProgress: vi.fn(),
     showRestoreResults: vi.fn(),
     clearProgressTimer: vi.fn(),
     sendRuntimeMessage,
@@ -86,9 +88,13 @@ describe('WebDAV restore unified executor controller', () => {
     expect(options.showConfirm.mock.calls[0][0].message).toContain('合并');
     expect(options.showConfirm.mock.calls[0][0].message).toContain('覆盖');
     expect(options.showRestoreProgress).toHaveBeenCalledTimes(1);
+    const restoreTaskId = options.showRestoreProgress.mock.calls[0][0];
+    expect(restoreTaskId).toMatch(/^webdav-restore-/);
+    expect(options.bindRestoreProgressListener).toHaveBeenCalledWith(restoreTaskId);
     expect(options.sendRuntimeMessage).toHaveBeenCalledWith({
       type: 'WEB_DAV:RESTORE_UNIFIED',
       filename: '/backup.zip',
+      restoreTaskId,
       options: {
         categories: {
           settings: true,
@@ -145,7 +151,9 @@ describe('WebDAV restore unified executor controller', () => {
   });
 
   it('clears progress and reports error when unified restore fails', async () => {
+    const unbind = vi.fn();
     const { controller, options } = createController({
+      bindRestoreProgressListener: vi.fn(() => unbind),
       sendRuntimeMessage: vi.fn((_message, callback) => {
         callback({ success: false, error: 'restore failed' });
       }),
@@ -162,6 +170,7 @@ describe('WebDAV restore unified executor controller', () => {
     });
 
     expect(options.clearProgressTimer).toHaveBeenCalledTimes(1);
+    expect(unbind).toHaveBeenCalledTimes(1);
     expect(options.logError).toHaveBeenCalledWith('恢复操作失败', { error: 'restore failed' });
     expect(options.showMessage).toHaveBeenCalledWith('恢复失败: restore failed', 'error');
   });

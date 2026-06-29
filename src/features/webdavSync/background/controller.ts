@@ -243,8 +243,20 @@ async function applyImportDataDirect(importData: any, options?: Parameters<typeo
   return applyImportDataDirectCore(importData, options, { logger: bgLog });
 }
 
-async function performRestoreUnified(filename: string, options?: Parameters<typeof performRestoreUnifiedCore>[1]): Promise<{ success: boolean; error?: string; summary?: any }> {
-  return performRestoreUnifiedCore(filename, options, { logger: bgLog });
+async function performRestoreUnified(filename: string, options?: Parameters<typeof performRestoreUnifiedCore>[1], restoreTaskId?: string): Promise<{ success: boolean; error?: string; summary?: any }> {
+  return performRestoreUnifiedCore(filename, options, {
+    logger: bgLog,
+    onProgress: (event) => {
+      if (!restoreTaskId) return;
+      try {
+        chrome.runtime.sendMessage({
+          type: 'WEB_DAV:RESTORE_PROGRESS',
+          taskId: restoreTaskId,
+          ...event,
+        });
+      } catch {}
+    },
+  });
 }
 
 async function listFiles(): Promise<{ success: boolean; error?: string; files?: WebDAVFile[] }> {

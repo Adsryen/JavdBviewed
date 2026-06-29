@@ -1366,6 +1366,123 @@ body.modal-open {
   display: none !important;
 }
 
+/* ================= 恢复进度（执行中） ================= */
+.restore-progress-container {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.restore-progress-container .progress-header {
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.restore-progress-container .progress-header h4 {
+    margin: 0 0 6px 0;
+    color: var(--text-primary);
+    font-size: 18px;
+}
+
+.restore-progress-container .progress-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.restore-progress-container .progress-categories {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+    max-height: min(42vh, 360px);
+    overflow: auto;
+}
+
+.restore-progress-category {
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--surface-secondary);
+}
+
+.restore-progress-category.running {
+    border-color: rgba(59, 130, 246, 0.45);
+}
+
+.restore-progress-category.done {
+    border-color: rgba(22, 163, 74, 0.45);
+}
+
+.restore-progress-category.skipped {
+    border-color: rgba(148, 163, 184, 0.6);
+}
+
+.restore-progress-category.error {
+    border-color: rgba(220, 38, 38, 0.45);
+}
+
+.restore-progress-category-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.restore-progress-category-name {
+    min-width: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.restore-progress-category-mode,
+.restore-progress-category-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--surface-primary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.restore-progress-category.done .restore-progress-category-status {
+    color: var(--success-text, #15803d);
+}
+
+.restore-progress-category.error .restore-progress-category-status {
+    color: var(--error-text, #dc2626);
+}
+
+.restore-progress-category-detail {
+    margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.restore-progress-container .progress-summary {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--surface-secondary);
+}
+
+.restore-progress-container .summary-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-secondary);
+}
+
+.restore-progress-container .summary-item .value {
+    color: var(--text-primary);
+    text-align: right;
+}
+
 /* ================= 恢复结果摘要（结果页） ================= */
 .restore-results-container {
     background: var(--surface-primary);

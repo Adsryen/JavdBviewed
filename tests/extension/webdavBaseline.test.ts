@@ -119,6 +119,52 @@ describe('WebDAV backup and restore baseline', () => {
     });
   });
 
+  it('routes unified restore with a restore progress task id', async () => {
+    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const performRestoreUnified = vi.fn().mockResolvedValue({ success: true, summary: { restored: true } });
+
+    registerWebDAVRouterListener({
+      listFiles: vi.fn(),
+      previewBackup: vi.fn(),
+      performRestoreUnified,
+      testWebDAVConnection: vi.fn(),
+      testWebDAVConnectionWithConfig: vi.fn(),
+      diagnoseWebDAVConnection: vi.fn(),
+      performUpload: vi.fn(),
+      getCurrentWebDAVClientProfile: vi.fn(),
+      listWebDAVClients: vi.fn(),
+      updateCurrentWebDAVDeviceLabel: vi.fn(),
+      updateWebDAVClientDeviceLabel: vi.fn(),
+      collectBackupData: vi.fn(),
+      downloadBackupFileAsBase64: vi.fn(),
+      applyImportDataDirect: vi.fn(),
+    });
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls.at(-1)?.[0];
+    const response = await new Promise<any>((resolve) => {
+      const asyncResult = listener!(
+        {
+          type: 'WEB_DAV:RESTORE_UNIFIED',
+          filename: '/backup.zip',
+          restoreTaskId: 'restore-task-1',
+          options: {
+            categories: { viewed: true },
+            categoryModes: { viewed: 'merge' },
+          },
+        },
+        {} as chrome.runtime.MessageSender,
+        resolve,
+      );
+      expect(asyncResult).toBe(true);
+    });
+
+    expect(response).toEqual({ success: true, summary: { restored: true } });
+    expect(performRestoreUnified).toHaveBeenCalledWith('/backup.zip', {
+      categories: { viewed: true },
+      categoryModes: { viewed: 'merge' },
+    }, 'restore-task-1');
+  });
+
   it('backs up list, series, and label records from IndexedDB', async () => {
     vi.resetModules();
     const listRecords = [
@@ -239,6 +285,80 @@ describe('WebDAV backup and restore baseline', () => {
     );
 
     expect(viewedReplaceAll).toHaveBeenCalledWith([record]);
+  });
+
+  it('reports real category progress while applying restore data', async () => {
+    vi.resetModules();
+    const viewedReplaceAll = vi.fn().mockResolvedValue(1);
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn().mockResolvedValue([]),
+      transaction: vi.fn(() => ({
+        objectStore: vi.fn(() => ({
+          clear: vi.fn().mockResolvedValue(undefined),
+          put: vi.fn().mockResolvedValue(undefined),
+        })),
+        complete: Promise.resolve(),
+      })),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedReplaceAll,
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const progressEvents: any[] = [];
+
+    const result = await applyImportDataDirect(
+      { idb: { viewedRecords: [{ id: 'AAA-001', title: 'Cloud only' }] } },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: true,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: false,
+          importStats: false,
+          lists: false,
+        },
+        categoryModes: {
+          viewed: 'replace',
+        },
+      },
+      {
+        onProgress: event => progressEvents.push(event),
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(progressEvents).toEqual([
+      expect.objectContaining({ stage: 'apply', status: 'running', message: '正在应用恢复策略...' }),
+      expect.objectContaining({
+        stage: 'category',
+        status: 'running',
+        category: 'viewed',
+        categoryMode: 'replace',
+        completedCategories: 0,
+        totalCategories: 1,
+      }),
+      expect.objectContaining({
+        stage: 'category',
+        status: 'done',
+        category: 'viewed',
+        categoryMode: 'replace',
+        completedCategories: 1,
+        totalCategories: 1,
+        summary: expect.objectContaining({ written: 1 }),
+      }),
+      expect.objectContaining({ stage: 'apply', status: 'done', message: '恢复数据写入完成' }),
+    ]);
   });
 
   it('merges viewed records by id without duplicates and keeps local-only records', async () => {
