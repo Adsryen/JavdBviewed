@@ -250,7 +250,7 @@ const restoreUnifiedExecutorController = new WebDAVRestoreUnifiedExecutorControl
 });
 
 /**
- * 初始化覆盖式恢复界面
+ * 初始化 WebDAV 恢复界面
  */
 function initializeRestoreInterface(diffResult: DataDiffResult): void {
     restoreWizardController.initializeRestoreInterface(diffResult, currentCloudData);

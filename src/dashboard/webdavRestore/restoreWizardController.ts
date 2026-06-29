@@ -17,6 +17,7 @@ import {
   canProceedFromWizardStep,
 } from './restoreWizardStateModel';
 import { buildStrategyPreviewHtml } from './strategyPreviewModel';
+import type { RestoreCategoryMode, RestoreCategoryModes } from './restoreExecuteConfirmModel';
 
 interface RestoreWizardState {
   currentMode: RestoreMode;
@@ -73,7 +74,7 @@ export class WebDAVRestoreWizardController {
   }
 
   initializeRestoreInterface(diffResult: DataDiffResult, cloudData: any): void {
-    this.options.logInfo('初始化覆盖式恢复界面');
+    this.options.logInfo('初始化 WebDAV 恢复界面');
     this.state.isAnalysisComplete = true;
 
     this.initializeRestoreMode(diffResult);
@@ -210,6 +211,7 @@ export class WebDAVRestoreWizardController {
       restoreImportStats: this.readCheckboxValue('webdavRestoreImportStats', false),
       restoreNewWorks: this.readCheckboxValue('webdavRestoreNewWorks', false),
       restoreLists: this.readCheckboxValue('webdavRestoreLists', restoreRecords),
+      categoryModes: this.readCategoryModes(),
     });
   }
 
@@ -360,6 +362,9 @@ export class WebDAVRestoreWizardController {
     if (!existingOptions) return;
 
     grid.innerHTML = existingOptions.innerHTML;
+    grid.querySelectorAll('[id]').forEach((element) => {
+      element.id = `${element.id}Wizard`;
+    });
 
     grid.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
       checkbox.addEventListener('change', () => this.updateSelectedContent());
@@ -401,7 +406,43 @@ export class WebDAVRestoreWizardController {
   }
 
   private readCheckboxValue(id: string, fallback: boolean): boolean {
-    const checkbox = document.getElementById(id) as HTMLInputElement | null;
+    const checkbox = (
+      document.getElementById(`${id}Wizard`) ||
+      document.getElementById(id)
+    ) as HTMLInputElement | null;
     return checkbox ? Boolean(checkbox.checked) : fallback;
+  }
+
+  private readCategoryModes(): Partial<RestoreCategoryModes> {
+    const pairs = [
+      ['settings', 'webdavRestoreSettingsMode'],
+      ['viewed', 'webdavRestoreRecordsMode'],
+      ['userProfile', 'webdavRestoreUserProfileMode'],
+      ['actors', 'webdavRestoreActorRecordsMode'],
+      ['newWorks', 'webdavRestoreNewWorksMode'],
+      ['lists', 'webdavRestoreListsMode'],
+      ['logs', 'webdavRestoreLogsMode'],
+      ['magnetPushLogs', 'webdavRestoreMagnetPushLogsMode'],
+      ['importStats', 'webdavRestoreImportStatsMode'],
+      ['magnets', 'webdavRestoreMagnetsMode'],
+    ] as const;
+    const modes: Partial<RestoreCategoryModes> = {};
+
+    for (const [category, id] of pairs) {
+      const mode = this.readSelectValue(id);
+      if (mode) modes[category] = mode;
+    }
+
+    return modes;
+  }
+
+  private readSelectValue(id: string): RestoreCategoryMode | undefined {
+    const select = (
+      document.getElementById(`${id}Wizard`) ||
+      document.getElementById(id)
+    ) as HTMLSelectElement | null;
+    const value = select?.value;
+    if (value === 'skip' || value === 'merge' || value === 'replace') return value;
+    return undefined;
   }
 }

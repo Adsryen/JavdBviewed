@@ -88,6 +88,9 @@ describe('WebDAV backup and restore baseline', () => {
             restoreImportStats: false,
             restoreNewWorks: true,
             restoreLists: true,
+            categoryModes: {
+              viewed: 'replace',
+            },
           },
         },
         {} as chrome.runtime.MessageSender,
@@ -108,6 +111,9 @@ describe('WebDAV backup and restore baseline', () => {
         importStats: false,
         newWorks: true,
         lists: true,
+      },
+      categoryModes: {
+        viewed: 'replace',
       },
       autoBackupBeforeRestore: true,
     });
@@ -233,6 +239,377 @@ describe('WebDAV backup and restore baseline', () => {
     );
 
     expect(viewedReplaceAll).toHaveBeenCalledWith([record]);
+  });
+
+  it('merges viewed records by id without duplicates and keeps local-only records', async () => {
+    vi.resetModules();
+    const existingRecords = [
+      { id: 'AAA-001', title: 'Local old', status: 'browsed', tags: ['local'], updatedAt: 100 },
+      { id: 'BBB-002', title: 'Local only', status: 'want', tags: ['keep'], updatedAt: 200 },
+    ];
+    const viewedGetAll = vi.fn().mockResolvedValue(existingRecords);
+    const viewedReplaceAll = vi.fn().mockResolvedValue(3);
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn().mockResolvedValue([]),
+      transaction: vi.fn(() => ({
+        objectStore: vi.fn(() => ({
+          clear: vi.fn().mockResolvedValue(undefined),
+          put: vi.fn().mockResolvedValue(undefined),
+        })),
+        complete: Promise.resolve(),
+      })),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedGetAll,
+        viewedReplaceAll,
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+
+    const result = await applyImportDataDirect(
+      {
+        idb: {
+          viewedRecords: [
+            { id: 'AAA-001', title: 'Cloud old duplicate', status: 'viewed', tags: ['cloud-old'], updatedAt: 50 },
+            { id: 'AAA-001', title: 'Cloud newest', status: 'viewed', tags: ['cloud-new'], updatedAt: 300 },
+            { id: 'CCC-003', title: 'Cloud only', status: 'browsed', tags: [], updatedAt: 150 },
+          ],
+        },
+      },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: true,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: false,
+          importStats: false,
+          lists: false,
+        },
+        categoryModes: {
+          viewed: 'merge',
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(viewedReplaceAll).toHaveBeenCalledTimes(1);
+    const merged = viewedReplaceAll.mock.calls[0][0];
+    expect(merged).toHaveLength(3);
+    expect(merged.map((item: any) => item.id).sort()).toEqual(['AAA-001', 'BBB-002', 'CCC-003']);
+    expect(merged.find((item: any) => item.id === 'AAA-001')).toMatchObject({
+      title: 'Cloud newest',
+      tags: ['cloud-new'],
+      updatedAt: 300,
+    });
+    expect(merged.find((item: any) => item.id === 'BBB-002')).toMatchObject({
+      title: 'Local only',
+      updatedAt: 200,
+    });
+    expect(result.summary?.categories?.viewed).toMatchObject({
+      mode: 'merge',
+      added: 1,
+      updated: 1,
+      kept: 1,
+      written: 3,
+    });
+  });
+
+  it('overwrites viewed records only when the category mode is replace', async () => {
+    vi.resetModules();
+    const viewedGetAll = vi.fn().mockResolvedValue([
+      { id: 'LOCAL-001', title: 'Local only', updatedAt: 200 },
+    ]);
+    const viewedReplaceAll = vi.fn().mockResolvedValue(1);
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn().mockResolvedValue([]),
+      transaction: vi.fn(() => ({
+        objectStore: vi.fn(() => ({
+          clear: vi.fn().mockResolvedValue(undefined),
+          put: vi.fn().mockResolvedValue(undefined),
+        })),
+        complete: Promise.resolve(),
+      })),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedGetAll,
+        viewedReplaceAll,
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+
+    const result = await applyImportDataDirect(
+      { idb: { viewedRecords: [{ id: 'CLOUD-001', title: 'Cloud only', updatedAt: 100 }] } },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: true,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: false,
+          importStats: false,
+          lists: false,
+        },
+        categoryModes: {
+          viewed: 'replace',
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(viewedGetAll).not.toHaveBeenCalled();
+    expect(viewedReplaceAll).toHaveBeenCalledWith([
+      { id: 'CLOUD-001', title: 'Cloud only', updatedAt: 100 },
+    ]);
+    expect(result.summary?.categories?.viewed).toMatchObject({
+      mode: 'replace',
+      cleared: true,
+      written: 1,
+    });
+  });
+
+  it('merges list records by id without dropping local-only lists', async () => {
+    vi.resetModules();
+    const stores = new Map<string, any[]>([
+      ['lists', [
+        { id: 'list-1', name: 'Local list', updatedAt: 100 },
+        { id: 'list-2', name: 'Local only', updatedAt: 200 },
+      ]],
+    ]);
+    const putCalls: any[] = [];
+    const fakeStore = {
+      clear: vi.fn(async () => {
+        stores.set('lists', []);
+      }),
+      put: vi.fn(async (record: any) => {
+        putCalls.push(record);
+      }),
+    };
+    const fakeTx = {
+      objectStore: vi.fn(() => fakeStore),
+      complete: Promise.resolve(),
+    };
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn(async (storeName: string) => stores.get(storeName) || []),
+      transaction: vi.fn(() => fakeTx),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedReplaceAll: vi.fn().mockResolvedValue(0),
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+
+    const result = await applyImportDataDirect(
+      {
+        idb: {
+          lists: [
+            { id: 'list-1', name: 'Cloud newest', updatedAt: 300 },
+            { id: 'list-1', name: 'Cloud duplicate old', updatedAt: 150 },
+            { id: 'list-3', name: 'Cloud only', updatedAt: 50 },
+          ],
+        },
+      },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: false,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: false,
+          importStats: false,
+          lists: true,
+        },
+        categoryModes: {
+          lists: 'merge',
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(fakeStore.clear).toHaveBeenCalledTimes(1);
+    expect(putCalls).toHaveLength(3);
+    expect(putCalls.map(item => item.id).sort()).toEqual(['list-1', 'list-2', 'list-3']);
+    expect(putCalls.find(item => item.id === 'list-1')).toMatchObject({
+      name: 'Cloud newest',
+      updatedAt: 300,
+    });
+    expect(putCalls.find(item => item.id === 'list-2')).toMatchObject({
+      name: 'Local only',
+      updatedAt: 200,
+    });
+    expect(result.summary?.categories?.lists).toMatchObject({
+      mode: 'merge',
+      added: 1,
+      updated: 1,
+      kept: 1,
+      written: 3,
+    });
+  });
+
+  it('merges logs by fingerprint without duplicating existing entries', async () => {
+    vi.resetModules();
+    const localLogs = [
+      { id: 1, level: 'INFO', message: 'local keep', timestamp: '2026-06-01T00:00:00.000Z', timestampMs: 1780272000000 },
+      { id: 2, level: 'WARN', message: 'same log', timestamp: '2026-06-01T00:01:00.000Z', timestampMs: 1780272060000, data: { a: 1 } },
+    ];
+    const logsGetAll = vi.fn().mockResolvedValue(localLogs);
+    const logsBulkAdd = vi.fn().mockResolvedValue(undefined);
+    const logsClear = vi.fn().mockResolvedValue(undefined);
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn().mockResolvedValue([]),
+      transaction: vi.fn(() => ({
+        objectStore: vi.fn(() => ({
+          clear: vi.fn().mockResolvedValue(undefined),
+          put: vi.fn().mockResolvedValue(undefined),
+        })),
+        complete: Promise.resolve(),
+      })),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        logsGetAll,
+        logsBulkAdd,
+        logsClear,
+        viewedReplaceAll: vi.fn().mockResolvedValue(0),
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+
+    const result = await applyImportDataDirect(
+      {
+        idb: {
+          logs: [
+            { id: 99, level: 'WARN', message: 'same log', timestamp: '2026-06-01T00:01:00.000Z', timestampMs: 1780272060000, data: { a: 1 } },
+            { id: 100, level: 'ERROR', message: 'cloud only', timestamp: '2026-06-01T00:02:00.000Z', timestampMs: 1780272120000 },
+            { id: 101, level: 'ERROR', message: 'cloud only', timestamp: '2026-06-01T00:02:00.000Z', timestampMs: 1780272120000 },
+          ],
+        },
+      },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: false,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: true,
+          magnetPushLogs: false,
+          importStats: false,
+          lists: false,
+        },
+        categoryModes: {
+          logs: 'merge',
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(logsClear).not.toHaveBeenCalled();
+    expect(logsBulkAdd).toHaveBeenCalledTimes(1);
+    expect(logsBulkAdd.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ level: 'ERROR', message: 'cloud only' }),
+    ]);
+    expect(logsBulkAdd.mock.calls[0][0][0]).not.toHaveProperty('id');
+    expect(result.summary?.categories?.logs).toMatchObject({
+      mode: 'merge',
+      added: 1,
+      kept: 2,
+      written: 1,
+      total: 3,
+    });
+  });
+
+  it('replaces magnet push logs without preserving backup ids', async () => {
+    vi.resetModules();
+    const magnetPushLogsBulkAdd = vi.fn().mockResolvedValue(undefined);
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn().mockResolvedValue([]),
+      transaction: vi.fn(() => ({
+        objectStore: vi.fn(() => ({
+          clear: vi.fn().mockResolvedValue(undefined),
+          put: vi.fn().mockResolvedValue(undefined),
+        })),
+        complete: Promise.resolve(),
+      })),
+    });
+
+    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        magnetPushLogsBulkAdd,
+        viewedReplaceAll: vi.fn().mockResolvedValue(0),
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+
+    const result = await applyImportDataDirect(
+      {
+        idb: {
+          magnetPushLogs: [
+            { id: 12, type: 'push_success', videoId: 'AAA-001', message: 'ok', timestamp: 1780272000000, data: { taskId: 't1' } },
+          ],
+        },
+      },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: false,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: true,
+          importStats: false,
+          lists: false,
+        },
+        categoryModes: {
+          magnetPushLogs: 'replace',
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(magnetPushLogsBulkAdd).toHaveBeenCalledWith([
+      expect.objectContaining({ type: 'push_success', videoId: 'AAA-001', message: 'ok' }),
+    ]);
+    expect(magnetPushLogsBulkAdd.mock.calls[0][0][0]).not.toHaveProperty('id');
   });
 
   it('clears viewed records from chrome storage and IndexedDB', async () => {

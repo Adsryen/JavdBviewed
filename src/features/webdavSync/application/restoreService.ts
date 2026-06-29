@@ -1,9 +1,19 @@
-import { logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear, viewedReplaceAll as idbViewedReplaceAll } from '../../../platform/storage/indexedDb';
+import {
+  logsBulkAdd as idbLogsBulkAdd,
+  logsGetAll as idbLogsGetAll,
+  magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd,
+  magnetPushLogsGetAll as idbMagnetPushLogsGetAll,
+  initDB,
+  logsClear as idbLogsClear,
+  viewedGetAll as idbViewedGetAll,
+  viewedReplaceAll as idbViewedReplaceAll,
+} from '../../../platform/storage/indexedDb';
 import { STORAGE_KEYS } from '../../../utils/config';
-import { getSettings, saveSettings, setValue } from '../../../utils/storage';
+import { getSettings, getValue, saveSettings, setValue } from '../../../utils/storage';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
 import { ensureWebDAVClientIdentity } from './clientIdentity';
 import { sanitizeImportedSettings } from './importSanitizer';
+import { deriveLogCategory, deriveLogSource } from '../../../platform/storage/indexedDbLogFields';
 import { parseBackupFromUrl, resolveWebDavUrl } from './restorePreview';
 import {
   RESTORE_BATCH_SIZE,
@@ -19,41 +29,63 @@ export interface RestoreServiceOptions {
   logger?: WebDAVClientLog;
 }
 
+export type RestoreCategoryKey =
+  | 'settings'
+  | 'userProfile'
+  | 'viewed'
+  | 'actors'
+  | 'newWorks'
+  | 'lists'
+  | 'magnets'
+  | 'logs'
+  | 'magnetPushLogs'
+  | 'importStats';
+
+export type RestoreCategoryMode = 'skip' | 'merge' | 'replace';
+
+export type RestoreCategorySelection = Partial<Record<RestoreCategoryKey, boolean>>;
+export type RestoreCategoryModes = Partial<Record<RestoreCategoryKey, RestoreCategoryMode>>;
+
+interface RestoreApplyOptions {
+  categories?: RestoreCategorySelection;
+  categoryModes?: RestoreCategoryModes;
+}
+
+const DEFAULT_RESTORE_CATEGORIES: Record<RestoreCategoryKey, boolean> = {
+  settings: true,
+  userProfile: true,
+  viewed: true,
+  actors: true,
+  newWorks: true,
+  lists: true,
+  importStats: true,
+  logs: false,
+  magnetPushLogs: false,
+  magnets: false,
+};
+
+const DEFAULT_RESTORE_MODES: Record<RestoreCategoryKey, RestoreCategoryMode> = {
+  settings: 'replace',
+  userProfile: 'replace',
+  viewed: 'merge',
+  actors: 'merge',
+  newWorks: 'merge',
+  lists: 'merge',
+  magnets: 'merge',
+  logs: 'merge',
+  magnetPushLogs: 'merge',
+  importStats: 'replace',
+};
+
 async function getCurrentSettingsWithIdentity(): Promise<any> {
   return ensureWebDAVClientIdentity({ getSettings, saveSettings });
 }
 
-export async function applyImportDataDirect(importData: any, options?: {
-  categories?: {
-    settings?: boolean;
-    userProfile?: boolean;
-    viewed?: boolean;
-    actors?: boolean;
-    newWorks?: boolean;
-    lists?: boolean;
-    magnets?: boolean;
-    logs?: boolean;
-    magnetPushLogs?: boolean;
-    importStats?: boolean;
-  };
-}, serviceOptions: RestoreServiceOptions = {}): Promise<{ success: boolean; error?: string; summary?: any }> {
+export async function applyImportDataDirect(importData: any, options?: RestoreApplyOptions, serviceOptions: RestoreServiceOptions = {}): Promise<{ success: boolean; error?: string; summary?: any }> {
   const logger = serviceOptions.logger;
-  const defaults = {
-    categories: {
-      settings: true,
-      userProfile: true,
-      viewed: true,
-      actors: true,
-      newWorks: true,
-      lists: true,
-      importStats: true,
-      logs: false,
-      magnetPushLogs: false,
-      magnets: false,
-    },
-  } as const;
   const opts = {
-    categories: { ...defaults.categories, ...(options?.categories || {}) },
+    categories: { ...DEFAULT_RESTORE_CATEGORIES, ...(options?.categories || {}) },
+    categoryModes: { ...DEFAULT_RESTORE_MODES, ...(options?.categoryModes || {}) },
   };
 
   if (restoreInProgress) return { success: false, error: '另一个恢复任务正在进行，请稍后再试' };
@@ -64,149 +96,200 @@ export async function applyImportDataDirect(importData: any, options?: {
     const db = await initDB();
     const mark = (name: string, info: any) => { summary.categories[name] = info; };
 
-    if (opts.categories.settings) {
+    if (shouldRestore(opts, 'settings')) {
       const c0 = Date.now();
       try {
         if (importData?.settings) {
           const currentSettings = await getCurrentSettingsWithIdentity();
           await saveSettings(sanitizeImportedSettings(importData.settings, currentSettings));
-          mark('settings', { replaced: true, durationMs: Date.now() - c0 });
+          mark('settings', { mode: opts.categoryModes.settings, replaced: true, durationMs: Date.now() - c0 });
         } else {
-          mark('settings', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+          mark('settings', { mode: opts.categoryModes.settings, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
         }
       } catch (e: any) {
-        mark('settings', { replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+        mark('settings', { mode: opts.categoryModes.settings, replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.userProfile) {
+    if (shouldRestore(opts, 'userProfile')) {
       const c0 = Date.now();
       try {
         const val = importData?.userProfile ?? importData?.storageAll?.[STORAGE_KEYS.USER_PROFILE];
         if (val != null) {
           await setValue(STORAGE_KEYS.USER_PROFILE, val);
-          mark('userProfile', { replaced: true, durationMs: Date.now() - c0 });
+          mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: true, durationMs: Date.now() - c0 });
         } else {
-          mark('userProfile', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+          mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
         }
       } catch (e: any) {
-        mark('userProfile', { replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+        mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.viewed) {
+    if (shouldRestore(opts, 'viewed')) {
       const c0 = Date.now();
       try {
-        let items: any[] = [];
-        if (Array.isArray(importData?.idb?.viewedRecords)) items = importData.idb.viewedRecords;
-        else if (importData?.data) items = toArrayFromObjMap(importData.data);
-        else if (importData?.viewed) items = toArrayFromObjMap(importData.viewed);
-        else if (importData?.storageAll?.[STORAGE_KEYS.VIEWED_RECORDS]) items = toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.VIEWED_RECORDS]);
-        const written = await idbViewedReplaceAll(items);
-        mark('viewed', { cleared: true, written, durationMs: Date.now() - c0 });
+        const cloudItems = readViewedRecords(importData);
+        const mode = opts.categoryModes.viewed;
+        if (mode === 'merge') {
+          const localItems = await safeGetAll(() => idbViewedGetAll());
+          const merged = mergeRecordsByKey(localItems, cloudItems, { key: 'id' });
+          const written = await idbViewedReplaceAll(merged.records);
+          mark('viewed', { mode, cleared: true, written, ...merged.summary, durationMs: Date.now() - c0 });
+        } else {
+          const records = dedupeRecordsByKey(cloudItems, 'id');
+          const written = await idbViewedReplaceAll(records);
+          mark('viewed', { mode, cleared: true, written, durationMs: Date.now() - c0 });
+        }
       } catch (e: any) {
         mark('viewed', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.actors) {
+    if (shouldRestore(opts, 'actors')) {
       const c0 = Date.now();
       try {
-        let items: any[] = [];
-        if (Array.isArray(importData?.idb?.actors)) items = importData.idb.actors;
-        else if (importData?.actorRecords) items = toArrayFromObjMap(importData.actorRecords);
-        else if (importData?.storageAll?.[STORAGE_KEYS.ACTOR_RECORDS]) items = toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.ACTOR_RECORDS]);
-        await clearStore(db, 'actors', logger);
-        const written = await putRecordsInBatches(db, 'actors', items, RESTORE_BATCH_SIZE, logger);
-        mark('actors', { cleared: true, written, durationMs: Date.now() - c0 });
+        const cloudItems = readActorRecords(importData);
+        const mode = opts.categoryModes.actors;
+        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('actors')) : [];
+        const merged = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
+        const items = merged ? merged.records : dedupeRecordsByKey(cloudItems, 'id');
+        const written = await replaceStoreRecords(db, 'actors', items, logger);
+        mark('actors', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
       } catch (e: any) {
         mark('actors', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.newWorks) {
+    if (shouldRestore(opts, 'newWorks')) {
       const c0 = Date.now();
       try {
-        let items: any[] = [];
-        if (Array.isArray(importData?.idb?.newWorks)) items = importData.idb.newWorks;
-        else if (importData?.newWorks?.records) items = toArrayFromObjMap(importData.newWorks.records);
-        await clearStore(db, 'newWorks', logger);
-        const written = await putRecordsInBatches(db, 'newWorks', items, RESTORE_BATCH_SIZE, logger);
+        const cloudItems = readNewWorksRecords(importData);
+        const mode = opts.categoryModes.newWorks;
+        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('newWorks')) : [];
+        const mergedIdb = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
+        const items = mergedIdb ? mergedIdb.records : dedupeRecordsByKey(cloudItems, 'id');
+        const written = await replaceStoreRecords(db, 'newWorks', items, logger);
         const subs = importData?.newWorks?.subscriptions ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS];
         const recs = importData?.newWorks?.records ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_RECORDS];
         const cfg = importData?.newWorks?.config ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_CONFIG];
-        if (subs != null) await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, subs);
-        if (recs != null) await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, recs);
+        if (subs != null) await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, mode === 'merge'
+          ? mergeObjectMaps(await getValueSafe(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {}), subs).map
+          : subs);
+        if (recs != null) await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, mode === 'merge'
+          ? mergeObjectMaps(await getValueSafe(STORAGE_KEYS.NEW_WORKS_RECORDS, {}), recs).map
+          : recs);
         if (cfg != null) await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, cfg);
-        mark('newWorks', { cleared: true, written, durationMs: Date.now() - c0 });
+        mark('newWorks', { mode, cleared: true, written, ...(mergedIdb?.summary || {}), durationMs: Date.now() - c0 });
       } catch (e: any) {
         mark('newWorks', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.lists) {
+    if (shouldRestore(opts, 'lists')) {
       const c0 = Date.now();
       try {
-        let items: any[] = [];
-        if (Array.isArray(importData?.idb?.lists)) items = importData.idb.lists;
-        await clearStore(db, 'lists', logger);
-        const written = await putRecordsInBatches(db, 'lists', items, RESTORE_BATCH_SIZE, logger);
-        mark('lists', { cleared: true, written, durationMs: Date.now() - c0 });
+        const cloudItems = Array.isArray(importData?.idb?.lists) ? importData.idb.lists : [];
+        const mode = opts.categoryModes.lists;
+        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('lists')) : [];
+        const merged = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
+        const items = merged ? merged.records : dedupeRecordsByKey(cloudItems, 'id');
+        const written = await replaceStoreRecords(db, 'lists', items, logger);
+        mark('lists', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
       } catch (e: any) {
         mark('lists', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.magnets) {
+    if (shouldRestore(opts, 'magnets')) {
       const c0 = Date.now();
       try {
         let items: any[] = [];
         if (Array.isArray(importData?.idb?.magnets)) items = importData.idb.magnets;
-        await clearStore(db, 'magnets', logger);
-        const written = await putRecordsInBatches(db, 'magnets', items, RESTORE_BATCH_SIZE, logger);
-        mark('magnets', { cleared: true, written, durationMs: Date.now() - c0 });
+        const mode = opts.categoryModes.magnets;
+        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('magnets')) : [];
+        const merged = mode === 'merge'
+          ? mergeRecordsByIdentity(localItems, items, getMagnetRecordKey)
+          : null;
+        const records = merged ? merged.records : dedupeRecordsByIdentity(items, getMagnetRecordKey);
+        const written = await replaceStoreRecords(db, 'magnets', records, logger);
+        mark('magnets', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
       } catch (e: any) {
         mark('magnets', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.logs) {
+    if (shouldRestore(opts, 'logs')) {
       const c0 = Date.now();
       try {
         let items: any[] = [];
         if (Array.isArray(importData?.idb?.logs)) items = importData.idb.logs;
         else if (Array.isArray(importData?.logs)) items = importData.logs;
-        try { await idbLogsClear(); } catch {}
-        if (items.length > 0) { try { await idbLogsBulkAdd(items as any); } catch {} }
-        mark('logs', { cleared: true, written: items.length, durationMs: Date.now() - c0 });
+        const mode = opts.categoryModes.logs;
+        const cloudItems = dedupeRecordsByIdentity(items, getLogRecordKey).map(stripAutoIncrementId);
+        if (mode === 'merge') {
+          const localItems = await safeGetAll(() => idbLogsGetAll());
+          const additions = selectCloudOnlyRecords(localItems, cloudItems, getLogRecordKey).map(stripAutoIncrementId);
+          if (additions.length > 0) await idbLogsBulkAdd(additions as any);
+          mark('logs', {
+            mode,
+            cleared: false,
+            written: additions.length,
+            added: additions.length,
+            kept: localItems.length,
+            total: localItems.length + additions.length,
+            durationMs: Date.now() - c0,
+          });
+        } else {
+          await idbLogsClear();
+          if (cloudItems.length > 0) await idbLogsBulkAdd(cloudItems as any);
+          mark('logs', { mode, cleared: true, written: cloudItems.length, durationMs: Date.now() - c0 });
+        }
       } catch (e: any) {
         mark('logs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.magnetPushLogs) {
+    if (shouldRestore(opts, 'magnetPushLogs')) {
       const c0 = Date.now();
       try {
         let items: any[] = [];
         if (Array.isArray(importData?.idb?.magnetPushLogs)) items = importData.idb.magnetPushLogs;
         else if (Array.isArray(importData?.magnetPushLogs)) items = importData.magnetPushLogs;
         else if (Array.isArray(importData?.data?.magnetPushLogs)) items = importData.data.magnetPushLogs;
-        try { await clearStore(db, 'magnetPushLogs', logger); } catch {}
-        if (items.length > 0) { try { await idbMagnetPushLogsBulkAdd(items as any); } catch {} }
-        mark('magnetPushLogs', { cleared: true, written: items.length, durationMs: Date.now() - c0 });
+        const mode = opts.categoryModes.magnetPushLogs;
+        const cloudItems = dedupeRecordsByIdentity(items, getMagnetPushLogRecordKey).map(stripAutoIncrementId);
+        if (mode === 'merge') {
+          const localItems = await safeGetAll(() => idbMagnetPushLogsGetAll());
+          const additions = selectCloudOnlyRecords(localItems, cloudItems, getMagnetPushLogRecordKey).map(stripAutoIncrementId);
+          if (additions.length > 0) await idbMagnetPushLogsBulkAdd(additions as any);
+          mark('magnetPushLogs', {
+            mode,
+            cleared: false,
+            written: additions.length,
+            added: additions.length,
+            kept: localItems.length,
+            total: localItems.length + additions.length,
+            durationMs: Date.now() - c0,
+          });
+        } else {
+          try { await clearStore(db, 'magnetPushLogs', logger); } catch {}
+          if (cloudItems.length > 0) await idbMagnetPushLogsBulkAdd(cloudItems as any);
+          mark('magnetPushLogs', { mode, cleared: true, written: cloudItems.length, durationMs: Date.now() - c0 });
+        }
       } catch (e: any) {
         mark('magnetPushLogs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
-    if (opts.categories.importStats) {
+    if (shouldRestore(opts, 'importStats')) {
       const c0 = Date.now();
       const val = importData?.importStats ?? importData?.storageAll?.[STORAGE_KEYS.LAST_IMPORT_STATS];
       if (val != null) {
         await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, val);
-        mark('importStats', { replaced: true, durationMs: Date.now() - c0 });
+        mark('importStats', { mode: opts.categoryModes.importStats, replaced: true, durationMs: Date.now() - c0 });
       } else {
-        mark('importStats', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+        mark('importStats', { mode: opts.categoryModes.importStats, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
       }
     }
 
@@ -220,39 +303,15 @@ export async function applyImportDataDirect(importData: any, options?: {
 }
 
 export async function performRestoreUnified(filename: string, options?: {
-  categories?: {
-    settings?: boolean;
-    userProfile?: boolean;
-    viewed?: boolean;
-    actors?: boolean;
-    newWorks?: boolean;
-    lists?: boolean;
-    magnets?: boolean;
-    logs?: boolean;
-    magnetPushLogs?: boolean;
-    importStats?: boolean;
-  };
+  categories?: RestoreCategorySelection;
+  categoryModes?: RestoreCategoryModes;
   autoBackupBeforeRestore?: boolean;
 }, serviceOptions: RestoreServiceOptions = {}): Promise<{ success: boolean; error?: string; summary?: any }> {
   const logger = serviceOptions.logger;
-  const defaults = {
-    categories: {
-      settings: true,
-      userProfile: true,
-      viewed: true,
-      actors: true,
-      newWorks: true,
-      lists: true,
-      importStats: true,
-      logs: false,
-      magnetPushLogs: false,
-      magnets: false,
-    },
-    autoBackupBeforeRestore: true,
-  } as const;
   const opts = {
-    categories: { ...defaults.categories, ...(options?.categories || {}) },
-    autoBackupBeforeRestore: options?.autoBackupBeforeRestore ?? defaults.autoBackupBeforeRestore,
+    categories: { ...DEFAULT_RESTORE_CATEGORIES, ...(options?.categories || {}) },
+    categoryModes: { ...DEFAULT_RESTORE_MODES, ...(options?.categoryModes || {}) },
+    autoBackupBeforeRestore: options?.autoBackupBeforeRestore ?? true,
   };
 
   if (restoreInProgress) return { success: false, error: '另一个恢复任务正在进行，请稍后再试' };
@@ -271,7 +330,10 @@ export async function performRestoreUnified(filename: string, options?: {
 
     const importData = await parseBackupFromUrl(finalUrl, { username: settings.webdav.username, password: settings.webdav.password });
     restoreInProgress = false;
-    const directResult = await applyImportDataDirect(importData, { categories: opts.categories }, serviceOptions);
+    const directResult = await applyImportDataDirect(importData, {
+      categories: opts.categories,
+      categoryModes: opts.categoryModes,
+    }, serviceOptions);
     summary.categories = directResult.summary?.categories || {};
     summary.totalDurationMs = Date.now() - tStart;
     return directResult.success ? { success: true, summary } : { success: false, error: directResult.error, summary };
@@ -280,4 +342,229 @@ export async function performRestoreUnified(filename: string, options?: {
   } finally {
     restoreInProgress = false;
   }
+}
+
+function shouldRestore(opts: { categories: Record<RestoreCategoryKey, boolean>; categoryModes: Record<RestoreCategoryKey, RestoreCategoryMode> }, category: RestoreCategoryKey): boolean {
+  return opts.categories[category] === true && opts.categoryModes[category] !== 'skip';
+}
+
+function readViewedRecords(importData: any): any[] {
+  if (Array.isArray(importData?.idb?.viewedRecords)) return importData.idb.viewedRecords;
+  if (importData?.data) return toArrayFromObjMap(importData.data);
+  if (importData?.viewed) return toArrayFromObjMap(importData.viewed);
+  if (importData?.storageAll?.[STORAGE_KEYS.VIEWED_RECORDS]) return toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.VIEWED_RECORDS]);
+  return [];
+}
+
+function readActorRecords(importData: any): any[] {
+  if (Array.isArray(importData?.idb?.actors)) return importData.idb.actors;
+  if (importData?.actorRecords) return toArrayFromObjMap(importData.actorRecords);
+  if (importData?.storageAll?.[STORAGE_KEYS.ACTOR_RECORDS]) return toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.ACTOR_RECORDS]);
+  return [];
+}
+
+function readNewWorksRecords(importData: any): any[] {
+  if (Array.isArray(importData?.idb?.newWorks)) return importData.idb.newWorks;
+  if (importData?.newWorks?.records) return toArrayFromObjMap(importData.newWorks.records);
+  if (importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_RECORDS]) return toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.NEW_WORKS_RECORDS]);
+  return [];
+}
+
+async function safeGetAll<T>(reader: () => Promise<T[]>): Promise<T[]> {
+  try {
+    const items = await reader();
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+}
+
+async function getValueSafe(key: string, fallback: any): Promise<any> {
+  try {
+    return await getValue(key as any, fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+async function replaceStoreRecords(
+  db: any,
+  storeName: string,
+  records: any[],
+  logger?: WebDAVClientLog,
+): Promise<number> {
+  await clearStore(db, storeName, logger);
+  return putRecordsInBatches(db, storeName, records, RESTORE_BATCH_SIZE, logger);
+}
+
+function dedupeRecordsByKey<T extends Record<string, any>>(records: T[], key: string): T[] {
+  return Array.from(buildLatestRecordMap(records, key).values());
+}
+
+function mergeRecordsByKey<T extends Record<string, any>>(
+  localRecords: T[],
+  cloudRecords: T[],
+  options: { key: string },
+): { records: T[]; summary: { added: number; updated: number; kept: number; total: number } } {
+  const localMap = buildLatestRecordMap(localRecords, options.key);
+  const cloudMap = buildLatestRecordMap(cloudRecords, options.key);
+  const merged = new Map<string, T>(localMap);
+  let added = 0;
+  let updated = 0;
+
+  for (const [id, cloud] of cloudMap.entries()) {
+    const local = localMap.get(id);
+    if (!local) {
+      merged.set(id, cloud);
+      added++;
+      continue;
+    }
+    const winner = pickLatestRecord(local, cloud);
+    merged.set(id, winner);
+    if (winner !== local) updated++;
+  }
+
+  const kept = Array.from(localMap.keys()).filter(id => !cloudMap.has(id) || merged.get(id) === localMap.get(id)).length;
+  return {
+    records: Array.from(merged.values()),
+    summary: {
+      added,
+      updated,
+      kept,
+      total: merged.size,
+    },
+  };
+}
+
+function dedupeRecordsByIdentity<T extends Record<string, any>>(
+  records: T[],
+  getKey: (record: T) => string,
+): T[] {
+  return Array.from(buildLatestIdentityMap(records, getKey).values());
+}
+
+function mergeRecordsByIdentity<T extends Record<string, any>>(
+  localRecords: T[],
+  cloudRecords: T[],
+  getKey: (record: T) => string,
+): { records: T[]; summary: { added: number; updated: number; kept: number; total: number } } {
+  const localMap = buildLatestIdentityMap(localRecords, getKey);
+  const cloudMap = buildLatestIdentityMap(cloudRecords, getKey);
+  const merged = new Map<string, T>(localMap);
+  let added = 0;
+  let updated = 0;
+
+  for (const [key, cloud] of cloudMap.entries()) {
+    const local = localMap.get(key);
+    if (!local) {
+      merged.set(key, cloud);
+      added++;
+      continue;
+    }
+    const winner = pickLatestRecord(local, cloud);
+    merged.set(key, winner);
+    if (winner !== local) updated++;
+  }
+
+  const kept = Array.from(localMap.keys()).filter(key => !cloudMap.has(key) || merged.get(key) === localMap.get(key)).length;
+  return {
+    records: Array.from(merged.values()),
+    summary: {
+      added,
+      updated,
+      kept,
+      total: merged.size,
+    },
+  };
+}
+
+function selectCloudOnlyRecords<T extends Record<string, any>>(
+  localRecords: T[],
+  cloudRecords: T[],
+  getKey: (record: T) => string,
+): T[] {
+  const localKeys = new Set(Array.from(buildLatestIdentityMap(localRecords, getKey).keys()));
+  return dedupeRecordsByIdentity(cloudRecords, getKey).filter(record => !localKeys.has(getKey(record)));
+}
+
+function buildLatestRecordMap<T extends Record<string, any>>(records: T[], key: string): Map<string, T> {
+  const map = new Map<string, T>();
+  for (const record of Array.isArray(records) ? records : []) {
+    const id = String(record?.[key] || '').trim();
+    if (!id) continue;
+    const current = map.get(id);
+    map.set(id, current ? pickLatestRecord(current, record) : record);
+  }
+  return map;
+}
+
+function buildLatestIdentityMap<T extends Record<string, any>>(
+  records: T[],
+  getKey: (record: T) => string,
+): Map<string, T> {
+  const map = new Map<string, T>();
+  for (const record of Array.isArray(records) ? records : []) {
+    const key = String(getKey(record) || '').trim();
+    if (!key) continue;
+    const current = map.get(key);
+    map.set(key, current ? pickLatestRecord(current, record) : record);
+  }
+  return map;
+}
+
+function pickLatestRecord<T extends Record<string, any>>(left: T, right: T): T {
+  return readRecordTime(right) >= readRecordTime(left) ? right : left;
+}
+
+function readRecordTime(record: Record<string, any>): number {
+  const source = record?.value && typeof record.value === 'object' ? record.value : record;
+  const value = Number(source?.updatedAt ?? source?.createdAt ?? source?.timestampMs ?? source?.timestamp ?? source?.discoveredAt ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getMagnetRecordKey(record: Record<string, any>): string {
+  return String(record?.key || record?.magnet || [record?.videoId, record?.source, record?.name].filter(Boolean).join('|') || stableRecordFingerprint(record));
+}
+
+function getLogRecordKey(record: Record<string, any>): string {
+  const message = String(record?.message || '');
+  return [
+    record?.timestampMs ?? record?.timestamp,
+    record?.level,
+    record?.source || deriveLogSource(message),
+    record?.category || deriveLogCategory(message),
+    message,
+    stableRecordFingerprint(record?.data),
+  ].map(value => String(value ?? '')).join('|');
+}
+
+function getMagnetPushLogRecordKey(record: Record<string, any>): string {
+  return [
+    record?.timestampMs ?? record?.timestamp,
+    record?.type,
+    record?.videoId,
+    record?.message,
+    stableRecordFingerprint(record?.data),
+  ].map(value => String(value ?? '')).join('|');
+}
+
+function stripAutoIncrementId<T extends Record<string, any>>(record: T): T {
+  const { id, ...rest } = record || {};
+  return rest as T;
+}
+
+function stableRecordFingerprint(value: any): string {
+  if (value == null) return '';
+  if (typeof value !== 'object') return String(value);
+  if (Array.isArray(value)) return `[${value.map(stableRecordFingerprint).join(',')}]`;
+  return `{${Object.keys(value).sort().map(key => `${key}:${stableRecordFingerprint(value[key])}`).join(',')}}`;
+}
+
+function mergeObjectMaps(localMap: any, cloudMap: any): { map: Record<string, any> } {
+  const localRecords = Object.entries(localMap || {}).map(([id, value]) => ({ __key: id, value }));
+  const cloudRecords = Object.entries(cloudMap || {}).map(([id, value]) => ({ __key: id, value }));
+  const merged = mergeRecordsByKey(localRecords, cloudRecords, { key: '__key' }).records;
+  return {
+    map: Object.fromEntries(merged.map((record: any) => [record.__key, record.value])),
+  };
 }
