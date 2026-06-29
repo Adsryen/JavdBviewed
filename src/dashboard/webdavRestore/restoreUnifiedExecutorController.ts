@@ -1,8 +1,12 @@
 import type { MergeOptions } from '../../features/webdavSync/application/dataDiff';
 import type { RestrictedFeature } from '../../types/privacy';
+import type { RestoreProgressEvent } from './restoreProgressModel';
 import {
+  buildRestoreCategoryModes,
   buildRestoreCategorySelection,
   buildRestoreExecuteConfirmHtml,
+  type RestoreCategoryMode,
+  type RestoreCategoryModes,
 } from './restoreExecuteConfirmModel';
 
 export interface RestoreUnifiedSelectedFile {
@@ -30,7 +34,9 @@ export interface WebDAVRestoreUnifiedExecutorControllerOptions {
   ) => Promise<boolean>;
   showConfirm: (options: RestoreUnifiedConfirmOptions) => Promise<boolean>;
   showMessage: (message: string, type: 'success' | 'error' | 'warn' | 'info') => void;
-  showRestoreProgress: () => void;
+  showRestoreProgress: (taskId?: string) => void;
+  bindRestoreProgressListener: (taskId: string) => () => void;
+  updateRestoreProgress: (event: RestoreProgressEvent) => void;
   showRestoreResults: (summary: any, cloudData: any) => void;
   clearProgressTimer: () => void;
   sendRuntimeMessage: (message: any, callback: (response: any) => void) => void;
@@ -60,12 +66,18 @@ export class WebDAVRestoreUnifiedExecutorController {
         restoreMagnetPushLogs: this.readCheckboxValue(['webdavRestoreMagnetPushLogs', 'webdavRestoreMagnetPushLogsSimple'], false),
         restoreMagnets: this.readCheckboxValue(['webdavRestoreMagnets', 'webdavRestoreMagnetsSimple'], false),
       });
+      const categoryModes = buildRestoreCategoryModes({
+        mergeOptions,
+        restoreMagnetPushLogs: categories.magnetPushLogs,
+        restoreMagnets: categories.magnets,
+        explicitModes: this.readCategoryModes(),
+      });
 
       const autoBackupBeforeRestore = this.readCheckboxValue(['webdavAutoBackupBeforeRestore'], true);
 
       const confirmed = await this.options.showConfirm({
-        title: '⚠️ 确认覆盖式恢复',
-        message: buildRestoreExecuteConfirmHtml({ categories, autoBackupBeforeRestore }),
+        title: '⚠️ 确认恢复策略',
+        message: buildRestoreExecuteConfirmHtml({ categories, categoryModes, autoBackupBeforeRestore }),
         confirmText: '确定恢复',
         cancelText: '取消',
         type: 'danger',
@@ -77,27 +89,42 @@ export class WebDAVRestoreUnifiedExecutorController {
         return;
       }
 
-      this.options.logInfo('开始执行统一恢复（替换语义）', { mergeOptions });
-      this.options.showRestoreProgress();
+      this.options.logInfo('开始执行统一恢复', { mergeOptions, categories, categoryModes });
+      const restoreTaskId = createRestoreTaskId();
+      this.options.showRestoreProgress(restoreTaskId);
+      const unbindProgressListener = this.options.bindRestoreProgressListener(restoreTaskId);
 
-      const resp = await new Promise<any>((resolve) => {
-        this.options.sendRuntimeMessage({
-          type: 'WEB_DAV:RESTORE_UNIFIED',
-          filename: selectedFile.path,
-          options: {
-            categories,
-            autoBackupBeforeRestore,
-          },
-        }, resolve);
-      });
+      try {
+        const resp = await new Promise<any>((resolve) => {
+          this.options.sendRuntimeMessage({
+            type: 'WEB_DAV:RESTORE_UNIFIED',
+            filename: selectedFile.path,
+            restoreTaskId,
+            options: {
+              categories,
+              categoryModes,
+              autoBackupBeforeRestore,
+            },
+          }, resolve);
+        });
 
-      if (resp?.success) {
-        this.options.logInfo('统一恢复完成', { summary: resp.summary });
-        this.options.clearProgressTimer();
-        this.options.showRestoreResults(resp.summary, this.options.getCloudData());
-      } else {
-        this.options.clearProgressTimer();
-        throw new Error(resp?.error || '恢复失败');
+        if (resp?.success) {
+          this.options.updateRestoreProgress({
+            type: 'WEB_DAV:RESTORE_PROGRESS',
+            taskId: restoreTaskId,
+            stage: 'complete',
+            status: 'done',
+            message: '恢复完成',
+          });
+          this.options.logInfo('统一恢复完成', { summary: resp.summary });
+          this.options.clearProgressTimer();
+          this.options.showRestoreResults(resp.summary, this.options.getCloudData());
+        } else {
+          this.options.clearProgressTimer();
+          throw new Error(resp?.error || '恢复失败');
+        }
+      } finally {
+        unbindProgressListener();
       }
     } catch (error: any) {
       this.options.logError('恢复操作失败', { error: error.message });
@@ -113,4 +140,42 @@ export class WebDAVRestoreUnifiedExecutorController {
 
     return fallback;
   }
+
+  private readCategoryModes(): Partial<RestoreCategoryModes> {
+    const modes: Partial<RestoreCategoryModes> = {};
+    const selectors = [
+      ['settings', ['webdavRestoreSettingsMode', 'webdavRestoreSettingsModeSimple']],
+      ['viewed', ['webdavRestoreRecordsMode', 'webdavRestoreRecordsModeSimple']],
+      ['userProfile', ['webdavRestoreUserProfileMode', 'webdavRestoreUserProfileModeSimple']],
+      ['actors', ['webdavRestoreActorRecordsMode', 'webdavRestoreActorRecordsModeSimple']],
+      ['newWorks', ['webdavRestoreNewWorksMode', 'webdavRestoreNewWorksModeSimple']],
+      ['lists', ['webdavRestoreListsMode', 'webdavRestoreListsModeSimple']],
+      ['logs', ['webdavRestoreLogsMode', 'webdavRestoreLogsModeSimple']],
+      ['magnetPushLogs', ['webdavRestoreMagnetPushLogsMode', 'webdavRestoreMagnetPushLogsModeSimple']],
+      ['importStats', ['webdavRestoreImportStatsMode', 'webdavRestoreImportStatsModeSimple']],
+      ['magnets', ['webdavRestoreMagnetsMode', 'webdavRestoreMagnetsModeSimple']],
+    ] as const;
+
+    for (const [category, ids] of selectors) {
+      const value = this.readSelectValue(ids);
+      if (value) modes[category] = value;
+    }
+
+    return modes;
+  }
+
+  private readSelectValue(ids: readonly string[]): RestoreCategoryMode | undefined {
+    for (const id of ids) {
+      const select = this.options.queryInModal<HTMLSelectElement>('#' + id);
+      const value = select?.value;
+      if (value === 'skip' || value === 'merge' || value === 'replace') return value;
+    }
+
+    return undefined;
+  }
+}
+
+function createRestoreTaskId(): string {
+  const randomPart = Math.random().toString(36).slice(2, 10);
+  return `webdav-restore-${Date.now().toString(36)}-${randomPart}`;
 }

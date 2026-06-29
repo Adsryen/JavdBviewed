@@ -229,8 +229,22 @@ const restoreUnifiedExecutorController = new WebDAVRestoreUnifiedExecutorControl
     requireAuthIfRestricted,
     showConfirm,
     showMessage,
-    showRestoreProgress: () => {
-        restoreProgressResultsController.showProgress();
+    showRestoreProgress: (taskId) => {
+        restoreProgressResultsController.showProgress(taskId);
+    },
+    bindRestoreProgressListener: (taskId) => {
+        const listener = (message: any): void => {
+            if (message?.type !== 'WEB_DAV:RESTORE_PROGRESS') return;
+            if (message.taskId !== taskId) return;
+            restoreProgressResultsController.updateProgress(message);
+        };
+        chrome.runtime.onMessage.addListener(listener);
+        return () => {
+            chrome.runtime.onMessage.removeListener(listener);
+        };
+    },
+    updateRestoreProgress: (event) => {
+        restoreProgressResultsController.updateProgress(event);
     },
     showRestoreResults: (summary, cloudData) => {
         restoreProgressResultsController.showResults(summary, cloudData);
@@ -250,7 +264,7 @@ const restoreUnifiedExecutorController = new WebDAVRestoreUnifiedExecutorControl
 });
 
 /**
- * 初始化覆盖式恢复界面
+ * 初始化 WebDAV 恢复界面
  */
 function initializeRestoreInterface(diffResult: DataDiffResult): void {
     restoreWizardController.initializeRestoreInterface(diffResult, currentCloudData);

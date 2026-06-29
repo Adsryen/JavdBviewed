@@ -28,6 +28,7 @@ export type RestoreOptionDataKey =
   | 'logs'
   | 'magnetPushLogs'
   | 'newWorks'
+  | 'lists'
   | 'importStats'
   | 'magnets';
 
@@ -57,6 +58,7 @@ export const RESTORE_OPTION_DEFINITIONS: RestoreOptionDefinition[] = [
   { id: 'webdavRestoreLogs', dataKey: 'logs', required: false, name: '日志记录' },
   { id: 'webdavRestoreMagnetPushLogs', dataKey: 'magnetPushLogs', required: false, name: '磁力推送日志' },
   { id: 'webdavRestoreNewWorks', dataKey: 'newWorks', required: false, name: '新作品（订阅/记录/配置）' },
+  { id: 'webdavRestoreLists', dataKey: 'lists', required: false, name: '清单 / 系列 / 标签' },
   { id: 'webdavRestoreImportStats', dataKey: 'importStats', required: false, name: '导入统计' },
   { id: 'webdavRestoreMagnets', dataKey: 'magnets', required: false, name: '磁链缓存' },
 ];
@@ -134,6 +136,8 @@ function resolveOptionDataset(cloudData: any, dataKey: RestoreOptionDataKey): an
       const cfg = countObjectEntries(cloudData?.newWorks?.config || sa[STORAGE_KEYS.NEW_WORKS_CONFIG]);
       return cloudData?.newWorks || { subscriptions: subs, records: recs, config: cfg };
     }
+    case 'lists':
+      return Array.isArray(cloudData?.idb?.lists) ? cloudData.idb.lists : [];
     case 'importStats':
       return cloudData?.importStats ?? sa[STORAGE_KEYS.LAST_IMPORT_STATS];
     case 'magnets':
@@ -175,6 +179,8 @@ function buildOptionStatsText(dataKey: RestoreOptionDataKey, data: any): string 
       const recs = countNewWorksPart(data?.records);
       return `订阅 ${subs} · 记录 ${recs}`;
     }
+    case 'lists':
+      return `包含 ${countCollection(data)} 条清单/系列/标签`;
     case 'magnets':
       return `包含 ${countCollection(data)} 条磁链缓存`;
     default:

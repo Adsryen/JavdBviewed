@@ -60,7 +60,7 @@
 - [x] `pnpm run build` 通过并生成对应 `dist-zip` 产物
 - [x] `version.json`、`package.json`、`src/manifest.json` 版本一致
 - [ ] 工作区只保留本次发布需要提交的文件
-- [x] GitHub Release notes 覆盖用户可感知变化、风险提示和产物 SHA256
+- [ ] GitHub Release notes 覆盖用户可感知变化、风险提示和产物 SHA256
 
 ---
 
@@ -85,14 +85,17 @@
   - [x] `tests/extension/telemetryErrorPayload.test.ts`
 - [x] 确认 `pnpm run test:dom` 在 WSL/OneDrive 沙箱路径下需沙箱外执行，完整 DOM 套件通过
 - [x] 收口构建副作用
-  - [x] 确认 `version.json` build `104` 作为发布 build
+  - [x] 确认 `version.json` build `105` 作为当前发布候选起点
   - [x] 确认行尾变化导致工作区存在大量改动，发布前以本次版本文件为提交边界
-  - [x] 重新生成 `dist-zip/javdb-extension-v1.20.3-build-104.zip`
+  - [x] 在真实 Git 工作区重新生成 `dist-zip/javdb-extension-v1.20.3-build-106.zip`
 
 ### P1：本版发布内容
 
 - [x] WebDAV 备份文件支持按设备筛选和清理
 - [x] WebDAV 新增清单、系列、番号备份和恢复能力
+- [x] WebDAV 恢复支持按类别选择合并或覆盖策略
+- [x] WebDAV 合并恢复按记录标识去重，覆盖恢复先清空同类数据
+- [x] WebDAV 恢复页面补齐清单 / 系列 / 标签类别显示
 - [x] WebDAV 恢复页面完成状态模型拆分重构
 - [x] Emby/Jellyfin 新增媒体库入库状态显示
 - [x] Emby/Jellyfin 自动识别已配置服务器地址
@@ -118,13 +121,14 @@
 
 版本定位：`1.20.x` 大型稳定收口 Patch。
 
-产物：`dist-zip/javdb-extension-v1.20.3-build-104.zip`
+产物：`dist-zip/javdb-extension-v1.20.3-build-106.zip`
 
-SHA256：`9e5f4893ca77115dba046fed887d83e9f06e7070b181c6cc345261f6d287fad8`
+SHA256：`6551a6ec9044ac4985874156d175c19ff5147ffc8c19624361dcbc6f6ee18ed3`
 
 Release notes：
 
 - WebDAV 支持按设备筛选、清理和恢复备份，并补齐清单、系列、番号数据恢复链路。
+- WebDAV 恢复支持按类别选择合并或覆盖，合并恢复会按记录标识去重并保留本地独有数据。
 - Emby/Jellyfin 新增媒体库入库状态、服务器识别和设置分组。
 - 设置搜索增强，列表页新增状态快捷标识，番号库改用 IndexedDB 持久化。
 - 磁力搜索支持多源聚合、失败退避和状态标识优化。
@@ -136,7 +140,20 @@ Release notes：
 
 - WebDAV、IndexedDB、Emby/Jellyfin 用户更新前先完成一次手动备份。
 - 构建仍有动态 import chunk 警告和大 chunk 提示，作为后续性能优化项跟踪。
-- `pnpm run test:dom` 在当前 WSL/OneDrive 沙箱路径下会遇到 pnpm 临时文件写入限制，发版验证使用沙箱外执行结果。
+- 当前构建产物带有 `dirty` 版本标记，正式发布前提交本版改动后再执行一次 clean build。
+
+当前验证：
+
+- [x] `/tmp/javdbviewed-test`：`pnpm run typecheck`
+- [x] `/tmp/javdbviewed-test`：`pnpm test`
+- [x] `/tmp/javdbviewed-test`：`pnpm run test:dom`
+- [x] `/tmp/javdbviewed-test`：`pnpm run build`
+- [x] 真实 Git 工作区：`node scripts/assert-release-notes.cjs 1.20.3`
+- [x] 真实 Git 工作区：`pnpm run typecheck`
+- [x] 真实 Git 工作区：`pnpm test`
+- [x] 真实 Git 工作区：`pnpm run test:dom`
+- [x] 真实 Git 工作区：`pnpm run build`
+- [x] 真实 Git 工作区：计算最终 zip SHA256
 
 ---
 
@@ -349,7 +366,7 @@ Release notes：
 
 ## 当前发版建议
 
-- `1.20.3`：完成 P0 阻断项后发布。
+- `1.20.3`：验证通过，可进入发布；正式产物建议在提交本版改动后 clean build 一次。
 - `1.20.4`：稳定补丁，只接修复和低风险补齐。
 - `1.20.5`：页面番号识别基础。
 - `1.20.6`：列表与状态体验优化。
