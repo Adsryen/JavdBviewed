@@ -132,6 +132,19 @@ export interface MergeOptions {
     restoreImportStats: boolean;
     restoreNewWorks?: boolean; // 新增：是否恢复新作品（订阅/记录/配置）
     restoreLists?: boolean;
+    categoryModes?: Partial<Record<
+        | 'settings'
+        | 'userProfile'
+        | 'viewed'
+        | 'actors'
+        | 'newWorks'
+        | 'lists'
+        | 'magnets'
+        | 'logs'
+        | 'magnetPushLogs'
+        | 'importStats',
+        'skip' | 'merge' | 'replace'
+    >>;
     customConflictResolutions?: Record<string, 'local' | 'cloud' | 'merge'>;
 }
 

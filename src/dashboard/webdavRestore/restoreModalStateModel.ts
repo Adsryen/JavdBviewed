@@ -159,7 +159,7 @@ export function buildAnalysisPreviewEnterState(): AnalysisPreviewEnterState {
       'webdavRestoreBack',
     ],
     confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
-    confirmButtonTitle: '开始执行覆盖式恢复',
+    confirmButtonTitle: '开始执行恢复',
   };
 }
 
@@ -190,8 +190,8 @@ export function buildCloudPreviewEnterState(): CloudPreviewEnterState {
       'webdavRestoreConfirm',
       'webdavRestoreBack',
     ],
-    confirmButtonHtml: '<i class="fas fa-download"></i> 开始覆盖式恢复',
-    confirmButtonTitle: '开始执行覆盖式恢复',
+    confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
+    confirmButtonTitle: '开始执行恢复',
   };
 }
 
@@ -248,7 +248,7 @@ export function buildFileSelectionState(): FileSelectionState {
     ],
     disabledButtonIds: ['webdavRestoreConfirm'],
     hiddenButtonIds: ['webdavRestoreConfirm'],
-    confirmButtonHtml: '<i class="fas fa-download"></i> 开始覆盖式恢复',
+    confirmButtonHtml: '<i class="fas fa-download"></i> 开始恢复',
     confirmButtonTitle: '选择备份后即可恢复',
   };
 }

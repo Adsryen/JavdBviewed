@@ -11,6 +11,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     version: '1.20.3',
     highlights: [
       'WebDAV 支持按设备筛选、清理和恢复备份。',
+      'WebDAV 恢复支持按类别选择合并或覆盖，合并恢复会按记录标识去重。',
       '源码迁入功能域目录，入口与后台服务重新归位。',
       '设置搜索增强，列表页新增状态快捷标识。',
       'Emby/Jellyfin 新增入库状态和服务器识别。',

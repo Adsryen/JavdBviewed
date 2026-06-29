@@ -7,6 +7,9 @@ function mountUnifiedRestoreDom(): void {
       <input type="checkbox" id="webdavRestoreMagnetPushLogsSimple" checked>
       <input type="checkbox" id="webdavRestoreMagnets">
       <input type="checkbox" id="webdavAutoBackupBeforeRestore" checked>
+      <select id="webdavRestoreRecordsMode"><option value="merge" selected>合并</option><option value="replace">覆盖</option></select>
+      <select id="webdavRestoreActorRecordsMode"><option value="replace" selected>覆盖</option></select>
+      <select id="webdavRestoreMagnetPushLogsModeSimple"><option value="merge" selected>合并</option></select>
     </div>
   `;
 }
@@ -70,16 +73,18 @@ describe('WebDAV restore unified executor controller', () => {
       message: '恢复云端备份将修改本地数据，请先完成密码验证。',
     });
     expect(options.showConfirm).toHaveBeenCalledWith(expect.objectContaining({
-      title: '⚠️ 确认覆盖式恢复',
+      title: '⚠️ 确认恢复策略',
       confirmText: '确定恢复',
       cancelText: '取消',
       type: 'danger',
       isHtml: true,
     }));
-    expect(options.showConfirm.mock.calls[0][0].message).toContain('<li>扩展设置</li>');
-    expect(options.showConfirm.mock.calls[0][0].message).toContain('<li>观看记录</li>');
-    expect(options.showConfirm.mock.calls[0][0].message).toContain('<li>清单 / 系列 / 番号</li>');
-    expect(options.showConfirm.mock.calls[0][0].message).toContain('<li>磁力推送日志</li>');
+    expect(options.showConfirm.mock.calls[0][0].message).toContain('扩展设置');
+    expect(options.showConfirm.mock.calls[0][0].message).toContain('观看记录');
+    expect(options.showConfirm.mock.calls[0][0].message).toContain('清单 / 系列 / 番号');
+    expect(options.showConfirm.mock.calls[0][0].message).toContain('磁力推送日志');
+    expect(options.showConfirm.mock.calls[0][0].message).toContain('合并');
+    expect(options.showConfirm.mock.calls[0][0].message).toContain('覆盖');
     expect(options.showRestoreProgress).toHaveBeenCalledTimes(1);
     expect(options.sendRuntimeMessage).toHaveBeenCalledWith({
       type: 'WEB_DAV:RESTORE_UNIFIED',
@@ -96,6 +101,18 @@ describe('WebDAV restore unified executor controller', () => {
           magnetPushLogs: true,
           importStats: true,
           magnets: false,
+        },
+        categoryModes: {
+          settings: 'replace',
+          userProfile: 'skip',
+          viewed: 'merge',
+          actors: 'replace',
+          newWorks: 'merge',
+          lists: 'merge',
+          logs: 'skip',
+          magnetPushLogs: 'merge',
+          importStats: 'replace',
+          magnets: 'skip',
         },
         autoBackupBeforeRestore: true,
       },

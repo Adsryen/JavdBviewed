@@ -1,7 +1,7 @@
 export function buildRestoreProgressHtml(): string {
   return `
         <div class="progress-header">
-            <h4><i class="fas fa-sync fa-spin"></i> 正在执行覆盖式恢复</h4>
+            <h4><i class="fas fa-sync fa-spin"></i> 正在执行恢复</h4>
             <p>请耐心等待，恢复过程中请勿关闭页面</p>
         </div>
         <div class="progress-categories" id="progressCategories">

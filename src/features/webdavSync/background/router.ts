@@ -16,7 +16,7 @@ export interface WebDAVRouterHandlers {
 }
 
 function buildUnifiedOptionsFromLegacyRestore(options: any = {}): any {
-  return {
+  const unifiedOptions: any = {
     categories: {
       settings: options.restoreSettings !== false,
       viewed: options.restoreRecords !== false,
@@ -30,6 +30,8 @@ function buildUnifiedOptionsFromLegacyRestore(options: any = {}): any {
     },
     autoBackupBeforeRestore: options.autoBackupBeforeRestore !== false,
   };
+  if (options.categoryModes) unifiedOptions.categoryModes = options.categoryModes;
+  return unifiedOptions;
 }
 
 export function registerWebDAVRouterListener(handlers: WebDAVRouterHandlers): void {
@@ -103,13 +105,13 @@ export function registerWebDAVRouterListener(handlers: WebDAVRouterHandlers): vo
           return true;
         }
         case 'restore-from-json': {
-          const { jsonData, categories } = message;
+          const { jsonData, categories, categoryModes } = message;
           let importData: any;
           try { importData = JSON.parse(jsonData); } catch (e: any) {
             sendResponse({ success: false, error: `JSON 解析失败: ${e?.message}` });
             return false;
           }
-          handlers.applyImportDataDirect(importData, { categories })
+          handlers.applyImportDataDirect(importData, { categories, categoryModes })
             .then(sendResponse)
             .catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;

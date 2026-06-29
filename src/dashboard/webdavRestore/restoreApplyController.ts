@@ -253,6 +253,8 @@ export class WebDAVRestoreApplyController {
       restoreLogs: this.readCheckboxValue('webdavRestoreLogs', false),
       restoreMagnetPushLogs: this.readCheckboxValue('webdavRestoreMagnetPushLogs', false),
       restoreImportStats: this.readCheckboxValue('webdavRestoreImportStats', false),
+      restoreNewWorks: this.readCheckboxValue('webdavRestoreNewWorks', false),
+      restoreLists: this.readCheckboxValue('webdavRestoreLists', this.readCheckboxValue('webdavRestoreRecords', true)),
       customConflictResolutions: strategy === 'custom' ? this.options.getConflictResolutions() as any : undefined,
     };
   }
@@ -295,6 +297,8 @@ function hasAnyRestoreTarget(options: MergeOptions): boolean {
     options.restoreActorRecords ||
     options.restoreLogs ||
     options.restoreMagnetPushLogs ||
-    options.restoreImportStats
+    options.restoreImportStats ||
+    options.restoreNewWorks ||
+    options.restoreLists
   );
 }

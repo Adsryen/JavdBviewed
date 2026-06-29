@@ -21,6 +21,7 @@ describe('WebDAV restore options model', () => {
       importStats: { lastImportTime: '2026-05-30T00:00:00.000Z' },
       idb: {
         magnets: [{ hash: 'a' }, { hash: 'b' }, { hash: 'c' }],
+        lists: [{ id: 'list-1' }, { id: 'series-1' }],
       },
     });
 
@@ -33,6 +34,12 @@ describe('WebDAV restore options model', () => {
     expect(viewModels.find(item => item.id === 'webdavRestoreUserProfile')?.statsText).toBe('账号: user@example.com');
     expect(viewModels.find(item => item.id === 'webdavRestoreNewWorks')?.statsText).toBe('订阅 1 · 记录 2');
     expect(viewModels.find(item => item.id === 'webdavRestoreMagnets')?.statsText).toBe('包含 3 条磁链缓存');
+    expect(viewModels.find(item => item.id === 'webdavRestoreLists')).toMatchObject({
+      state: 'available',
+      disabled: false,
+      checked: true,
+      statsText: '包含 2 条清单/系列/标签',
+    });
   });
 
   it('keeps required missing sections enabled with warning state', () => {
@@ -61,6 +68,12 @@ describe('WebDAV restore options model', () => {
       checked: false,
       message: '演员库在此备份中不可用',
     });
+    expect(viewModels.find(item => item.id === 'webdavRestoreLists')).toMatchObject({
+      state: 'unavailable',
+      disabled: true,
+      checked: false,
+      message: '清单 / 系列 / 标签在此备份中不可用',
+    });
   });
 
   it('uses storageAll and idb fallback sources', () => {
@@ -75,6 +88,7 @@ describe('WebDAV restore options model', () => {
       idb: {
         logs: [{ message: 'log' }],
         magnetPushLogs: [{ id: 'push' }],
+        lists: [{ id: 'list-from-idb' }],
       },
     });
 
@@ -87,5 +101,6 @@ describe('WebDAV restore options model', () => {
       disabled: false,
       checked: true,
     });
+    expect(viewModels.find(item => item.id === 'webdavRestoreLists')?.statsText).toBe('包含 1 条清单/系列/标签');
   });
 });
