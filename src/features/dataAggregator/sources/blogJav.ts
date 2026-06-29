@@ -1,3 +1,8 @@
+/**
+ * @file blogJav.ts
+ * @description blogJav
+ * @module features/dataAggregator
+ */
 // src/features/dataAggregator/sources/blogJav.ts
 // BlogJav数据源 - 获取高质量封面图片
 

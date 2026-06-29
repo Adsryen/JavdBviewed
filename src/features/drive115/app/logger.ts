@@ -1,3 +1,8 @@
+/**
+ * @file logger.ts
+ * @description logger
+ * @module features/drive115
+ */
 import { getValue, setValue } from '../../../utils/storage';
 import type { Drive115LogEntryUnified, Drive115LogType, Drive115PushContext } from './types';
 

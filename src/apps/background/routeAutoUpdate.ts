@@ -1,3 +1,8 @@
+/**
+ * @file routeAutoUpdate.ts
+ * @description routeAutoUpdate
+ * @module apps/background
+ */
 import { registerDynamicContentScripts } from './dynamicContentScripts';
 
 export async function autoUpdateRoutes(): Promise<void> {

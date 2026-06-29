@@ -1,3 +1,8 @@
+/**
+ * @file popularityEffects.ts
+ * @description popularityEffects
+ * @module features/listEnhancement
+ */
 import type { PopularityEffectsConfig } from '../domain/config';
 
 export interface RatingStats {

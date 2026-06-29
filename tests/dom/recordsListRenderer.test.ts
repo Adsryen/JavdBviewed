@@ -1,3 +1,8 @@
+/**
+ * @file recordsListRenderer.test.ts
+ * @description records list renderer 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { renderRecordsList } from '../../src/dashboard/tabs/records/listRenderer';
 import type { VideoRecord } from '../../src/types';

@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 磁力搜索（多源并发搜索、结果合并、推送到115）统一导出
+ * @module features/magnets
+ */
 export type {
   MagnetExternalSearchResult,
   MagnetResult,

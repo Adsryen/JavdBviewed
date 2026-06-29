@@ -1,4 +1,12 @@
-﻿import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
+﻿/**
+ * @file config.ts
+ * @description 扩展全局配置中心 —— 存储键、默认设置、业务常量
+ * @module utils（旧路径保留，当前实际实现在 platform/storage/settings）
+ *
+ * 包含：STORAGE_KEYS、DEFAULT_SETTINGS、各功能模块默认配置
+ * 被 background/content/UI 全层引用，修改默认值需谨慎评估影响
+ */
+import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
 import { PrivacyConfig } from '../types/privacy';
 import { normalizeDrive115Settings } from '../features/drive115/app';
 import { DEFAULT_AI_SETTINGS } from '../types/ai';

@@ -1,3 +1,8 @@
+/**
+ * @file drive115UserRefresh.ts
+ * @description drive115UserRefresh
+ * @module apps/background
+ */
 import { hasDrive115V2Credentials, isDrive115EnabledState, normalizeDrive115Settings } from '../../features/drive115/app';
 import { getSettings, saveSettings } from '../../utils/storage';
 

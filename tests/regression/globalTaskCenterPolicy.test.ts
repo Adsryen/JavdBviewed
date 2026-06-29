@@ -1,3 +1,8 @@
+/**
+ * @file globalTaskCenterPolicy.test.ts
+ * @description global task center policy runtime 测试
+ * @module tests/regression
+ */
 import { describe, expect, it } from 'vitest';
 import { computeTaskDisposition, getEffectiveBucketLimit } from '../../src/platform/tasks/taskCenterPolicyRuntime';
 

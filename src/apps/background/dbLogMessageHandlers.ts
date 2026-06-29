@@ -1,3 +1,8 @@
+/**
+ * @file dbLogMessageHandlers.ts
+ * @description 日志数据的消息处理器 —— 响应 DB:LOGS_* 系列消息
+ * @module apps/background
+ */
 import {
   logsAdd as defaultLogsAdd,
   logsBulkAdd as defaultLogsBulkAdd,
@@ -6,15 +11,20 @@ import {
   logsQuery as defaultLogsQuery,
 } from '../../platform/storage/indexedDb';
 
-type SendResponse = (response: any) => void;
+type SendResponse = (response: any) => void;  // chrome.runtime 消息回调类型
 
 export interface LogMessageDependencies {
-  add?: typeof defaultLogsAdd;
-  bulkAdd?: typeof defaultLogsBulkAdd;
-  query?: typeof defaultLogsQuery;
-  clear?: typeof defaultLogsClear;
-  exportJSON?: typeof defaultLogsExportJSON;
+  add?: typeof defaultLogsAdd;           // 添加日志
+  bulkAdd?: typeof defaultLogsBulkAdd;   // 批量添加日志
+  query?: typeof defaultLogsQuery;       // 查询日志
+  clear?: typeof defaultLogsClear;       // 清理日志
+  exportJSON?: typeof defaultLogsExportJSON;  // 导出日志JSON
 }
+
+/**
+ * 处理 DB:LOGS_* 消息 —— 日志的增/查/清/导出操作
+ * @returns 返回 true 表示保持异步响应通道
+ */
 
 export function handleLogMessage(
   message: any,

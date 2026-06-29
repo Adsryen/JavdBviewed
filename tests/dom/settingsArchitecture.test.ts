@@ -1,3 +1,8 @@
+/**
+ * @file settingsArchitecture.test.ts
+ * @description settings page architecture 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';

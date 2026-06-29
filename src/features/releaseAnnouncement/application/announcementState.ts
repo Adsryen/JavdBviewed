@@ -1,3 +1,8 @@
+/**
+ * @file announcementState.ts
+ * @description announcementState
+ * @module features/releaseAnnouncement
+ */
 import type { ReleaseAnnouncementPending, ReleaseAnnouncementStorageState } from '../domain/types';
 
 export const RELEASE_ANNOUNCEMENT_STORAGE_KEY = 'release_announcement_state';

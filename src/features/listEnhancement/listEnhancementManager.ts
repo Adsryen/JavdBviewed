@@ -1,3 +1,8 @@
+/**
+ * @file listEnhancementManager.ts
+ * @description listEnhancementManager
+ * @module features/listEnhancement
+ */
 // src/features/listEnhancement/listEnhancementManager.ts
 
 import { log } from '../contentState';

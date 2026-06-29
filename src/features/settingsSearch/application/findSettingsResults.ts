@@ -1,3 +1,8 @@
+/**
+ * @file findSettingsResults.ts
+ * @description findSettingsResults
+ * @module features/settingsSearch
+ */
 import type { SettingsSearchItem, SettingsSearchResult } from '../domain/types';
 import { expandSettingsSearchQuery, normalizeSettingsSearchText } from '../domain/aliases';
 

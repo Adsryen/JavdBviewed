@@ -1,3 +1,8 @@
+/**
+ * @file logSettingsThemeStyles.test.ts
+ * @description log settings theme styles 测试
+ * @module tests/regression
+ */
 import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';

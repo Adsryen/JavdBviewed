@@ -1,3 +1,8 @@
+/**
+ * @file magnetSourceBackoff.test.ts
+ * @description magnet source backoff 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import {
   MAGNET_SOURCE_BACKOFF_MS,

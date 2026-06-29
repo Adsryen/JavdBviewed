@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 数据聚合器（JavDB 页面数据抓取与标准化）统一导出
+ * @module features/dataAggregator
+ */
 // src/features/dataAggregator/index.ts
 // 数据聚合器主入口
 

@@ -1,3 +1,8 @@
+/**
+ * @file buildSettingsSearchIndex.ts
+ * @description buildSettingsSearchIndex
+ * @module features/settingsSearch
+ */
 import type { SettingsSearchItem, SettingsSearchPageSource } from '../domain/types';
 import { normalizeSettingsSearchText } from '../domain/aliases';
 import { createSettingsSearchExtraItems } from './settingsSearchExtraItems';

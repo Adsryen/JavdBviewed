@@ -1,3 +1,8 @@
+/**
+ * @file collector.ts
+ * @description collector
+ * @module features/newWorks
+ */
 // src/features/newWorks/collector.ts
 // 新作品采集服务
 

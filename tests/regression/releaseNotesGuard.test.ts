@@ -1,3 +1,8 @@
+/**
+ * @file releaseNotesGuard.test.ts
+ * @description assert-release-notes script 测试
+ * @module tests/regression
+ */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';

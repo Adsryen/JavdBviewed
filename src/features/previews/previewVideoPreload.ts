@@ -1,3 +1,8 @@
+/**
+ * @file previewVideoPreload.ts
+ * @description previewVideoPreload
+ * @module features/previews
+ */
 type HlsLike = {
   loadSource: (url: string) => void;
   attachMedia: (video: HTMLMediaElement) => void;

@@ -1,3 +1,8 @@
+/**
+ * @file contentTelemetryErrorReporter.test.ts
+ * @description content telemetry error reporter 测试
+ * @module tests/extension
+ */
 import { describe, expect, it } from 'vitest';
 import { getRuntimeMessages } from '../setup/chrome';
 

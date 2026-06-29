@@ -1,3 +1,8 @@
+/**
+ * @file lists-source-link-check.ts
+ * @description 清单源站链接构建工具冒烟测试 —— 验证 buildListSourceUrl / renderListSourceLinkButton
+ * @module scripts
+ */
 import assert from 'node:assert/strict';
 import type { ListRecord } from '../src/types';
 import {

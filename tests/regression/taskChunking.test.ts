@@ -1,3 +1,8 @@
+/**
+ * @file taskChunking.test.ts
+ * @description task chunking regression behavior 测试
+ * @module tests/regression
+ */
 import { describe, expect, it } from 'vitest';
 import { runChunkedWork } from '../../src/platform/tasks/chunking';
 

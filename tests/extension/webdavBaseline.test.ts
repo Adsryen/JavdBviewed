@@ -1,3 +1,8 @@
+/**
+ * @file webdavBaseline.test.ts
+ * @description WebDAV backup and restore baseline 测试
+ * @module tests/extension
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';

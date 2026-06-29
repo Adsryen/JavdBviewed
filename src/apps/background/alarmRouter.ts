@@ -1,3 +1,8 @@
+/**
+ * @file alarmRouter.ts
+ * @description alarmRouter
+ * @module apps/background
+ */
 import { handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM, registerMonthlyAlarm } from './scheduler';
 import { newWorksScheduler } from '../../features/newWorks';
 import { handleTelemetryAlarm, syncTelemetryHeartbeatAlarm } from '../../features/telemetry';

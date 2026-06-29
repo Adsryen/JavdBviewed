@@ -1,3 +1,8 @@
+/**
+ * @file errorReporter.ts
+ * @description errorReporter
+ * @module apps/content
+ */
 import {
   buildTelemetryErrorPayload,
   TELEMETRY_ERROR_REPORT_MESSAGE,

@@ -1,24 +1,25 @@
-// src/types/index.ts
-// 全局类型定义
+/**
+ * @file src/types/index.ts
+ * @description 全局类型定义入口，汇集项目核心数据模型
+ * @module types（全局公共契约，被所有层引用，修改需谨慎）
+ */
 
 // ============================================================
 // 演员相关类型
 // ============================================================
 
-/**
- * 演员记录
- */
+/** 演员记录 —— IndexedDB `actors` 表的完整数据结构 */
 export interface ActorRecord {
   id: string;
   name: string;
-  aliases: string[];
+  aliases: string[];                                  // 搜索匹配用的别名
   gender: 'male' | 'female' | 'unknown';
-  category: 'unknown' | string;
+  category: 'unknown' | string;                       // 演员分类标签
   avatarUrl?: string;
   profileUrl: string;
-  createdAt: number;
+  createdAt: number;                                  // Unix 时间戳（毫秒）
   updatedAt: number;
-  syncInfo?: {
+  syncInfo?: {                                        // 演员同步功能维护
     source: string;
     lastSyncAt: number;
     syncStatus: 'success' | 'error' | 'pending';
@@ -27,17 +28,15 @@ export interface ActorRecord {
   details?: {
     worksCount?: number;
   };
-  blacklisted?: boolean;
-  // 手动编辑锁定的字段列表
-  manuallyEditedFields?: string[];
-  // Wiki数据
-  wikiData?: {
+  blacklisted?: boolean;                              // 黑名单演员不显示增强信息
+  manuallyEditedFields?: string[];                    // 同步时不会覆盖这些字段
+  wikiData?: {                                        // 演员元数据刷新功能获取
     age?: number;
     heightCm?: number;
     cup?: string;
     retired?: boolean;
-    ig?: string;
-    tw?: string;
+    ig?: string;                                      // Instagram
+    tw?: string;                                      // Twitter / X
     wikiUrl?: string;
     xslistUrl?: string;
     source?: 'wikipedia' | 'xslist';
@@ -45,9 +44,7 @@ export interface ActorRecord {
   };
 }
 
-/**
- * 演员搜索结果
- */
+/** 演员搜索结果 —— 比 ActorRecord 精简，仅含列表展示字段 */
 export interface ActorSearchResult {
   id: string;
   name: string;
@@ -56,44 +53,38 @@ export interface ActorSearchResult {
   profileUrl: string;
 }
 
-/**
- * 演员分页搜索结果
- */
+/** 演员分页搜索结果 */
 export interface ActorPagedSearchResult {
   actors: ActorRecord[];
   total: number;
-  page: number;
+  page: number;                                       // 从 1 开始
   pageSize: number;
   hasMore: boolean;
 }
 
-/**
- * 演员同步配置
- */
+/** 演员同步配置 —— 控制从 JavDB 同步演员数据的行为 */
 export interface ActorSyncConfig {
   enabled?: boolean;
   autoSync?: boolean;
-  syncInterval?: number;
-  batchSize?: number;
+  syncInterval?: number;                              // 自动同步间隔（毫秒）
+  batchSize?: number;                                 // 每批处理演员数
   maxRetries?: number;
-  requestInterval?: number;
+  requestInterval?: number;                           // 请求间隔（毫秒），用于限速
   urls?: {
-    collectionActors?: string;
-    actorDetail?: string;
+    collectionActors?: string;                        // 演员收藏列表页 URL
+    actorDetail?: string;                             // 详情页模板，{id} 为占位符
   };
-  forceUpdate?: boolean;
+  forceUpdate?: boolean;                              // 强制全量更新，忽略上次同步时间
   onProgress?: (progress: ActorSyncProgress) => void;
 }
 
-/**
- * 演员同步进度
- */
+/** 演员同步进度 —— 通过 ActorSyncConfig.onProgress 回调传递 */
 export interface ActorSyncProgress {
   stage: 'init' | 'pages' | 'details' | 'syncing' | 'complete' | 'error';
   current: number;
   total: number;
   percentage: number;
-  message: string;
+  message: string;                                    // UI 展示用的描述文本
   stats?: {
     currentPage: number;
     totalProcessed: number;
@@ -107,9 +98,7 @@ export interface ActorSyncProgress {
   errors?: string[];
 }
 
-/**
- * 演员同步结果
- */
+/** 演员同步结果 —— 同步完成后的汇总 */
 export interface ActorSyncResult {
   success: boolean;
   syncedCount: number;
@@ -118,29 +107,20 @@ export interface ActorSyncResult {
   skippedCount: number;
   errorCount?: number;
   errors: string[];
-  duration: number;
+  duration: number;                                   // 同步耗时（毫秒）
 }
 
 // ============================================================
 // 清单相关类型
 // ============================================================
 
-/**
- * 清单记录
- */
+/** 清单记录 */
 export interface ListRecord {
   id: string;
   name: string;
-  /** 清单类型：'mine' = 我的清单，'favorite' = 收藏清单，'local' = 本地自定义清单，'series' = 收藏系列，'label' = 收藏番号 */
   type: 'mine' | 'favorite' | 'local' | 'series' | 'label';
-  /**
-   * 清单来源：
-   * - 'javdb'：从 JavDB 同步的清单（默认值，兼容旧数据）
-   * - 'local'：用户在扩展内手动创建的本地清单
-   */
-  source: 'javdb' | 'local';
-  /** 系列 / 番号同步后的真实 JavDB 标识，兼容带前缀的内部记录 ID */
-  externalId?: string;
+  source: 'javdb' | 'local';                          // 'javdb'=JavDB同步, 'local'=扩展内手动创建
+  externalId?: string;                                // 同步后的真实 JavDB 标识
   moviesCount?: number;
   clickedCount?: number;
   url?: string;
@@ -164,9 +144,7 @@ export interface LogEntry {
 /** 视频状态类型 */
 export type VideoStatus = 'viewed' | 'browsed' | 'want' | 'untracked';
 
-/**
- * 视频记录
- */
+/** 视频记录 —— IndexedDB `videos` 表的核心数据结构 */
 export interface VideoRecord {
   id: string;
   title: string;
@@ -178,15 +156,14 @@ export interface VideoRecord {
   javdbUrl?: string;
   javdbImage?: string;
   coverImage?: string;
-  actors?: string[];
+  actors?: string[];                                  // 演员名称列表（非 ID）
   genres?: string[];
-  rating?: number;
+  rating?: number;                                    // JavDB 评分
   notes?: string;
-  // 手动编辑锁定的字段列表
-  manuallyEditedFields?: string[];
-  // 扩展字段
-  videoCode?: string;
-  duration?: number;
+  manuallyEditedFields?: string[];                    // 同步时保护的字段
+  // --- 扩展字段（从详情页抓取） ---
+  videoCode?: string;                                 // 番号
+  duration?: number;                                  // 时长（分钟）
   director?: string;
   directorUrl?: string;
   maker?: string;
@@ -199,18 +176,16 @@ export interface VideoRecord {
   wantToWatchCount?: number;
   watchedCount?: number;
   categories?: string[];
-  userRating?: number;
+  userRating?: number;                                // 用户自定义评分
   userNotes?: string;
   isFavorite?: boolean;
   favoriteIndexed?: number;
-  /** 该视频所属的清单 ID 列表 */
-  listIds?: string[];
-  /** 收藏时间戳 */
-  favoritedAt?: number;
-  /** 增强数据（封面等） */
+  listIds?: string[];                                 // 所属清单 ID 列表
+  favoritedAt?: number;                               // 收藏时间戳
   enhancedData?: { coverImage?: string; [key: string]: any };
 }
 
+/** 旧版视频记录格式（兼容迁移用） */
 export interface OldVideoRecord extends Partial<VideoRecord> {
   id?: string;
   code?: string;
@@ -221,9 +196,7 @@ export interface OldVideoRecord extends Partial<VideoRecord> {
 // 扩展设置相关类型
 // ============================================================
 
-/**
- * 扩展设置（占位类型，实际定义在各个模块中）
- */
+/** 扩展设置（占位类型，实际定义在各个模块中） */
 export interface ExtensionSettings {
   [key: string]: any;
 }
@@ -239,9 +212,7 @@ export type {
 // 内容过滤相关类型
 // ============================================================
 
-/**
- * 关键字过滤规则
- */
+/** 关键字过滤规则 —— 用于页面内容的自动过滤/高亮/模糊 */
 export interface KeywordFilterRule {
   id: string;
   name: string;
@@ -259,19 +230,16 @@ export interface KeywordFilterRule {
     filter?: string;
   };
   message?: string;
-  // 发行日期范围过滤
-  releaseDateRange?: {
+  releaseDateRange?: {                                // 发行日期范围过滤
     enabled: boolean;
-    comparison?: 'between' | 'before' | 'after' | 'exact'; // 对比方式
-    startDate?: string; // YYYY-MM-DD 格式，用于 between 和 after
-    endDate?: string;   // YYYY-MM-DD 格式，用于 between 和 before
-    exactDate?: string; // YYYY-MM-DD 格式，用于 exact
+    comparison?: 'between' | 'before' | 'after' | 'exact';
+    startDate?: string;                               // YYYY-MM-DD，between/after 用
+    endDate?: string;                                 // YYYY-MM-DD，between/before 用
+    exactDate?: string;                               // YYYY-MM-DD，exact 用
   };
 }
 
-/**
- * 内容过滤配置
- */
+/** 内容过滤配置 */
 export interface ContentFilterConfig {
   enabled: boolean;
   showFilteredCount: boolean;
@@ -282,9 +250,7 @@ export interface ContentFilterConfig {
 // 用户资料相关类型
 // ============================================================
 
-/**
- * 用户资料
- */
+/** 用户资料 —— 从 JavDB 页面解析的登录用户信息 */
 export interface UserProfile {
   email: string;
   username: string;
@@ -299,9 +265,10 @@ export interface UserProfile {
 }
 
 // ============================================================
-// 新作品相关类型
+// 新作品相关类型（演员新作监控功能）
 // ============================================================
 
+/** 演员订阅 —— 关注某演员以监控其新作品 */
 export interface ActorSubscription {
   actorId: string;
   actorName: string;
@@ -311,27 +278,29 @@ export interface ActorSubscription {
   enabled: boolean;
 }
 
+/** 新作品监控全局配置 */
 export interface NewWorksGlobalConfig {
-  checkInterval: number;
-  requestInterval: number;
+  checkInterval: number;                              // 检查间隔（毫秒）
+  requestInterval: number;                            // 请求间隔（毫秒），用于限速
   autoCheckEnabled?: boolean;
-  concurrency?: number;
+  concurrency?: number;                               // 并发请求数
   showActorPageScanButton?: boolean;
   filters: {
     excludeViewed: boolean;
     excludeBrowsed: boolean;
     excludeWant: boolean;
-    dateRange: number;
+    dateRange: number;                                // 筛选最近 N 天内的作品
     categoryFilters?: string[];
-    excludeAR?: boolean;
-    applyContentFilter?: boolean;
+    excludeAR?: boolean;                              // 排除 VR/AR 类
+    applyContentFilter?: boolean;                     // 是否应用内容过滤规则
   };
   maxWorksPerCheck: number;
   autoCleanup: boolean;
-  cleanupDays: number;
+  cleanupDays: number;                                // 自动清理 N 天前的记录
   lastGlobalCheck?: number;
 }
 
+/** 新作品记录 */
 export interface NewWorkRecord {
   id: string;
   actorId: string;
@@ -341,11 +310,12 @@ export interface NewWorkRecord {
   javdbUrl: string;
   coverImage?: string;
   tags: string[];
-  discoveredAt: number;
+  discoveredAt: number;                               // 发现时间戳
   isRead: boolean;
   status?: 'new' | 'viewed' | 'browsed' | 'want';
 }
 
+/** 新作品统计摘要 */
 export interface NewWorksStats {
   totalSubscriptions: number;
   activeSubscriptions: number;
@@ -355,6 +325,7 @@ export interface NewWorksStats {
   lastCheckTime?: number;
 }
 
+/** 新作品搜索结果（分页） */
 export interface NewWorksSearchResult {
   works: NewWorkRecord[];
   total: number;
@@ -364,11 +335,13 @@ export interface NewWorksSearchResult {
   stats: NewWorksStats;
 }
 
+/** 采集结果 */
 export interface CollectionResult {
   discovered: number;
   errors: string[];
 }
 
+/** 手动检查结果 */
 export interface ManualCheckResult {
   discovered: number;
   errors: string[];

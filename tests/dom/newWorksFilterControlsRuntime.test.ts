@@ -1,3 +1,8 @@
+/**
+ * @file newWorksFilterControlsRuntime.test.ts
+ * @description new works filter controls runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachNewWorksFilterControls } from '../../src/dashboard/tabs/newWorksFilterControlsRuntime';
 import type { NewWorksFilters } from '../../src/dashboard/tabs/newWorksFilterTypes';

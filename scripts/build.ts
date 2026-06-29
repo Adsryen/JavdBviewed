@@ -1,3 +1,8 @@
+/**
+ * @file build.ts
+ * @description 构建脚本 —— Vite 构建 + 版本号刷新 + 资源复制 + ZIP 打包
+ * @module scripts
+ */
 import { build } from 'vite';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
@@ -11,6 +16,7 @@ const root = resolve(__dirname, '..');
 const distDir = resolve(root, 'dist');
 const distZipDir = resolve(root, 'dist-zip');
 
+/** 从 version.json 或 package.json 读取当前版本号 */
 async function getVersion() {
     // First try version.json (updated by version script)
     const versionJsonPath = resolve(root, 'version.json');
@@ -30,6 +36,9 @@ async function getVersion() {
     throw new Error('Could not find version information.');
 }
 
+/**
+ * 构建主流程：刷新版本号 → Vite 打包 → 复制 Font Awesome / G2Plot → 生成 ZIP
+ */
 async function main() {
     try {
         console.log('Starting build process...');

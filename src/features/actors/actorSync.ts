@@ -1,3 +1,8 @@
+/**
+ * @file actorSync.ts
+ * @description actorSync
+ * @module features/actors
+ */
 // src/features/actors/actorSync.ts
 // 演员数据同步服务
 

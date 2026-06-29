@@ -1,3 +1,8 @@
+/**
+ * @file initOrchestrator.ts
+ * @description initOrchestrator
+ * @module apps/content
+ */
 // src/apps/content/orchestrator/initOrchestrator.ts
 
 // removed unused import: performanceOptimizer

@@ -1,3 +1,8 @@
+/**
+ * @file recordsViewToolbarController.test.ts
+ * @description records view toolbar controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsViewToolbarController } from '../../src/dashboard/tabs/records/viewToolbarController';
 

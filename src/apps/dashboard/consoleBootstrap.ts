@@ -1,3 +1,8 @@
+/**
+ * @file consoleBootstrap.ts
+ * @description consoleBootstrap
+ * @module apps/dashboard
+ */
 import { applyConsoleSettingsFromStorage_DB, bindConsoleSettingsListener } from '../../dashboard/console/settings';
 import { installConsoleProxy } from '../../platform/logging/consoleProxy';
 

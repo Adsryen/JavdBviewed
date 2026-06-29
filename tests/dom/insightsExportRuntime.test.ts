@@ -1,3 +1,8 @@
+/**
+ * @file insightsExportRuntime.test.ts
+ * @description insights export runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInsightsExportRuntime } from '../../src/dashboard/tabs/insights/exportRuntime';
 

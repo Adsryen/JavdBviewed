@@ -1,3 +1,8 @@
+/**
+ * @file previewHoverController.ts
+ * @description previewHoverController
+ * @module features/listEnhancement
+ */
 import type {
   ListPreviewLoadOptions,
   ListPreviewPreferredSource,

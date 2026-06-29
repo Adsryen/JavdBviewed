@@ -1,3 +1,8 @@
+/**
+ * @file recordsCoverRuntimeController.test.ts
+ * @description records cover runtime controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsCoverRuntimeController } from '../../src/dashboard/tabs/records/coverRuntimeController';
 

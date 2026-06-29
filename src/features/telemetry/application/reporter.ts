@@ -1,3 +1,8 @@
+/**
+ * @file reporter.ts
+ * @description reporter
+ * @module features/telemetry
+ */
 import { getSettings } from '../../../utils/storage';
 import type { TelemetryErrorPayload, TelemetryEventType, TelemetryReportResult } from '../domain/types';
 import { getTelemetryClientState, writeTelemetryClientState } from './clientState';

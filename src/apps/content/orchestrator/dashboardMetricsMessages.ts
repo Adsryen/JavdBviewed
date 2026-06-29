@@ -1,6 +1,11 @@
+/**
+ * @file dashboardMetricsMessages.ts
+ * @description 编排器指标消息绑定 —— 让 dashboard 页面通过 runtime 消息查询编排器运行指标
+ * @module apps/content
+ */
 type OrchestratorWithDashboardMetrics = {
-  getMetrics(): unknown;
-  resetMetrics(): void;
+  getMetrics(): unknown;   // 获取当前指标快照
+  resetMetrics(): void;    // 重置指标归零
 };
 
 type ChromeRuntimeMessageLike = {
@@ -12,12 +17,16 @@ type ChromeRuntimeMessageLike = {
 };
 
 export type InstallOrchestratorDashboardMetricsMessagesOptions = {
-  chromeRuntime?: ChromeRuntimeMessageLike;
+  chromeRuntime?: ChromeRuntimeMessageLike;  // 可注入用于测试
 };
 
 type RuntimeMessage = {
-  type?: string;
+  type?: string;  // 消息类型标识
 };
+
+/**
+ * 注册 dashboard 指标查询消息监听 —— 响应 orchestrator:getMetrics / orchestrator:resetMetrics
+ */
 
 export function installOrchestratorDashboardMetricsMessages(
   orchestrator: OrchestratorWithDashboardMetrics,

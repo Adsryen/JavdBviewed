@@ -1,3 +1,8 @@
+/**
+ * @file searchEngineSettings.test.ts
+ * @description search engine settings panel 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SearchEngineSettings } from '../../src/dashboard/tabs/settings/searchEngine/SearchEngineSettings';
 import { STATE } from '../../src/dashboard/state';

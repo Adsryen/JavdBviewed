@@ -1,3 +1,8 @@
+/**
+ * @file statusPriority.ts
+ * @description statusPriority
+ * @module features/videoStatus
+ */
 // src/features/videoStatus/statusPriority.ts
 
 import { VIDEO_STATUS, STATUS_PRIORITY } from '../../utils/config';

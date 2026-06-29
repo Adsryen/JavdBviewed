@@ -1,3 +1,8 @@
+/**
+ * @file clientIdentity.ts
+ * @description clientIdentity
+ * @module features/webdavSync
+ */
 import type { WebDAVClientProfile } from '../domain/types';
 
 export interface WebDAVSettingsAdapter {

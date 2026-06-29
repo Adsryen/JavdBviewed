@@ -1,3 +1,8 @@
+/**
+ * @file SimpleActorAvatar.ts
+ * @description SimpleActorAvatar
+ * @module components
+ */
 // 简化版演员头像组件
 export class SimpleActorAvatar {
     private static readonly DEFAULT_AVATARS = {

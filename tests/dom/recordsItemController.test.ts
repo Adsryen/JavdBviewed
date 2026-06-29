@@ -1,3 +1,8 @@
+/**
+ * @file recordsItemController.test.ts
+ * @description records item controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsItemElement } from '../../src/dashboard/tabs/records/itemController';
 import type { VideoRecord } from '../../src/types';

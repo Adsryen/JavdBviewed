@@ -1,3 +1,8 @@
+/**
+ * @file manifestContract.test.ts
+ * @description extension manifest contract 测试
+ * @module tests/extension
+ */
 import { describe, expect, it } from 'vitest';
 import manifest from '../../src/manifest.json';
 

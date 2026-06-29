@@ -1,3 +1,8 @@
+/**
+ * @file recordsSearchSuggestController.test.ts
+ * @description records search suggest controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsSearchSuggestController } from '../../src/dashboard/tabs/records/searchSuggestController';
 

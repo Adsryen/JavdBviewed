@@ -1,12 +1,16 @@
-// src/platform/storage/cache.ts
-// 智能缓存管理系统
+/**
+ * @file cache.ts
+ * @description 智能缓存管理 —— 基于 chrome.storage 的带过期时间的缓存系统
+ * @module platform/storage
+ */
 
 import { getValue, setValue } from './chromeStorage';
 
+/** 缓存条目结构 */
 export interface CacheEntry<T> {
   data: T;
-  timestamp: number;
-  expireAt: number;
+  timestamp: number;                                  // 写入时间戳
+  expireAt: number;                                   // 过期时间戳
 }
 
 export interface CacheConfig {

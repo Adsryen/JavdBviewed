@@ -1,3 +1,8 @@
+/**
+ * @file insightsPreviewRuntime.test.ts
+ * @description insights preview runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInsightsPreviewRuntime } from '../../src/dashboard/tabs/insights/previewRuntime';
 

@@ -1,3 +1,8 @@
+/**
+ * @file orchestratorMetrics.ts
+ * @description orchestratorMetrics
+ * @module apps/background
+ */
 import { globalTaskCenter } from '../../platform/tasks/globalTaskCenter';
 import { getValue, setValue } from '../../utils/storage';
 

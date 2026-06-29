@@ -1,5 +1,10 @@
-// src/platform/storage/dbRuntimeClient.ts
-// 内容脚本到后台的 DB 消息封装（IndexedDB 后台持久层）
+/**
+ * @file dbRuntimeClient.ts
+ * @description DB 运行时客户端 —— content script 通过 chrome.runtime.sendMessage 操作 background 端的 IndexedDB
+ * @module platform/storage
+ *
+ * 所有数据库操作都通过消息代理在 background 执行，content 端只发消息不直接操作 IDB。
+ */
 
 import type { VideoRecord } from '../../types';
 

@@ -1,3 +1,8 @@
+/**
+ * @file matchUrls.ts
+ * @description matchUrls
+ * @module features/embyEnhancement
+ */
 export interface EmbyMatchUrlConfig {
   matchUrls?: unknown;
   mediaServers?: unknown;

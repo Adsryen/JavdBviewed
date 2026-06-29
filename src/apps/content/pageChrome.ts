@@ -1,3 +1,8 @@
+/**
+ * @file pageChrome.ts
+ * @description pageChrome
+ * @module apps/content
+ */
 import { log } from '../../features/contentState';
 
 export function injectNavbarBadge(): void {

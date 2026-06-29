@@ -1,3 +1,8 @@
+/**
+ * @file drive115Logger.test.ts
+ * @description Drive115AppLogger 测试
+ * @module tests/tests
+ */
 import { describe, expect, it } from 'vitest';
 
 describe('Drive115AppLogger', () => {

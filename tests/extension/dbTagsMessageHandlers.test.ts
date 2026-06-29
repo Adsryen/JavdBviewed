@@ -1,3 +1,8 @@
+/**
+ * @file dbTagsMessageHandlers.test.ts
+ * @description db tags message handlers 测试
+ * @module tests/extension
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getLegacyViewedRecordsFromStorage,

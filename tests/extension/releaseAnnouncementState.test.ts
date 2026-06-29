@@ -1,3 +1,8 @@
+/**
+ * @file releaseAnnouncementState.test.ts
+ * @description release announcement state 测试
+ * @module tests/extension
+ */
 import { describe, expect, it } from 'vitest';
 import {
   RELEASE_ANNOUNCEMENT_FALLBACK_KEY,

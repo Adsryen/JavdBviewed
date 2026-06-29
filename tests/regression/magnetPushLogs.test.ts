@@ -1,3 +1,8 @@
+/**
+ * @file magnetPushLogs.test.ts
+ * @description magnet push log architecture 测试
+ * @module tests/regression
+ */
 import fs from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 

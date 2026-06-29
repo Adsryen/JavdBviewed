@@ -1,3 +1,8 @@
+/**
+ * @file styles.ts
+ * @description styles
+ * @module features/listEnhancement
+ */
 import type { ListDisplayControlConfig } from '../domain/config';
 
 export interface ListDisplayStyleInput extends Omit<ListDisplayControlConfig, 'enabled'> {

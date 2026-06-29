@@ -1,3 +1,8 @@
+/**
+ * @file newWorksSelectedBatchRuntime.test.ts
+ * @description new works selected batch runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   getSelectedBatchCurrentPageWork,

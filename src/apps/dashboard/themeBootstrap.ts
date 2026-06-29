@@ -1,3 +1,8 @@
+/**
+ * @file themeBootstrap.ts
+ * @description themeBootstrap
+ * @module apps/dashboard
+ */
 import { ThemeSwitcher } from '../../dashboard/components/themeSwitcher';
 import { initThemeListener } from '../../dashboard/loaders/partialsLoader';
 import { themeManager } from '../../dashboard/services/themeManager';

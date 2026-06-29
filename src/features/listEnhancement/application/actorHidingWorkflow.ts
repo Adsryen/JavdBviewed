@@ -1,3 +1,8 @@
+/**
+ * @file actorHidingWorkflow.ts
+ * @description actorHidingWorkflow
+ * @module features/listEnhancement
+ */
 import type { ActorRecord } from '../../../types';
 import {
   decideActorHiding,

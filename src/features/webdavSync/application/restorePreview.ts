@@ -1,3 +1,8 @@
+/**
+ * @file restorePreview.ts
+ * @description restorePreview
+ * @module features/webdavSync
+ */
 import JSZip from 'jszip';
 import { byteSizeOf } from './backupCollector';
 

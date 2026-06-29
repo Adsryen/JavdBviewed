@@ -1,3 +1,8 @@
+/**
+ * @file releaseAnnouncementEvents.ts
+ * @description releaseAnnouncementEvents
+ * @module apps/background
+ */
 import { setPendingReleaseAnnouncement } from '../../features/releaseAnnouncement';
 
 export function registerReleaseAnnouncementEvents(): void {

@@ -1,3 +1,8 @@
+/**
+ * @file importSanitizer.ts
+ * @description importSanitizer
+ * @module features/webdavSync
+ */
 export function sanitizeImportedSettings(importedSettings: any, currentSettings: any): any {
   if (!importedSettings || typeof importedSettings !== 'object') return importedSettings;
   const next = { ...importedSettings, webdav: { ...(importedSettings.webdav || {}) } };

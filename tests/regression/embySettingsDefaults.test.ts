@@ -1,3 +1,8 @@
+/**
+ * @file embySettingsDefaults.test.ts
+ * @description Emby settings defaults 测试
+ * @module tests/regression
+ */
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../../src/utils/config';

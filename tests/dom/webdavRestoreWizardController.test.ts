@@ -1,3 +1,8 @@
+/**
+ * @file webdavRestoreWizardController.test.ts
+ * @description WebDAV restore wizard controller 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVRestoreWizardController } from '../../src/dashboard/webdavRestore/restoreWizardController';
 

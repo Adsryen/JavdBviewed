@@ -1,3 +1,8 @@
+/**
+ * @file search.ts
+ * @description search
+ * @module features/drive115
+ */
 import { getDrive115V2Service, type Drive115V2SearchItem, type Drive115V2SearchQuery } from './index';
 import { addLogV2 } from './logs';
 

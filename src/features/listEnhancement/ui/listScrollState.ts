@@ -1,3 +1,8 @@
+/**
+ * @file listScrollState.ts
+ * @description listScrollState
+ * @module features/listEnhancement
+ */
 export interface ListScrollStateController {
   init: () => void;
   cleanup: () => void;

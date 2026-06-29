@@ -1,3 +1,8 @@
+/**
+ * @file logRetentionSettings.test.ts
+ * @description log retention settings 测试
+ * @module tests/regression
+ */
 import { describe, it, expect } from 'vitest';
 
 describe('log retention settings', () => {

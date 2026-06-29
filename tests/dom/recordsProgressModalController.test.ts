@@ -1,3 +1,8 @@
+/**
+ * @file recordsProgressModalController.test.ts
+ * @description records progress modal controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import { hideRecordsProgressModal, showRecordsProgressModal, updateRecordsProgressModal } from '../../src/dashboard/tabs/records/progressModalController';
 

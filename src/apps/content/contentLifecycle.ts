@@ -1,3 +1,8 @@
+/**
+ * @file contentLifecycle.ts
+ * @description contentLifecycle
+ * @module apps/content
+ */
 import { STATE, log } from '../../features/contentState';
 import { cleanupVideoDetailObservers } from '../../features/videoDetail';
 import { keyboardShortcutsManager } from '../../features/keyboardShortcuts';

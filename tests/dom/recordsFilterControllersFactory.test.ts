@@ -1,3 +1,8 @@
+/**
+ * @file recordsFilterControllersFactory.test.ts
+ * @description records filter controllers factory 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsFilterControllers } from '../../src/dashboard/tabs/records/filterControllersFactory';
 

@@ -1,9 +1,15 @@
+/**
+ * @file drive115Sidebar.ts
+ * @description Dashboard 115网盘侧边栏 —— 显示配额信息、启用/禁用逻辑
+ * @module apps/dashboard
+ */
 import { isDrive115EnabledState, normalizeDrive115Settings } from '../../features/drive115/app';
 import { getDrive115V2Service } from '../../features/drive115/v2';
 import { STATE } from '../../dashboard/state';
 
-type QuotaInfo = { total?: number; used?: number; surplus?: number; list?: any[] };
+type QuotaInfo = { total?: number; used?: number; surplus?: number; list?: any[] };  // 115网盘配额信息
 
+/** 根据设置中的启用状态控制侧边栏可见性 */
 export function updateDrive115SidebarVisibility(enabledParam?: boolean): void {
   const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
   if (!section) return;

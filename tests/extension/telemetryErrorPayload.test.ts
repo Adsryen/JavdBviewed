@@ -1,3 +1,8 @@
+/**
+ * @file telemetryErrorPayload.test.ts
+ * @description telemetry error payload 测试
+ * @module tests/extension
+ */
 import { describe, expect, it } from 'vitest';
 
 describe('telemetry error payload', () => {

@@ -1,3 +1,8 @@
+/**
+ * @file settingsSearchBootstrap.ts
+ * @description settingsSearchBootstrap
+ * @module apps/dashboard
+ */
 import { buildSettingsSearchIndex, mountSettingsSearch, revealStoredSettingsSearchTarget } from '../../features/settingsSearch';
 import type { SettingsSearchPageSource } from '../../features/settingsSearch';
 import { loadPartial } from '../../dashboard/loaders/partialsLoader';

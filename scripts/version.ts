@@ -1,3 +1,8 @@
+/**
+ * @file version.ts
+ * @description 版本号管理脚本 —— 语义化版本递增、构建号生成、Git tag 提交
+ * @module scripts
+ */
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -11,24 +16,26 @@ const manifestFilePath = path.join(__dirname, '..', 'src', 'manifest.json');
 const viteEnvFilePath = path.join(__dirname, '..', '.env.local');
 
 interface VersionData {
-  version: string;
-  major: number;
-  minor: number;
-  patch: number;
-  build: number;
+  version: string;    // 完整版本号（如 "1.20.0"）
+  major: number;      // 主版本号
+  minor: number;      // 次版本号
+  patch: number;      // 补丁版本号
+  build: number;      // 构建号（每次构建递增）
 }
 
-type VersionType = 'major' | 'minor' | 'patch';
-type GitState = '-staged' | '-dirty' | '' | '-unknown';
-type SimpleGitState = 'clean' | 'staged' | 'dirty' | 'unknown';
+type VersionType = 'major' | 'minor' | 'patch';                                  // 版本递增类型
+type GitState = '-staged' | '-dirty' | '' | '-unknown';                          // 工作区状态后缀
+type SimpleGitState = 'clean' | 'staged' | 'dirty' | 'unknown';                  // 工作区状态（简化版）
 
-// --- Git Helper Functions ---
+// --- Git 辅助函数 ---
+/** 获取当前 Git 短哈希 */
 function getGitHash(): string {
     try {
         return execSync('git rev-parse --short HEAD').toString().trim();
     } catch (e) { return 'nogit'; }
 }
 
+/** 获取当前 Git 工作区状态（干净/暂存/脏/未知） */
 function getGitState(): GitState {
     try {
         const status = execSync('git status --porcelain').toString().trim();
@@ -67,6 +74,7 @@ function writeJsonFile(filePath: string, data: unknown) {
     fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }
 
+/** 将版本数据同步到 version.json / package.json / manifest.json */
 function syncVersionArtifacts(versionData: VersionData) {
     writeJsonFile(versionFilePath, versionData);
 
@@ -83,6 +91,10 @@ function syncVersionArtifacts(versionData: VersionData) {
     }
 }
 
+/**
+ * 生成构建版本号并写入 .env.local
+ * @param isReleaseCommit - true = 版本递增（重置构建号），false = 普通构建（构建号+1）
+ */
 function generateAndWriteBuildVersion(versionData: VersionData, isReleaseCommit: boolean) {
     // 标记参数已使用（用于满足 TS noUnusedParameters）
     if (isReleaseCommit) {

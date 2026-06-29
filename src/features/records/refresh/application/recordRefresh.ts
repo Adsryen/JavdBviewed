@@ -1,3 +1,8 @@
+/**
+ * @file recordRefresh.ts
+ * @description recordRefresh
+ * @module features/records
+ */
 import { viewedPut as idbViewedPut } from '../../../../platform/storage/indexedDb';
 import type { VideoRecord } from '../../../../types';
 import { STORAGE_KEYS } from '../../../../utils/config';

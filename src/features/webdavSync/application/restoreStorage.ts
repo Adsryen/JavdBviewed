@@ -1,3 +1,8 @@
+/**
+ * @file restoreStorage.ts
+ * @description restoreStorage
+ * @module features/webdavSync
+ */
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
 
 export const RESTORE_BATCH_SIZE = 1000;

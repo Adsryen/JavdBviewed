@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 外部搜索引擎（配置管理、搜索跳转）统一导出
+ * @module features/externalSearch
+ */
 export type {
   DetailSearchInsertionTarget,
   DetailSearchLink,

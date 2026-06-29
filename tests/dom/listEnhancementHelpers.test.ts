@@ -1,3 +1,8 @@
+/**
+ * @file listEnhancementHelpers.test.ts
+ * @description list enhancement helpers 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import {
   buildPopularityEffectAttributes,

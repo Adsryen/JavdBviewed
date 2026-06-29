@@ -1,3 +1,7 @@
+/**
+ * @file index.ts
+ * @description 任务中心子系统统一导出（全局任务中心、心跳、超时守卫、性能优化）
+ */
 export {
   runChunkedWork,
   yieldToMainThread,

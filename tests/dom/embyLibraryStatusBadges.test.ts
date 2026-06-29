@@ -1,3 +1,8 @@
+/**
+ * @file embyLibraryStatusBadges.test.ts
+ * @description Emby library status badges 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { STATE } from '../../src/features/contentState';
 import { renderDetailLibraryStatus } from '../../src/features/embyLibrary/content/statusBadges';

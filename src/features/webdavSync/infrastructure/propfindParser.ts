@@ -1,3 +1,8 @@
+/**
+ * @file propfindParser.ts
+ * @description propfindParser
+ * @module features/webdavSync
+ */
 import { WEBDAV_UPLOAD_INDEX_FILE } from '../domain/paths';
 import type { WebDAVFile } from '../domain/types';
 

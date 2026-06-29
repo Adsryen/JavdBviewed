@@ -1,3 +1,8 @@
+/**
+ * @file detailSearchLinks.test.ts
+ * @description detail search links 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultHttpClient } from '../../src/platform/network/httpClient';
 import {

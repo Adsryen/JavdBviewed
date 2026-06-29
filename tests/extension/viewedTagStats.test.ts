@@ -1,3 +1,8 @@
+/**
+ * @file viewedTagStats.test.ts
+ * @description viewed tag statistics 测试
+ * @module tests/extension
+ */
 import { describe, expect, it } from 'vitest';
 import { setChromeStorage } from '../setup/chrome';
 

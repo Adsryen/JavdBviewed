@@ -1,3 +1,8 @@
+/**
+ * @file clientRegistry.ts
+ * @description clientRegistry
+ * @module features/webdavSync
+ */
 import { getClientFilePath, joinWebDavUrl, WEBDAV_CLIENTS_DIR } from '../domain/paths';
 import type { WebDAVAuth, WebDAVClientProfile } from '../domain/types';
 import { parseWebDAVResponse } from '../infrastructure/propfindParser';

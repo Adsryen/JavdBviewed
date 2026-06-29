@@ -1,3 +1,8 @@
+/**
+ * @file previewVolumeControl.ts
+ * @description previewVolumeControl
+ * @module features/previews
+ */
 import { getSettings } from '../../utils/storage';
 import { log } from '../contentState';
 import { activatePreviewVideoPreload, releasePreviewVideoMedia } from './previewVideoPreload';

@@ -1,3 +1,8 @@
+/**
+ * @file domUtils.ts
+ * @description DOM 工具集 —— 安全的 DOM 查询、元素等待、元素移除等通用操作
+ * @module platform/browser
+ */
 function contentLog(...args: any[]): void {
     try {
         const verbose = typeof window !== 'undefined' && (window as any).__JDB_VERBOSE;

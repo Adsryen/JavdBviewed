@@ -1,3 +1,8 @@
+/**
+ * @file fc2BreakerModal.test.ts
+ * @description FC2 breaker modal magnet area 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FC2BreakerService, type FC2VideoInfo } from '../../src/features/fc2Breaker';
 import { MagnetSearchManager, type MagnetResult } from '../../src/features/magnets';

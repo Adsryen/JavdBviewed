@@ -1,3 +1,8 @@
+/**
+ * @file bootstrap.ts
+ * @description bootstrap
+ * @module apps/background
+ */
 // 背景入口：装配与注册各模块
 
 if (typeof self === 'undefined' || !(self as any).registration) {

@@ -1,45 +1,64 @@
+/**
+ * @file listRecordHelpers.ts
+ * @description 清单记录的 ID 规范化、类型判断和匹配工具
+ * @module shared/utils（跨上下文：background + content + UI）
+ *
+ * 清单 ID 体系：
+ * - 普通清单（mine/favorite/local）：ID 由 JavDB 分配或用户自定义
+ * - 系列清单（series）：ID 格式 `series:{externalId}`
+ * - 番号清单（label）：ID 格式 `label:{externalId}`（大写）
+ */
 import type { ListRecord, VideoRecord } from '../../types';
 
 export type CollectionListType = 'series' | 'label';
 
+/** 收藏类清单的 ID 前缀映射 */
 const COLLECTION_PREFIX: Record<CollectionListType, string> = {
   series: 'series:',
   label: 'label:',
 };
 
+/** 判断类型是否为收藏类清单（series/label） */
 export function isCollectionListType(type: unknown): type is CollectionListType {
   return type === 'series' || type === 'label';
 }
 
+/** 判断记录是否为收藏类清单 */
 export function isCollectionListRecord(record: Pick<ListRecord, 'type'> | null | undefined): boolean {
   return !!record && isCollectionListType(record.type);
 }
 
+/** 判断记录是否为视频类清单（mine/favorite/local） */
 export function isVideoListRecord(record: Pick<ListRecord, 'type'> | null | undefined): boolean {
   return !!record && (record.type === 'mine' || record.type === 'favorite' || record.type === 'local');
 }
 
+/** 规范化收藏清单的外部 ID（番号类型强制大写） */
 export function normalizeCollectionExternalId(type: CollectionListType, raw: string): string {
   const value = String(raw || '').trim();
   return type === 'label' ? value.toUpperCase() : value;
 }
 
+/** 根据类型和外部 ID 生成内部记录 ID，如 `series:abc123` */
 export function getCollectionRecordId(type: CollectionListType, externalId: string): string {
   return `${COLLECTION_PREFIX[type]}${normalizeCollectionExternalId(type, externalId)}`;
 }
 
+/** 移除记录 ID 中的收藏清单前缀（`series:` 或 `label:`） */
 export function stripCollectionRecordPrefix(type: CollectionListType, id: string): string {
   const value = String(id || '').trim();
   const prefix = COLLECTION_PREFIX[type];
   return value.startsWith(prefix) ? value.slice(prefix.length) : value;
 }
 
+/** 获取收藏清单的真实外部 ID（优先用 externalId 字段，否则从 id 中剥离前缀） */
 export function getCollectionExternalId(record: Pick<ListRecord, 'id' | 'type'> & Partial<Pick<ListRecord, 'externalId'>>): string {
   if (!isCollectionListType(record.type)) return String(record.id || '').trim();
   const raw = record.externalId || stripCollectionRecordPrefix(record.type, record.id);
   return normalizeCollectionExternalId(record.type, raw);
 }
 
+/** 规范化收藏清单记录：确保 id 和 externalId 一致且格式正确 */
 export function normalizeCollectionRecord<T extends ListRecord>(record: T): T {
   if (!isCollectionListType(record.type)) return record;
   const externalId = getCollectionExternalId(record);
@@ -50,6 +69,7 @@ export function normalizeCollectionRecord<T extends ListRecord>(record: T): T {
   };
 }
 
+/** 规范化清单记录供业务使用：收藏类走 normalize，普通类补 source 默认值 */
 export function normalizeListRecordForUse<T extends ListRecord>(record: T): T {
   if (isCollectionListType(record.type)) {
     return normalizeCollectionRecord(record);
@@ -60,15 +80,18 @@ export function normalizeListRecordForUse<T extends ListRecord>(record: T): T {
   };
 }
 
+/** 从系列 URL 中提取外部 ID，如 `/series/abc` → `abc` */
 export function getSeriesExternalIdFromUrl(seriesUrl?: string): string {
   const match = String(seriesUrl || '').match(/\/series\/([^/?#]+)/);
   return match ? decodeURIComponent(match[1]).trim() : '';
 }
 
+/** 规范化名称用于比较：NFKC 标准化 + 去多余空格 + 小写 */
 function normalizeComparableName(value: unknown): string {
   return String(value || '').trim().normalize('NFKC').replace(/\s+/g, ' ').toLowerCase();
 }
 
+/** 判断视频记录是否属于某个系列（通过 URL 或名称匹配） */
 export function matchesSeriesRecord(
   record: Partial<VideoRecord>,
   series: Pick<ListRecord, 'id' | 'name' | 'type'> & Partial<Pick<ListRecord, 'externalId'>>
@@ -85,6 +108,7 @@ export function matchesSeriesRecord(
   return (!!seriesName && recordSeries === seriesName) || (!!seriesId && recordSeries === seriesId);
 }
 
+/** 判断视频记录是否属于某个番号标签（ID 精确匹配或前缀匹配，如 `ABC-123` 匹配 `ABC`） */
 export function matchesLabelRecord(record: Pick<VideoRecord, 'id'> | Partial<VideoRecord>, label: Pick<ListRecord, 'id' | 'type'> & Partial<Pick<ListRecord, 'externalId'>>): boolean {
   const prefix = getCollectionExternalId(label).toUpperCase();
   const id = String(record.id || '').toUpperCase();

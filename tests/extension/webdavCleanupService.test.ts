@@ -1,3 +1,8 @@
+/**
+ * @file webdavCleanupService.test.ts
+ * @description WebDAV cleanup service - per-device retention 测试
+ * @module tests/extension
+ */
 import { describe, it, expect, vi } from 'vitest';
 import type { WebDAVFile } from '../../src/features/webdavSync/domain/types';
 

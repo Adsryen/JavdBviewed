@@ -1,3 +1,8 @@
+/**
+ * @file actorHiding.ts
+ * @description actorHiding
+ * @module features/listEnhancement
+ */
 import type { ActorRecord } from '../../../types';
 
 export type ActorHidingReason = 'ACTOR_BLACKLIST' | 'ACTOR_NOT_FAVORITED';

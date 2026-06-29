@@ -1,17 +1,22 @@
+/**
+ * @file pageLifecycleBindings.ts
+ * @description 页面生命周期绑定 —— 在 pagehide/beforeunload 时发送编排器取消通知和指标保存
+ * @module apps/content
+ */
 import type { getPageContext } from '../../../platform/browser';
 
 type OrchestratorWithMetrics = {
-  getMetrics(): object;
+  getMetrics(): object;  // 获取编排器指标
 };
 
 type ChromeRuntimeLike = {
-  sendMessage?: (message: unknown) => void;
+  sendMessage?: (message: unknown) => void;  // 跨上下文消息发送
 };
 
 type PageLifecycleWindowLike = {
   location?: { href?: string };
   addEventListener?: (event: string, listener: () => void) => void;
-  __initOrchestrator__?: unknown;
+  __initOrchestrator__?: unknown;  // 挂载编排器实例供外部访问
 };
 
 type LoggerLike = {
@@ -20,12 +25,18 @@ type LoggerLike = {
 };
 
 export type InstallOrchestratorPageLifecycleBindingsOptions = {
-  windowRef?: PageLifecycleWindowLike;
-  chromeRuntime?: ChromeRuntimeLike;
-  getPageContextFn: typeof getPageContext;
-  now?: () => number;
-  logger?: LoggerLike;
+  windowRef?: PageLifecycleWindowLike;            // window 对象引用（可注入用于测试）
+  chromeRuntime?: ChromeRuntimeLike;              // chrome.runtime 接口
+  getPageContextFn: typeof getPageContext;        // 获取当前页面上下文
+  now?: () => number;                             // 时间戳函数（可注入用于测试）
+  logger?: LoggerLike;                            // 日志接口
 };
+
+/**
+ * 安装编排器页面生命周期绑定
+ * - pagehide → 发送 task-center:page-lifecycle 取消通知
+ * - beforeunload → 保存编排器指标到 background
+ */
 
 export function installOrchestratorPageLifecycleBindings(
   orchestrator: OrchestratorWithMetrics,

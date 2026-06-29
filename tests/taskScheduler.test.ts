@@ -1,3 +1,8 @@
+/**
+ * @file taskScheduler.test.ts
+ * @description GlobalTaskCenter scheduling 测试
+ * @module tests/tests
+ */
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import type { GlobalTaskDescriptor } from '../src/shared/taskCenterTypes.ts';

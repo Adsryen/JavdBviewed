@@ -1,3 +1,8 @@
+/**
+ * @file actorWatermark.ts
+ * @description actorWatermark
+ * @module features/listEnhancement
+ */
 import type { ActorRecord } from '../../../types';
 
 export interface ActorSubscriptionRecord {

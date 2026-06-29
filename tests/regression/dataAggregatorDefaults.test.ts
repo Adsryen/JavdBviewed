@@ -1,3 +1,8 @@
+/**
+ * @file dataAggregatorDefaults.test.ts
+ * @description DataAggregator default behavior 测试
+ * @module tests/regression
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({

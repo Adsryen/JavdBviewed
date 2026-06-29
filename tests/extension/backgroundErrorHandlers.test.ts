@@ -1,3 +1,8 @@
+/**
+ * @file backgroundErrorHandlers.test.ts
+ * @description background error handlers 测试
+ * @module tests/extension
+ */
 import { describe, expect, it } from 'vitest';
 
 describe('background error handlers', () => {

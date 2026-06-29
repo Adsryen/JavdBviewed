@@ -1,3 +1,8 @@
+/**
+ * @file cleanupService.ts
+ * @description cleanupService
+ * @module features/webdavSync
+ */
 import { normalizeWebDavBaseUrl } from '../domain/paths';
 import type { WebDAVClientLog, WebDAVClientOptions } from '../infrastructure/webdavClient';
 import type { WebDAVFile } from '../domain/types';

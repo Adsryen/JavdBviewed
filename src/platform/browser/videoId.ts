@@ -1,4 +1,10 @@
-// src/platform/browser/videoId.ts
+/**
+ * @file videoId.ts
+ * @description 浏览器端番号提取工具 —— 从 DOM 元素或文本中提取番号
+ * @module platform/browser
+ *
+ * 基于 shared/utils/videoId 的提取逻辑，增加了 DOM 查询和日志支持。
+ */
 
 import { extractVideoId as extractSharedVideoId } from '../../shared/utils/videoId';
 

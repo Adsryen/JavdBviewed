@@ -1,3 +1,10 @@
+/**
+ * @file indexedDbConnection.ts
+ * @description IndexedDB 连接管理 —— 数据库初始化、版本升级、索引创建
+ * @module platform/storage
+ *
+ * 使用 idb 库封装，支持连接重置和重连。
+ */
 import { openDB, type IDBPDatabase } from 'idb';
 import type { VideoRecord } from '../../types';
 import type { JavdbDB, PersistedLogEntry } from './indexedDbSchema';

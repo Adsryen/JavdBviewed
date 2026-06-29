@@ -1,3 +1,8 @@
+/**
+ * @file magnetPagination.test.ts
+ * @description magnet pagination 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import { buildMagnetPaginationState } from '../../src/content/magnetPagination';
 

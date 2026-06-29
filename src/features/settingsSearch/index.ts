@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 设置搜索（关键字搜索设置项）统一导出
+ * @module features/settingsSearch
+ */
 export type {
   RevealSettingsSearchTargetOptions,
   SettingsSearchItem,

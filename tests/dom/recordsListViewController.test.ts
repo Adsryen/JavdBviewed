@@ -1,3 +1,8 @@
+/**
+ * @file recordsListViewController.test.ts
+ * @description records list view controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsListViewController } from '../../src/dashboard/tabs/records/listViewController';
 import type { CreateRecordsItemElementOptions } from '../../src/dashboard/tabs/records/itemController';

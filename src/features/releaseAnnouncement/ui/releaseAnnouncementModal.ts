@@ -1,3 +1,8 @@
+/**
+ * @file releaseAnnouncementModal.ts
+ * @description releaseAnnouncementModal
+ * @module features/releaseAnnouncement
+ */
 import type { ResolvedReleaseAnnouncement } from '../domain/types';
 import { markAnnouncementSeen, readReleaseAnnouncementState } from '../application/announcementState';
 import { resolveAnnouncement } from '../application/resolveAnnouncement';

@@ -1,3 +1,8 @@
+/**
+ * @file previewVideoPreload.test.ts
+ * @description preview video preload lifecycle 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   activatePreviewVideoPreload,

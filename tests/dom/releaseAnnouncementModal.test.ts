@@ -1,3 +1,8 @@
+/**
+ * @file releaseAnnouncementModal.test.ts
+ * @description release announcement modal 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   RELEASE_ANNOUNCEMENT_STORAGE_KEY,

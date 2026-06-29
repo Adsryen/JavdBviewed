@@ -1,3 +1,8 @@
+/**
+ * @file xunleiSubtitleApi.ts
+ * @description xunleiSubtitleApi
+ * @module features/subtitles
+ */
 import { defaultHttpClient } from '../../../platform/network/httpClient';
 import type { XunleiSubtitleResponse } from '../domain/types';
 

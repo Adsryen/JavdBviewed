@@ -1,3 +1,8 @@
+/**
+ * @file listItemObserver.ts
+ * @description listItemObserver
+ * @module features/listEnhancement
+ */
 export function processExistingListItems(
   document: Document,
   enhanceItem: (item: HTMLElement) => void,

@@ -1,3 +1,8 @@
+/**
+ * @file httpClient.test.ts
+ * @description HttpClient background fetch handling 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HttpClient } from '../../src/platform/network/httpClient';
 

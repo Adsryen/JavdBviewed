@@ -1,7 +1,14 @@
+/**
+ * @file taskTimeoutGuard.ts
+ * @description 任务超时守卫 —— 创建超时检测器，用于在长时间运行的任务中检查是否超时
+ * @module platform/tasks
+ */
+
+/** 创建超时守卫实例，返回超时检测方法 */
 export function createTaskTimeoutGuard(timeoutMs?: number): {
     timeoutMs: number;
-    isTimedOut: () => boolean;
-    throwIfTimedOut: (message?: string) => void;
+    isTimedOut: () => boolean;                          // 是否已超时
+    throwIfTimedOut: (message?: string) => void;        // 超时则抛出异常
 } {
     const normalized = typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
         ? Math.floor(timeoutMs)

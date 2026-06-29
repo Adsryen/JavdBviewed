@@ -1,3 +1,8 @@
+/**
+ * @file privacyBootstrap.ts
+ * @description privacyBootstrap
+ * @module apps/dashboard
+ */
 import { setupDashboardPrivacyMonitoring } from '../../dashboard/privacy/dashboardMonitor';
 import { log } from '../../utils/logController';
 

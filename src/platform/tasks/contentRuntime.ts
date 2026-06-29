@@ -1,3 +1,11 @@
+/**
+ * @file contentRuntime.ts
+ * @description Content 端任务运行时 —— 管理 content script 中的任务注册、重试、完成
+ * @module platform/tasks
+ *
+ * 提供 ensureManagedTaskRegistered（确保任务已注册）、
+ * completeManagedTask（标记完成）、failManagedTask（标记失败）等便捷方法。
+ */
 import type { GlobalTaskDescriptor } from '../../shared/taskCenterTypes';
 import { getPageContext } from '../browser/pageContext';
 

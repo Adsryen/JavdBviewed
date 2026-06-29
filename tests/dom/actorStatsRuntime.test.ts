@@ -1,3 +1,8 @@
+/**
+ * @file actorStatsRuntime.test.ts
+ * @description actor stats runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderActorStats } from '../../src/dashboard/tabs/actors/statsRuntime';
 

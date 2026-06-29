@@ -1,9 +1,18 @@
+/**
+ * @file chunking.ts
+ * @description 任务分块执行器 —— 将大批量工作拆分为小批次，每批之间可让出主线程
+ * @module platform/tasks
+ *
+ * 用于演员同步、批量导入等场景，避免长时间阻塞导致 Service Worker 被杀。
+ */
+
+/** 分块执行选项 */
 export interface ChunkedWorkOptions<T> {
-  batchSize?: number;
-  onItem: (item: T, index: number) => Promise<void> | void;
-  yieldAfterBatch?: () => Promise<void> | void;
-  shouldStop?: () => boolean;
-  parentLabel?: string;
+  batchSize?: number;                                 // 每批处理数量，默认 20
+  onItem: (item: T, index: number) => Promise<void> | void;  // 单项处理函数
+  yieldAfterBatch?: () => Promise<void> | void;       // 每批完成后的回调（如进度上报）
+  shouldStop?: () => boolean;                          // 提前终止条件
+  parentLabel?: string;                               // 父任务标签（用于日志）
   onBatchComplete?: (info: {
     parentLabel?: string;
     batchIndex: number;

@@ -1,3 +1,8 @@
+/**
+ * @file versionInfo.test.ts
+ * @description 版本信息显示工具测试 —— 验证 getDisplayVersionInfo / formatUtcBuildTime
+ * @module shared/utils
+ */
 import { describe, expect, it } from 'vitest';
 
 import { getDisplayVersionInfo, formatUtcBuildTime } from './versionInfo';

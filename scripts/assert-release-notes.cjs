@@ -1,13 +1,19 @@
 #!/usr/bin/env node
+/**
+ * @file assert-release-notes.cjs
+ * @description 发布前检查脚本 —— 验证 releaseNotes.ts 中是否包含指定版本的更新内容
+ * @module scripts
+ */
 
 const fs = require('node:fs');
 const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
 const DEFAULT_NOTES_PATH = path.join(rootDir, 'src/features/releaseAnnouncement/domain/releaseNotes.ts');
-const PLACEHOLDER_PATTERN = /\b(todo|tbd|fixme|placeholder|changeme)\b|待补充|待完善|占位/i;
-const MIN_MAINTAINED_VERSION = '1.20.0';
+const PLACEHOLDER_PATTERN = /\b(todo|tbd|fixme|placeholder|changeme)\b|待补充|待完善|占位/i;  // 占位符检测正则
+const MIN_MAINTAINED_VERSION = '1.20.0';  // 最小受维护版本（低于此版本跳过检查）
 
+/** 解析命令行参数：版本号 + 可选的 --notes 路径 */
 function parseArgs(argv) {
   const args = [...argv];
   const version = normalizeVersion(args.shift() || '');
@@ -29,10 +35,12 @@ function parseArgs(argv) {
   return { version, notesPath };
 }
 
+/** 移除版本号前缀 "v" */
 function normalizeVersion(value) {
   return String(value || '').trim().replace(/^v/i, '');
 }
 
+/** 语义化版本比较：返回 1（大于）、-1（小于）、0（等于） */
 function compareVersions(left, right) {
   const leftParts = normalizeVersion(left).split('.').map(part => Number.parseInt(part, 10) || 0);
   const rightParts = normalizeVersion(right).split('.').map(part => Number.parseInt(part, 10) || 0);
@@ -51,6 +59,7 @@ function fail(message) {
   process.exit(1);
 }
 
+/** 从 releaseNotes.ts 源码中提取所有版本及其更新要点 */
 function extractReleaseNotes(source) {
   const notes = [];
   const versionPattern = /version\s*:\s*['"]([^'"]+)['"]/g;
@@ -90,6 +99,7 @@ function extractReleaseNotes(source) {
   return notes;
 }
 
+/** 查找匹配的闭合括号 ']'（处理字符串/转义嵌套） */
 function findMatchingBracket(source, start) {
   let depth = 0;
   let quote = '';
@@ -124,11 +134,13 @@ function findMatchingBracket(source, start) {
   return -1;
 }
 
+/** 判断文本是否为面向用户的更新要点（非占位符且长度≥8） */
 function isUserFacingHighlight(text) {
   const normalized = String(text || '').trim();
   return normalized.length >= 8 && !PLACEHOLDER_PATTERN.test(normalized);
 }
 
+/** 主入口：检查指定版本是否有≥3条面向用户的更新要点 */
 function main() {
   const { version, notesPath } = parseArgs(process.argv.slice(2));
 

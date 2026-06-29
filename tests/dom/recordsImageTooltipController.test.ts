@@ -1,3 +1,8 @@
+/**
+ * @file recordsImageTooltipController.test.ts
+ * @description records image tooltip controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { bindRecordsImageTooltip } from '../../src/dashboard/tabs/records/imageTooltipController';
 

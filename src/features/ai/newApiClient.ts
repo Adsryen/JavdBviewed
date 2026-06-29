@@ -1,3 +1,8 @@
+/**
+ * @file newApiClient.ts
+ * @description newApiClient
+ * @module features/ai
+ */
 ﻿// New API客户端实现
 
 import type {

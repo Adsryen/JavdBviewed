@@ -1,3 +1,8 @@
+/**
+ * @file pagination.ts
+ * @description pagination
+ * @module features/magnets
+ */
 export interface MagnetPaginationState {
   enabled: boolean;
   currentPage: number;

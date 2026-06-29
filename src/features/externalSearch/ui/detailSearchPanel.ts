@@ -1,3 +1,8 @@
+/**
+ * @file detailSearchPanel.ts
+ * @description detailSearchPanel
+ * @module features/externalSearch
+ */
 import { isXunleiSubtitleLink, openXunleiSubtitleModal } from '../../subtitles';
 import { buildDetailSearchLinks } from '../application/buildDetailSearchLinks';
 import type { DetailSearchInsertionTarget, DetailSearchLink, RenderDetailSearchLinksOptions } from '../domain/types';

@@ -1,3 +1,8 @@
+/**
+ * @file listDisplayControl.test.ts
+ * @description list display control UI helpers 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   applyListDisplayControl,

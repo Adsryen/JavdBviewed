@@ -1,3 +1,8 @@
+/**
+ * @file backgroundMessages.ts
+ * @description backgroundMessages
+ * @module features/newWorks
+ */
 import { newWorksCollector, newWorksManager, newWorksScheduler } from './index';
 
 type SendResponse = (response: any) => void;

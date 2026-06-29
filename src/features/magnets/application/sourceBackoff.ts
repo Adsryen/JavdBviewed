@@ -1,3 +1,8 @@
+/**
+ * @file sourceBackoff.ts
+ * @description sourceBackoff
+ * @module features/magnets
+ */
 import type { MagnetSourceKey } from '../domain/types';
 
 export const MAGNET_SOURCE_BACKOFF_MS = 15 * 60 * 1000;

@@ -1,3 +1,8 @@
+/**
+ * @file modelManager.ts
+ * @description modelManager
+ * @module features/ai
+ */
 // AI模型管理器
 
 import type { AIModel, AISettings } from '../../types/ai';

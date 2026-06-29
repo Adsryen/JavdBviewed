@@ -1,3 +1,8 @@
+/**
+ * @file superRankingNav.ts
+ * @description superRankingNav
+ * @module features/rankings
+ */
 import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { ReviewBreakerService } from '../reviewUnlock';
 

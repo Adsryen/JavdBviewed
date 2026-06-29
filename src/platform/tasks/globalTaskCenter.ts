@@ -1,11 +1,25 @@
+/**
+ * @file globalTaskCenter.ts
+ * @description 全局任务中心 —— 管理所有异步任务的生命周期、排队、租约、超时和去重
+ * @module platform/tasks
+ *
+ * 任务生命周期：registered → queued → leased → running → done/error/canceled
+ * 核心机制：
+ * - 优先级队列：priority 越大越优先
+ * - 租约（lease）：前台页面先获得执行权，后台排队等待
+ * - 去重：通过 dedupeKey 防止重复创建同类任务
+ * - 超时守卫：running 超过 timeoutMs 自动标记 error
+ */
 import { TASK_BUCKET_LIMITS, resolveTaskBucket } from './taskPolicy';
 import { TaskStateStore } from './taskStateStore';
 import { TASK_CENTER_MESSAGE } from '../../shared/taskCenterProtocol';
 import type { GlobalTaskDescriptor, GlobalTaskRuntimeState } from '../../shared/taskCenterTypes';
 import { computeTaskDisposition, getEffectiveBucketLimit } from './taskCenterPolicyRuntime';
 
+/** 租约响应：是否授予执行权，未授予时附带等待原因 */
 type LeaseResponse = { granted: boolean; waitReason?: string };
 
+/** 排队候选任务（附带优先级评分） */
 type QueueCandidate = {
   record: ReturnType<TaskStateStore['listTasks']>[number];
   score: number;

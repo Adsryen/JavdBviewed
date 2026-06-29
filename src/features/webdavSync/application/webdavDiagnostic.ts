@@ -1,3 +1,8 @@
+/**
+ * @file webdavDiagnostic.ts
+ * @description webdavDiagnostic
+ * @module features/webdavSync
+ */
 // WebDAV诊断工具 - 专门用于解决不同WebDAV服务器的兼容性问题
 
 export interface DiagnosticResult {

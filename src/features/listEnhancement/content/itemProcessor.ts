@@ -1,3 +1,8 @@
+/**
+ * @file itemProcessor.ts
+ * @description itemProcessor
+ * @module features/listEnhancement
+ */
 // src/features/listEnhancement/content/itemProcessor.ts
 
 import { VIDEO_STATUS } from '../../../utils/config';

@@ -1,8 +1,16 @@
+/**
+ * @file taskCenterPolicyRuntime.ts
+ * @description 任务中心策略运行时 —— 根据页面可见性和任务策略计算实际并发限制和任务处置
+ * @module platform/tasks
+ *
+ * 核心逻辑：前台页面可见时按基础限制执行，后台页面根据 visibilityPolicy 调整。
+ */
 import type { GlobalTaskVisibilityPolicy, GlobalTaskStatus } from '../../shared/taskCenterTypes';
 
+/** 根据页面可见性和任务策略计算有效桶并发限制 */
 export function getEffectiveBucketLimit(input: {
   baseLimit: number;
-  visible: boolean;
+  visible: boolean;                                    // 页面是否可见
   policy: GlobalTaskVisibilityPolicy;
 }): number {
   const baseLimit = Math.max(0, input.baseLimit);

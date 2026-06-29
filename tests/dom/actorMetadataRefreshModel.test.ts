@@ -1,3 +1,8 @@
+/**
+ * @file actorMetadataRefreshModel.test.ts
+ * @description actor metadata refresh model 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import type { ActorRecord } from '../../src/types';
 import {

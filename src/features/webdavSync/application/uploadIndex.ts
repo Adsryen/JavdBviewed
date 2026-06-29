@@ -1,3 +1,8 @@
+/**
+ * @file uploadIndex.ts
+ * @description uploadIndex
+ * @module features/webdavSync
+ */
 import {
   DEFAULT_UPLOAD_INDEX_LIMIT,
   WEBDAV_UPLOAD_INDEX_FILE,

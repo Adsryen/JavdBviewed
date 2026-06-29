@@ -1,3 +1,8 @@
+/**
+ * @file javbusTabFetch.test.ts
+ * @description JAVBUS tab ajax fetch fallback 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { javbusPageAjaxFetchScript } from '../../src/platform/browser/javbusTabFetch';
 import { fetchJavbusAjaxViaRuntime } from '../../src/platform/browser/javbusRuntimeClient';

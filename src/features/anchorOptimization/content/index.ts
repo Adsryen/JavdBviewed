@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 锚点优化（详情页快速跳转按钮）统一导出
+ * @module features/anchorOptimization
+ */
 // src/features/anchorOptimization/content/index.ts
 // 锚点优化功能 - 优化页面快捷按钮位置和添加预览图快捷方式
 

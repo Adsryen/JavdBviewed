@@ -1,3 +1,8 @@
+/**
+ * @file enhancer.ts
+ * @description enhancer
+ * @module features/videoDetail
+ */
 // 视频详情页增强功能
 
 import { defaultDataAggregator } from '../dataAggregator';

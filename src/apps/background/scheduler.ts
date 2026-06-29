@@ -1,21 +1,30 @@
+/**
+ * @file scheduler.ts
+ * @description 月度洞察月报生成定时器 + WebDAV 自动同步闹钟
+ * @module apps/background
+ */
 import { insViewsRange, insReportsGet, insReportsPut } from '../../platform/storage/indexedDb';
 import { aggregateMonthly, buildInsightsVisualFields, generateReportHTML } from '../../features/insights';
 import { getSettings } from '../../utils/storage';
 import { triggerWebDAVAutoUpload } from '../../features/webdavSync/background/controller';
 
-export const INSIGHTS_ALARM = "insights-monthly";
-export const WEBDAV_SYNC_ALARM = 'webdav-auto-sync';
+export const INSIGHTS_ALARM = "insights-monthly";    // 月度洞察月报的 chrome.alarms 名称
+export const WEBDAV_SYNC_ALARM = 'webdav-auto-sync';  // WebDAV 自动同步闹钟名称
 
 export interface SchedulerSettings {
-  enabled: boolean;
-  minuteOfDay: number;
+  enabled: boolean;                                    // 是否启用定时月报
+  minuteOfDay: number;                                 // 每月1号的触发分钟偏移（0-1439）
 }
 
 function ym(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
+  return `${y}-${m}`;  // 返回 "YYYY-MM" 格式
 }
+
+/**
+ * 计算某月份的起止日期：start = 当月1日，end = 当月最后一天
+ */
 
 function monthStartEnd(month: string): { start: string; end: string } {
   const [y, m] = month.split('-').map(v => Number(v));
@@ -24,6 +33,9 @@ function monthStartEnd(month: string): { start: string; end: string } {
   return { start, end };
 }
 
+/**
+ * 加载月报 HTML 模板
+ */
 async function loadTemplate(): Promise<string> {
   try {
     const url = chrome.runtime.getURL('assets/templates/insights-report.html');
@@ -34,6 +46,10 @@ async function loadTemplate(): Promise<string> {
   }
 }
 
+/**
+ * 确保某月份有最终版本月报，若没有则生成
+ * @returns 是否生成了新月报（false = 已存在最终版本）
+ */
 async function ensureReportForMonth(month: string): Promise<boolean> {
   const exists = await insReportsGet(month);
   if (exists && exists.status === 'final') return false;
@@ -172,6 +188,10 @@ async function ensureReportForMonth(month: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * 注册月度洞察月报的 chrome.alarms 闹钟
+ * 默认每月1日 minuteOfDay 分钟后触发
+ */
 export function registerMonthlyAlarm(settings: SchedulerSettings = { enabled: true, minuteOfDay: 10 }): void {
   if (!settings.enabled || !('alarms' in chrome)) return;
   try {
@@ -185,6 +205,9 @@ export function registerMonthlyAlarm(settings: SchedulerSettings = { enabled: tr
   } catch {}
 }
 
+/**
+ * 处理 chrome.alarms 触发事件 —— 分发到洞察月报 / WebDAV 同步
+ */
 export function handleAlarm(name: string): void {
   handleAlarmAsync(name).catch(() => {});
 }
@@ -222,6 +245,9 @@ export async function handleAlarmAsync(name: string): Promise<void> {
   } catch {}
 }
 
+/**
+ * 启动时补偿检查上月月报 —— 防止因SW休眠错过闹钟
+ */
 export function compensateOnStartup(): void {
   try {
     const d = new Date();

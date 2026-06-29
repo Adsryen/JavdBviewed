@@ -1,3 +1,8 @@
+/**
+ * @file actorHidingWorkflow.test.ts
+ * @description actor hiding workflow 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   applyActorBasedHiding,

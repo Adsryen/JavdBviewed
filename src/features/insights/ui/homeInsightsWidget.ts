@@ -1,3 +1,8 @@
+/**
+ * @file homeInsightsWidget.ts
+ * @description homeInsightsWidget
+ * @module features/insights
+ */
 // Skeleton: Homepage Insights entry button (not auto-executed)
 export function createHomeInsightsEntry(): HTMLButtonElement {
   const btn = document.createElement("button");

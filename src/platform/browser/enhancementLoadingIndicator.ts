@@ -1,3 +1,9 @@
+/**
+ * @file enhancementLoadingIndicator.ts
+ * @description 增强加载指示器 —— 在页面右下角显示/隐藏加载状态条
+ * @module platform/browser
+ */
+
 let hideTimer: number | null = null;
 
 function ensureStyles(): void {

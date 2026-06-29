@@ -1,3 +1,8 @@
+/**
+ * @file clickEnhancement.ts
+ * @description clickEnhancement
+ * @module features/listEnhancement
+ */
 import type { ListPreviewVideoInfo } from '../../previews';
 
 export interface ListClickEnhancementOptions {

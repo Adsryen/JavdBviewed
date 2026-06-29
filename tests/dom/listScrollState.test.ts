@@ -1,3 +1,8 @@
+/**
+ * @file listScrollState.test.ts
+ * @description list scroll state controller 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createListScrollStateController,

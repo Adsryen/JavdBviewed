@@ -1,3 +1,8 @@
+/**
+ * @file fc2Refresh.ts
+ * @description fc2Refresh
+ * @module features/records
+ */
 import { viewedPut as idbViewedPut } from '../../../../platform/storage/indexedDb';
 import type { VideoRecord } from '../../../../types';
 import { STORAGE_KEYS } from '../../../../utils/config';

@@ -1,3 +1,8 @@
+/**
+ * @file errorPayload.ts
+ * @description errorPayload
+ * @module features/telemetry
+ */
 import type { TelemetryErrorPayload } from '../domain/types';
 
 export interface BuildTelemetryErrorPayloadInput {

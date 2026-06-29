@@ -1,3 +1,8 @@
+/**
+ * @file recordsExportController.test.ts
+ * @description records export controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsExportController } from '../../src/dashboard/tabs/records/exportController';
 import type { VideoRecord } from '../../src/types';

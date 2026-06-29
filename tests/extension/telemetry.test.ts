@@ -1,3 +1,8 @@
+/**
+ * @file telemetry.test.ts
+ * @description telemetry settings defaults 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../../src/utils/config';
 import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';

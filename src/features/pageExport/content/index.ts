@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 页面数据导出统一导出
+ * @module features/pageExport
+ */
 // src/features/pageExport/content/index.ts
 
 import { SELECTORS } from '../../contentState';

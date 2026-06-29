@@ -1,5 +1,10 @@
-﻿// src/platform/logging/backgroundConsole.ts
-// 抽离统一控制台代理安装与设置应用
+﻿/**
+ * @file backgroundConsole.ts
+ * @description Background 控制台代理安装器 —— 从用户设置加载日志配置并应用到控制台代理
+ * @module platform/logging
+ *
+ * 在 Service Worker 启动时调用，先用默认配置安装代理，再异步读取用户设置覆盖。
+ */
 
 import { installConsoleProxy } from './consoleProxy';
 import { getSettings } from '../../utils/storage';

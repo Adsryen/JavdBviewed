@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 列表增强（预览、翻页、显示控制、演员水印）统一导出
+ * @module features/listEnhancement
+ */
 export * from './listEnhancementManager';
 export * from './content/itemProcessor';
 export * from './domain/config';

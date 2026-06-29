@@ -1,3 +1,8 @@
+/**
+ * @file actorManager.ts
+ * @description actorManager
+ * @module features/actors
+ */
 // src/features/actors/actorManager.ts
 // 演员数据存储和管理服务
 

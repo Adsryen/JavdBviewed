@@ -1,3 +1,8 @@
+/**
+ * @file enhancement-settings-merge.test.ts
+ * @description mergeEnhancementSettingsForSave 测试
+ * @module tests/tests
+ */
 import { describe, expect, it } from 'vitest';
 
 import { mergeEnhancementSettingsForSave } from '../src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsMerge.ts';

@@ -1,3 +1,8 @@
+/**
+ * @file onlineAvailability.test.ts
+ * @description online availability helpers 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultHttpClient } from '../../src/platform/network/httpClient';
 import {

@@ -1,3 +1,8 @@
+/**
+ * @file vitestProxy.test.ts
+ * @description vitest proxy setup 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import { getVitestProxyUrl } from '../setup/proxy';
 

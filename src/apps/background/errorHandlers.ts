@@ -1,3 +1,8 @@
+/**
+ * @file errorHandlers.ts
+ * @description errorHandlers
+ * @module apps/background
+ */
 import { reportTelemetryError } from '../../features/telemetry';
 
 export function registerBackgroundErrorHandlers(): void {

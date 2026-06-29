@@ -1,3 +1,8 @@
+/**
+ * @file sourceArchitecture.test.ts
+ * @description source architecture cleanup 测试
+ * @module tests/regression
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

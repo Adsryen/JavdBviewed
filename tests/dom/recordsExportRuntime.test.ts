@@ -1,3 +1,8 @@
+/**
+ * @file recordsExportRuntime.test.ts
+ * @description records export runtime 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsExportRuntime } from '../../src/dashboard/tabs/records/exportRuntime';
 import type { VideoRecord } from '../../src/types';

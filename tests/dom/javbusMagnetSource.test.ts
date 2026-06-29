@@ -1,3 +1,8 @@
+/**
+ * @file javbusMagnetSource.test.ts
+ * @description JAVBUS magnet source helpers 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import {
   buildJavbusAjaxUrl,

@@ -1,3 +1,8 @@
+/**
+ * @file actorMetadataRefreshWorkflow.test.ts
+ * @description actor metadata refresh workflow 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import type { ActorRecord } from '../../src/types';
 import { refreshActorMetadataWorkflow } from '../../src/dashboard/tabs/actors/metadataRefreshWorkflow';

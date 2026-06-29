@@ -1,3 +1,8 @@
+/**
+ * @file realtimeCheck.ts
+ * @description realtimeCheck
+ * @module features/embyLibrary
+ */
 import { STATE, log } from '../../contentState';
 import { normalizeVideoCode } from '../domain/libraryIndex';
 import type { EmbyLibraryState } from '../types';

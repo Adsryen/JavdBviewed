@@ -1,3 +1,8 @@
+/**
+ * @file sourceTagState.ts
+ * @description sourceTagState
+ * @module features/magnets
+ */
 import type { MagnetResult, MagnetSourceKey, MagnetSourceSearchState } from '../domain/types';
 import { extractMagnetHash, getResultSources } from './resultMerge';
 

@@ -1,3 +1,8 @@
+/**
+ * @file newWorksSubscriptionActionsRuntime.test.ts
+ * @description new works subscription actions runtime 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createNewWorksSubscriptionActionsRuntime } from '../../src/dashboard/tabs/newWorksSubscriptionActionsRuntime';
 import type { ActorRecord, ActorSubscription } from '../../src/types';

@@ -1,3 +1,8 @@
+/**
+ * @file orchestratorStateBridge.ts
+ * @description orchestratorStateBridge
+ * @module apps/content
+ */
 export function installOrchestratorStateBridge(): void {
     try {
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {

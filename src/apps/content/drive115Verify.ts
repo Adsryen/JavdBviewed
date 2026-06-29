@@ -1,14 +1,12 @@
-// src/apps/content/drive115Verify.ts
 /**
- * 115验证窗口处理脚本
- * 在验证码页面注入，监听验证完成事件
+ * @file drive115Verify.ts
+ * @description 115验证码窗口 content script —— 在 captchaapi.115.com 页面监听验证完成事件
+ * @module apps/content
  */
+// 在验证码页面注入，监听验证按钮点击 → 轮询验证结果 → 通知父窗口
 
-/**
- * 115验证窗口处理器
- */
 class Drive115VerifyHandler {
-  private checkInterval: number | null = null;
+  private checkInterval: number | null = null;  // 验证状态轮询定时器
 
   constructor() {
     this.init();

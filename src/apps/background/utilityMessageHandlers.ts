@@ -1,3 +1,8 @@
+/**
+ * @file utilityMessageHandlers.ts
+ * @description 工具类消息处理器 —— 请求调度器配置、WebDAV闹钟注册、观看状态更新、隐私锁
+ * @module apps/background
+ */
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../../utils/config';
 import {
   getValue as defaultGetValue,
@@ -8,12 +13,16 @@ import {
 import { requestScheduler as defaultRequestScheduler } from '../../platform/network/requestScheduler';
 import { WEBDAV_SYNC_ALARM } from './scheduler';
 
-type SendResponse = (response: any) => void;
+type SendResponse = (response: any) => void;  // chrome.runtime 消息回调类型
 
 export interface SchedulerConfigDependencies {
-  getValue?: typeof defaultGetValue;
-  requestScheduler?: typeof defaultRequestScheduler;
+  getValue?: typeof defaultGetValue;              // 读取设置的存储函数
+  requestScheduler?: typeof defaultRequestScheduler;  // 请求调度器
 }
+
+/**
+ * 从设置中读取并发配置并应用到请求调度器
+ */
 
 export async function applySchedulerConfigFromSettings(deps: SchedulerConfigDependencies = {}): Promise<void> {
   const getValue = deps.getValue ?? defaultGetValue;
@@ -38,9 +47,14 @@ export async function applySchedulerConfigFromSettings(deps: SchedulerConfigDepe
 }
 
 export interface WebDAVSyncAlarmDependencies {
-  getValue?: typeof defaultGetValue;
-  alarmName?: string;
+  getValue?: typeof defaultGetValue;    // 读取设置的存储函数
+  alarmName?: string;                   // chrome.alarms 名称（可注入用于测试）
 }
+
+/**
+ * 根据设置注册 WebDAV 自动同步闹钟
+ * 读取 syncInterval 设置（最小5分钟，最大24小时）
+ */
 
 export async function setupWebDAVSyncAlarm(deps: WebDAVSyncAlarmDependencies = {}): Promise<void> {
   const getValue = deps.getValue ?? defaultGetValue;
@@ -61,6 +75,9 @@ export async function setupWebDAVSyncAlarm(deps: WebDAVSyncAlarmDependencies = {
   } catch {}
 }
 
+/**
+ * 处理更新观看状态的消息 —— 在 IndexedDB 中写入一条 viewed 记录
+ */
 export async function handleUpdateWatchedStatus(
   message: any,
   sendResponse: SendResponse,
@@ -81,6 +98,9 @@ export async function handleUpdateWatchedStatus(
   }
 }
 
+/**
+ * 处理隐私锁消息 —— 向所有 dashboard 标签页广播隐私锁触发
+ */
 export async function handlePrivacyLock(sendResponse: SendResponse): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('dashboard/dashboard.html') });

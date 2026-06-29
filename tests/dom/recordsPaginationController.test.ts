@@ -1,3 +1,8 @@
+/**
+ * @file recordsPaginationController.test.ts
+ * @description records pagination controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { renderRecordsPagination } from '../../src/dashboard/tabs/records/paginationController';
 

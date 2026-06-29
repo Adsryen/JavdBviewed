@@ -1,3 +1,8 @@
+/**
+ * @file actorAliasRuntime.test.ts
+ * @description actor alias runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { scheduleActorAliasesOverflowCheck, toggleActorAliasesExpansion } from '../../src/dashboard/tabs/actors/actorAliasRuntime';
 

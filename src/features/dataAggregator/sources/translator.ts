@@ -1,3 +1,8 @@
+/**
+ * @file translator.ts
+ * @description translator
+ * @module features/dataAggregator
+ */
 // src/features/dataAggregator/sources/translator.ts
 // 翻译服务 - 支持多种翻译API
 

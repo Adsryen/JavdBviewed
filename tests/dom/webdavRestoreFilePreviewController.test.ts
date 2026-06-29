@@ -1,3 +1,8 @@
+/**
+ * @file webdavRestoreFilePreviewController.test.ts
+ * @description WebDAV restore file preview controller 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVRestoreFilePreviewController } from '../../src/dashboard/webdavRestore/restoreFilePreviewController';
 

@@ -1,9 +1,20 @@
+/**
+ * @file requestScheduler.ts
+ * @description 请求调度器 —— 控制并发数和每域名速率限制，防止请求风暴
+ * @module platform/network
+ *
+ * 支持全局并发限制 + 每域名并发限制 + 每域名每分钟速率限制，
+ * 用于磁力搜索等需要大量并发请求的场景。
+ */
+
+/** 调度器配置 */
 export interface SchedulerConfig {
-  globalMaxConcurrent: number;
-  perHostMaxConcurrent: number;
-  perHostRateLimitPerMin: number;
+  globalMaxConcurrent: number;                        // 全局最大并发请求数
+  perHostMaxConcurrent: number;                       // 每域名最大并发数
+  perHostRateLimitPerMin: number;                     // 每域名每分钟最大请求数
 }
 
+/** 内部排队任务 */
 interface Task {
   url: string;
   options: RequestInit;
@@ -12,6 +23,7 @@ interface Task {
   reject: (error: any) => void;
 }
 
+/** 调度器创建选项 */
 export interface RequestSchedulerOptions {
   config?: Partial<SchedulerConfig>;
   fetchImpl?: typeof fetch;

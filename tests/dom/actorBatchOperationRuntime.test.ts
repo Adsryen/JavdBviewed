@@ -1,3 +1,8 @@
+/**
+ * @file actorBatchOperationRuntime.test.ts
+ * @description actor batch operation runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   clearSelectedActorCards,

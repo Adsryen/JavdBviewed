@@ -1,3 +1,8 @@
+/**
+ * @file releaseAnnouncementBootstrap.ts
+ * @description releaseAnnouncementBootstrap
+ * @module apps/dashboard
+ */
 import {
   mountReleaseAnnouncementModal,
   writeReleaseAnnouncementState,

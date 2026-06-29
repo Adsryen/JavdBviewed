@@ -1,3 +1,8 @@
+/**
+ * @file actorRemarksDiagnostics.test.ts
+ * @description actor remarks diagnostics 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { NetworkError } from '../../src/platform/network/httpClient';
 

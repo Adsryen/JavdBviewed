@@ -1,3 +1,8 @@
+/**
+ * @file runtime.ts
+ * @description runtime
+ * @module features/drive115
+ */
 import { getSettings } from '../../../utils/storage';
 import type { NormalizedDrive115Settings } from './types';
 

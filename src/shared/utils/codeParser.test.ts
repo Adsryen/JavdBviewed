@@ -1,4 +1,8 @@
-// src/shared/utils/codeParser.test.ts
+/**
+ * @file codeParser.test.ts
+ * @description 番号解析器测试 —— 验证各类番号格式的识别与标准化
+ * @module shared/utils
+ */
 // 代码解析器测试
 
 import { CodeParser, parseCode, normalizeCode, matchCodes, extractCodes, isValidCode } from './codeParser';

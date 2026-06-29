@@ -1,3 +1,8 @@
+/**
+ * @file recordsBatchToolbarController.test.ts
+ * @description records batch toolbar controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsBatchToolbarController } from '../../src/dashboard/tabs/records/batchToolbarController';
 

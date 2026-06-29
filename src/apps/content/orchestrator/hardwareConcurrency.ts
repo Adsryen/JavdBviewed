@@ -1,7 +1,17 @@
+/**
+ * @file hardwareConcurrency.ts
+ * @description 根据设备 CPU 核心数决策高阶段任务的并发上限
+ * @module apps/content
+ */
 export interface HighTaskConcurrencyDecision {
-  maxConcurrentHighTasks: number;
-  message: string;
+  maxConcurrentHighTasks: number;  // 高阶段任务的并发数
+  message: string;                 // 决策说明日志
 }
+
+/**
+ * 根据 CPU 核心数决策并发上限
+ * 8+核 → 5并发，4核以下 → 2并发，默认 → 3并发
+ */
 
 export function resolveHighTaskConcurrency(cores?: number): HighTaskConcurrencyDecision {
   if (typeof cores === 'number' && cores >= 8) {
@@ -24,6 +34,9 @@ export function resolveHighTaskConcurrency(cores?: number): HighTaskConcurrencyD
   };
 }
 
+/**
+ * 在浏览器环境中获取硬件并发能力
+ */
 export function resolveBrowserHighTaskConcurrency(): HighTaskConcurrencyDecision {
   try {
     return resolveHighTaskConcurrency(navigator.hardwareConcurrency);

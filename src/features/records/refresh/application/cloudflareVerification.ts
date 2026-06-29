@@ -1,3 +1,8 @@
+/**
+ * @file cloudflareVerification.ts
+ * @description cloudflareVerification
+ * @module features/records
+ */
 import type { CloudflareVerificationResult } from '../domain/types';
 
 const log = (...args: any[]) => console.log('[Sync]', ...args);

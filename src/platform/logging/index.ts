@@ -1,3 +1,7 @@
+/**
+ * @file index.ts
+ * @description 日志子系统统一导出（控制台代理、日志控制器、background 日志配置）
+ */
 export {
   LogController,
   normalizeLogControllerConfig,

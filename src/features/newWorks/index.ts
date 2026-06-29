@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 新作品监控（演员订阅、新作发现、通知）统一导出
+ * @module features/newWorks
+ */
 // src/features/newWorks/index.ts
 // 新作品功能模块统一导出
 

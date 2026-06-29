@@ -1,5 +1,13 @@
-type SendResponse = (response: any) => void;
+/**
+ * @file tabMessageHandlers.ts
+ * @description 标签页与 115 推送的消息处理器 —— 后台打开标签页、转发消息到 115.com
+ * @module apps/background
+ */
+type SendResponse = (response: any) => void;  // chrome.runtime 消息回调类型
 
+/**
+ * 在后台打开一个新标签页（active=false，不抢占焦点）
+ */
 export async function handleOpenTabBackground(message: any, sendResponse: SendResponse): Promise<void> {
   try {
     const { url } = message;
@@ -15,6 +23,10 @@ export async function handleOpenTabBackground(message: any, sendResponse: SendRe
   }
 }
 
+/**
+ * 将磁力推送消息转发到 115.com 的 content script
+ * 先查询已打开的 115.com 标签页，通过 tabs.sendMessage 桥接
+ */
 export async function handleDrive115Push(message: any, sendResponse: SendResponse): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
@@ -41,6 +53,9 @@ export async function handleDrive115Push(message: any, sendResponse: SendRespons
   }
 }
 
+/**
+ * 将验证请求转发到 115.com 的 content script
+ */
 export async function handleDrive115Verify(message: any, sendResponse: SendResponse): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: '*://115.com/*' });

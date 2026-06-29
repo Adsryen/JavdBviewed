@@ -1,3 +1,8 @@
+/**
+ * @file contentMessageRouter.ts
+ * @description contentMessageRouter
+ * @module apps/content
+ */
 import { getSettings, getValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 import { STATE, log } from '../../features/contentState';

@@ -1,3 +1,8 @@
+/**
+ * @file libraryIndex.ts
+ * @description libraryIndex
+ * @module features/embyLibrary
+ */
 import type {
   EmbyLibraryIndex,
   EmbyLibraryIndexEntry,

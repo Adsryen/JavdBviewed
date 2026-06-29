@@ -1,3 +1,8 @@
+/**
+ * @file bootstrap.ts
+ * @description bootstrap
+ * @module apps/popup
+ */
 import { getSettings, saveSettings } from '../../utils/storage';
 import type { ExtensionSettings } from '../../types';
 import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';

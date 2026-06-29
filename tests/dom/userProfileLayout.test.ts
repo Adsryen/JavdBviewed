@@ -1,3 +1,8 @@
+/**
+ * @file userProfileLayout.test.ts
+ * @description user profile sidebar layout 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/dashboard/logger', () => ({

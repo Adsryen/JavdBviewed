@@ -1,3 +1,8 @@
+/**
+ * @file settingsSearch.test.ts
+ * @description settings search feature 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildSettingsSearchIndex,

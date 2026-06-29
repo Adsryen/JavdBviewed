@@ -1,3 +1,8 @@
+/**
+ * @file aiTranslator.ts
+ * @description aiTranslator
+ * @module features/dataAggregator
+ */
 // src/features/dataAggregator/sources/aiTranslator.ts
 // AI翻译服务 - 使用AI进行翻译
 

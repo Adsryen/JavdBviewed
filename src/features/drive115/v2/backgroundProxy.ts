@@ -1,3 +1,8 @@
+/**
+ * @file backgroundProxy.ts
+ * @description backgroundProxy
+ * @module features/drive115
+ */
 ﻿// src/features/drive115/v2/backgroundProxy.ts
 // 抽离 115 v2 后台代理（解决内容脚本 CORS）
 

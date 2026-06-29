@@ -1,3 +1,8 @@
+/**
+ * @file recordsCoverController.test.ts
+ * @description records cover controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsCoverElement, insertRecordsCoverElement, observeRecordsCoverImage } from '../../src/dashboard/tabs/records/coverController';
 

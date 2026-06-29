@@ -1,3 +1,8 @@
+/**
+ * @file resolveAnnouncement.ts
+ * @description resolveAnnouncement
+ * @module features/releaseAnnouncement
+ */
 import { DEFAULT_RELEASE_HIGHLIGHTS, INSTALL_WELCOME_HIGHLIGHTS, RELEASE_NOTES } from '../domain/releaseNotes';
 import type { ReleaseNote, ResolveAnnouncementInput, ResolvedReleaseAnnouncement } from '../domain/types';
 import { buildAnnouncementKey } from './announcementState';

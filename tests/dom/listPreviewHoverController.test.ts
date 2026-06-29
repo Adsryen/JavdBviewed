@@ -1,3 +1,8 @@
+/**
+ * @file listPreviewHoverController.test.ts
+ * @description list preview hover controller 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createPreviewHoverController,

@@ -1,3 +1,8 @@
+/**
+ * @file recordsPageLifecycleController.test.ts
+ * @description records page lifecycle controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { bindRecordsPageLifecycle } from '../../src/dashboard/tabs/records/pageLifecycleController';
 

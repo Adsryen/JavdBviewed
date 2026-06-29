@@ -1,3 +1,8 @@
+/**
+ * @file videoId.test.ts
+ * @description 番号提取工具测试 —— 验证从 URL / 文本中提取番号
+ * @module shared/utils
+ */
 import { describe, expect, it } from 'vitest';
 import { extractVideoId } from './videoId';
 

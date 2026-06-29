@@ -1,3 +1,8 @@
+/**
+ * @file embyDynamicContentScripts.test.ts
+ * @description registerEmbyDynamicScripts 测试
+ * @module tests/extension
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerEmbyDynamicScripts } from '../../src/apps/background/embyDynamicContentScripts';

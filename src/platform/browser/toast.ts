@@ -1,8 +1,17 @@
+/**
+ * @file toast.ts
+ * @description 页面 Toast 消息系统 —— 在网页右上角显示轻量通知
+ * @module platform/browser
+ *
+ * 支持 success/error/warning/info 四种类型，自动淡出，最多同时显示 3 条。
+ */
+
+/** Toast 配置常量 */
 const TOAST_CONFIG = {
-    FADE_DURATION: 500,
-    DISPLAY_DURATION: 3000,
-    MAX_MESSAGES: 3,
-    Z_INDEX: 10000
+    FADE_DURATION: 500,                               // 淡出动画时长（毫秒）
+    DISPLAY_DURATION: 3000,                            // 显示时长（毫秒）
+    MAX_MESSAGES: 3,                                   // 最大同时显示数
+    Z_INDEX: 10000                                     // 层级
 };
 
 // --- Toast Message System ---

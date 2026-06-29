@@ -1,3 +1,8 @@
+/**
+ * @file nativePreviewReuse.test.ts
+ * @description native JavDB preview reuse 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachNativeJavdbPreview,

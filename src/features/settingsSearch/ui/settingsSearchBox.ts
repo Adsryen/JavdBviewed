@@ -1,3 +1,8 @@
+/**
+ * @file settingsSearchBox.ts
+ * @description settingsSearchBox
+ * @module features/settingsSearch
+ */
 import type { SettingsSearchItem } from '../domain/types';
 import { findSettingsResults } from '../application/findSettingsResults';
 import { resolveSettingsTarget } from '../application/resolveSettingsTarget';

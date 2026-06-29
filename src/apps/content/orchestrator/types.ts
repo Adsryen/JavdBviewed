@@ -1,3 +1,8 @@
+/**
+ * @file types.ts
+ * @description types
+ * @module apps/content
+ */
 import type { GlobalTaskDescriptor, GlobalTaskVisibilityPolicy } from '../../../shared/taskCenterTypes';
 
 export type InitPhase = 'critical' | 'high' | 'deferred' | 'idle';

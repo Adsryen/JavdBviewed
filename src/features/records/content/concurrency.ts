@@ -1,3 +1,8 @@
+/**
+ * @file concurrency.ts
+ * @description concurrency
+ * @module features/records
+ */
 // src/features/records/content/concurrency.ts
 
 import { STATE, log } from '../../contentState';
