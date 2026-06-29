@@ -1,3 +1,8 @@
+/**
+ * @file scrollPaging.ts
+ * @description scrollPaging
+ * @module features/listEnhancement
+ */
 export interface ScrollPagingPageInfo {
   currentPage: number;
   maxPage: number | null;

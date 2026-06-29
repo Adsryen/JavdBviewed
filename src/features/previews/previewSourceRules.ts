@@ -1,3 +1,8 @@
+/**
+ * @file previewSourceRules.ts
+ * @description previewSourceRules
+ * @module features/previews
+ */
 export type PreviewSourceType = 'video/mp4' | 'application/vnd.apple.mpegurl';
 export type PreviewSourceName = 'cache' | 'legacy' | 'test' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl';
 

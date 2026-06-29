@@ -1,3 +1,8 @@
+/**
+ * @file listClickEnhancement.test.ts
+ * @description list click enhancement 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   attachListClickEnhancement,

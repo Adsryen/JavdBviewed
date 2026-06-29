@@ -1,3 +1,8 @@
+/**
+ * @file releaseAnnouncementEvents.test.ts
+ * @description release announcement background events 测试
+ * @module tests/extension
+ */
 import { describe, expect, it } from 'vitest';
 import { RELEASE_ANNOUNCEMENT_STORAGE_KEY } from '../../src/features/releaseAnnouncement';
 import { registerReleaseAnnouncementEvents } from '../../src/apps/background/releaseAnnouncementEvents';

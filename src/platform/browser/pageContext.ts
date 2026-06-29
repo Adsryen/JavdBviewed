@@ -1,3 +1,12 @@
+/**
+ * @file pageContext.ts
+ * @description 页面上下文工具 —— 从 URL 解析页面类型、主标识、生成页面实例 ID
+ * @module platform/browser
+ *
+ * 页面类型：video（详情页）、actor（演员页）、list（列表页）、home（首页）、unknown
+ */
+
+/** 页面实例 ID 的全局变量 key */
 const PAGE_INSTANCE_ID_KEY = '__JAVDB_EXT_PAGE_INSTANCE_ID__';
 
 function parsePageUrl(rawUrl?: string): URL | null {

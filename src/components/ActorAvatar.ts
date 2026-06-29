@@ -1,3 +1,8 @@
+/**
+ * @file ActorAvatar.ts
+ * @description ActorAvatar
+ * @module components
+ */
 // src/components/ActorAvatar.ts
 // 演员头像加载组件
 

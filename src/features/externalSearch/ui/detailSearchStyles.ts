@@ -1,3 +1,8 @@
+/**
+ * @file detailSearchStyles.ts
+ * @description detailSearchStyles
+ * @module features/externalSearch
+ */
 import { injectXunleiSubtitleStyles } from '../../subtitles';
 
 export function injectDetailSearchStyles(): void {

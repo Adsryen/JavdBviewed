@@ -1,3 +1,8 @@
+/**
+ * @file errorCodes.ts
+ * @description errorCodes
+ * @module features/drive115
+ */
 /*
  * 115 v2 开放平台错误码对照
  * 用途：在 UI/日志中友好展示错误含义与建议处理方式

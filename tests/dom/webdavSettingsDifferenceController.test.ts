@@ -1,3 +1,8 @@
+/**
+ * @file webdavSettingsDifferenceController.test.ts
+ * @description WebDAV settings difference controller 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVSettingsDifferenceController } from '../../src/dashboard/webdavRestore/settingsDifferenceController';
 

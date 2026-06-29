@@ -1,3 +1,8 @@
+/**
+ * @file newWorksStatsRuntime.test.ts
+ * @description new works stats runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachNewWorksStatsCardListeners,

@@ -1,3 +1,8 @@
+/**
+ * @file recordsAdvancedSearchToggleBinding.test.ts
+ * @description records advanced search toggle binding 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { bindAdvancedSearchToggleDelegation } from '../../src/dashboard/tabs/records/advancedSearchToggleBinding';
 

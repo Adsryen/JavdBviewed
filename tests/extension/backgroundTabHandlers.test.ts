@@ -1,3 +1,8 @@
+/**
+ * @file backgroundTabHandlers.test.ts
+ * @description background tab message handlers 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import {
   handleDrive115Push,

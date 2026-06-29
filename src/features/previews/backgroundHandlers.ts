@@ -1,3 +1,8 @@
+/**
+ * @file backgroundHandlers.ts
+ * @description backgroundHandlers
+ * @module features/previews
+ */
 type SendResponse = (response: any) => void;
 
 export async function handleCheckVideoUrl(message: any, sendResponse: SendResponse): Promise<void> {

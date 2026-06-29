@@ -1,3 +1,8 @@
+/**
+ * @file adapters.ts
+ * @description adapters
+ * @module features/drive115
+ */
 import type { Drive115V2SearchItem } from '../v2';
 import type { Drive115File, Drive115LegacyLikeSearchResult } from './types';
 

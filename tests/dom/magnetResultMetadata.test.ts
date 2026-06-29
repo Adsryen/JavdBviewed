@@ -1,3 +1,8 @@
+/**
+ * @file magnetResultMetadata.test.ts
+ * @description magnet result metadata 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import {
   detectMagnetQuality,

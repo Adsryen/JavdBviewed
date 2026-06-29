@@ -1,3 +1,8 @@
+/**
+ * @file webdavRestoreConflictController.test.ts
+ * @description WebDAV restore conflict controller 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVRestoreConflictController } from '../../src/dashboard/webdavRestore/conflictController';
 

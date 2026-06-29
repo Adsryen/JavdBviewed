@@ -1,3 +1,8 @@
+/**
+ * @file getSettingsListEnhancement.test.ts
+ * @description getSettings listEnhancement regression 测试
+ * @module tests/regression
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('getSettings listEnhancement regression', () => {

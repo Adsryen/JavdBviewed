@@ -1,3 +1,8 @@
+/**
+ * @file handlers.ts
+ * @description handlers
+ * @module features/embyLibrary
+ */
 import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings, getValue, setValue } from '../../../utils/storage';
 import {

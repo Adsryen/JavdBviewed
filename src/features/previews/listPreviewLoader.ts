@@ -1,3 +1,8 @@
+/**
+ * @file listPreviewLoader.ts
+ * @description listPreviewLoader
+ * @module features/previews
+ */
 import type { ListEnhancementConfig, VideoPreviewOptions, VideoPreviewSource } from '../listEnhancement/domain/config';
 import { activatePreviewVideoPreload } from './previewVideoPreload';
 import {

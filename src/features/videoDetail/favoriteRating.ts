@@ -1,3 +1,8 @@
+/**
+ * @file favoriteRating.ts
+ * @description favoriteRating
+ * @module features/videoDetail
+ */
 // 影片页收藏与评分功能
 
 import './favoriteRating.css';

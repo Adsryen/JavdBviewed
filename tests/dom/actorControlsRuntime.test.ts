@@ -1,3 +1,8 @@
+/**
+ * @file actorControlsRuntime.test.ts
+ * @description actor controls runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupActorControlsRuntime, syncActorViewModeButton } from '../../src/dashboard/tabs/actors/actorControlsRuntime';
 

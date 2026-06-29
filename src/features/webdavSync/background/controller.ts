@@ -1,3 +1,8 @@
+/**
+ * @file controller.ts
+ * @description controller
+ * @module features/webdavSync
+ */
 // src/features/webdavSync/background/controller.ts
 // WebDAV 后台装配层。
 

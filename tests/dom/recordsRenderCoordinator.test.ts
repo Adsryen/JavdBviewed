@@ -1,3 +1,8 @@
+/**
+ * @file recordsRenderCoordinator.test.ts
+ * @description records render coordinator 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsRenderCoordinator } from '../../src/dashboard/tabs/records/renderCoordinator';
 

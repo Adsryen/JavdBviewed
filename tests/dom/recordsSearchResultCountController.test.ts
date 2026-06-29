@@ -1,3 +1,8 @@
+/**
+ * @file recordsSearchResultCountController.test.ts
+ * @description records search result count controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import { createRecordsSearchResultCountController } from '../../src/dashboard/tabs/records/searchResultCountController';
 

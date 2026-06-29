@@ -1,3 +1,8 @@
+/**
+ * @file searchEngines.ts
+ * @description searchEngines
+ * @module features/externalSearch
+ */
 export interface SearchEngineTemplate {
   id?: string;
   name?: string;

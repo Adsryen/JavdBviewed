@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 版本更新公告统一导出
+ * @module features/releaseAnnouncement
+ */
 export type {
   ReleaseAnnouncementKind,
   ReleaseAnnouncementPending,

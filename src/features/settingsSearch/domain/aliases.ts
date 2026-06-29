@@ -1,3 +1,8 @@
+/**
+ * @file aliases.ts
+ * @description aliases
+ * @module features/settingsSearch
+ */
 export const SETTINGS_SEARCH_ALIASES: Record<string, string[]> = {
   字幕: ['字幕搜索', '迅雷字幕', 'subtitle', 'subtitlecat', 'xunlei'],
   迅雷: ['字幕', '迅雷字幕', 'xunlei'],

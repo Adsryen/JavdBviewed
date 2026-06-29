@@ -1,3 +1,8 @@
+/**
+ * @file listDisplayControl.ts
+ * @description listDisplayControl
+ * @module features/listEnhancement
+ */
 import type { ListDisplayControlConfig } from '../domain/config';
 import { buildListDisplayControlStyles } from './styles';
 

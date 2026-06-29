@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description Content Script 入口层 —— 页面启动、消息路由、编排器统一导出
+ * @module apps/content
+ */
 export * from './initOrchestrator';
 export type {
   InitPhase,

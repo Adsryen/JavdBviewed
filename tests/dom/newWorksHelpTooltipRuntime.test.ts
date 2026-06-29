@@ -1,3 +1,8 @@
+/**
+ * @file newWorksHelpTooltipRuntime.test.ts
+ * @description new works help tooltip runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachNewWorksHelpTooltip } from '../../src/dashboard/tabs/newWorksHelpTooltipRuntime';
 

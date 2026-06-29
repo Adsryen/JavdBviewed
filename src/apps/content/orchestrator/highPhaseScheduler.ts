@@ -1,14 +1,20 @@
+/**
+ * @file highPhaseScheduler.ts
+ * @description 高阶段任务并行执行器 —— 按优先级+依赖就绪调度，支持循环依赖检测
+ * @module apps/content
+ */
 import { partitionTasksByDependencyReadiness, sortTasksByPriority } from './schedulingRules';
 import type { ScheduledTask } from './types';
 
 type RunHighPhaseTasksInput<T extends ScheduledTask> = {
-  tasks: T[];
-  completedTasks: Set<string>;
-  maxConcurrentTasks: number;
-  runTask: (task: T) => Promise<void>;
-  log: (message: string, detail?: unknown) => void;
+  tasks: T[];                        // 待执行任务列表
+  completedTasks: Set<string>;       // 已完成任务的标签集合（用于依赖判断）
+  maxConcurrentTasks: number;        // 最大并发任务数
+  runTask: (task: T) => Promise<void>;  // 单个任务执行函数
+  log: (message: string, detail?: unknown) => void;  // 日志输出函数
 };
 
+/** 将运行中的 promise 注入运行池，完成后自动移除 */
 function trackRunningTask(runningTasks: Promise<void>[], taskPromise: Promise<void>): void {
   runningTasks.push(taskPromise);
   taskPromise.finally(() => {
@@ -19,6 +25,11 @@ function trackRunningTask(runningTasks: Promise<void>[], taskPromise: Promise<vo
   });
 }
 
+/**
+ * 按优先级+依赖就绪+并发上限执行高阶段任务
+ * 使用 Promise.race 在任一任务完成时立即检查是否有就绪的等待任务
+ * 如果所有等待任务都无法就绪 → 检测到循环依赖或缺失依赖，放弃等待直接执行
+ */
 export async function runHighPhaseTasks<T extends ScheduledTask>(input: RunHighPhaseTasksInput<T>): Promise<void> {
   const tasks = sortTasksByPriority(input.tasks);
   const runningTasks: Promise<void>[] = [];

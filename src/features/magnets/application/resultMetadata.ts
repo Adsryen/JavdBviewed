@@ -1,3 +1,8 @@
+/**
+ * @file resultMetadata.ts
+ * @description resultMetadata
+ * @module features/magnets
+ */
 import { appendMagnetResults, extractMagnetHash } from './resultMerge';
 import type { MagnetResult } from '../domain/types';
 

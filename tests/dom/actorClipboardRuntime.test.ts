@@ -1,3 +1,8 @@
+/**
+ * @file actorClipboardRuntime.test.ts
+ * @description actor clipboard runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { copyActorNameRuntime, type ActorClipboardRuntimeHandlers } from '../../src/dashboard/tabs/actors/actorClipboardRuntime';
 

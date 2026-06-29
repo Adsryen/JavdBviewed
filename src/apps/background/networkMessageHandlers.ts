@@ -1,11 +1,21 @@
+/**
+ * @file networkMessageHandlers.ts
+ * @description 网络请求消息处理器 —— 外部数据抓取、JavBus AJAX、封面获取
+ * @module apps/background
+ */
 import { fetchJavbusAjaxViaTab } from '../../platform/browser/javbusTabFetch';
 import { requestScheduler as defaultRequestScheduler } from '../../platform/network/requestScheduler';
 
-type SendResponse = (response: any) => void;
+type SendResponse = (response: any) => void;  // chrome.runtime 消息回调类型
 
 export interface RequestSchedulerLike {
-  enqueue: (url: string, init?: RequestInit) => Promise<Response>;
+  enqueue: (url: string, init?: RequestInit) => Promise<Response>;  // 按调度策略排队发起请求
 }
+
+/**
+ * 处理外部数据抓取消息 —— 通过请求调度器 fetch 任意 URL
+ * 支持 text/json/blob 三种响应类型，自动 abort 超时
+ */
 
 export async function handleExternalDataFetch(
   message: any,
@@ -48,6 +58,9 @@ export async function handleExternalDataFetch(
   }
 }
 
+/**
+ * 通过注入 content script 到 JavBus 页面抓取 AJAX 数据（规避 CORS）
+ */
 export async function handleFetchJavbusAjaxViaTab(message: any, sendResponse: SendResponse): Promise<void> {
   try {
     const pageUrl = String(message?.pageUrl || '');
@@ -65,6 +78,10 @@ export async function handleFetchJavbusAjaxViaTab(message: any, sendResponse: Se
   }
 }
 
+/**
+ * 从 BlogJav 网站抓取番号封面图
+ * 搜索匹配番号后返回第一张封面图片 URL
+ */
 export async function handleFetchExternalCover(
   message: any,
   sendResponse: SendResponse,

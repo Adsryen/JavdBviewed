@@ -1,3 +1,8 @@
+/**
+ * @file build.js
+ * @description 简单构建脚本 —— Vite 构建 + ZIP 打包（无版本号管理）
+ * @module scripts
+ */
 import { build } from 'vite';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +14,7 @@ const root = resolve(__dirname, '..');
 const distDir = resolve(root, 'dist');
 const zipPath = resolve(distDir, 'javdb-extension.zip');
 
+/** 构建主流程：Vite 打包 → 输出 dist → 生成 ZIP */
 async function main() {
     try {
         console.log('Starting Vite build...');

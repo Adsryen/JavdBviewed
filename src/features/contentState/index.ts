@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 内容状态管理统一导出
+ * @module features/contentState
+ */
 // src/features/contentState/index.ts
 
 import type { ExtensionSettings, VideoRecord } from '../../types';

@@ -1,7 +1,13 @@
+/**
+ * @file indexedDbViewedIndexes.ts
+ * @description 已看记录索引工具 —— 规范化视频记录并维护标签/清单关联索引
+ * @module platform/storage
+ */
 import type { IDBPDatabase } from 'idb';
 import type { VideoRecord } from '../../types';
 import { MAX_INDEX_NUMBER, type JavdbDB, type ViewedListIndexRecord, type ViewedTagIndexRecord } from './indexedDbSchema';
 
+/** 规范化视频记录：将 isFavorite 转为数值索引（用于 IDB 索引排序） */
 export function normalizeViewedRecord(record: VideoRecord): VideoRecord & { favoriteIndexed?: number } {
   return {
     ...record,

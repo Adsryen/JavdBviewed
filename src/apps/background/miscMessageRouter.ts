@@ -1,3 +1,8 @@
+/**
+ * @file miscMessageRouter.ts
+ * @description miscMessageRouter
+ * @module apps/background
+ */
 ﻿// src/apps/background/miscMessageRouter.ts
 // 抽离杂项 handlers 与消息路由
 

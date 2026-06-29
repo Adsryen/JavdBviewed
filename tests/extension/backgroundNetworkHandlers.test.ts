@@ -1,3 +1,8 @@
+/**
+ * @file backgroundNetworkHandlers.test.ts
+ * @description background network message handlers 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import {
   handleExternalDataFetch,

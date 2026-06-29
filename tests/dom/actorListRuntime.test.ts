@@ -1,3 +1,8 @@
+/**
+ * @file actorListRuntime.test.ts
+ * @description actor list runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActorPagedSearchResult, ActorRecord } from '../../src/types';
 import { renderActorListRuntime } from '../../src/dashboard/tabs/actors/actorListRuntime';

@@ -1,3 +1,8 @@
+/**
+ * @file diagnostics.ts
+ * @description diagnostics
+ * @module features/webdavSync
+ */
 import { quickDiagnose, type DiagnosticResult } from './webdavDiagnostic';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
 

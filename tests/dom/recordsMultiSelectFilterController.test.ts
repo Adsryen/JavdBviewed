@@ -1,3 +1,8 @@
+/**
+ * @file recordsMultiSelectFilterController.test.ts
+ * @description records multi select filter controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsMultiSelectFilterController } from '../../src/dashboard/tabs/records/multiSelectFilterController';
 

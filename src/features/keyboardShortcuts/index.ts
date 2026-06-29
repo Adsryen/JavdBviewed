@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 快捷键管理统一导出
+ * @module features/keyboardShortcuts
+ */
 // src/features/keyboardShortcuts/index.ts
 // 键盘快捷键系统
 

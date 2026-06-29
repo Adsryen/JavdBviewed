@@ -1,3 +1,8 @@
+/**
+ * @file recordsPaginationRuntime.test.ts
+ * @description records pagination runtime 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsPaginationRuntime } from '../../src/dashboard/tabs/records/paginationRuntime';
 import type { RenderRecordsPaginationOptions } from '../../src/dashboard/tabs/records/paginationController';

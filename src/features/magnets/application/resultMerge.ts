@@ -1,3 +1,8 @@
+/**
+ * @file resultMerge.ts
+ * @description resultMerge
+ * @module features/magnets
+ */
 import type { MagnetResult } from '../domain/types';
 
 export function extractMagnetHash(magnet: string): string {

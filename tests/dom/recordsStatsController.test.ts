@@ -1,3 +1,8 @@
+/**
+ * @file recordsStatsController.test.ts
+ * @description records stats controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsStatsController } from '../../src/dashboard/tabs/records/statsController';
 import type { VideoRecord } from '../../src/types';

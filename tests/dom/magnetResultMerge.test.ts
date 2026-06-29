@@ -1,3 +1,8 @@
+/**
+ * @file magnetResultMerge.test.ts
+ * @description magnet result merge 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import { appendMagnetResults, getResultSources } from '../../src/features/magnets/application/resultMerge';
 import type { MagnetResult } from '../../src/features/magnets/domain/types';

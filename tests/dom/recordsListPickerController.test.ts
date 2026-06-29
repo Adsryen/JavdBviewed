@@ -1,3 +1,8 @@
+/**
+ * @file recordsListPickerController.test.ts
+ * @description records list picker controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsListPickerController } from '../../src/dashboard/tabs/records/listPickerController';
 import type { ListRecord, VideoRecord } from '../../src/types';

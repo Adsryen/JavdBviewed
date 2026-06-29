@@ -1,5 +1,8 @@
-// src/platform/tasks/performanceOptimizer.ts
-// 性能优化器 - 解决任务调度频率、网络请求并发、DOM操作频率等性能问题
+/**
+ * @file performanceOptimizer.ts
+ * @description 性能优化器 —— 节流（throttle）和防抖（debounce）工具，控制任务调度频率
+ * @module platform/tasks
+ */
 
 const log = (...args: any[]) => {
   try {

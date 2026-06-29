@@ -1,3 +1,8 @@
+/**
+ * @file embyDynamicContentScripts.ts
+ * @description embyDynamicContentScripts
+ * @module apps/background
+ */
 import { getEffectiveEmbyMatchUrls, matchesEmbyUrlPattern } from '../../features/embyEnhancement/domain/matchUrls';
 
 export async function registerEmbyDynamicScripts(embyConfig: any): Promise<void> {

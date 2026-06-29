@@ -1,3 +1,8 @@
+/**
+ * @file javLibrary.ts
+ * @description javLibrary
+ * @module features/dataAggregator
+ */
 // src/features/dataAggregator/sources/javLibrary.ts
 // JavLibrary数据源 - 获取评分和演员信息
 

@@ -1,3 +1,8 @@
+/**
+ * @file recordRefreshBaseline.test.ts
+ * @description record refresh baseline 测试
+ * @module tests/extension
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { STORAGE_KEYS } from '../../src/utils/config';
 import {

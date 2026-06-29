@@ -1,3 +1,8 @@
+/**
+ * @file dataMerge.ts
+ * @description dataMerge
+ * @module features/webdavSync
+ */
 // src/features/webdavSync/application/dataMerge.ts
 // 数据智能合并模块
 

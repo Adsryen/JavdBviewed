@@ -1,3 +1,8 @@
+/**
+ * @file schedulingRules.ts
+ * @description schedulingRules
+ * @module apps/content
+ */
 import type { GlobalTaskCost } from '../../../shared/taskCenterTypes';
 import type { InitPhase, ScheduledTask } from './types';
 

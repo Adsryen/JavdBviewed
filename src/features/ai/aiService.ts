@@ -1,3 +1,8 @@
+/**
+ * @file aiService.ts
+ * @description aiService
+ * @module features/ai
+ */
 // AI服务核心类
 
 import type {

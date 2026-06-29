@@ -1,3 +1,8 @@
+/**
+ * @file statusQuickActions.ts
+ * @description statusQuickActions
+ * @module features/listEnhancement
+ */
 import type { ExtensionSettings, VideoRecord, VideoStatus } from '../../../types';
 import { dbViewedPut } from '../../../platform/storage/dbRuntimeClient';
 import { showToast } from '../../../platform/browser/toast';

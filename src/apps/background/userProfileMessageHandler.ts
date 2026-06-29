@@ -1,3 +1,8 @@
+/**
+ * @file userProfileMessageHandler.ts
+ * @description 抓取 JavDB 用户资料 —— 从用户主页解析邮箱/用户名/会员类型
+ * @module apps/background
+ */
 import type { UserProfile } from '../../types';
 import { STORAGE_KEYS } from '../../utils/config';
 import {
@@ -8,11 +13,15 @@ import { requestScheduler as defaultRequestScheduler } from '../../platform/netw
 import type { RequestSchedulerLike } from './networkMessageHandlers';
 
 export interface FetchUserProfileDependencies {
-  getValue?: typeof defaultGetValue;
-  setValue?: typeof defaultSetValue;
-  requestScheduler?: RequestSchedulerLike;
-  now?: () => number;
+  getValue?: typeof defaultGetValue;              // chrome.storage 读取
+  setValue?: typeof defaultSetValue;              // chrome.storage 写入
+  requestScheduler?: RequestSchedulerLike;        // 网络请求调度器
+  now?: () => number;                             // 当前时间戳（可注入用于测试）
 }
+
+/**
+ * 从 JavDB 抓取当前用户的完整资料（邮箱/用户名/会员类型/想看数/看过数）
+ */
 
 export async function fetchUserProfileFromJavDB(deps: FetchUserProfileDependencies = {}): Promise<any> {
   const getValue = deps.getValue ?? defaultGetValue;

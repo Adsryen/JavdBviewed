@@ -1,3 +1,8 @@
+/**
+ * @file statusManager.ts
+ * @description statusManager
+ * @module features/videoStatus
+ */
 // src/features/videoStatus/statusManager.ts
 
 import { VIDEO_STATUS } from '../../utils/config';

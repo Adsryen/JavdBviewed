@@ -1,3 +1,8 @@
+/**
+ * @file recordsDropdownBackdropController.test.ts
+ * @description records dropdown backdrop controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsDropdownBackdropController } from '../../src/dashboard/tabs/records/dropdownBackdropController';
 

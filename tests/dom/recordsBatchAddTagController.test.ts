@@ -1,3 +1,8 @@
+/**
+ * @file recordsBatchAddTagController.test.ts
+ * @description records batch add tag controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsBatchAddTagController } from '../../src/dashboard/tabs/records/batchAddTagController';
 

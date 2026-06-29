@@ -1,5 +1,11 @@
+/**
+ * @file taskHeartbeatReporter.ts
+ * @description 任务心跳上报器 —— 定期向 background 发送心跳，防止运行中的任务被误判为卡死
+ * @module platform/tasks
+ */
 import { TASK_CENTER_MESSAGE } from '../../shared/taskCenterProtocol';
 
+/** 安装心跳上报器，每 5 秒向 background 发送活跃任务的心跳 */
 export function installTaskHeartbeatReporter(taskIds: () => string[]): void {
   const tick = () => {
     try {

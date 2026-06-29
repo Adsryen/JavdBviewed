@@ -1,3 +1,8 @@
+/**
+ * @file dbLogMessageHandlers.test.ts
+ * @description db log message handlers 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { handleLogMessage } from '../../src/apps/background/dbLogMessageHandlers';
 

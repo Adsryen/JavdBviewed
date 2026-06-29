@@ -1,3 +1,8 @@
+/**
+ * @file config.ts
+ * @description config
+ * @module features/listEnhancement
+ */
 import type { PreviewSourceName } from '../../previews';
 
 export interface ListDisplayControlConfig {

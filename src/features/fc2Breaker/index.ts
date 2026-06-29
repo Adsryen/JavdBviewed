@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description FC2 评论解锁统一导出
+ * @module features/fc2Breaker
+ */
 // src/features/fc2Breaker/index.ts
 // FC2拦截破解功能 - 基于JAV-JHS的实现
 

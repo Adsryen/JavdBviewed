@@ -1,5 +1,10 @@
-// src/platform/storage/indexedDb.ts
-// IndexedDB facade, keeping store APIs stable while internals live in focused modules.
+/**
+ * @file indexedDb.ts
+ * @description IndexedDB 门面（Facade） —— 提供稳定的 CRUD API，内部由 focused modules 实现
+ * @module platform/storage
+ *
+ * 包含：视频记录、清单、日志、演员、新作、磁力缓存、Insights 等全部表的操作方法。
+ */
 
 import type { VideoRecord, ActorRecord, LogEntry, ListRecord, NewWorkRecord } from '../../types';
 import { buildNewWorksTrendPointsFromDailyMap, mergeNewWorksDailyStatForTrend } from './trendUtils';

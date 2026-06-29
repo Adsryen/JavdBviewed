@@ -1,3 +1,8 @@
+/**
+ * @file listItemObserver.test.ts
+ * @description list item observer 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   observeListItems,

@@ -1,3 +1,8 @@
+/**
+ * @file buildDetailSearchLinks.ts
+ * @description buildDetailSearchLinks
+ * @module features/externalSearch
+ */
 import {
   buildSearchEngineUrl,
   getSearchEngineCategory,

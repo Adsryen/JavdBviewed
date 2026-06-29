@@ -1,3 +1,8 @@
+/**
+ * @file settingsSearchHighlight.ts
+ * @description settingsSearchHighlight
+ * @module features/settingsSearch
+ */
 import type { RevealSettingsSearchTargetOptions, SettingsSearchTarget } from '../domain/types';
 
 const STORAGE_KEY = 'jdb:settingsSearch:target';

@@ -1,3 +1,8 @@
+/**
+ * @file checker.ts
+ * @description checker
+ * @module features/updateChecker
+ */
 // src/features/updateChecker/checker.ts
 // 负责从 GitHub Releases 检查扩展更新，并进行版本比较
 

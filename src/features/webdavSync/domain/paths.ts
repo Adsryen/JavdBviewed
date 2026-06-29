@@ -1,3 +1,8 @@
+/**
+ * @file paths.ts
+ * @description paths
+ * @module features/webdavSync
+ */
 export const WEBDAV_CLIENTS_DIR = 'clients';
 export const WEBDAV_UPLOAD_INDEX_FILE = 'upload-index.json';
 export const WEBDAV_UPLOAD_INDEX_VERSION = 1;

@@ -1,6 +1,12 @@
+/**
+ * @file indexedDbLogFields.ts
+ * @description IndexedDB 日志字段派生工具 —— 从日志消息中提取来源、分类、时间戳等索引字段
+ * @module platform/storage
+ */
 import type { LogEntry } from '../../types';
 import { MAX_INDEX_NUMBER } from './indexedDbSchema';
 
+/** 从日志消息中派生来源（115 相关 vs 通用） */
 export function deriveLogSource(msg: string): 'DRIVE115' | 'GENERAL' {
   const m = String(msg || '');
   if (/\[(?:115|115V2|Drive115)\]|\b115\b|Drive115/i.test(m)) return 'DRIVE115';

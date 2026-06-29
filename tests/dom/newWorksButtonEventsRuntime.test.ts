@@ -1,3 +1,8 @@
+/**
+ * @file newWorksButtonEventsRuntime.test.ts
+ * @description new works button events runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachNewWorksButtonEvents } from '../../src/dashboard/tabs/newWorksButtonEventsRuntime';
 

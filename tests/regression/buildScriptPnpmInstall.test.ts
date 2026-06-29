@@ -1,3 +1,8 @@
+/**
+ * @file buildScriptPnpmInstall.test.ts
+ * @description build.sh pnpm install cleanup 测试
+ * @module tests/regression
+ */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';

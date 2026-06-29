@@ -1,3 +1,8 @@
+/**
+ * @file magnetSearchManager.ts
+ * @description magnetSearchManager
+ * @module features/magnets
+ */
 // src/features/magnets/ui/magnetSearchManager.ts
 // 磁力搜索功能
 

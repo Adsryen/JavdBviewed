@@ -1,3 +1,8 @@
+/**
+ * @file dbInsightsMessageHandlers.test.ts
+ * @description db insights message handlers 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { handleInsightsMessage } from '../../src/apps/background/dbInsightsMessageHandlers';
 

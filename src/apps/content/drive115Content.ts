@@ -1,7 +1,11 @@
-// src/apps/content/drive115Content.ts
 /**
- * 115.com域名下的content script
- * 负责在115网盘页面处理推送请求
+ * @file drive115Content.ts
+ * @description 115网盘 content script —— 负责在 115.com 页面接收推送消息并调用离线下载 API
+ * @module apps/content
+ */
+// 115.com域名下的content script
+/**
+ * 负责在115网盘页面处理推送请求 —— 签名获取、离线下载、验证流程
  */
 
 interface Drive115PushRequest {
@@ -29,9 +33,9 @@ interface Drive115VerifyRequest {
  * 115网盘推送处理器
  */
 class Drive115ContentHandler {
-  private isProcessing = false;
-  private verifyWindow: Window | null = null;
-  private verifyStatus: 'idle' | 'pending' | 'verified' | 'failed' = 'idle';
+  private isProcessing = false;                                                // 防止并发推送
+  private verifyWindow: Window | null = null;                                  // 验证码弹窗引用
+  private verifyStatus: 'idle' | 'pending' | 'verified' | 'failed' = 'idle'; // 验证状态机
 
   constructor() {
     this.init();

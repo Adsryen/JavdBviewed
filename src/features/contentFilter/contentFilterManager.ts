@@ -1,3 +1,8 @@
+/**
+ * @file contentFilterManager.ts
+ * @description contentFilterManager
+ * @module features/contentFilter
+ */
 // src/features/contentFilter/contentFilterManager.ts
 // 内容过滤系统
 

@@ -1,3 +1,8 @@
+/**
+ * @file recordsSearchIconsController.test.ts
+ * @description records search icons controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsSearchIconsContainer } from '../../src/dashboard/tabs/records/searchIconsController';
 import type { SearchEngineTemplate } from '../../src/features/externalSearch/domain/searchEngines';

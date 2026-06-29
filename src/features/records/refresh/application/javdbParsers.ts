@@ -1,3 +1,8 @@
+/**
+ * @file javdbParsers.ts
+ * @description javdbParsers
+ * @module features/records
+ */
 import type { JavdbDetailMetadata, JavdbSearchResult } from '../domain/types';
 
 const log = (...args: any[]) => console.log('[Sync]', ...args);

@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 115 网盘集成（磁力推送、文件管理）统一导出
+ * @module features/drive115
+ */
 import { getSettings, saveSettings } from '../../../utils/storage';
 import { describe115Error } from './errorCodes';
 import { addLogV2 } from './logs';

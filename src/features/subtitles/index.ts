@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 字幕搜索统一导出
+ * @module features/subtitles
+ */
 export type { SubtitleSearchLink, XunleiSubtitleItem, XunleiSubtitleResponse } from './domain/types';
 export {
   formatXunleiSubtitleDuration,

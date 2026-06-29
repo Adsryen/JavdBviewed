@@ -1,3 +1,8 @@
+/**
+ * @file manager.ts
+ * @description manager
+ * @module features/newWorks
+ */
 // src/features/newWorks/manager.ts
 // 新作品管理服务
 

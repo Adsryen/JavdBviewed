@@ -1,3 +1,8 @@
+/**
+ * @file mergeKeyedMap.ts
+ * @description mergeKeyedMap
+ * @module features/webdavSync
+ */
 // 通用键值 map 合并（遵循策略，默认智能）
 import type { MergeOptions } from './dataDiff';
 

@@ -1,3 +1,8 @@
+/**
+ * @file scheduler.ts
+ * @description scheduler
+ * @module features/embyLibrary
+ */
 import { getSettings } from '../../../utils/storage';
 import { handleEmbyLibrarySync } from './handlers';
 

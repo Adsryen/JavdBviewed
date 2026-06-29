@@ -1,3 +1,8 @@
+/**
+ * @file recordsAdvancedConditionsController.test.ts
+ * @description records advanced conditions controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsAdvancedConditionsController } from '../../src/dashboard/tabs/records/advancedConditionsController';
 import type { RecordsAdvancedCondition } from '../../src/dashboard/tabs/records/advancedConditionModel';

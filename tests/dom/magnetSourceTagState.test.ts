@@ -1,3 +1,8 @@
+/**
+ * @file magnetSourceTagState.test.ts
+ * @description magnet source tag state 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import {
   buildMagnetSourceTagView,

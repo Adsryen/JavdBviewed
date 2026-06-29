@@ -1,3 +1,8 @@
+/**
+ * @file webdavRestoreModalShellController.test.ts
+ * @description WebDAV restore modal shell controller 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVRestoreModalShellController } from '../../src/dashboard/webdavRestore/restoreModalShellController';
 

@@ -1,3 +1,8 @@
+/**
+ * @file contentCollector.ts
+ * @description contentCollector
+ * @module features/insights
+ */
 import { extractVideoIdFromPage } from '../../platform/browser';
 import { runChunkedWork, saveSubtaskDetail, yieldToMainThread } from '../../platform/tasks';
 

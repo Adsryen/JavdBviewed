@@ -1,3 +1,8 @@
+/**
+ * @file backgroundUserProfileHandler.test.ts
+ * @description background user profile message handler 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import {
   fetchUserProfileFromJavDB,

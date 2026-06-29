@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description WebDAV 同步（备份、恢复、设备管理）统一导出
+ * @module features/webdavSync
+ */
 export * from './domain/types';
 export * from './domain/paths';
 export * from './infrastructure/propfindParser';

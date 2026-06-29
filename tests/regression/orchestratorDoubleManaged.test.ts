@@ -1,3 +1,8 @@
+/**
+ * @file orchestratorDoubleManaged.test.ts
+ * @description content orchestrator managed tasks 测试
+ * @module tests/regression
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('content orchestrator managed tasks', () => {

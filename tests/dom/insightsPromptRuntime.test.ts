@@ -1,3 +1,8 @@
+/**
+ * @file insightsPromptRuntime.test.ts
+ * @description insights prompt runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInsightsPromptRuntime } from '../../src/dashboard/tabs/insights/promptRuntime';
 

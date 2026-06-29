@@ -1,10 +1,14 @@
-// src/platform/network/backgroundFetchRouter.ts
-// 统一的后台网络代理路由：在 Service Worker 中执行 fetch，规避内容脚本的 CORS 限制
+/**
+ * @file backgroundFetchRouter.ts
+ * @description Background 网络代理路由 —— 在 Service Worker 中执行 fetch，规避内容脚本的 CORS 限制
+ * @module platform/network
+ *
+ * 消息类型：
+ * - NET:fetchText  { url, method?, headers?, body?, timeoutMs? } → { success, status, text?, error? }
+ * - NET:fetchJSON  { url, method?, headers?, body?, timeoutMs? } → { success, status, data?, error? }
+ */
 
-// 消息类型：
-// - NET:fetchText  { url, method?, headers?, body?, timeoutMs? } -> { success, status, text?, error? }
-// - NET:fetchJSON  { url, method?, headers?, body?, timeoutMs? } -> { success, status, data?, error? }
-
+/** 代理请求负载结构 */
 interface NetFetchPayload {
   url: string;
   method?: string;

@@ -1,3 +1,8 @@
+/**
+ * @file insightsTraceRuntime.test.ts
+ * @description insights trace runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInsightsTraceRuntime } from '../../src/dashboard/tabs/insights/traceRuntime';
 

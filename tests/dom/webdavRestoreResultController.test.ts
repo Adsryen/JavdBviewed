@@ -1,3 +1,8 @@
+/**
+ * @file webdavRestoreResultController.test.ts
+ * @description WebDAV restore result controller 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVRestoreResultController } from '../../src/dashboard/webdavRestore/restoreResultController';
 

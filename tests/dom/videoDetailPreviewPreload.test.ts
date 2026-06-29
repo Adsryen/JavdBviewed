@@ -1,3 +1,8 @@
+/**
+ * @file videoDetailPreviewPreload.test.ts
+ * @description VideoDetailEnhancer preview media loading 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoDetailEnhancer } from '../../src/features/videoDetail';
 import { STATE } from '../../src/features/contentState';

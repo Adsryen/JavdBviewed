@@ -1,3 +1,8 @@
+/**
+ * @file buckets.ts
+ * @description buckets
+ * @module features/telemetry
+ */
 import type { TelemetryCountBucket } from './types';
 
 export function bucketCount(value: unknown): TelemetryCountBucket {

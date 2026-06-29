@@ -1,3 +1,8 @@
+/**
+ * @file compareAggregator.ts
+ * @description compareAggregator
+ * @module features/insights
+ */
 import type { VideoRecord } from "../../types";
 import type { ReportStats, TrendPoint, Changes, TagStat } from "../../types/insights";
 

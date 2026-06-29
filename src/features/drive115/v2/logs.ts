@@ -1,3 +1,8 @@
+/**
+ * @file logs.ts
+ * @description logs
+ * @module features/drive115
+ */
 // 115 v2 日志：改为写入统一日志页（后台持久化 STORAGE_KEYS.LOGS）
 
 export interface V2LogEntry {

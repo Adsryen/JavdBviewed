@@ -1,3 +1,8 @@
+/**
+ * @file releaseNotes.ts
+ * @description releaseNotes
+ * @module features/releaseAnnouncement
+ */
 import type { ReleaseNote } from './types';
 
 // 发布弹窗从 1.20.0 起维护版本摘要，早期版本不再补历史 notes。

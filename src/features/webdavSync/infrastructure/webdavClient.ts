@@ -1,3 +1,8 @@
+/**
+ * @file webdavClient.ts
+ * @description webdavClient
+ * @module features/webdavSync
+ */
 import { joinWebDavUrl, WEBDAV_CLIENTS_DIR } from '../domain/paths';
 import type { WebDAVAuth } from '../domain/types';
 

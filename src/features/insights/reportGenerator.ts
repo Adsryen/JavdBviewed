@@ -1,3 +1,8 @@
+/**
+ * @file reportGenerator.ts
+ * @description reportGenerator
+ * @module features/insights
+ */
 import { ReportStats } from "../../types/insights";
 import { aiService } from "../ai";
 import { startGenerationTrace, addTrace, endGenerationTrace } from './generationTrace';

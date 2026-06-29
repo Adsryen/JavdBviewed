@@ -1,3 +1,8 @@
+/**
+ * @file uploadService.ts
+ * @description uploadService
+ * @module features/webdavSync
+ */
 import JSZip from 'jszip';
 import { buildUploadId, DEFAULT_UPLOAD_INDEX_LIMIT, normalizeWebDavBaseUrl } from '../domain/paths';
 import type { WebDAVUploadIndexItem } from '../domain/types';

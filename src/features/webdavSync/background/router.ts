@@ -1,3 +1,8 @@
+/**
+ * @file router.ts
+ * @description router
+ * @module features/webdavSync
+ */
 export interface WebDAVRouterHandlers {
   listFiles: () => Promise<any>;
   previewBackup: (filename: string) => Promise<any>;

@@ -1,3 +1,8 @@
+/**
+ * @file runtimeInfo.ts
+ * @description runtimeInfo
+ * @module features/telemetry
+ */
 import type { TelemetryRuntimeInfo } from '../domain/types';
 
 export function getTelemetryRuntimeInfo(): TelemetryRuntimeInfo {

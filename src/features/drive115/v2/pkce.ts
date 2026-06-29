@@ -1,3 +1,8 @@
+/**
+ * @file pkce.ts
+ * @description pkce
+ * @module features/drive115
+ */
 const DRIVE115_AUTH_DEVICE_URL = 'https://passportapi.115.com/open/authDeviceCode';
 const DRIVE115_QR_STATUS_URL = 'https://qrcodeapi.115.com/get/status/';
 const DRIVE115_TOKEN_URL = 'https://passportapi.115.com/open/deviceCodeToToken';

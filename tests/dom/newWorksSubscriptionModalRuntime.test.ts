@@ -1,3 +1,8 @@
+/**
+ * @file newWorksSubscriptionModalRuntime.test.ts
+ * @description new works subscription modal runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActorSubscription } from '../../src/types';
 import { openSubscriptionManagementModal } from '../../src/dashboard/tabs/newWorksSubscriptionModalRuntime';

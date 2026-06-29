@@ -1,3 +1,8 @@
+/**
+ * @file recordsBatchActionsController.test.ts
+ * @description records batch actions controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsBatchActionsController } from '../../src/dashboard/tabs/records/batchActionsController';
 

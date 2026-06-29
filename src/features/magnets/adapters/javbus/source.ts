@@ -1,3 +1,8 @@
+/**
+ * @file source.ts
+ * @description source
+ * @module features/magnets
+ */
 import type { MagnetResult } from '../../domain/types';
 
 const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;

@@ -1,3 +1,8 @@
+/**
+ * @file update-policy-check.ts
+ * @description 更新策略冒烟测试 —— 验证 normalizeReleaseVersion / shouldRunUpdateCheck 的各类场景
+ * @module scripts
+ */
 import assert from 'node:assert/strict';
 import {
   normalizeReleaseVersion,

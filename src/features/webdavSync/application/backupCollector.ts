@@ -1,3 +1,8 @@
+/**
+ * @file backupCollector.ts
+ * @description backupCollector
+ * @module features/webdavSync
+ */
 import { logsGetAll as idbLogsGetAll, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, initDB } from '../../../platform/storage/indexedDb';
 import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings, getValue } from '../../../utils/storage';

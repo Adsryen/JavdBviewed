@@ -1,3 +1,8 @@
+/**
+ * @file listItemDom.test.ts
+ * @description list item DOM helpers 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import {
   extractListItemVideoInfo,

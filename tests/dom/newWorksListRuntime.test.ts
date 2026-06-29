@@ -1,3 +1,8 @@
+/**
+ * @file newWorksListRuntime.test.ts
+ * @description new works list runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachNewWorkItemListeners,

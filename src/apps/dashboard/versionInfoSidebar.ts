@@ -1,3 +1,8 @@
+/**
+ * @file versionInfoSidebar.ts
+ * @description versionInfoSidebar
+ * @module apps/dashboard
+ */
 import { STATE } from '../../dashboard/state';
 import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';
 

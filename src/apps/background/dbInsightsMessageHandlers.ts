@@ -1,3 +1,8 @@
+/**
+ * @file dbInsightsMessageHandlers.ts
+ * @description 数据洞察的消息处理器 —— 响应 DB:INSIGHTS_* / DB:TRENDS_* 系列消息
+ * @module apps/background
+ */
 import {
   insReportsDelete as defaultInsReportsDelete,
   insReportsExportJSON as defaultInsReportsExportJSON,
@@ -13,23 +18,28 @@ import {
   trendsRecordsRange as defaultTrendsRecordsRange,
 } from '../../platform/storage/indexedDb';
 
-type SendResponse = (response: any) => void;
+type SendResponse = (response: any) => void;  // chrome.runtime 消息回调类型
 
 export interface InsightsMessageDependencies {
-  viewsPut?: typeof defaultInsViewsPut;
-  viewsBulkPut?: typeof defaultInsViewsBulkPut;
-  viewsRange?: typeof defaultInsViewsRange;
-  reportsPut?: typeof defaultInsReportsPut;
-  reportsGet?: typeof defaultInsReportsGet;
-  reportsList?: typeof defaultInsReportsList;
-  reportsDelete?: typeof defaultInsReportsDelete;
-  reportsExportJSON?: typeof defaultInsReportsExportJSON;
-  reportsImportJSON?: typeof defaultInsReportsImportJSON;
-  trendsRecordsRange?: typeof defaultTrendsRecordsRange;
-  trendsActorsRange?: typeof defaultTrendsActorsRange;
-  trendsNewWorksRange?: typeof defaultTrendsNewWorksRange;
-  sendRuntimeMessage?: typeof chrome.runtime.sendMessage;
+  viewsPut?: typeof defaultInsViewsPut;                           // 每日观影统计（增量）
+  viewsBulkPut?: typeof defaultInsViewsBulkPut;                   // 每日观影统计（批量）
+  viewsRange?: typeof defaultInsViewsRange;                       // 日期范围查询
+  reportsPut?: typeof defaultInsReportsPut;                       // 月报存储
+  reportsGet?: typeof defaultInsReportsGet;                       // 月报按月份查询
+  reportsList?: typeof defaultInsReportsList;                     // 月报列表
+  reportsDelete?: typeof defaultInsReportsDelete;                 // 月报删除
+  reportsExportJSON?: typeof defaultInsReportsExportJSON;         // 月报导出
+  reportsImportJSON?: typeof defaultInsReportsImportJSON;         // 月报导入
+  trendsRecordsRange?: typeof defaultTrendsRecordsRange;          // 记录数趋势
+  trendsActorsRange?: typeof defaultTrendsActorsRange;            // 演员数趋势
+  trendsNewWorksRange?: typeof defaultTrendsNewWorksRange;        // 新作品趋势
+  sendRuntimeMessage?: typeof chrome.runtime.sendMessage;         // 跨上下文通知
 }
+
+/**
+ * 处理 DB:INSIGHTS_* / DB:TRENDS_* 消息 —— 数据洞察、趋势的增删查导出
+ * @returns 返回 true 表示保持异步响应通道
+ */
 
 export function handleInsightsMessage(
   message: any,

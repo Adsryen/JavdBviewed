@@ -1,8 +1,15 @@
+/**
+ * @file logController.ts
+ * @description 日志控制器 —— 统一管理日志的过滤、格式化和持久化
+ * @module platform/logging
+ */
+
+/** 日志控制器配置 */
 export interface LogControllerConfig {
-  verboseMode: boolean;
-  showPrivacyLogs: boolean;
-  showStorageLogs: boolean;
-  suppressConsoleOutput: boolean;
+  verboseMode: boolean;                               // 详细模式（显示 DEBUG 级别日志）
+  showPrivacyLogs: boolean;                           // 显示隐私模块日志
+  showStorageLogs: boolean;                           // 显示存储模块日志
+  suppressConsoleOutput: boolean;                     // 抑制控制台输出（仅持久化）
 }
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR';

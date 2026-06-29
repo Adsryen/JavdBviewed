@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 遥测上报（匿名使用统计）统一导出
+ * @module features/telemetry
+ */
 export type {
   TelemetryChannel,
   TelemetryClientState,

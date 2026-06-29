@@ -1,3 +1,8 @@
+/**
+ * @file enhancementToggles.test.ts
+ * @description enhancement settings toggles 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { initEnhancementToggles } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementToggles';

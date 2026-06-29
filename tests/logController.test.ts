@@ -1,3 +1,8 @@
+/**
+ * @file logController.test.ts
+ * @description platform LogController 测试
+ * @module tests/tests
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { LogController } from '../src/platform/logging/logController';
 

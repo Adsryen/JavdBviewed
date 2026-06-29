@@ -1,3 +1,8 @@
+/**
+ * @file recordsEditModalController.test.ts
+ * @description records edit modal controller 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openRecordsEditModal } from '../../src/dashboard/tabs/records/editModalController';
 import { VIDEO_STATUS } from '../../src/utils/config';

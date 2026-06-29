@@ -1,3 +1,8 @@
+/**
+ * @file defaultSearchEngines.test.ts
+ * @description default search engine templates 测试
+ * @module tests/regression
+ */
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../src/utils/config';
 import { mergeSearchEngineTemplates } from '../../src/utils/storage';

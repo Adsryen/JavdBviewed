@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 评论解锁统一导出
+ * @module features/reviewUnlock
+ */
 // src/features/reviewUnlock/index.ts
 // 破解评论区功能 - 基于JAV-JHS的实现
 

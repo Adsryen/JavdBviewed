@@ -1,3 +1,8 @@
+/**
+ * @file requestScheduler.test.ts
+ * @description RequestScheduler 测试
+ * @module tests/tests
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { RequestScheduler } from '../src/platform/network/requestScheduler';
 

@@ -1,3 +1,8 @@
+/**
+ * @file detailAreaStyles.test.ts
+ * @description detail area visual polish 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { VideoDetailEnhancer } from '../../src/features/videoDetail';
 import { MagnetSearchManager, type MagnetResult } from '../../src/features/magnets';

@@ -1,3 +1,7 @@
+/**
+ * @file index.ts
+ * @description 浏览器平台能力统一导出（DOM 工具、运行时消息、toast、页面上下文等）
+ */
 export { sendRuntimeMessage, type RuntimeMessage } from './runtimeMessages';
 export {
   fetchJavbusAjaxViaTab,

@@ -1,3 +1,8 @@
+/**
+ * @file superRankingNav.test.ts
+ * @description super ranking navigation 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   applySuperRankingNav,

@@ -1,21 +1,36 @@
+/**
+ * @file chromeStorage.ts
+ * @description chrome.storage 适配器 —— 统一封装 chrome.storage.local 的读写操作
+ * @module platform/storage
+ *
+ * 核心能力：
+ * - 大值分块存储（超过 400KB 自动拆分为多个 chunk）
+ * - 已迁移大对象的惰性加载（通过 background 消息按需获取）
+ * - 读写锁保证并发安全
+ */
+
+/** 响应映射器：将 background 返回的响应转换为存储对象 */
 export type StorageValueMapper = (response: any) => Record<string, any> | null | undefined;
 
+/** 已迁移到 IndexedDB 的大对象加载配置 */
 export interface MigratedLargeObjectLoader {
-  migratedFlagKey: string;
-  messageType: string;
+  migratedFlagKey: string;                            // 标记是否已迁移的 key
+  messageType: string;                                // background 消息类型
   payload?: any;
   timeoutMs?: number;
   mapResponseToObject: StorageValueMapper;
 }
 
+/** ChromeStorage 构造选项 */
 export interface ChromeStorageOptions {
   area?: chrome.storage.StorageArea;
   runtime?: Pick<typeof chrome.runtime, 'id' | 'lastError' | 'sendMessage'>;
-  largeKeys?: Iterable<string>;
+  largeKeys?: Iterable<string>;                       // 需要分块存储的大 key 列表
   migratedLargeObjectLoaders?: Record<string, MigratedLargeObjectLoader>;
   logger?: (message: string, context?: Record<string, any>) => void;
 }
 
+/** chrome.storage 适配器接口 */
 export interface ChromeStorageAdapter {
   getValue<T>(key: string, defaultValue: T): Promise<T>;
   setValue<T>(key: string, value: T): Promise<void>;
@@ -23,8 +38,11 @@ export interface ChromeStorageAdapter {
   getAllKeys(): Promise<string[]>;
 }
 
+/** 分块存储前缀：`__chunk__:{key}::{index}` */
 const chunkPrefixFor = (key: string) => `__chunk__:${key}::`;
+/** 分块元数据 key：`__chunks_meta__:{key}` */
 const chunkMetaFor = (key: string) => `__chunks_meta__:${key}`;
+/** 单个 chunk 最大 400KB（chrome.storage 单条限制约 5MB，留余量） */
 const MAX_BYTES_PER_CHUNK = 400 * 1024;
 
 function encodeSize(value: any): number {

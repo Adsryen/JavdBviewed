@@ -1,3 +1,8 @@
+/**
+ * @file anchorOptimization.test.ts
+ * @description AnchorOptimizationManager themed floating buttons 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AnchorOptimizationManager } from '../../src/features/anchorOptimization/content';
 

@@ -1,3 +1,8 @@
+/**
+ * @file dbRouterViewedTags.test.ts
+ * @description DB:GET_ALL_TAGS route 测试
+ * @module tests/extension
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('DB:GET_ALL_TAGS route', () => {

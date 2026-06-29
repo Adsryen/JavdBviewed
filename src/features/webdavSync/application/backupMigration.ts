@@ -1,3 +1,8 @@
+/**
+ * @file backupMigration.ts
+ * @description backupMigration
+ * @module features/webdavSync
+ */
 import type { VideoRecord, VideoStatus } from '../../../types';
 
 export type BackupVersion = 'v1' | 'v2' | 'unknown';

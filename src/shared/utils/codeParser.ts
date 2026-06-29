@@ -1,50 +1,43 @@
-// src/shared/utils/codeParser.ts
-// 增强的视频代码解析工具
-
+/**
+ * @file codeParser.ts
+ * @description 番号解析器 —— 提取、拆分、标准化、匹配各种格式的番号
+ * @module shared/utils（跨上下文：background 拆分 + content 提取 + UI 显示）
+ *
+ * 支持格式：标准有码（ABC-123）、FC2（FC2-PPV-123456）、无码（CARIB-123456）、纯数字
+ */
 export interface ParsedCode {
-  original: string; // 原始代码
-  normalized: string; // 标准化代码
-  prefix: string; // 前缀 (如 SSIS, IPX)
-  number: string; // 数字部分
-  suffix?: string; // 后缀 (如 -C, -VR)
-  regex: RegExp; // 匹配正则表达式
-  isFC2: boolean; // 是否为FC2
-  isVR: boolean; // 是否为VR
-  isUncensored: boolean; // 是否为无码
+  original: string;   // 原始输入
+  normalized: string; // 标准化后（如 ABC-012 → ABC-12）
+  prefix: string;     // 厂商前缀（如 SSIS、IPX）
+  number: string;     // 数字部分
+  suffix?: string;    // 后缀（如 -C、-VR）
+  regex: RegExp;      // 用于模糊匹配的正则（容忍前导零、不同分隔符）
+  isFC2: boolean;
+  isVR: boolean;
+  isUncensored: boolean;
 }
 
-// 常见的番号格式正则表达式
+/** 番号格式正则表达式 */
 const CODE_PATTERNS = {
-  // 标准格式: ABC-123, ABCD-123
-  STANDARD: /^([A-Z]{2,5})-?(\d{1,5})([A-Z]*)$/i,
-  
-  // FC2格式: FC2-PPV-123456, FC2-123456
-  FC2: /^FC2-?(PPV-?)?(\d{6,8})$/i,
-  
-  // 数字格式: 123456 (通常是FC2或其他)
-  NUMERIC: /^(\d{6,8})$/,
-  
-  // 特殊格式: n1234, s2m-123
-  SPECIAL: /^([A-Z]\d+|[A-Z]+\d+[A-Z]+)-?(\d+)([A-Z]*)$/i,
-  
-  // 带连字符的复杂格式: ABC-DEF-123
-  COMPLEX: /^([A-Z]+)-([A-Z]+)-(\d+)([A-Z]*)$/i,
-
-  // 无码格式: CARIB-123456, 1PONDO-123456
-  UNCENSORED: /^([A-Z0-9]+(?:-[A-Z0-9]+)*)-?(\d{4,8})([A-Z]*)$/i,
+  STANDARD: /^([A-Z]{2,5})-?(\d{1,5})([A-Z]*)$/i,              // ABC-123、ABCD-123
+  FC2: /^FC2-?(PPV-?)?(\d{6,8})$/i,                             // FC2-PPV-123456
+  NUMERIC: /^(\d{6,8})$/,                                        // 纯数字（通常是 FC2）
+  SPECIAL: /^([A-Z]\d+|[A-Z]+\d+[A-Z]+)-?(\d+)([A-Z]*)$/i,    // n1234、s2m-123
+  COMPLEX: /^([A-Z]+)-([A-Z]+)-(\d+)([A-Z]*)$/i,               // ABC-DEF-123
+  UNCENSORED: /^([A-Z0-9]+(?:-[A-Z0-9]+)*)-?(\d{4,8})([A-Z]*)$/i, // CARIB-123456
 };
 
-// VR相关关键词
+/** VR 关键词（番号中包含则判定为 VR 作品） */
 const VR_KEYWORDS = ['VR', 'VIRTUAL', '3D', 'BINAURAL'];
 
-// 无码厂商前缀
+/** 无码厂商前缀列表 */
 const UNCENSORED_PREFIXES = [
   'CARIB', 'CARIBBEAN', '1PONDO', 'HEYZO', 'PACOPACOMAMA', 
   'MURAMURA', 'GACHINCO', 'C0930', 'H0930', 'H4610',
   'TOKYO-HOT', 'TOKYOHOT', 'KIN8', 'JUKUJO', 'XXXAV'
 ];
 
-// FC2相关前缀
+/** FC2 前缀 */
 const FC2_PREFIXES = ['FC2', 'FC2-PPV'];
 
 export class CodeParser {
@@ -287,7 +280,7 @@ export class CodeParser {
   }
 }
 
-// 导出便捷函数
+// --- 便捷函数（直接调用 CodeParser 静态方法） ---
 export const parseCode = (code: string): ParsedCode => CodeParser.parse(code);
 export const normalizeCode = (code: string): string => CodeParser.normalize(code);
 export const matchCodes = (code1: string, code2: string): boolean => CodeParser.match(code1, code2);

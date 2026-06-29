@@ -1,3 +1,8 @@
+/**
+ * @file tagStats.ts
+ * @description tagStats
+ * @module features/records
+ */
 import { isValueableTag } from '../../shared/utils/tagFilter';
 
 export interface ViewedTagStat {

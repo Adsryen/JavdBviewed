@@ -1,6 +1,12 @@
+/**
+ * @file runtimeMessaging.ts
+ * @description 任务中心运行时消息 —— content script 端的任务注册/更新/完成消息封装
+ * @module platform/tasks
+ */
 import { TASK_CENTER_MESSAGE } from '../../shared/taskCenterProtocol';
 import type { GlobalTaskDescriptor } from '../../shared/taskCenterTypes';
 
+/** 向 background 注册任务并获取分配的 taskId 和 tabId */
 export async function registerManagedTask(descriptor: GlobalTaskDescriptor): Promise<GlobalTaskDescriptor> {
   const response = await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.REGISTER, payload: descriptor });
   if (response && typeof response.tabId === 'number') {

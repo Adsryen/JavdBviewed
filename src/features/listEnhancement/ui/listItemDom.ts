@@ -1,3 +1,8 @@
+/**
+ * @file listItemDom.ts
+ * @description listItemDom
+ * @module features/listEnhancement
+ */
 import type { ListPreviewVideoInfo } from '../../previews';
 
 export function extractListItemVideoInfo(item: HTMLElement): ListPreviewVideoInfo | null {

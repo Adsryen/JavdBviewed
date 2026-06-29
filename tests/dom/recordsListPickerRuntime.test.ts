@@ -1,3 +1,8 @@
+/**
+ * @file recordsListPickerRuntime.test.ts
+ * @description records list picker runtime 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsListPickerRuntime } from '../../src/dashboard/tabs/records/listPickerRuntime';
 import type { ListRecord, VideoRecord } from '../../src/types';

@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 关联清单展示统一导出
+ * @module features/relatedLists
+ */
 // src/features/relatedLists/index.ts
 
 import { log } from '../contentState';

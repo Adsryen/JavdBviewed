@@ -1,3 +1,8 @@
+/**
+ * @file newWorksTabState.test.ts
+ * @description new works tab state 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import { UNREAD_BATCH_OPEN_COOLDOWN_MS } from '../../src/dashboard/tabs/newWorksBatchOpenPolicy';
 import { createNewWorksTabState } from '../../src/dashboard/tabs/newWorksTabState';

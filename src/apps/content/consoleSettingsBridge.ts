@@ -1,3 +1,8 @@
+/**
+ * @file consoleSettingsBridge.ts
+ * @description consoleSettingsBridge
+ * @module apps/content
+ */
 import { getSettings } from '../../utils/storage';
 import { installConsoleProxy } from '../../platform/logging/consoleProxy';
 import {

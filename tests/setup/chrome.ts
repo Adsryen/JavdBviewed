@@ -1,16 +1,22 @@
+/**
+ * @file chrome.ts
+ * @description Chrome API mock 层 —— 为 vitest 提供 chrome.runtime / storage / tabs / alarms 的完整模拟
+ * @module tests/setup
+ */
 import { afterEach, beforeEach, vi } from 'vitest';
 import manifest from '../../src/manifest.json';
 
 type ChromeMessage = {
-  type?: string;
-  payload?: unknown;
+  type?: string;     // 消息类型标识
+  payload?: unknown; // 消息负载
   [key: string]: unknown;
 };
 
-type RuntimeMessageHandler = (message: ChromeMessage, sender?: chrome.runtime.MessageSender) => unknown | Promise<unknown>;
+type RuntimeMessageHandler = (message: ChromeMessage, sender?: chrome.runtime.MessageSender) => unknown | Promise<unknown>;  // runtime 消息处理器签名
 
 type Listener<T extends (...args: any[]) => any> = T;
 
+/** 创建 Chrome 扩展事件模拟对象 —— 支持 addListener / removeListener / dispatch */
 function createEvent<T extends (...args: any[]) => any>() {
   const listeners = new Set<Listener<T>>();
   return {
@@ -47,11 +53,13 @@ const tabsUpdatedEvent = createEvent<(tabId: number, changeInfo: chrome.tabs.Tab
 const tabsRemovedEvent = createEvent<(tabId: number, removeInfo: chrome.tabs.TabRemoveInfo) => void>();
 const alarmsAlarmEvent = createEvent<(alarm: chrome.alarms.Alarm) => void>();
 
+/** 深拷贝（JSON 序列化/反序列化） */
 function clone<T>(value: T): T {
   if (value === undefined) return value;
   return JSON.parse(JSON.stringify(value));
 }
 
+/** 根据 keys 参数构建 storage.get 返回值（支持 string/array/object 三种查询方式） */
 function buildStorageResult(keys: string | string[] | Record<string, any> | null | undefined): Record<string, any> {
   if (keys === null || keys === undefined) return clone(storageState);
   if (typeof keys === 'string') {

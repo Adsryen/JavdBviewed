@@ -1,3 +1,8 @@
+/**
+ * @file bootstrap.ts
+ * @description bootstrap
+ * @module apps/content
+ */
 // src/apps/content/bootstrap.ts
 
 import { getSettings, getValue } from '../../utils/storage';

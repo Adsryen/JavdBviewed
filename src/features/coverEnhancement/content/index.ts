@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 封面增强统一导出
+ * @module features/coverEnhancement
+ */
 // src/features/coverEnhancement/content/index.ts
 // 高质量封面增强功能
 

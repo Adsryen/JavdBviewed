@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 在线可用性检测（检查影片是否可在线观看）统一导出
+ * @module features/onlineAvailability
+ */
 import { extractVideoIdFromPage } from '../../platform/browser';
 import { defaultHttpClient } from '../../platform/network/httpClient';
 import { log } from '../contentState';

@@ -1,3 +1,8 @@
+/**
+ * @file concurrencyTest.ts
+ * @description concurrencyTest
+ * @module features/records
+ */
 // src/features/records/content/concurrencyTest.ts
 // 并发控制测试工具
 

@@ -1,3 +1,8 @@
+/**
+ * @file telemetryClient.ts
+ * @description telemetryClient
+ * @module features/telemetry
+ */
 import type { TelemetryPayload } from '../domain/types';
 
 export interface SendTelemetryInput {

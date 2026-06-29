@@ -1,4 +1,8 @@
-// HTTP 客户端，处理网络请求、跨域 background fetch 和错误重试。
+/**
+ * @file httpClient.ts
+ * @description HTTP 客户端 —— 支持重试、超时、请求去重、background 代理的 fetch 封装
+ * @module platform/network
+ */
 
 import { FetchOptions, NetworkError } from './types';
 

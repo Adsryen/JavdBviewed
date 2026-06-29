@@ -1,3 +1,8 @@
+/**
+ * @file insightsLoadingStatusRuntime.test.ts
+ * @description insights loading status runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createInsightsLoadingStatusRuntime } from '../../src/dashboard/tabs/insights/loadingStatusRuntime';
 

@@ -1,3 +1,8 @@
+/**
+ * @file dataDiff.ts
+ * @description dataDiff
+ * @module features/webdavSync
+ */
 // src/features/webdavSync/application/dataDiff.ts
 // 数据差异分析模块
 

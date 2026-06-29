@@ -1,3 +1,8 @@
+/**
+ * @file previewSourceRules.test.ts
+ * @description preview source rules 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 import {
   createPreviewCacheEntry,

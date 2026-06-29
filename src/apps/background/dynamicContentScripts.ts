@@ -1,3 +1,8 @@
+/**
+ * @file dynamicContentScripts.ts
+ * @description dynamicContentScripts
+ * @module apps/background
+ */
 import { getSettings } from '../../utils/storage';
 import { registerEmbyDynamicScripts } from './embyDynamicContentScripts';
 

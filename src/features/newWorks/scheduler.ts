@@ -1,3 +1,8 @@
+/**
+ * @file scheduler.ts
+ * @description scheduler
+ * @module features/newWorks
+ */
 // src/features/newWorks/scheduler.ts
 // 新作品定时采集调度器
 

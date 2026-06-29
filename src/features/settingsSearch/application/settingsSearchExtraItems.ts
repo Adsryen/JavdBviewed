@@ -1,3 +1,8 @@
+/**
+ * @file settingsSearchExtraItems.ts
+ * @description settingsSearchExtraItems
+ * @module features/settingsSearch
+ */
 import type { SettingsSearchItem, SettingsSearchPageSource } from '../domain/types';
 import { DEFAULT_ONLINE_AVAILABILITY_SITES } from '../../onlineAvailability';
 import { DEFAULT_SETTINGS } from '../../../utils/config';

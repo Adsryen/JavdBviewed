@@ -1,3 +1,8 @@
+/**
+ * @file recordsActionButtonsController.test.ts
+ * @description records action buttons controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsActionButtons } from '../../src/dashboard/tabs/records/actionButtonsController';
 import type { VideoRecord } from '../../src/types';

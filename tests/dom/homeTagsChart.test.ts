@@ -1,3 +1,8 @@
+/**
+ * @file homeTagsChart.test.ts
+ * @description home tags chart config 测试
+ * @module tests/dom
+ */
 import { describe, expect, it } from 'vitest';
 
 describe('home tags chart config', () => {

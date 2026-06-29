@@ -1,3 +1,8 @@
+/**
+ * @file routeManager.test.ts
+ * @description RouteManager remote config 测试
+ * @module tests/extension
+ */
 import { describe, expect, it, vi } from 'vitest';
 import manifest from '../../src/manifest.json';
 import { DEFAULT_SETTINGS, SERVER_API_BASE_URL } from '../../src/utils/config';

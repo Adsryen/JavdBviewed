@@ -1,3 +1,8 @@
+/**
+ * @file dbTagsMessageHandlers.ts
+ * @description 标签数据的消息处理器 —— 从 IndexedDB 和 chrome.storage 聚合标签统计
+ * @module apps/background
+ */
 import { STORAGE_KEYS } from '../../utils/config';
 import {
   viewedGetAll as defaultViewedGetAll,
@@ -8,11 +13,15 @@ import {
   buildViewedTagStatsFromSources,
 } from '../../features/records/tagStats';
 
-type SendResponse = (response: any) => void;
+type SendResponse = (response: any) => void;  // chrome.runtime 消息回调类型
 
-const storageChunkPrefixFor = (key: string) => `__chunk__:${key}::`;
-const storageChunkMetaFor = (key: string) => `__chunks_meta__:${key}`;
+const storageChunkPrefixFor = (key: string) => `__chunk__:${key}::`;        // 大对象分块存储键前缀
+const storageChunkMetaFor = (key: string) => `__chunks_meta__:${key}`;       // 分块元信息键
 
+/**
+ * 读取旧版 chrome.storage.local 中分块存储的观看记录
+ * 兼容迁移前的数据格式（chunks 存储结构）
+ */
 export async function getLegacyViewedRecordsFromStorage(): Promise<Record<string, unknown>> {
   const key = STORAGE_KEYS.VIEWED_RECORDS;
   const prefix = storageChunkPrefixFor(key);
@@ -39,10 +48,14 @@ export async function getLegacyViewedRecordsFromStorage(): Promise<Record<string
 }
 
 export interface GetAllTagsDependencies {
-  viewedGetAll?: typeof defaultViewedGetAll;
-  viewedTagIndexGetAll?: typeof defaultViewedTagIndexGetAll;
-  getLegacyViewedRecords?: () => Promise<Record<string, unknown>>;
+  viewedGetAll?: typeof defaultViewedGetAll;                                // IndexedDB 观看记录全量查询
+  viewedTagIndexGetAll?: typeof defaultViewedTagIndexGetAll;               // 标签索引全量查询
+  getLegacyViewedRecords?: () => Promise<Record<string, unknown>>;         // 旧版分块存储兼容读取
 }
+
+/**
+ * 处理 DB:GET_ALL_TAGS 消息 —— 聚合 IndexedDB + chrome.storage 来源的标签统计
+ */
 
 export async function handleGetAllTags(
   message: any,

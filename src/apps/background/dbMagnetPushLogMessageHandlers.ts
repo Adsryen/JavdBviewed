@@ -1,3 +1,8 @@
+/**
+ * @file dbMagnetPushLogMessageHandlers.ts
+ * @description 磁力推送日志的消息处理器 —— 响应 DB:MAGNET_PUSH_LOGS_* 系列消息
+ * @module apps/background
+ */
 import {
   magnetPushLogsAdd as defaultMagnetPushLogsAdd,
   magnetPushLogsBulkAdd as defaultMagnetPushLogsBulkAdd,
@@ -6,15 +11,20 @@ import {
   magnetPushLogsQuery as defaultMagnetPushLogsQuery,
 } from '../../platform/storage/indexedDb';
 
-type SendResponse = (response: any) => void;
+type SendResponse = (response: any) => void;  // chrome.runtime 消息回调类型
 
 export interface MagnetPushLogDependencies {
-  add?: typeof defaultMagnetPushLogsAdd;
-  bulkAdd?: typeof defaultMagnetPushLogsBulkAdd;
-  query?: typeof defaultMagnetPushLogsQuery;
-  clear?: typeof defaultMagnetPushLogsClear;
-  getAll?: typeof defaultMagnetPushLogsGetAll;
+  add?: typeof defaultMagnetPushLogsAdd;           // 添加推送日志
+  bulkAdd?: typeof defaultMagnetPushLogsBulkAdd;   // 批量添加推送日志
+  query?: typeof defaultMagnetPushLogsQuery;       // 查询推送日志
+  clear?: typeof defaultMagnetPushLogsClear;       // 清理推送日志
+  getAll?: typeof defaultMagnetPushLogsGetAll;     // 全量获取推送日志（导出用）
 }
+
+/**
+ * 处理 DB:MAGNET_PUSH_LOGS_* 消息 —— 磁力推送到115的追踪日志
+ * @returns 返回 true 表示保持异步响应通道
+ */
 
 export function handleMagnetPushLogMessage(
   message: any,

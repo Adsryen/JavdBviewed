@@ -1,3 +1,8 @@
+/**
+ * @file relatedListsEnhancement.test.ts
+ * @description VideoDetailEnhancer related lists enhancement 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoDetailEnhancer } from '../../src/features/videoDetail';
 import { relatedListsService } from '../../src/features/relatedLists';

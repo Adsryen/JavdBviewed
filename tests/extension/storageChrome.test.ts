@@ -1,3 +1,8 @@
+/**
+ * @file storageChrome.test.ts
+ * @description storage chrome adapter 测试
+ * @module tests/extension
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createChromeStorage } from '../../src/platform/storage/chromeStorage';
 import { STORAGE_KEYS } from '../../src/utils/config';

@@ -1,3 +1,8 @@
+/**
+ * @file runtimeMessages.ts
+ * @description runtimeMessages
+ * @module features/telemetry
+ */
 import type { TelemetryErrorPayload, TelemetryReportResult } from '../domain/types';
 import { reportTelemetryForDashboardOpen, TELEMETRY_DASHBOARD_OPEN_MESSAGE } from './dashboardOpen';
 import { sanitizeTelemetryErrorPayload } from './errorPayload';

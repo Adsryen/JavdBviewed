@@ -1,9 +1,16 @@
+/**
+ * @file javbusTabFetch.ts
+ * @description JavBus 标签页代理抓取 —— 在 background 中打开 JavBus 标签页并提取 AJAX 内容
+ * @module platform/browser
+ */
+
+/** JavBus 页面 AJAX 抓取结果 */
 export interface JavbusPageAjaxFetchResult {
   success: boolean;
-  ajaxHtml?: string;
-  ajaxUrl?: string;
+  ajaxHtml?: string;                                  // AJAX 返回的 HTML 片段
+  ajaxUrl?: string;                                   // 实际请求的 URL
   error?: string;
-  detailLength?: number;
+  detailLength?: number;                              // 详情页数据长度
   params?: {
     gid: string;
     uc: string;

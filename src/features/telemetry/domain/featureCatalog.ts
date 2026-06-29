@@ -1,3 +1,8 @@
+/**
+ * @file featureCatalog.ts
+ * @description featureCatalog
+ * @module features/telemetry
+ */
 import type { TelemetryPayload } from './types';
 
 export type TelemetryFeatureKey = keyof TelemetryPayload['features'];

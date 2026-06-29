@@ -1,3 +1,8 @@
+/**
+ * @file xunleiSubtitleModal.ts
+ * @description xunleiSubtitleModal
+ * @module features/subtitles
+ */
 import { fetchXunleiSubtitleResponse } from '../adapters/xunleiSubtitleApi';
 import { formatXunleiSubtitleDuration, normalizeXunleiSubtitleItems } from '../domain/normalizeXunleiSubtitle';
 import type { XunleiSubtitleItem } from '../domain/types';

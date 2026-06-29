@@ -1,3 +1,8 @@
+/**
+ * @file listScrollPaging.test.ts
+ * @description list scroll paging helpers 测试
+ * @module tests/dom
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   appendFetchedMovieItems,

@@ -1,6 +1,13 @@
-// src/utils/md5.ts
-// 轻量 MD5 实现（返回小写十六进制字符串）
-// 参考 RFC 1321 的 JavaScript 实现（简化并做了 TypeScript 微调）
+/**
+ * @file md5.ts
+ * @description 轻量 MD5 哈希实现（返回小写十六进制字符串）
+ * @module shared/utils
+ *
+ * 基于 RFC 1321 的 JavaScript 实现，简化并做了 TypeScript 适配。
+ * 不依赖外部库，供 background 和 content 上下文使用。
+ */
+
+/** 内部辅助：循环左移 */
 
 function rotateLeft(lValue: number, iShiftBits: number) {
   return (lValue << iShiftBits) | (lValue >>> (32 - iShiftBits));

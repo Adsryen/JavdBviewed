@@ -1,3 +1,8 @@
+/**
+ * @file index.ts
+ * @description 演员备注（Wiki/xslist 数据获取与展示）统一导出
+ * @module features/actorRemarks
+ */
 // src/features/actorRemarks/index.ts
 // 演员备注（年龄/身高/罩杯/引退/外链）聚合服务
 

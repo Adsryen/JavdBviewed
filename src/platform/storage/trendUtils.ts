@@ -1,9 +1,21 @@
+/**
+ * @file trendUtils.ts
+ * @description 新作品趋势工具 —— 每日统计快照的合并与趋势数据点计算
+ * @module platform/storage
+ */
+
+/** 趋势日期范围 */
 export type TrendDateRange = { date: string; startMs: number; endMs: number };
+/** 趋势模式：cumulative=累计值, daily=每日增量 */
 export type TrendMode = 'cumulative' | 'daily';
+/** 每日统计数据 */
 export type TrendDailyStats = { total: number; unread: number };
+/** 趋势数据点 */
 export type TrendPoint = { date: string; total: number; unread: number };
+/** 趋势快照 */
 export type TrendSnapshot = { date: string; total: number; unread: number };
 
+/** 合并每日统计快照与实时数据（实时数据优先） */
 export function mergeNewWorksDailyStatForTrend(
   snapshot: TrendDailyStats | undefined,
   live: TrendDailyStats,

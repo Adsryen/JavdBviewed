@@ -1,5 +1,13 @@
-// src/platform/storage/migrations.ts
-// 迁移与周期任务（如磁链清理）
+/**
+ * @file migrations.ts
+ * @description 数据迁移与周期维护任务
+ * @module platform/storage
+ *
+ * 职责：
+ * - chrome.storage → IndexedDB 数据迁移（视频记录、日志、演员、磁力缓存）
+ * - 过期磁力缓存自动清理
+ * - 启动时执行一次性迁移 + 周期性维护
+ */
 
 import { initDB, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, magnetsClearExpired as idbMagnetsClearExpired, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, actorsBulkPut as idbActorsBulkPut } from './indexedDb';
 import { getValue, setValue } from '../../utils/storage';

@@ -1,3 +1,8 @@
+/**
+ * @file normalizeXunleiSubtitle.ts
+ * @description normalizeXunleiSubtitle
+ * @module features/subtitles
+ */
 import type { XunleiSubtitleItem, XunleiSubtitleResponse } from './types';
 
 export function normalizeXunleiSubtitleItems(response: XunleiSubtitleResponse): XunleiSubtitleItem[] {

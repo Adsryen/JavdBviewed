@@ -1,3 +1,8 @@
+/**
+ * @file nativeJavdbPreview.ts
+ * @description nativeJavdbPreview
+ * @module features/previews
+ */
 interface NativePreviewState {
   parent: Node;
   nextSibling: Node | null;

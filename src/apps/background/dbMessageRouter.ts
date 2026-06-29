@@ -1,3 +1,8 @@
+/**
+ * @file dbMessageRouter.ts
+ * @description dbMessageRouter
+ * @module apps/background
+ */
 // src/apps/background/dbMessageRouter.ts
 // 抽离 DB 相关消息路由
 

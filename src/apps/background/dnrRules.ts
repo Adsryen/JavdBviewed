@@ -1,3 +1,8 @@
+/**
+ * @file dnrRules.ts
+ * @description dnrRules
+ * @module apps/background
+ */
 export function installCoversRefererDNR(): void {
   try {
     const ruleId = 20001;

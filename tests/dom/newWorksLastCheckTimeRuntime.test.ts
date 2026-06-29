@@ -1,3 +1,8 @@
+/**
+ * @file newWorksLastCheckTimeRuntime.test.ts
+ * @description new works last check time runtime 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   formatNewWorksLastCheckTime,

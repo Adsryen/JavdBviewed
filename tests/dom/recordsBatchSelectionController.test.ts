@@ -1,3 +1,8 @@
+/**
+ * @file recordsBatchSelectionController.test.ts
+ * @description records batch selection controller 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsBatchSelectionController } from '../../src/dashboard/tabs/records/batchSelectionController';
 import type { VideoRecord } from '../../src/types';

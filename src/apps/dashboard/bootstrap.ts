@@ -1,3 +1,8 @@
+/**
+ * @file bootstrap.ts
+ * @description bootstrap
+ * @module apps/dashboard
+ */
 // @ts-nocheck
 
 import { initializeGlobalState, STATE, cleanupSearchEngines } from '../../dashboard/state';

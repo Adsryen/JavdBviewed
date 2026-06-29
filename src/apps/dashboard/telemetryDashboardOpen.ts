@@ -1,3 +1,8 @@
+/**
+ * @file telemetryDashboardOpen.ts
+ * @description telemetryDashboardOpen
+ * @module apps/dashboard
+ */
 import { TELEMETRY_DASHBOARD_OPEN_MESSAGE } from '../../features/telemetry';
 
 export function reportDashboardOpenTelemetry(): void {

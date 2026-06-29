@@ -1,3 +1,8 @@
+/**
+ * @file types.ts
+ * @description types
+ * @module features/newWorks
+ */
 // src/features/newWorks/types.ts
 // 兼容旧路径：新作品纯类型已提升到全局 types 层
 

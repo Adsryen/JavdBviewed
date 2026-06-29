@@ -1,3 +1,8 @@
+/**
+ * @file actorMatching.ts
+ * @description actorMatching
+ * @module features/listEnhancement
+ */
 import type { ActorRecord } from '../../../types';
 
 export function normalizeActorMatchText(value: string): string {

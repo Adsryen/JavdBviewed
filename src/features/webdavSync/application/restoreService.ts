@@ -1,3 +1,8 @@
+/**
+ * @file restoreService.ts
+ * @description restoreService
+ * @module features/webdavSync
+ */
 import { logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear, viewedReplaceAll as idbViewedReplaceAll } from '../../../platform/storage/indexedDb';
 import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings, saveSettings, setValue } from '../../../utils/storage';

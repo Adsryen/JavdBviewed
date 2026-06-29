@@ -1,3 +1,8 @@
+/**
+ * @file domainConfig.ts
+ * @description domainConfig
+ * @module features/networkTest
+ */
 // src/features/networkTest/domain/domainConfig.ts
 // 拓展涉及的所有外部服务域名配置
 

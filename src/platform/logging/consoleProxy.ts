@@ -1,28 +1,31 @@
-/*
- * Unified Console Proxy for extension-only contexts
- * - Controls console output level, category-based filtering, timestamp formatting, and colors
- * - Does NOT persist logs; purely display-layer control
- * - Safe to install multiple times (idempotent guard)
+/**
+ * @file consoleProxy.ts
+ * @description 统一控制台代理 —— 拦截 console.* 输出，实现级别过滤、分类过滤、时间戳格式化、彩色输出
+ * @module platform/logging
+ *
+ * 仅控制显示层，不负责日志持久化。幂等安装，多次调用安全。
  */
 
 export type LogLevel = 'OFF' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
 
+/** 输出格式化选项 */
 interface FormatOptions {
-  showTimestamp: boolean; // prepend [HH:mm:ss]
+  showTimestamp: boolean;                             // 前缀 [HH:mm:ss]
   timestampStyle?: 'hms';
-  timeZone?: string; // e.g. 'Asia/Shanghai'
-  showSource: boolean; // show [SOURCE]
-  color: boolean; // enable colored prefix
+  timeZone?: string;                                  // 时区，如 'Asia/Shanghai'
+  showSource: boolean;                                // 显示 [SOURCE] 标签
+  color: boolean;                                     // 启用彩色前缀
 }
 
+/** 分类规则 —— 控制不同模块的日志是否显示 */
 export interface CategoryRule {
   enabled: boolean;
-  // Determine if args belong to this category
-  match: RegExp | ((args: any[]) => boolean);
-  label?: string; // label to show in [SOURCE]
-  color?: string; // css color for category label
+  match: RegExp | ((args: any[]) => boolean);         // 匹配方式：正则或函数
+  label?: string;                                     // [SOURCE] 中显示的标签
+  color?: string;                                     // 分类标签的 CSS 颜色
 }
 
+/** 控制台代理初始化选项 */
 export interface ConsoleProxyOptions {
   level?: LogLevel;
   format?: Partial<FormatOptions>;

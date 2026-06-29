@@ -1,3 +1,8 @@
+/**
+ * @file insightsSavedReportsRuntime.test.ts
+ * @description insights saved reports runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInsightsSavedReportsRuntime } from '../../src/dashboard/tabs/insights/savedReportsRuntime';
 

@@ -1,3 +1,8 @@
+/**
+ * @file statusBadges.ts
+ * @description statusBadges
+ * @module features/embyLibrary
+ */
 import { STATE } from '../../contentState';
 import {
   buildMediaItemUrl,

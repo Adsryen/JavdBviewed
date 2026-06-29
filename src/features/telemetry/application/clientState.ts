@@ -1,3 +1,8 @@
+/**
+ * @file clientState.ts
+ * @description clientState
+ * @module features/telemetry
+ */
 import type { TelemetryClientState } from '../domain/types';
 
 export const TELEMETRY_CLIENT_STATE_KEY = 'telemetry_client_state';

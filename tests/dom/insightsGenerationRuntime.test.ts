@@ -1,3 +1,8 @@
+/**
+ * @file insightsGenerationRuntime.test.ts
+ * @description insights generation runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInsightsGenerationRuntime } from '../../src/dashboard/tabs/insights/generationRuntime';
 

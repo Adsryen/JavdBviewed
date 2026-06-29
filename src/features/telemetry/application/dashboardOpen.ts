@@ -1,3 +1,8 @@
+/**
+ * @file dashboardOpen.ts
+ * @description dashboardOpen
+ * @module features/telemetry
+ */
 import type { TelemetryReportResult } from '../domain/types';
 import { reportTelemetryEvent, type ReportTelemetryEventOptions } from './reporter';
 

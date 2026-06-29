@@ -1,3 +1,8 @@
+/**
+ * @file pageHandler.ts
+ * @description pageHandler
+ * @module features/videoDetail
+ */
 import { VIDEO_STATUS } from '../../utils/config';
 import { safeUpdateStatus } from '../videoStatus';
 import type { VideoRecord } from '../../types';

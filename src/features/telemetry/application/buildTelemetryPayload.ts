@@ -1,3 +1,8 @@
+/**
+ * @file buildTelemetryPayload.ts
+ * @description buildTelemetryPayload
+ * @module features/telemetry
+ */
 import { STORAGE_KEYS } from '../../../utils/config';
 import {
   dedupeSearchEngines,

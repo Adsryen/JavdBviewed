@@ -1,3 +1,8 @@
+/**
+ * @file generationTrace.ts
+ * @description generationTrace
+ * @module features/insights
+ */
 // src/features/insights/generationTrace.ts
 // 保存“报告生成过程”的最近一次追踪信息（仅保留一份）
 

@@ -1,3 +1,8 @@
+/**
+ * @file taskRuntimeMessaging.test.ts
+ * @description task runtime messaging 测试
+ * @module tests/extension
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createManagedTaskDescriptor } from '../../src/content/taskRuntime';
 import {

@@ -1,3 +1,8 @@
+/**
+ * @file webdavRestoreUnifiedExecutorController.test.ts
+ * @description WebDAV restore unified executor controller 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebDAVRestoreUnifiedExecutorController } from '../../src/dashboard/webdavRestore/restoreUnifiedExecutorController';
 

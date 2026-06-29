@@ -1,3 +1,8 @@
+/**
+ * @file insightsModelDropdownRuntime.test.ts
+ * @description insights model dropdown runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInsightsModelDropdownRuntime } from '../../src/dashboard/tabs/insights/modelDropdownRuntime';
 

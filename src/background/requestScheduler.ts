@@ -1,3 +1,8 @@
+/**
+ * @file requestScheduler.ts
+ * @description requestScheduler
+ * @module background
+ */
 export {
   RequestScheduler,
   requestScheduler,

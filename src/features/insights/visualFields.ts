@@ -1,3 +1,8 @@
+/**
+ * @file visualFields.ts
+ * @description visualFields
+ * @module features/insights
+ */
 import type { ReportStats } from '../../types/insights';
 
 export interface VisualFieldOptions {

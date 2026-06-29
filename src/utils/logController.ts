@@ -1,4 +1,10 @@
-// 日志控制器兼容入口：业务设置读取留在 utils，日志控制实现下沉到 platform/logging。
+/**
+ * @file logController.ts
+ * @description 日志控制器兼容入口 —— 将日志控制实现桥接到 platform/logging
+ * @module utils（旧路径保留，实际实现在 platform/logging/logController）
+ *
+ * 职责：初始化日志控制器、加载用户配置、将日志持久化到 background
+ */
 
 import { LogController, type LogControllerConfig, type LogEntry } from '../platform/logging/logController';
 import { getSettings } from './storage';

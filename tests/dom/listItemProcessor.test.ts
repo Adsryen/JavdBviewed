@@ -1,3 +1,8 @@
+/**
+ * @file listItemProcessor.test.ts
+ * @description list item processor 测试
+ * @module tests/dom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { STATE } from '../../src/features/contentState';
 import { VIDEO_STATUS } from '../../src/utils/config';

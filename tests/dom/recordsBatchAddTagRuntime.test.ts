@@ -1,3 +1,8 @@
+/**
+ * @file recordsBatchAddTagRuntime.test.ts
+ * @description records batch add tag runtime 测试
+ * @module tests/dom
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecordsBatchAddTagRuntime } from '../../src/dashboard/tabs/records/batchAddTagRuntime';
 import type { VideoRecord } from '../../src/types';

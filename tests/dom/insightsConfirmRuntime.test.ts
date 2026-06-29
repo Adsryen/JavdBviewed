@@ -1,3 +1,8 @@
+/**
+ * @file insightsConfirmRuntime.test.ts
+ * @description insights confirm runtime 测试
+ * @module tests/dom
+ */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createInsightsConfirmRuntime } from '../../src/dashboard/tabs/insights/confirmRuntime';
 

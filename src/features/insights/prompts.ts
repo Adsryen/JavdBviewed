@@ -1,3 +1,8 @@
+/**
+ * @file prompts.ts
+ * @description prompts
+ * @module features/insights
+ */
 import { getPersonaConfig, type PersonaId } from './personas';
 
 export type PromptPersona = PersonaId;
