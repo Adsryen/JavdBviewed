@@ -1,8 +1,11 @@
 import {
+  buildRestoreCategoryProgressHtml,
+  buildRestoreOverallProgressText,
   buildRestoreProgressContainerSpec,
   buildRestoreProgressEnterState,
   buildRestoreProgressLeaveState,
   formatElapsedTime,
+  type RestoreProgressEvent,
 } from './restoreProgressModel';
 import {
   buildRestoreResultsContainerSpec,
@@ -21,10 +24,12 @@ export interface WebDAVRestoreProgressResultsControllerOptions {
 
 export class WebDAVRestoreProgressResultsController {
   private restoreTimer: ReturnType<typeof setInterval> | null = null;
+  private currentTaskId: string | null = null;
 
   constructor(private readonly options: WebDAVRestoreProgressResultsControllerOptions) {}
 
-  showProgress(): void {
+  showProgress(taskId?: string): void {
+    this.currentTaskId = taskId || null;
     const state = buildRestoreProgressEnterState();
     const modal = document.getElementById(state.modalId);
     if (!modal) return;
@@ -48,6 +53,33 @@ export class WebDAVRestoreProgressResultsController {
     this.startProgressTimer();
   }
 
+  updateProgress(event: RestoreProgressEvent): void {
+    if (event.taskId && this.currentTaskId && event.taskId !== this.currentTaskId) return;
+
+    const overallProgress = document.getElementById('overallProgress');
+    if (overallProgress) {
+      overallProgress.textContent = buildRestoreOverallProgressText(event);
+    }
+
+    if (event.stage !== 'category' || !event.category) return;
+
+    const progressCategories = document.getElementById('progressCategories');
+    if (!progressCategories) return;
+
+    const selector = `[data-restore-progress-category="${cssEscape(event.category)}"]`;
+    const existing = progressCategories.querySelector(selector);
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = buildRestoreCategoryProgressHtml(event).trim();
+    const next = wrapper.firstElementChild;
+    if (!next) return;
+
+    if (existing) {
+      existing.replaceWith(next);
+    } else {
+      progressCategories.appendChild(next);
+    }
+  }
+
   clearProgressTimer(): void {
     if (!this.restoreTimer) return;
 
@@ -63,6 +95,7 @@ export class WebDAVRestoreProgressResultsController {
     if (!modalBody) return;
 
     this.clearProgressTimer();
+    this.currentTaskId = null;
 
     const progressLeaveState = buildRestoreProgressLeaveState();
     document.getElementById(progressLeaveState.progressContainerId)?.remove();
@@ -174,4 +207,10 @@ export class WebDAVRestoreProgressResultsController {
     const modal = this.options.getRestoreModal();
     return (modal ? modal.querySelector('#' + id) : document.getElementById(id)) as HTMLButtonElement | null;
   }
+}
+
+function cssEscape(value: string): string {
+  const css = (globalThis as any).CSS;
+  if (css?.escape) return css.escape(value);
+  return value.replace(/["\\]/g, '\\$&');
 }

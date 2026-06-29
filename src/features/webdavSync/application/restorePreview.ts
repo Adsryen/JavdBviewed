@@ -5,6 +5,12 @@ export interface WebDAVRestorePreviewOptions {
   getSettings: () => Promise<any>;
 }
 
+export interface ParseBackupProgressEvent {
+  stage: 'download' | 'parse';
+  status: 'running' | 'done';
+  message: string;
+}
+
 export function resolveWebDavUrl(filename: string, webdavBaseUrl: string): string {
   if (filename.startsWith('http://') || filename.startsWith('https://')) return filename;
   if (filename.startsWith('/')) {
@@ -16,7 +22,12 @@ export function resolveWebDavUrl(filename: string, webdavBaseUrl: string): strin
   return new URL(filename, base).href;
 }
 
-export async function parseBackupFromUrl(finalUrl: string, auth: { username: string; password: string }): Promise<any> {
+export async function parseBackupFromUrl(
+  finalUrl: string,
+  auth: { username: string; password: string },
+  onProgress?: (event: ParseBackupProgressEvent) => void,
+): Promise<any> {
+  onProgress?.({ stage: 'download', status: 'running', message: '正在下载云端备份...' });
   const response = await fetch(finalUrl, {
     method: 'GET',
     headers: { Authorization: 'Basic ' + btoa(`${auth.username}:${auth.password}`) },
@@ -25,14 +36,22 @@ export async function parseBackupFromUrl(finalUrl: string, auth: { username: str
   const isZip = /\.zip$/i.test(finalUrl);
   if (isZip) {
     const arrayBuf = await response.arrayBuffer();
+    onProgress?.({ stage: 'download', status: 'done', message: '云端备份下载完成' });
+    onProgress?.({ stage: 'parse', status: 'running', message: '正在解析备份文件...' });
     const zip = await JSZip.loadAsync(arrayBuf);
     const jsonFile = zip.file('backup.json') || zip.file(/\.json$/i)[0];
     if (!jsonFile) throw new Error('ZIP 中未找到 JSON 备份文件');
     const jsonText = await jsonFile.async('text');
-    return JSON.parse(jsonText);
+    const data = JSON.parse(jsonText);
+    onProgress?.({ stage: 'parse', status: 'done', message: '备份文件解析完成' });
+    return data;
   }
   const fileContents = await response.text();
-  return JSON.parse(fileContents);
+  onProgress?.({ stage: 'download', status: 'done', message: '云端备份下载完成' });
+  onProgress?.({ stage: 'parse', status: 'running', message: '正在解析备份文件...' });
+  const data = JSON.parse(fileContents);
+  onProgress?.({ stage: 'parse', status: 'done', message: '备份文件解析完成' });
+  return data;
 }
 
 export function buildBackupPreview(importData: any): any {

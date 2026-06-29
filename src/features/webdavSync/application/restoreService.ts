@@ -27,6 +27,7 @@ let restoreInProgress = false;
 
 export interface RestoreServiceOptions {
   logger?: WebDAVClientLog;
+  onProgress?: (event: RestoreProgressEvent) => void;
 }
 
 export type RestoreCategoryKey =
@@ -45,6 +46,18 @@ export type RestoreCategoryMode = 'skip' | 'merge' | 'replace';
 
 export type RestoreCategorySelection = Partial<Record<RestoreCategoryKey, boolean>>;
 export type RestoreCategoryModes = Partial<Record<RestoreCategoryKey, RestoreCategoryMode>>;
+
+export interface RestoreProgressEvent {
+  stage: 'prepare' | 'autoBackup' | 'download' | 'parse' | 'apply' | 'category' | 'complete' | 'error';
+  status: 'pending' | 'running' | 'done' | 'skipped' | 'error';
+  message: string;
+  category?: RestoreCategoryKey;
+  categoryMode?: RestoreCategoryMode;
+  completedCategories?: number;
+  totalCategories?: number;
+  summary?: Record<string, any>;
+  error?: string;
+}
 
 interface RestoreApplyOptions {
   categories?: RestoreCategorySelection;
@@ -95,205 +108,271 @@ export async function applyImportDataDirect(importData: any, options?: RestoreAp
   try {
     const db = await initDB();
     const mark = (name: string, info: any) => { summary.categories[name] = info; };
+    const selectedCategories = getSelectedRestoreCategories(opts);
+    let completedCategories = 0;
+    const emit = serviceOptions.onProgress;
+    emit?.({ stage: 'apply', status: 'running', message: '正在应用恢复策略...' });
+    const restoreCategory = async (category: RestoreCategoryKey, work: () => Promise<void>): Promise<void> => {
+      const categoryMode = opts.categoryModes[category];
+      emit?.({
+        stage: 'category',
+        status: 'running',
+        message: `正在恢复${getRestoreCategoryLabel(category)}（${getRestoreCategoryModeLabel(categoryMode)}）...`,
+        category,
+        categoryMode,
+        completedCategories,
+        totalCategories: selectedCategories.length,
+      });
+      try {
+        await work();
+        completedCategories++;
+        const categorySummary = summary.categories[category];
+        emit?.({
+          stage: 'category',
+          status: categorySummary?.reason === 'error' ? 'error' : categorySummary?.reason === 'missing' ? 'skipped' : 'done',
+          message: `${getRestoreCategoryLabel(category)}恢复完成`,
+          category,
+          categoryMode,
+          completedCategories,
+          totalCategories: selectedCategories.length,
+          summary: categorySummary,
+          error: categorySummary?.error,
+        });
+      } catch (e: any) {
+        completedCategories++;
+        emit?.({
+          stage: 'category',
+          status: 'error',
+          message: `${getRestoreCategoryLabel(category)}恢复失败`,
+          category,
+          categoryMode,
+          completedCategories,
+          totalCategories: selectedCategories.length,
+          error: e?.message,
+        });
+        throw e;
+      }
+    };
 
     if (shouldRestore(opts, 'settings')) {
-      const c0 = Date.now();
-      try {
-        if (importData?.settings) {
-          const currentSettings = await getCurrentSettingsWithIdentity();
-          await saveSettings(sanitizeImportedSettings(importData.settings, currentSettings));
-          mark('settings', { mode: opts.categoryModes.settings, replaced: true, durationMs: Date.now() - c0 });
-        } else {
-          mark('settings', { mode: opts.categoryModes.settings, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+      await restoreCategory('settings', async () => {
+        const c0 = Date.now();
+        try {
+          if (importData?.settings) {
+            const currentSettings = await getCurrentSettingsWithIdentity();
+            await saveSettings(sanitizeImportedSettings(importData.settings, currentSettings));
+            mark('settings', { mode: opts.categoryModes.settings, replaced: true, durationMs: Date.now() - c0 });
+          } else {
+            mark('settings', { mode: opts.categoryModes.settings, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+          }
+        } catch (e: any) {
+          mark('settings', { mode: opts.categoryModes.settings, replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
         }
-      } catch (e: any) {
-        mark('settings', { mode: opts.categoryModes.settings, replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      });
     }
 
     if (shouldRestore(opts, 'userProfile')) {
-      const c0 = Date.now();
-      try {
-        const val = importData?.userProfile ?? importData?.storageAll?.[STORAGE_KEYS.USER_PROFILE];
-        if (val != null) {
-          await setValue(STORAGE_KEYS.USER_PROFILE, val);
-          mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: true, durationMs: Date.now() - c0 });
-        } else {
-          mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+      await restoreCategory('userProfile', async () => {
+        const c0 = Date.now();
+        try {
+          const val = importData?.userProfile ?? importData?.storageAll?.[STORAGE_KEYS.USER_PROFILE];
+          if (val != null) {
+            await setValue(STORAGE_KEYS.USER_PROFILE, val);
+            mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: true, durationMs: Date.now() - c0 });
+          } else {
+            mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+          }
+        } catch (e: any) {
+          mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
         }
-      } catch (e: any) {
-        mark('userProfile', { mode: opts.categoryModes.userProfile, replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      });
     }
 
     if (shouldRestore(opts, 'viewed')) {
-      const c0 = Date.now();
-      try {
-        const cloudItems = readViewedRecords(importData);
-        const mode = opts.categoryModes.viewed;
-        if (mode === 'merge') {
-          const localItems = await safeGetAll(() => idbViewedGetAll());
-          const merged = mergeRecordsByKey(localItems, cloudItems, { key: 'id' });
-          const written = await idbViewedReplaceAll(merged.records);
-          mark('viewed', { mode, cleared: true, written, ...merged.summary, durationMs: Date.now() - c0 });
-        } else {
-          const records = dedupeRecordsByKey(cloudItems, 'id');
-          const written = await idbViewedReplaceAll(records);
-          mark('viewed', { mode, cleared: true, written, durationMs: Date.now() - c0 });
+      await restoreCategory('viewed', async () => {
+        const c0 = Date.now();
+        try {
+          const cloudItems = readViewedRecords(importData);
+          const mode = opts.categoryModes.viewed;
+          if (mode === 'merge') {
+            const localItems = await safeGetAll(() => idbViewedGetAll());
+            const merged = mergeRecordsByKey(localItems, cloudItems, { key: 'id' });
+            const written = await idbViewedReplaceAll(merged.records);
+            mark('viewed', { mode, cleared: true, written, ...merged.summary, durationMs: Date.now() - c0 });
+          } else {
+            const records = dedupeRecordsByKey(cloudItems, 'id');
+            const written = await idbViewedReplaceAll(records);
+            mark('viewed', { mode, cleared: true, written, durationMs: Date.now() - c0 });
+          }
+        } catch (e: any) {
+          mark('viewed', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
         }
-      } catch (e: any) {
-        mark('viewed', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      });
     }
 
     if (shouldRestore(opts, 'actors')) {
-      const c0 = Date.now();
-      try {
-        const cloudItems = readActorRecords(importData);
-        const mode = opts.categoryModes.actors;
-        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('actors')) : [];
-        const merged = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
-        const items = merged ? merged.records : dedupeRecordsByKey(cloudItems, 'id');
-        const written = await replaceStoreRecords(db, 'actors', items, logger);
-        mark('actors', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
-      } catch (e: any) {
-        mark('actors', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      await restoreCategory('actors', async () => {
+        const c0 = Date.now();
+        try {
+          const cloudItems = readActorRecords(importData);
+          const mode = opts.categoryModes.actors;
+          const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('actors')) : [];
+          const merged = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
+          const items = merged ? merged.records : dedupeRecordsByKey(cloudItems, 'id');
+          const written = await replaceStoreRecords(db, 'actors', items, logger);
+          mark('actors', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
+        } catch (e: any) {
+          mark('actors', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+        }
+      });
     }
 
     if (shouldRestore(opts, 'newWorks')) {
-      const c0 = Date.now();
-      try {
-        const cloudItems = readNewWorksRecords(importData);
-        const mode = opts.categoryModes.newWorks;
-        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('newWorks')) : [];
-        const mergedIdb = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
-        const items = mergedIdb ? mergedIdb.records : dedupeRecordsByKey(cloudItems, 'id');
-        const written = await replaceStoreRecords(db, 'newWorks', items, logger);
-        const subs = importData?.newWorks?.subscriptions ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS];
-        const recs = importData?.newWorks?.records ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_RECORDS];
-        const cfg = importData?.newWorks?.config ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_CONFIG];
-        if (subs != null) await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, mode === 'merge'
-          ? mergeObjectMaps(await getValueSafe(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {}), subs).map
-          : subs);
-        if (recs != null) await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, mode === 'merge'
-          ? mergeObjectMaps(await getValueSafe(STORAGE_KEYS.NEW_WORKS_RECORDS, {}), recs).map
-          : recs);
-        if (cfg != null) await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, cfg);
-        mark('newWorks', { mode, cleared: true, written, ...(mergedIdb?.summary || {}), durationMs: Date.now() - c0 });
-      } catch (e: any) {
-        mark('newWorks', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      await restoreCategory('newWorks', async () => {
+        const c0 = Date.now();
+        try {
+          const cloudItems = readNewWorksRecords(importData);
+          const mode = opts.categoryModes.newWorks;
+          const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('newWorks')) : [];
+          const mergedIdb = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
+          const items = mergedIdb ? mergedIdb.records : dedupeRecordsByKey(cloudItems, 'id');
+          const written = await replaceStoreRecords(db, 'newWorks', items, logger);
+          const subs = importData?.newWorks?.subscriptions ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS];
+          const recs = importData?.newWorks?.records ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_RECORDS];
+          const cfg = importData?.newWorks?.config ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_CONFIG];
+          if (subs != null) await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, mode === 'merge'
+            ? mergeObjectMaps(await getValueSafe(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {}), subs).map
+            : subs);
+          if (recs != null) await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, mode === 'merge'
+            ? mergeObjectMaps(await getValueSafe(STORAGE_KEYS.NEW_WORKS_RECORDS, {}), recs).map
+            : recs);
+          if (cfg != null) await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, cfg);
+          mark('newWorks', { mode, cleared: true, written, ...(mergedIdb?.summary || {}), durationMs: Date.now() - c0 });
+        } catch (e: any) {
+          mark('newWorks', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+        }
+      });
     }
 
     if (shouldRestore(opts, 'lists')) {
-      const c0 = Date.now();
-      try {
-        const cloudItems = Array.isArray(importData?.idb?.lists) ? importData.idb.lists : [];
-        const mode = opts.categoryModes.lists;
-        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('lists')) : [];
-        const merged = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
-        const items = merged ? merged.records : dedupeRecordsByKey(cloudItems, 'id');
-        const written = await replaceStoreRecords(db, 'lists', items, logger);
-        mark('lists', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
-      } catch (e: any) {
-        mark('lists', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      await restoreCategory('lists', async () => {
+        const c0 = Date.now();
+        try {
+          const cloudItems = Array.isArray(importData?.idb?.lists) ? importData.idb.lists : [];
+          const mode = opts.categoryModes.lists;
+          const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('lists')) : [];
+          const merged = mode === 'merge' ? mergeRecordsByKey(localItems, cloudItems, { key: 'id' }) : null;
+          const items = merged ? merged.records : dedupeRecordsByKey(cloudItems, 'id');
+          const written = await replaceStoreRecords(db, 'lists', items, logger);
+          mark('lists', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
+        } catch (e: any) {
+          mark('lists', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+        }
+      });
     }
 
     if (shouldRestore(opts, 'magnets')) {
-      const c0 = Date.now();
-      try {
-        let items: any[] = [];
-        if (Array.isArray(importData?.idb?.magnets)) items = importData.idb.magnets;
-        const mode = opts.categoryModes.magnets;
-        const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('magnets')) : [];
-        const merged = mode === 'merge'
-          ? mergeRecordsByIdentity(localItems, items, getMagnetRecordKey)
-          : null;
-        const records = merged ? merged.records : dedupeRecordsByIdentity(items, getMagnetRecordKey);
-        const written = await replaceStoreRecords(db, 'magnets', records, logger);
-        mark('magnets', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
-      } catch (e: any) {
-        mark('magnets', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      await restoreCategory('magnets', async () => {
+        const c0 = Date.now();
+        try {
+          let items: any[] = [];
+          if (Array.isArray(importData?.idb?.magnets)) items = importData.idb.magnets;
+          const mode = opts.categoryModes.magnets;
+          const localItems = mode === 'merge' ? await safeGetAll(() => db.getAll('magnets')) : [];
+          const merged = mode === 'merge'
+            ? mergeRecordsByIdentity(localItems, items, getMagnetRecordKey)
+            : null;
+          const records = merged ? merged.records : dedupeRecordsByIdentity(items, getMagnetRecordKey);
+          const written = await replaceStoreRecords(db, 'magnets', records, logger);
+          mark('magnets', { mode, cleared: true, written, ...(merged?.summary || {}), durationMs: Date.now() - c0 });
+        } catch (e: any) {
+          mark('magnets', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+        }
+      });
     }
 
     if (shouldRestore(opts, 'logs')) {
-      const c0 = Date.now();
-      try {
-        let items: any[] = [];
-        if (Array.isArray(importData?.idb?.logs)) items = importData.idb.logs;
-        else if (Array.isArray(importData?.logs)) items = importData.logs;
-        const mode = opts.categoryModes.logs;
-        const cloudItems = dedupeRecordsByIdentity(items, getLogRecordKey).map(stripAutoIncrementId);
-        if (mode === 'merge') {
-          const localItems = await safeGetAll(() => idbLogsGetAll());
-          const additions = selectCloudOnlyRecords(localItems, cloudItems, getLogRecordKey).map(stripAutoIncrementId);
-          if (additions.length > 0) await idbLogsBulkAdd(additions as any);
-          mark('logs', {
-            mode,
-            cleared: false,
-            written: additions.length,
-            added: additions.length,
-            kept: localItems.length,
-            total: localItems.length + additions.length,
-            durationMs: Date.now() - c0,
-          });
-        } else {
-          await idbLogsClear();
-          if (cloudItems.length > 0) await idbLogsBulkAdd(cloudItems as any);
-          mark('logs', { mode, cleared: true, written: cloudItems.length, durationMs: Date.now() - c0 });
+      await restoreCategory('logs', async () => {
+        const c0 = Date.now();
+        try {
+          let items: any[] = [];
+          if (Array.isArray(importData?.idb?.logs)) items = importData.idb.logs;
+          else if (Array.isArray(importData?.logs)) items = importData.logs;
+          const mode = opts.categoryModes.logs;
+          const cloudItems = dedupeRecordsByIdentity(items, getLogRecordKey).map(stripAutoIncrementId);
+          if (mode === 'merge') {
+            const localItems = await safeGetAll(() => idbLogsGetAll());
+            const additions = selectCloudOnlyRecords(localItems, cloudItems, getLogRecordKey).map(stripAutoIncrementId);
+            if (additions.length > 0) await idbLogsBulkAdd(additions as any);
+            mark('logs', {
+              mode,
+              cleared: false,
+              written: additions.length,
+              added: additions.length,
+              kept: localItems.length,
+              total: localItems.length + additions.length,
+              durationMs: Date.now() - c0,
+            });
+          } else {
+            await idbLogsClear();
+            if (cloudItems.length > 0) await idbLogsBulkAdd(cloudItems as any);
+            mark('logs', { mode, cleared: true, written: cloudItems.length, durationMs: Date.now() - c0 });
+          }
+        } catch (e: any) {
+          mark('logs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
         }
-      } catch (e: any) {
-        mark('logs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      });
     }
 
     if (shouldRestore(opts, 'magnetPushLogs')) {
-      const c0 = Date.now();
-      try {
-        let items: any[] = [];
-        if (Array.isArray(importData?.idb?.magnetPushLogs)) items = importData.idb.magnetPushLogs;
-        else if (Array.isArray(importData?.magnetPushLogs)) items = importData.magnetPushLogs;
-        else if (Array.isArray(importData?.data?.magnetPushLogs)) items = importData.data.magnetPushLogs;
-        const mode = opts.categoryModes.magnetPushLogs;
-        const cloudItems = dedupeRecordsByIdentity(items, getMagnetPushLogRecordKey).map(stripAutoIncrementId);
-        if (mode === 'merge') {
-          const localItems = await safeGetAll(() => idbMagnetPushLogsGetAll());
-          const additions = selectCloudOnlyRecords(localItems, cloudItems, getMagnetPushLogRecordKey).map(stripAutoIncrementId);
-          if (additions.length > 0) await idbMagnetPushLogsBulkAdd(additions as any);
-          mark('magnetPushLogs', {
-            mode,
-            cleared: false,
-            written: additions.length,
-            added: additions.length,
-            kept: localItems.length,
-            total: localItems.length + additions.length,
-            durationMs: Date.now() - c0,
-          });
-        } else {
-          try { await clearStore(db, 'magnetPushLogs', logger); } catch {}
-          if (cloudItems.length > 0) await idbMagnetPushLogsBulkAdd(cloudItems as any);
-          mark('magnetPushLogs', { mode, cleared: true, written: cloudItems.length, durationMs: Date.now() - c0 });
+      await restoreCategory('magnetPushLogs', async () => {
+        const c0 = Date.now();
+        try {
+          let items: any[] = [];
+          if (Array.isArray(importData?.idb?.magnetPushLogs)) items = importData.idb.magnetPushLogs;
+          else if (Array.isArray(importData?.magnetPushLogs)) items = importData.magnetPushLogs;
+          else if (Array.isArray(importData?.data?.magnetPushLogs)) items = importData.data.magnetPushLogs;
+          const mode = opts.categoryModes.magnetPushLogs;
+          const cloudItems = dedupeRecordsByIdentity(items, getMagnetPushLogRecordKey).map(stripAutoIncrementId);
+          if (mode === 'merge') {
+            const localItems = await safeGetAll(() => idbMagnetPushLogsGetAll());
+            const additions = selectCloudOnlyRecords(localItems, cloudItems, getMagnetPushLogRecordKey).map(stripAutoIncrementId);
+            if (additions.length > 0) await idbMagnetPushLogsBulkAdd(additions as any);
+            mark('magnetPushLogs', {
+              mode,
+              cleared: false,
+              written: additions.length,
+              added: additions.length,
+              kept: localItems.length,
+              total: localItems.length + additions.length,
+              durationMs: Date.now() - c0,
+            });
+          } else {
+            try { await clearStore(db, 'magnetPushLogs', logger); } catch {}
+            if (cloudItems.length > 0) await idbMagnetPushLogsBulkAdd(cloudItems as any);
+            mark('magnetPushLogs', { mode, cleared: true, written: cloudItems.length, durationMs: Date.now() - c0 });
+          }
+        } catch (e: any) {
+          mark('magnetPushLogs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
         }
-      } catch (e: any) {
-        mark('magnetPushLogs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
-      }
+      });
     }
 
     if (shouldRestore(opts, 'importStats')) {
-      const c0 = Date.now();
-      const val = importData?.importStats ?? importData?.storageAll?.[STORAGE_KEYS.LAST_IMPORT_STATS];
-      if (val != null) {
-        await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, val);
-        mark('importStats', { mode: opts.categoryModes.importStats, replaced: true, durationMs: Date.now() - c0 });
-      } else {
-        mark('importStats', { mode: opts.categoryModes.importStats, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
-      }
+      await restoreCategory('importStats', async () => {
+        const c0 = Date.now();
+        const val = importData?.importStats ?? importData?.storageAll?.[STORAGE_KEYS.LAST_IMPORT_STATS];
+        if (val != null) {
+          await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, val);
+          mark('importStats', { mode: opts.categoryModes.importStats, replaced: true, durationMs: Date.now() - c0 });
+        } else {
+          mark('importStats', { mode: opts.categoryModes.importStats, replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+        }
+      });
     }
 
     summary.totalDurationMs = Date.now() - tStart;
+    emit?.({ stage: 'apply', status: 'done', message: '恢复数据写入完成' });
     return { success: true, summary };
   } catch (e: any) {
     return { success: false, error: e?.message, summary };
@@ -308,6 +387,7 @@ export async function performRestoreUnified(filename: string, options?: {
   autoBackupBeforeRestore?: boolean;
 }, serviceOptions: RestoreServiceOptions = {}): Promise<{ success: boolean; error?: string; summary?: any }> {
   const logger = serviceOptions.logger;
+  const emit = serviceOptions.onProgress;
   const opts = {
     categories: { ...DEFAULT_RESTORE_CATEGORIES, ...(options?.categories || {}) },
     categoryModes: { ...DEFAULT_RESTORE_MODES, ...(options?.categoryModes || {}) },
@@ -319,16 +399,29 @@ export async function performRestoreUnified(filename: string, options?: {
   const tStart = Date.now();
   const summary: any = { categories: {}, startedAt: new Date().toISOString() };
   try {
+    emit?.({ stage: 'prepare', status: 'running', message: '正在检查 WebDAV 配置...' });
     const settings = await getSettings();
     if (!settings.webdav.enabled || !settings.webdav.url) {
       throw new Error('WebDAV 未启用或 URL 未配置');
     }
     const finalUrl = resolveWebDavUrl(filename, settings.webdav.url);
+    emit?.({ stage: 'prepare', status: 'done', message: 'WebDAV 配置检查完成' });
     if (opts.autoBackupBeforeRestore) {
-      try { await performWebDAVUpload({ getSettings, saveSettings, logger }); } catch (e: any) { logger?.('WARN', 'Auto-backup before restore failed', { error: e?.message }); }
+      emit?.({ stage: 'autoBackup', status: 'running', message: '正在进行恢复前自动备份...' });
+      try {
+        await performWebDAVUpload({ getSettings, saveSettings, logger });
+        emit?.({ stage: 'autoBackup', status: 'done', message: '恢复前自动备份完成' });
+      } catch (e: any) {
+        logger?.('WARN', 'Auto-backup before restore failed', { error: e?.message });
+        emit?.({ stage: 'autoBackup', status: 'error', message: '恢复前自动备份失败，继续执行恢复', error: e?.message });
+      }
     }
 
-    const importData = await parseBackupFromUrl(finalUrl, { username: settings.webdav.username, password: settings.webdav.password });
+    const importData = await parseBackupFromUrl(
+      finalUrl,
+      { username: settings.webdav.username, password: settings.webdav.password },
+      event => emit?.(event),
+    );
     restoreInProgress = false;
     const directResult = await applyImportDataDirect(importData, {
       categories: opts.categories,
@@ -336,8 +429,14 @@ export async function performRestoreUnified(filename: string, options?: {
     }, serviceOptions);
     summary.categories = directResult.summary?.categories || {};
     summary.totalDurationMs = Date.now() - tStart;
-    return directResult.success ? { success: true, summary } : { success: false, error: directResult.error, summary };
+    if (directResult.success) {
+      emit?.({ stage: 'complete', status: 'done', message: '恢复完成' });
+      return { success: true, summary };
+    }
+    emit?.({ stage: 'error', status: 'error', message: '恢复失败', error: directResult.error });
+    return { success: false, error: directResult.error, summary };
   } catch (e: any) {
+    emit?.({ stage: 'error', status: 'error', message: '恢复失败', error: e?.message });
     return { success: false, error: e?.message, summary };
   } finally {
     restoreInProgress = false;
@@ -346,6 +445,36 @@ export async function performRestoreUnified(filename: string, options?: {
 
 function shouldRestore(opts: { categories: Record<RestoreCategoryKey, boolean>; categoryModes: Record<RestoreCategoryKey, RestoreCategoryMode> }, category: RestoreCategoryKey): boolean {
   return opts.categories[category] === true && opts.categoryModes[category] !== 'skip';
+}
+
+function getSelectedRestoreCategories(opts: { categories: Record<RestoreCategoryKey, boolean>; categoryModes: Record<RestoreCategoryKey, RestoreCategoryMode> }): RestoreCategoryKey[] {
+  return (Object.keys(DEFAULT_RESTORE_CATEGORIES) as RestoreCategoryKey[])
+    .filter(category => shouldRestore(opts, category));
+}
+
+function getRestoreCategoryLabel(category: RestoreCategoryKey): string {
+  const labels: Record<RestoreCategoryKey, string> = {
+    settings: '扩展设置',
+    userProfile: '账号信息',
+    viewed: '观看记录',
+    actors: '演员库',
+    newWorks: '新作品',
+    lists: '清单 / 系列 / 番号',
+    magnets: '磁链缓存',
+    logs: '日志记录',
+    magnetPushLogs: '磁力推送日志',
+    importStats: '导入统计',
+  };
+  return labels[category];
+}
+
+function getRestoreCategoryModeLabel(mode: RestoreCategoryMode): string {
+  const labels: Record<RestoreCategoryMode, string> = {
+    skip: '跳过',
+    merge: '合并',
+    replace: '覆盖',
+  };
+  return labels[mode];
 }
 
 function readViewedRecords(importData: any): any[] {

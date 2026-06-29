@@ -1,7 +1,7 @@
 export interface WebDAVRouterHandlers {
   listFiles: () => Promise<any>;
   previewBackup: (filename: string) => Promise<any>;
-  performRestoreUnified: (filename: string, options?: any) => Promise<any>;
+  performRestoreUnified: (filename: string, options?: any, restoreTaskId?: string) => Promise<any>;
   testWebDAVConnection: () => Promise<any>;
   testWebDAVConnectionWithConfig: (config: any) => Promise<any>;
   diagnoseWebDAVConnection: () => Promise<any>;
@@ -48,8 +48,8 @@ export function registerWebDAVRouterListener(handlers: WebDAVRouterHandlers): vo
           return true;
         }
         case 'WEB_DAV:RESTORE_UNIFIED': {
-          const { filename, options } = message;
-          handlers.performRestoreUnified(filename, options).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          const { filename, options, restoreTaskId } = message;
+          handlers.performRestoreUnified(filename, options, restoreTaskId).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
         }
         case 'webdav-restore': {

@@ -54,6 +54,55 @@ describe('WebDAV restore progress/results controller', () => {
     vi.useRealTimers();
   });
 
+  it('updates overall and category progress from restore progress events', () => {
+    const controller = new WebDAVRestoreProgressResultsController({
+      getRestoreModal: () => document.getElementById('webdavRestoreModal') as HTMLElement | null,
+      hideElement: vi.fn(),
+      showElement: vi.fn(),
+      fetchFileList: vi.fn(),
+      closeModal: vi.fn(),
+    });
+
+    controller.showProgress('restore-test-1');
+    controller.updateProgress({
+      type: 'WEB_DAV:RESTORE_PROGRESS',
+      taskId: 'restore-test-1',
+      stage: 'download',
+      status: 'running',
+      message: '正在下载云端备份...',
+    });
+    controller.updateProgress({
+      type: 'WEB_DAV:RESTORE_PROGRESS',
+      taskId: 'restore-test-1',
+      stage: 'category',
+      status: 'running',
+      category: 'viewed',
+      categoryMode: 'merge',
+      message: '正在恢复观看记录（合并）...',
+      completedCategories: 0,
+      totalCategories: 2,
+    });
+    controller.updateProgress({
+      type: 'WEB_DAV:RESTORE_PROGRESS',
+      taskId: 'restore-test-1',
+      stage: 'category',
+      status: 'done',
+      category: 'viewed',
+      categoryMode: 'merge',
+      message: '观看记录恢复完成，已写入 3 条',
+      completedCategories: 1,
+      totalCategories: 2,
+      summary: { written: 3 },
+    });
+
+    expect(document.getElementById('overallProgress')?.textContent).toBe('观看记录恢复完成，已写入 3 条（1/2 个类别）');
+    const categoryRow = document.querySelector('[data-restore-progress-category="viewed"]');
+    expect(categoryRow?.textContent).toContain('观看记录');
+    expect(categoryRow?.textContent).toContain('合并');
+    expect(categoryRow?.textContent).toContain('已完成');
+    expect(categoryRow?.textContent).toContain('已写入 3 条');
+  });
+
   it('shows restore results and returns to the backup list', () => {
     const hideElement = vi.fn((id: string) => document.getElementById(id)?.classList.add('hidden'));
     const showElement = vi.fn((id: string) => document.getElementById(id)?.classList.remove('hidden'));
