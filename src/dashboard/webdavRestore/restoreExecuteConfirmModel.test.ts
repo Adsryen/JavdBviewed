@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildRestoreCategoryModes,
   buildRestoreCategorySelection,
   buildRestoreExecuteConfirmHtml,
   getRestoreCategoryLabel,
@@ -59,6 +60,44 @@ describe('WebDAV restore execute confirm model', () => {
     });
   });
 
+  it('builds restore category modes from defaults and explicit overrides', () => {
+    expect(buildRestoreCategoryModes({
+      mergeOptions: {
+        strategy: 'smart',
+        restoreSettings: true,
+        restoreRecords: true,
+        restoreUserProfile: true,
+        restoreActorRecords: true,
+        restoreLogs: false,
+        restoreMagnetPushLogs: false,
+        restoreImportStats: true,
+        restoreNewWorks: true,
+        restoreLists: true,
+        categoryModes: {
+          viewed: 'replace',
+          actors: 'skip',
+        },
+      },
+      restoreMagnetPushLogs: false,
+      restoreMagnets: true,
+      explicitModes: {
+        lists: 'merge',
+        magnets: 'skip',
+      },
+    })).toEqual({
+      settings: 'replace',
+      userProfile: 'replace',
+      viewed: 'replace',
+      actors: 'skip',
+      newWorks: 'merge',
+      lists: 'merge',
+      logs: 'skip',
+      magnetPushLogs: 'skip',
+      importStats: 'replace',
+      magnets: 'skip',
+    });
+  });
+
   it('builds confirm html for enabled auto backup', () => {
     const html = buildRestoreExecuteConfirmHtml({
       categories: {
@@ -66,23 +105,33 @@ describe('WebDAV restore execute confirm model', () => {
         actors: true,
         logs: false,
       },
+      categoryModes: {
+        settings: 'replace',
+        actors: 'merge',
+        logs: 'skip',
+      },
       autoBackupBeforeRestore: true,
     });
 
-    expect(html).toContain('警告：替换式恢复将清空现有数据！');
+    expect(html).toContain('确认恢复策略');
     expect(html).toContain('将要恢复的类别：');
-    expect(html).toContain('<li>扩展设置</li>');
-    expect(html).toContain('<li>演员库</li>');
+    expect(html).toContain('扩展设置');
+    expect(html).toContain('覆盖');
+    expect(html).toContain('演员库');
+    expect(html).toContain('合并');
     expect(html).not.toContain('<li>日志记录</li>');
     expect(html).toContain('alert-success');
     expect(html).toContain('恢复前将自动备份当前数据');
-    expect(html).toContain('此操作不可撤销，确定要继续吗？');
+    expect(html).toContain('覆盖类别会先清空本地同类数据');
   });
 
   it('builds confirm html for disabled auto backup', () => {
     const html = buildRestoreExecuteConfirmHtml({
       categories: {
         settings: true,
+      },
+      categoryModes: {
+        settings: 'replace',
       },
       autoBackupBeforeRestore: false,
     });

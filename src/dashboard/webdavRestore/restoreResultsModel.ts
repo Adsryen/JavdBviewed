@@ -234,6 +234,14 @@ function getResultStatus(result: any): {
     };
   }
 
+  if (result?.mode === 'merge' && (hasCleared || (typeof written === 'number' && written >= 0))) {
+    return {
+      statusText: '已合并',
+      statusClass: 'status-success',
+      iconClass: 'fas fa-code-branch text-success',
+    };
+  }
+
   if (hasReplaced || hasCleared || (typeof written === 'number' && written > 0) || hadNewWorks) {
     return {
       statusText: '已覆盖',
@@ -253,7 +261,12 @@ function buildDetails(category: string, result: any, cloudData: any): string[] {
   const detailParts = getCloudDetails(category, cloudData);
   const written = typeof result?.written === 'number' ? result.written : undefined;
 
+  if (result?.mode === 'merge') detailParts.push('策略：合并');
+  if (result?.mode === 'replace') detailParts.push('策略：覆盖');
   if (typeof written === 'number') detailParts.push(`写入：${written} 条`);
+  if (typeof result?.added === 'number') detailParts.push(`新增：${result.added} 条`);
+  if (typeof result?.updated === 'number') detailParts.push(`更新：${result.updated} 条`);
+  if (typeof result?.kept === 'number') detailParts.push(`保留：${result.kept} 条`);
   if (typeof result?.durationMs === 'number') detailParts.push(`${Math.round(result.durationMs)} ms`);
   if (result?.reason && !['missing', 'error', 'not_selected'].includes(result.reason)) {
     detailParts.push(String(result.reason));

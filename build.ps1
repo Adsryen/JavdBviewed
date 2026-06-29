@@ -1,4 +1,4 @@
-﻿﻿# JavDB Extension - Interactive Build Assistant (PowerShell Version)
+﻿# JavDB Extension - Interactive Build Assistant (PowerShell Version)
 param()
 
 # Set console encoding to UTF-8

@@ -11,7 +11,7 @@ describe('WebDAV restore progress model', () => {
   it('builds restore progress html with initial status and timer placeholders', () => {
     const html = buildRestoreProgressHtml();
 
-    expect(html).toContain('正在执行覆盖式恢复');
+    expect(html).toContain('正在执行恢复');
     expect(html).toContain('请耐心等待，恢复过程中请勿关闭页面');
     expect(html).toContain('id="progressCategories"');
     expect(html).toContain('id="progressSummary"');

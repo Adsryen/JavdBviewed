@@ -82,6 +82,7 @@ function mountRestoreWizardDom(): void {
         <div class="form-group-checkbox">
           <input type="checkbox" id="webdavRestoreRecords" checked>
           <label for="webdavRestoreRecords">观看记录</label>
+          <select id="webdavRestoreRecordsMode"><option value="merge" selected>合并</option><option value="replace">覆盖</option></select>
         </div>
         <div class="form-group-checkbox">
           <input type="checkbox" id="webdavRestoreUserProfile">
@@ -90,6 +91,7 @@ function mountRestoreWizardDom(): void {
         <div class="form-group-checkbox">
           <input type="checkbox" id="webdavRestoreActorRecords" checked>
           <label for="webdavRestoreActorRecords">演员库</label>
+          <select id="webdavRestoreActorRecordsMode"><option value="merge">合并</option><option value="replace" selected>覆盖</option></select>
         </div>
         <div class="form-group-checkbox">
           <input type="checkbox" id="webdavRestoreLogs">
@@ -106,6 +108,12 @@ function mountRestoreWizardDom(): void {
         <div class="form-group-checkbox">
           <input type="checkbox" id="webdavRestoreNewWorks" checked>
           <label for="webdavRestoreNewWorks">新作品</label>
+          <select id="webdavRestoreNewWorksMode"><option value="merge" selected>合并</option><option value="replace">覆盖</option></select>
+        </div>
+        <div class="form-group-checkbox">
+          <input type="checkbox" id="webdavRestoreLists" checked>
+          <label for="webdavRestoreLists">清单</label>
+          <select id="webdavRestoreListsMode"><option value="merge" selected>合并</option><option value="replace">覆盖</option></select>
         </div>
       </div>
       <div id="contentSelectionGrid"></div>
@@ -204,7 +212,7 @@ describe('WebDAV restore wizard controller', () => {
     expect(document.getElementById('previewContent')?.textContent).toContain('将会保留');
 
     document.getElementById('wizardNextBtn')?.click();
-    const copiedRecordCheckbox = document.querySelector<HTMLInputElement>('#contentSelectionGrid #webdavRestoreRecords');
+    const copiedRecordCheckbox = document.querySelector<HTMLInputElement>('#contentSelectionGrid #webdavRestoreRecordsWizard');
     expect(copiedRecordCheckbox).toBeTruthy();
     expect(document.querySelectorAll('.step')[1].classList.contains('active')).toBe(true);
 
@@ -227,6 +235,12 @@ describe('WebDAV restore wizard controller', () => {
       restoreImportStats: true,
       restoreNewWorks: true,
       restoreLists: true,
+      categoryModes: {
+        viewed: 'merge',
+        actors: 'replace',
+        newWorks: 'merge',
+        lists: 'merge',
+      },
     });
   });
 });

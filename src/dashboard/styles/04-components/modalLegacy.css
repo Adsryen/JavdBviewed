@@ -1188,6 +1188,10 @@ body.modal-open {
     color: #667eea;
 }
 
+.restore-options .form-group-checkbox:has(input[type="checkbox"]:checked) .restore-option-main label {
+    color: #667eea;
+}
+
 .restore-options .form-group-checkbox label {
     font-weight: 600;
     color: var(--text-primary);
@@ -1360,6 +1364,123 @@ body.modal-open {
 /* 当弹窗未可见时，确保其页脚不显示（防“页脚悬浮”错觉） */
 #webdavRestoreModal:not(.visible) .modal-footer {
   display: none !important;
+}
+
+/* ================= 恢复进度（执行中） ================= */
+.restore-progress-container {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.restore-progress-container .progress-header {
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.restore-progress-container .progress-header h4 {
+    margin: 0 0 6px 0;
+    color: var(--text-primary);
+    font-size: 18px;
+}
+
+.restore-progress-container .progress-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.restore-progress-container .progress-categories {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+    max-height: min(42vh, 360px);
+    overflow: auto;
+}
+
+.restore-progress-category {
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--surface-secondary);
+}
+
+.restore-progress-category.running {
+    border-color: rgba(59, 130, 246, 0.45);
+}
+
+.restore-progress-category.done {
+    border-color: rgba(22, 163, 74, 0.45);
+}
+
+.restore-progress-category.skipped {
+    border-color: rgba(148, 163, 184, 0.6);
+}
+
+.restore-progress-category.error {
+    border-color: rgba(220, 38, 38, 0.45);
+}
+
+.restore-progress-category-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.restore-progress-category-name {
+    min-width: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.restore-progress-category-mode,
+.restore-progress-category-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--surface-primary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.restore-progress-category.done .restore-progress-category-status {
+    color: var(--success-text, #15803d);
+}
+
+.restore-progress-category.error .restore-progress-category-status {
+    color: var(--error-text, #dc2626);
+}
+
+.restore-progress-category-detail {
+    margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.restore-progress-container .progress-summary {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--surface-secondary);
+}
+
+.restore-progress-container .summary-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-secondary);
+}
+
+.restore-progress-container .summary-item .value {
+    color: var(--text-primary);
+    text-align: right;
 }
 
 /* ================= 恢复结果摘要（结果页） ================= */
@@ -4445,11 +4566,39 @@ html[data-theme="dark"] .list-sync-confirm-modal .delete-section .change-section
 }
 
 #webdavRestoreModal .restore-options-section h5 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     color: var(--text-primary);
 }
 
 #webdavRestoreModal .restore-options-section h5 i {
     color: var(--primary);
+}
+
+#webdavRestoreModal .restore-category-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--surface-primary);
+    color: var(--primary);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+#webdavRestoreModal .restore-category-toggle:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+}
+
+#webdavRestoreModal .restore-category-toggle:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 #webdavRestoreModal .restore-options-section .form-group-checkbox label {
@@ -4470,6 +4619,78 @@ html[data-theme="dark"] .list-sync-confirm-modal .delete-section .change-section
 
 #webdavRestoreModal .restore-options-section .unavailable-text {
     color: var(--error);
+}
+
+#webdavRestoreModal .restore-option-layout {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(116px, max-content);
+    align-items: start;
+    gap: 10px 12px;
+    min-width: 0;
+}
+
+#webdavRestoreModal .restore-option-layout input[type="checkbox"] {
+    margin: 2px 0 0;
+}
+
+#webdavRestoreModal .restore-option-main {
+    min-width: 0;
+}
+
+#webdavRestoreModal .restore-option-main label {
+    margin-bottom: 6px;
+    padding-right: 24px;
+}
+
+#webdavRestoreModal .restore-option-main small {
+    overflow-wrap: anywhere;
+}
+
+#webdavRestoreModal .restore-strategy-control {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+}
+
+#webdavRestoreModal .restore-strategy-control label {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+#webdavRestoreModal .restore-strategy-control select {
+    width: 92px;
+    max-width: 100%;
+    height: 30px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+#webdavRestoreModal .form-group-checkbox:has(input[type="checkbox"]:not(:checked)) .restore-strategy-control {
+    opacity: 0.58;
+}
+
+@media (max-width: 640px) {
+    #webdavRestoreModal .restore-option-layout {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    #webdavRestoreModal .restore-strategy-control {
+        grid-column: 2;
+        justify-content: flex-start;
+    }
+
+    #webdavRestoreModal .restore-strategy-control select {
+        flex: 1 1 auto;
+        width: 100%;
+    }
 }
 
 .restore-options-grid {
