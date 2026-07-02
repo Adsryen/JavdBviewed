@@ -200,6 +200,8 @@ export function initRecordsTab(): void {
         getRecords: async () => viewRuntime.getRecordsForExport(),
         getListName: (listId) => listIdToName.get(String(listId)) || String(listId),
         showMessage,
+        getSelectedRecordIds: () => Array.from(selectedRecords),
+        getSelectedCountText: () => `仅导出选中记录（${selectedRecords.size} 条）`,
     });
     const itemActionsController = createRecordsItemActionsRuntime({
         getRecords: () => STATE.records,

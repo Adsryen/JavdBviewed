@@ -15,6 +15,10 @@ export interface CreateRecordsExportControllerOptions {
   getListName: (listId: string) => string;
   showMessage: (message: string, type: MessageType) => void;
   downloadFile?: (input: RecordsDownloadFileInput) => void;
+  /** 获取当前选中的番号 ID 列表（空数组表示无选中项） */
+  getSelectedRecordIds?: () => string[];
+  /** 获取选中数量文本，如 "已选中 5 条" */
+  getSelectedCountText?: () => string;
 }
 
 export interface RecordsExportController {
@@ -35,6 +39,26 @@ function defaultDownloadFile(input: RecordsDownloadFileInput): void {
 
 function getExportDate(): string {
   return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * 转义 CSV 单元格值，防止 Excel 自动转换格式。
+ *
+ * 问题场景：
+ * - 全数字番号（如 "123456"）在 Excel 中会被当作数字，长数字显示为科学计数法
+ * - 以 =、+、-、@ 开头的值在 Excel 中可能被当作公式
+ *
+ * 解决：对纯数字或以危险字符开头的值使用 ="value" 的 Excel 文本公式格式。
+ * 其它值使用标准 CSV 双引号包裹。
+ */
+function escapeCsvCell(value: string): string {
+  const escaped = value.replace(/"/g, '""');
+  // 纯数字：Excel 会当作 number → 科学计数法 / 前导零丢失
+  // 以 = + - @ 开头：Excel 会当作公式
+  if (/^\d+$/.test(value) || /^[=+\-@]/.test(value)) {
+    return `"=""${escaped}"""`;
+  }
+  return `"${escaped}"`;
 }
 
 function buildCsvContent(records: VideoRecord[], getListName: (listId: string) => string, progressModal: HTMLElement | null): string {
@@ -68,23 +92,27 @@ function buildCsvContent(records: VideoRecord[], getListName: (listId: string) =
       record.javdbImage || '',
     ];
 
-    csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','));
+    csvRows.push(row.map(cell => escapeCsvCell(String(cell))).join(','));
   }
 
-  return '\uFEFF' + csvRows.join('\n');
+  return '﻿' + csvRows.join('\n');
 }
 
 export function createRecordsExportController(options: CreateRecordsExportControllerOptions): RecordsExportController {
   const downloadFile = options.downloadFile || defaultDownloadFile;
 
-  const exportAsJSON = async () => {
-    try {
-      const records = await options.getRecords();
-      if (records.length === 0) {
-        options.showMessage('没有数据可导出', 'warn');
-        return;
-      }
+  const doExport = async (format: 'json' | 'csv', selectedIds: Set<string> | null) => {
+    const allRecords = await options.getRecords();
+    const records = selectedIds && selectedIds.size > 0
+      ? allRecords.filter(r => selectedIds.has(r.id))
+      : allRecords;
 
+    if (records.length === 0) {
+      options.showMessage('没有数据可导出', 'warn');
+      return;
+    }
+
+    if (format === 'json') {
       let progressModal: HTMLElement | null = null;
       if (records.length > 1000) {
         progressModal = showRecordsProgressModal('正在生成JSON文件...', records.length);
@@ -103,21 +131,9 @@ export function createRecordsExportController(options: CreateRecordsExportContro
       });
 
       hideRecordsProgressModal(progressModal);
-      options.showMessage(`成功导出 ${records.length} 条记录（JSON格式）`, 'success');
-    } catch (error: any) {
-      console.error('[Records] 导出JSON失败:', error);
-      options.showMessage(`导出失败: ${error.message}`, 'error');
-    }
-  };
-
-  const exportAsCsv = async () => {
-    try {
-      const records = await options.getRecords();
-      if (records.length === 0) {
-        options.showMessage('没有数据可导出', 'warn');
-        return;
-      }
-
+      const scope = selectedIds && selectedIds.size > 0 ? '（仅选中）' : '';
+      options.showMessage(`成功导出 ${records.length} 条记录${scope}（JSON格式）`, 'success');
+    } else {
       let progressModal: HTMLElement | null = null;
       if (records.length > 1000) {
         progressModal = showRecordsProgressModal('正在生成CSV文件...', records.length);
@@ -131,14 +147,29 @@ export function createRecordsExportController(options: CreateRecordsExportContro
       });
 
       hideRecordsProgressModal(progressModal);
-      options.showMessage(`成功导出 ${records.length} 条记录（CSV格式）`, 'success');
-    } catch (error: any) {
-      console.error('[Records] 导出CSV失败:', error);
-      options.showMessage(`导出失败: ${error.message}`, 'error');
+      const scope = selectedIds && selectedIds.size > 0 ? '（仅选中）' : '';
+      options.showMessage(`成功导出 ${records.length} 条记录${scope}（CSV格式）`, 'success');
     }
   };
 
   const handleExportRecords = async () => {
+    const selectedIds = options.getSelectedRecordIds?.() ?? [];
+    const hasSelection = selectedIds.length > 0;
+
+    const scopeSection = hasSelection
+      ? `<div style="margin-top: 16px;">
+          <p style="margin-bottom: 8px;">导出范围：</p>
+          <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+            <input type="radio" name="exportScope" value="all" checked style="margin-right: 8px;">
+            ${options.getExportCountText()}
+          </label>
+          <label style="display: block; cursor: pointer;">
+            <input type="radio" name="exportScope" value="selected" style="margin-right: 8px;">
+            ${options.getSelectedCountText?.() ?? `仅导出选中记录（${selectedIds.length} 条）`}
+          </label>
+        </div>`
+      : `<p style="margin-top: 16px; font-size: 12px; color: #666;">${options.getExportCountText()}</p>`;
+
     const modal = document.createElement('div');
     modal.className = 'custom-confirm-modal';
     modal.innerHTML = `
@@ -159,9 +190,7 @@ export function createRecordsExportController(options: CreateRecordsExportContro
               Excel 格式（CSV文件，适合表格查看）
             </label>
           </div>
-          <p style="margin-top: 16px; font-size: 12px; color: #666;">
-            ${options.getExportCountText()}
-          </p>
+          ${scopeSection}
         </div>
         <div class="custom-confirm-footer">
           <button class="custom-confirm-cancel">取消</button>
@@ -184,12 +213,13 @@ export function createRecordsExportController(options: CreateRecordsExportContro
     cancelBtn.addEventListener('click', closeModal);
     okBtn.addEventListener('click', async () => {
       const selectedFormat = (modal.querySelector('input[name="exportFormat"]:checked') as HTMLInputElement)?.value || 'json';
+      const scopeRadio = modal.querySelector('input[name="exportScope"]:checked') as HTMLInputElement | null;
+      const useSelected = scopeRadio?.value === 'selected';
       closeModal();
-      if (selectedFormat === 'json') {
-        await exportAsJSON();
-      } else {
-        await exportAsCsv();
-      }
+      await doExport(
+        selectedFormat === 'json' ? 'json' : 'csv',
+        useSelected ? new Set(selectedIds) : null,
+      );
     });
 
     const handleKeydown = (e: KeyboardEvent) => {

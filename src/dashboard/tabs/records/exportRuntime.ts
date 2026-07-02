@@ -25,6 +25,8 @@ export interface CreateRecordsExportRuntimeOptions {
   hideProgress: (modal: HTMLElement | null) => void;
   exportController: RecordsExportController;
   getExportData?: (input: GetRecordsForExportDataInput) => Promise<VideoRecord[]>;
+  /** 选中的番号 ID 列表 */
+  selectedRecordIds: Set<string>;
 }
 
 export interface RecordsExportRuntime {

@@ -65,6 +65,15 @@ describe('CodeParser', () => {
       expect(result.suffix).toBe('C');
     });
 
+    it('应该正确解析数字-数字格式的番号', () => {
+      const result = parseCode('011015-780');
+
+      expect(result.original).toBe('011015-780');
+      expect(result.prefix).toBe('011015');
+      expect(result.number).toBe('780');
+      expect(result.isFC2).toBe(false);
+    });
+
     it('应该抛出错误对于无效代码', () => {
       expect(() => parseCode('')).toThrow('Code cannot be empty');
       expect(() => parseCode('invalid')).toThrow('Unable to parse code');
@@ -76,6 +85,10 @@ describe('CodeParser', () => {
       expect(normalizeCode('ssis123')).toBe('SSIS-123');
       expect(normalizeCode('SSIS-123')).toBe('SSIS-123');
       expect(normalizeCode('SSIS123C')).toBe('SSIS-123C');
+    });
+
+    it('应该标准化数字-数字格式番号', () => {
+      expect(normalizeCode('011015-780')).toBe('011015-780');
     });
 
     it('应该标准化FC2格式代码', () => {
@@ -136,6 +149,10 @@ describe('CodeParser', () => {
   });
 
   describe('isValidCode方法', () => {
+    it('应该验证数字-数字格式代码', () => {
+      expect(isValidCode('011015-780')).toBe(true);
+    });
+
     it('应该验证有效代码', () => {
       expect(isValidCode('SSIS-123')).toBe(true);
       expect(isValidCode('FC2-PPV-1234567')).toBe(true);

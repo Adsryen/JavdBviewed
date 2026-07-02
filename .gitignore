@@ -92,6 +92,9 @@ build.bat
 .trae/
 .codex/
 .claude/
+.agents/
+agent.md
+.trellis/
 
 # plans
 plans/

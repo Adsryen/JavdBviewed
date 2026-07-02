@@ -20,6 +20,7 @@ export interface ParsedCode {
 /** 番号格式正则表达式 */
 const CODE_PATTERNS = {
   STANDARD: /^([A-Z]{2,5})-?(\d{1,5})([A-Z]*)$/i,              // ABC-123、ABCD-123
+  NUMERIC_DASH: /^(\d{4,8})-(\d{2,6})([A-Z]*)$/i,              // 数字-数字番号：011015-780
   FC2: /^FC2-?(PPV-?)?(\d{6,8})$/i,                             // FC2-PPV-123456
   NUMERIC: /^(\d{6,8})$/,                                        // 纯数字（通常是 FC2）
   SPECIAL: /^([A-Z]\d+|[A-Z]+\d+[A-Z]+)-?(\d+)([A-Z]*)$/i,    // n1234、s2m-123
@@ -128,6 +129,7 @@ export class CodeParser {
     // 匹配各种格式的代码
     const patterns = [
       /\b([A-Z]{2,5})-?(\d{1,5})([A-Z]*)\b/g,
+      /\b(\d{4,8}-\d{2,6})\b/g,                         // 数字-数字番号：011015-780
       /\bFC2-?(PPV-?)?(\d{6,8})\b/g,
       /\b(\d{6,8})\b/g,
     ];
@@ -209,9 +211,10 @@ export class CodeParser {
   }
 
   private static parseStandardCode(code: string): ParsedCode {
-    // 尝试各种格式
+    // 尝试各种格式（NUMERIC_DASH 必须在 STANDARD 之后、NUMERIC 之前，防截断）
     const patterns = [
       CODE_PATTERNS.STANDARD,
+      CODE_PATTERNS.NUMERIC_DASH,
       CODE_PATTERNS.COMPLEX,
       CODE_PATTERNS.SPECIAL,
     ];

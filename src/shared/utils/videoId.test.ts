@@ -15,6 +15,12 @@ describe('extractVideoId', () => {
     expect(extractVideoId('1pondo-123456_01 title')).toBe('1PONDO-123456_01');
   });
 
+  it('extracts numeric-dash-numeric ids without truncation', () => {
+    expect(extractVideoId('011015-780')).toBe('011015-780');
+    expect(extractVideoId('011015-780 标题')).toBe('011015-780');
+    expect(extractVideoId('123456-01')).toBe('123456-01');
+  });
+
   it('falls back to the first ascii token when no strict pattern matches', () => {
     expect(extractVideoId('abcxyz title')).toBe('ABCXYZ');
     expect(extractVideoId('中文标题')).toBeNull();
