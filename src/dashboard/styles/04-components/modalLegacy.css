@@ -3062,6 +3062,28 @@ body.modal-open {
     border-color: var(--border-secondary, #bbb) !important;
 }
 
+/* 暗色模式按钮优化 */
+[data-theme="dark"] .confirm-modal .btn-secondary {
+    background-color: var(--surface-tertiary, #3a3a4a) !important;
+    border-color: var(--border-secondary, #555) !important;
+    color: var(--text-primary, #e0e0e0) !important;
+}
+
+[data-theme="dark"] .confirm-modal .btn-secondary:hover {
+    background-color: var(--surface-hover, #4a4a5a) !important;
+    border-color: var(--border-hover, #777) !important;
+}
+
+[data-theme="dark"] .confirm-modal .btn-danger {
+    background-color: var(--error, #dc2626) !important;
+    border-color: var(--error, #dc2626) !important;
+}
+
+[data-theme="dark"] .confirm-modal .btn-danger:hover {
+    background-color: var(--error-hover, #b91c1c) !important;
+    border-color: var(--error-hover, #b91c1c) !important;
+}
+
 .confirm-modal .btn-primary {
     background-color: var(--primary, #2196F3) !important;
     border-color: var(--primary, #2196F3) !important;

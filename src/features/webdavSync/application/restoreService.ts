@@ -652,6 +652,10 @@ function pickLatestRecord<T extends Record<string, any>>(left: T, right: T): T {
 
 function readRecordTime(record: Record<string, any>): number {
   const source = record?.value && typeof record.value === 'object' ? record.value : record;
+  // deletedAt 优先级最高：软删除操作视为最新状态
+  // 确保恢复时保留"已删除"状态，避免被旧的正常记录覆盖
+  const deletedAt = Number(source?.deletedAt ?? 0);
+  if (deletedAt > 0) return deletedAt;
   const value = Number(source?.updatedAt ?? source?.createdAt ?? source?.timestampMs ?? source?.timestamp ?? source?.discoveredAt ?? 0);
   return Number.isFinite(value) ? value : 0;
 }

@@ -79,7 +79,7 @@ export async function editActorSourceDataWorkflow(
 export async function deleteActorWorkflow(actorId: string, deps: DeleteActorWorkflowDeps): Promise<void> {
   const confirmed = await deps.confirm({
     title: '删除演员',
-    message: '确定要删除这个演员吗？\n\n此操作不可撤销！',
+    message: '确定要删除这个演员吗？\n\n删除后可在回收站中恢复（保留30天）。',
     confirmText: '确认删除',
     cancelText: '取消',
     type: 'danger',

@@ -113,8 +113,8 @@ export function createRecordsItemActionsController(
 
   const onDelete: RecordsActionButtonHandler = (targetRecord) => {
     options.showConfirmationModal({
-      title: '确认删除记录',
-      message: `确定要删除记录 "${targetRecord.id}" 吗？\n\n标题: ${targetRecord.title}\n状态: ${targetRecord.status}\n\n此操作不可撤销！`,
+      title: '删除记录',
+      message: `确定要删除记录 "${targetRecord.id}" 吗？\n\n标题: ${targetRecord.title}\n状态: ${targetRecord.status}\n\n删除后可在回收站中恢复（保留30天）。`,
       onConfirm: async () => {
         try {
           await options.deleteRecord(targetRecord.id);

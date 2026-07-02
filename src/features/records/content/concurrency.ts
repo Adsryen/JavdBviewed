@@ -40,8 +40,15 @@ class StorageManager {
                 log(`[StorageManager] Attempt ${attempt} to put ${record.id} (operation ${operationId})`);
 
                 log(`[StorageManager] putRecord -> dbViewedPut:start ${record.id} (operation ${operationId})`);
-                await dbViewedPut(record);
-                log(`[StorageManager] putRecord -> dbViewedPut:done ${record.id} (operation ${operationId})`);
+                const result = await dbViewedPut(record);
+                log(`[StorageManager] putRecord -> dbViewedPut:done ${record.id} (operation ${operationId})`, { skipped: result?.skipped });
+
+                // 如果记录在回收站中，跳过后续操作
+                if (result.skipped) {
+                    log(`[StorageManager] Record ${record.id} is in trash, skipping update`);
+                    return { success: true };
+                }
+
                 log(`[StorageManager] Put record to IDB: ${record.id}`);
 
                 if (backupToStorage) {

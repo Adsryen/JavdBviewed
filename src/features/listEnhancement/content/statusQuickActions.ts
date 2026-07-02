@@ -119,7 +119,11 @@ async function updateListItemStatus(
   if (!record.javdbImage && cover?.src) record.javdbImage = cover.src;
 
   try {
-    await dbViewedPut(record);
+    const result = await dbViewedPut(record);
+    if (result.skipped) {
+      showToast(`${videoId} 在回收站中，跳过更新`, 'warning');
+      return;
+    }
     STATE.records[videoId] = record;
     syncQuickActionActiveState(item, status);
     syncStatusBadge(item, status, settings);

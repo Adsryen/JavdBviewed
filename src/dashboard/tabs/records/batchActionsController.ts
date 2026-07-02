@@ -145,7 +145,7 @@ export function createRecordsBatchActionsController(
 
       showCustomConfirm(
         '批量删除确认',
-        `确定要删除 ${selectedIds.length} 个视频记录吗？\n\n此操作不可撤销！删除后将无法恢复这些记录。`,
+        `确定要删除 ${selectedIds.length} 个视频记录吗？\n\n删除后可在回收站中恢复（保留30天）。`,
         () => {
           void performBatchDelete(selectedIds);
         },

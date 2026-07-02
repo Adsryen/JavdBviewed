@@ -17,13 +17,32 @@ import {
   handleDrive115Alarm,
   handleDrive115SettingsChange,
 } from './drive115UserRefresh';
+import { viewedPurgeExpired, actorsPurgeExpired } from '../../platform/storage/indexedDb';
+
+const RECYCLE_BIN_CLEANUP_ALARM = 'RECYCLE_BIN_CLEANUP';
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function initializeBackgroundAlarmWiring(): void {
   syncInsightsMonthlyAlarmFromSettings();
   syncEmbyLibrarySyncAlarmFromCurrentSettings().catch(() => {});
   registerNewWorksStartupInitializer();
+  registerRecycleBinCleanupAlarm();
   registerBackgroundAlarmRouter();
   registerBackgroundSettingsChangeRouter();
+}
+
+function registerRecycleBinCleanupAlarm(): void {
+  try {
+    chrome.alarms.create(RECYCLE_BIN_CLEANUP_ALARM, { periodInMinutes: 360 }); // 每6小时
+  } catch {}
+}
+
+async function handleRecycleBinCleanup(): Promise<void> {
+  const purgedVideos = await viewedPurgeExpired(THIRTY_DAYS_MS).catch(() => 0);
+  const purgedActors = await actorsPurgeExpired(THIRTY_DAYS_MS).catch(() => 0);
+  if (purgedVideos > 0 || purgedActors > 0) {
+    console.log(`[RecycleBin] 清理过期记录: 番号 ${purgedVideos} 条, 演员 ${purgedActors} 条`);
+  }
 }
 
 export function syncInsightsMonthlyAlarmFromSettings(): void {
@@ -67,6 +86,12 @@ export function registerBackgroundAlarmRouter(): void {
   try {
     chrome.alarms.onAlarm.addListener((alarm) => {
       if (handleDrive115Alarm(alarm?.name || '')) return;
+
+      // 回收站清理
+      if (alarm?.name === RECYCLE_BIN_CLEANUP_ALARM) {
+        handleRecycleBinCleanup().catch(() => {});
+        return;
+      }
 
       const keepAlive = setInterval(() => {
         try { chrome.storage.local.get('_keepalive', () => {}); } catch {}

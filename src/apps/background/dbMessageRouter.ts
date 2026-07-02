@@ -6,7 +6,7 @@
 // src/apps/background/dbMessageRouter.ts
 // 抽离 DB 相关消息路由
 
-import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedGet as idbViewedGet, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, viewedExportJSON as idbViewedExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, listsBulkPut as idbListsBulkPut, listsPut as idbListsPut, listsDelete as idbListsDelete, listsGetAll as idbListsGetAll, listsGetAllNormalized as idbListsGetAllNormalized, listsClear as idbListsClear, viewedPatchListIds as idbViewedPatchListIds, viewedBulkPatchListIds as idbViewedBulkPatchListIds, newWorksDailyStatRefreshToday as idbNewWorksDailyStatRefreshToday } from '../../platform/storage/indexedDb';
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedGet as idbViewedGet, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, viewedExportJSON as idbViewedExportJSON, viewedRestore as idbViewedRestore, viewedBulkRestore as idbViewedBulkRestore, viewedPurge as idbViewedPurge, viewedBulkPurge as idbViewedBulkPurge, viewedQueryRecycleBin as idbViewedQueryRecycleBin, viewedPurgeExpired as idbViewedPurgeExpired, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, actorsRestore as idbActorsRestore, actorsBulkRestore as idbActorsBulkRestore, actorsPurge as idbActorsPurge, actorsBulkPurge as idbActorsBulkPurge, actorsQueryRecycleBin as idbActorsQueryRecycleBin, actorsPurgeExpired as idbActorsPurgeExpired, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, listsBulkPut as idbListsBulkPut, listsPut as idbListsPut, listsDelete as idbListsDelete, listsGetAll as idbListsGetAll, listsGetAllNormalized as idbListsGetAllNormalized, listsClear as idbListsClear, viewedPatchListIds as idbViewedPatchListIds, viewedBulkPatchListIds as idbViewedBulkPatchListIds, newWorksDailyStatRefreshToday as idbNewWorksDailyStatRefreshToday } from '../../platform/storage/indexedDb';
 import { handleInsightsMessage } from './dbInsightsMessageHandlers';
 import { handleLogMessage } from './dbLogMessageHandlers';
 import { handleMagnetPushLogMessage } from './dbMagnetPushLogMessageHandlers';
@@ -20,7 +20,7 @@ export function registerDbMessageRouter(): void {
       // DB message routing
       if (message.type === 'DB:VIEWED_PUT') {
         const record = message?.payload?.record;
-        idbViewedPut(record).then(() => sendResponse({ success: true }))
+        idbViewedPut(record).then((result) => sendResponse({ success: true, ...result }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'idb put failed' }));
         return true; // async
       }
@@ -82,6 +82,37 @@ export function registerDbMessageRouter(): void {
           .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed bulk delete failed' }));
         return true;
       }
+      // 番号库回收站
+      if (message.type === 'DB:VIEWED_RESTORE') {
+        const id = message?.payload?.id;
+        idbViewedRestore(id).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed restore failed' }));
+        return true;
+      }
+      if (message.type === 'DB:VIEWED_BULK_RESTORE') {
+        const ids = message?.payload?.ids || [];
+        idbViewedBulkRestore(ids).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed bulk restore failed' }));
+        return true;
+      }
+      if (message.type === 'DB:VIEWED_PURGE') {
+        const id = message?.payload?.id;
+        idbViewedPurge(id).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed purge failed' }));
+        return true;
+      }
+      if (message.type === 'DB:VIEWED_BULK_PURGE') {
+        const ids = message?.payload?.ids || [];
+        idbViewedBulkPurge(ids).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed bulk purge failed' }));
+        return true;
+      }
+      if (message.type === 'DB:VIEWED_QUERY_RECYCLE_BIN') {
+        const params = message?.payload || {};
+        idbViewedQueryRecycleBin(params).then((data) => sendResponse({ success: true, ...data }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed query recycle bin failed' }));
+        return true;
+      }
       if (handleLogMessage(message, sendResponse)) {
         return true;
       }
@@ -111,6 +142,37 @@ export function registerDbMessageRouter(): void {
         const id = message?.payload?.id;
         idbActorsDelete(id).then(() => sendResponse({ success: true }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'actors delete failed' }));
+        return true;
+      }
+      // 演员库回收站
+      if (message.type === 'DB:ACTORS_RESTORE') {
+        const id = message?.payload?.id;
+        idbActorsRestore(id).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'actors restore failed' }));
+        return true;
+      }
+      if (message.type === 'DB:ACTORS_BULK_RESTORE') {
+        const ids = message?.payload?.ids || [];
+        idbActorsBulkRestore(ids).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'actors bulk restore failed' }));
+        return true;
+      }
+      if (message.type === 'DB:ACTORS_PURGE') {
+        const id = message?.payload?.id;
+        idbActorsPurge(id).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'actors purge failed' }));
+        return true;
+      }
+      if (message.type === 'DB:ACTORS_BULK_PURGE') {
+        const ids = message?.payload?.ids || [];
+        idbActorsBulkPurge(ids).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'actors bulk purge failed' }));
+        return true;
+      }
+      if (message.type === 'DB:ACTORS_QUERY_RECYCLE_BIN') {
+        const params = message?.payload || {};
+        idbActorsQueryRecycleBin(params).then((data) => sendResponse({ success: true, ...data }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'actors query recycle bin failed' }));
         return true;
       }
       if (message.type === 'DB:ACTORS_QUERY') {

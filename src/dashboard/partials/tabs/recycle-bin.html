@@ -1,0 +1,77 @@
+<div class="card recycle-bin-page">
+  <!-- Hero 区域 -->
+  <div class="recycle-bin-hero">
+    <div>
+      <span class="recycle-bin-eyebrow">Recycle Bin</span>
+      <h3>回收站</h3>
+      <p>已删除的记录将在 30 天后自动清理，可随时恢复。</p>
+    </div>
+    <div class="recycle-bin-hero-mark">
+      <i class="fas fa-trash-alt"></i>
+    </div>
+  </div>
+
+  <!-- 番号库回收站 -->
+  <div class="recycle-bin-section">
+    <div class="recycle-bin-section-header">
+      <h4 class="recycle-bin-section-title">
+        <i class="fas fa-film"></i>
+        番号库
+        <span id="recordsRecycleCount" class="recycle-bin-count">0</span>
+      </h4>
+      <div class="recycle-bin-actions">
+        <button id="recordsRecycleSelectAll" class="btn-secondary" disabled>
+          <i class="fas fa-check-double"></i> 全选
+        </button>
+        <button id="recordsRecycleRestoreSelected" class="btn-primary" disabled>
+          <i class="fas fa-undo"></i> 恢复选中
+        </button>
+        <button id="recordsRecyclePurgeSelected" class="btn-danger" disabled>
+          <i class="fas fa-times"></i> 永久删除
+        </button>
+        <button id="recordsRecycleEmpty" class="btn-danger">
+          <i class="fas fa-trash"></i> 清空全部
+        </button>
+      </div>
+    </div>
+    <div id="recordsRecycleList" class="recycle-bin-list">
+      <div class="recycle-bin-empty">
+        <i class="fas fa-inbox"></i>
+        暂无已删除的番号记录
+      </div>
+    </div>
+    <div id="recordsRecyclePagination" class="recycle-bin-pagination"></div>
+  </div>
+
+  <!-- 演员库回收站 -->
+  <div class="recycle-bin-section">
+    <div class="recycle-bin-section-header">
+      <h4 class="recycle-bin-section-title">
+        <i class="fas fa-users"></i>
+        演员库
+        <span id="actorsRecycleCount" class="recycle-bin-count">0</span>
+      </h4>
+      <div class="recycle-bin-actions">
+        <button id="actorsRecycleSelectAll" class="btn-secondary" disabled>
+          <i class="fas fa-check-double"></i> 全选
+        </button>
+        <button id="actorsRecycleRestoreSelected" class="btn-primary" disabled>
+          <i class="fas fa-undo"></i> 恢复选中
+        </button>
+        <button id="actorsRecyclePurgeSelected" class="btn-danger" disabled>
+          <i class="fas fa-times"></i> 永久删除
+        </button>
+        <button id="actorsRecycleEmpty" class="btn-danger">
+          <i class="fas fa-trash"></i> 清空全部
+        </button>
+      </div>
+    </div>
+    <div id="actorsRecycleList" class="recycle-bin-list">
+      <div class="recycle-bin-empty">
+        <i class="fas fa-inbox"></i>
+        暂无已删除的演员记录
+      </div>
+    </div>
+    <div id="actorsRecyclePagination" class="recycle-bin-pagination"></div>
+  </div>
+</div>

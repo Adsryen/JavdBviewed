@@ -58,10 +58,17 @@ function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Pr
   });
 }
 
-export function dbViewedPut(record: VideoRecord): Promise<void> {
+export interface ViewedPutResult {
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+}
+
+export function dbViewedPut(record: VideoRecord): Promise<ViewedPutResult> {
   log('[DBClient] viewedPut:request', { id: record?.id, status: record?.status, title: record?.title });
-  return sendMessage('DB:VIEWED_PUT', { record }).then(() => {
-    log('[DBClient] viewedPut:done', { id: record?.id });
+  return sendMessage<ViewedPutResult>('DB:VIEWED_PUT', { record }).then((result) => {
+    log('[DBClient] viewedPut:done', { id: record?.id, skipped: result?.skipped });
+    return result;
   });
 }
 

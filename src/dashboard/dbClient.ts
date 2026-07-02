@@ -189,6 +189,29 @@ export async function dbViewedBulkDelete(ids: string[]): Promise<void> {
   await sendMessage('DB:VIEWED_BULK_DELETE', { ids });
 }
 
+// 番号库回收站
+export async function dbViewedRestore(id: string): Promise<void> {
+  await sendMessage('DB:VIEWED_RESTORE', { id });
+}
+
+export async function dbViewedBulkRestore(ids: string[]): Promise<void> {
+  await sendMessage('DB:VIEWED_BULK_RESTORE', { ids });
+}
+
+export async function dbViewedPurge(id: string): Promise<void> {
+  await sendMessage('DB:VIEWED_PURGE', { id });
+}
+
+export async function dbViewedBulkPurge(ids: string[]): Promise<void> {
+  await sendMessage('DB:VIEWED_BULK_PURGE', { ids });
+}
+
+export async function dbViewedQueryRecycleBin(params?: { offset?: number; limit?: number }): Promise<{ items: VideoRecord[]; total: number }> {
+  const resp = await sendMessage<{ success: true; items: VideoRecord[]; total: number }>('DB:VIEWED_QUERY_RECYCLE_BIN', params);
+  // @ts-ignore
+  return { items: resp.items || [], total: resp.total || 0 };
+}
+
 export async function dbViewedQuery(params: ViewedQueryParams): Promise<{ items: VideoRecord[]; total: number }>{
   const resp = await sendMessage<{ success: true; items: VideoRecord[]; total: number }>('DB:VIEWED_QUERY', params);
   // @ts-ignore
@@ -351,6 +374,29 @@ export async function dbActorsGet(id: string): Promise<ActorRecord | undefined> 
 
 export async function dbActorsDelete(id: string): Promise<void> {
   await sendMessage('DB:ACTORS_DELETE', { id });
+}
+
+// 演员库回收站
+export async function dbActorsRestore(id: string): Promise<void> {
+  await sendMessage('DB:ACTORS_RESTORE', { id });
+}
+
+export async function dbActorsBulkRestore(ids: string[]): Promise<void> {
+  await sendMessage('DB:ACTORS_BULK_RESTORE', { ids });
+}
+
+export async function dbActorsPurge(id: string): Promise<void> {
+  await sendMessage('DB:ACTORS_PURGE', { id });
+}
+
+export async function dbActorsBulkPurge(ids: string[]): Promise<void> {
+  await sendMessage('DB:ACTORS_BULK_PURGE', { ids });
+}
+
+export async function dbActorsQueryRecycleBin(params?: { offset?: number; limit?: number }): Promise<{ items: ActorRecord[]; total: number }> {
+  const resp = await sendMessage<{ success: true; items: ActorRecord[]; total: number }>('DB:ACTORS_QUERY_RECYCLE_BIN', params);
+  // @ts-ignore
+  return { items: resp.items || [], total: resp.total || 0 };
 }
 
 export async function dbActorsQuery(params: ActorsQueryParams): Promise<{ items: ActorRecord[]; total: number }>{

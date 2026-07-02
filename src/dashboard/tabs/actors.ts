@@ -682,7 +682,7 @@ export class ActorsTab {
         
         const confirmed = await showConfirm({
             title: '批量删除确认',
-            message: `确定要删除选中的 ${selectedIds.length} 个演员吗？\n\n此操作不可撤销！`,
+            message: `确定要删除选中的 ${selectedIds.length} 个演员吗？\n\n删除后可在回收站中恢复（保留30天）。`,
             confirmText: '确认删除',
             cancelText: '取消',
             type: 'danger'

@@ -19,6 +19,7 @@ export interface ActorRecord {
   profileUrl: string;
   createdAt: number;                                  // Unix 时间戳（毫秒）
   updatedAt: number;
+  deletedAt?: number;                                 // 软删除时间戳，null/undefined = 正常
   syncInfo?: {                                        // 演员同步功能维护
     source: string;
     lastSyncAt: number;
@@ -152,6 +153,7 @@ export interface VideoRecord {
   tags?: string[];
   createdAt: number;
   updatedAt: number;
+  deletedAt?: number;                                 // 软删除时间戳，null/undefined = 正常
   releaseDate?: string;
   javdbUrl?: string;
   javdbImage?: string;

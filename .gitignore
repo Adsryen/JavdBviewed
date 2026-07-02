@@ -93,7 +93,7 @@ build.bat
 .codex/
 .claude/
 .agents/
-agent.md
+agents.md
 .trellis/
 
 # plans

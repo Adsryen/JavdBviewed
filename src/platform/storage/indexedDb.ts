@@ -347,6 +347,7 @@ export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: V
           for (const videoId of ids) {
         const r = await viewedStore.get(videoId) as VideoRecord | undefined;
         if (!r) continue;
+        if (r.deletedAt) continue; // 跳过已删除记录
         if (status && status !== 'all' && r.status !== status) continue;
         if (favoriteOnly && r.isFavorite !== true) continue;
         if (lower) {
@@ -428,6 +429,7 @@ export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: V
   for (let cursor = await source.openCursor(range as any, dir); cursor; cursor = await cursor.continue()) {
     const r = cursor.value as VideoRecord;
     if (!r) continue;
+    if (r.deletedAt) continue; // 跳过已删除记录
     if (status && status !== 'all' && r.status !== status) continue;
     if (favoriteOnly && r.isFavorite !== true) continue;
 
@@ -676,15 +678,28 @@ export async function viewedBulkPatchListIds(
 
 // ----- viewedRecords API -----
 
-export async function viewedPut(record: VideoRecord): Promise<void> {
+/** viewedPut 结果 */
+export interface ViewedPutResult {
+  success: boolean;
+  skipped?: boolean;  // 记录在回收站中，跳过更新
+  reason?: string;
+}
+
+export async function viewedPut(record: VideoRecord): Promise<ViewedPutResult> {
   const db = await initDB();
   const tx = db.transaction(['viewedRecords', 'viewedByTag', 'viewedByList'], 'readwrite');
   const viewedStore = tx.objectStore('viewedRecords');
   const normalized = normalizeViewedRecord(record);
-  const oldRecord = await viewedStore.get(normalized.id);
+  const oldRecord = await viewedStore.get(normalized.id) as VideoRecord | undefined;
+  // 如果记录在回收站中，跳过更新（保留软删除状态）
+  if (oldRecord?.deletedAt) {
+    await tx.done;
+    return { success: true, skipped: true, reason: 'record_in_trash' };
+  }
   await viewedStore.put(normalized as any);
   await syncViewedSecondaryIndexes(tx.objectStore('viewedByTag'), tx.objectStore('viewedByList'), oldRecord, normalized);
   await tx.done;
+  return { success: true };
 }
 
 export async function viewedBulkPut(records: VideoRecord[]): Promise<void> {
@@ -695,7 +710,9 @@ export async function viewedBulkPut(records: VideoRecord[]): Promise<void> {
   try {
     for (const r of records) {
       const normalized = normalizeViewedRecord(r);
-      const oldRecord = await viewedStore.get(normalized.id);
+      const oldRecord = await viewedStore.get(normalized.id) as VideoRecord | undefined;
+      // 如果记录在回收站中，跳过更新（保留软删除状态）
+      if (oldRecord?.deletedAt) continue;
       await viewedStore.put(normalized as any);
       await syncViewedSecondaryIndexes(tx.objectStore('viewedByTag'), tx.objectStore('viewedByList'), oldRecord, normalized);
     }
@@ -738,28 +755,93 @@ export async function viewedGet(videoId: string): Promise<VideoRecord | undefine
 
 export async function viewedDelete(videoId: string): Promise<void> {
   const db = await initDB();
-  const tx = db.transaction(['viewedRecords', 'viewedByTag', 'viewedByList'], 'readwrite');
-  const viewedStore = tx.objectStore('viewedRecords');
-  await clearViewedSecondaryIndexesByVideoId(tx.objectStore('viewedByTag'), tx.objectStore('viewedByList'), videoId);
-  await viewedStore.delete(videoId);
-  await tx.done;
+  const record = await db.get('viewedRecords', videoId) as VideoRecord | undefined;
+  if (record) {
+    await db.put('viewedRecords', { ...record, deletedAt: Date.now() } as VideoRecord);
+  }
 }
 
 export async function viewedBulkDelete(videoIds: string[]): Promise<void> {
   if (!videoIds || videoIds.length === 0) return;
   const db = await initDB();
+  const now = Date.now();
+  for (const id of videoIds) {
+    const record = await db.get('viewedRecords', id) as VideoRecord | undefined;
+    if (record) {
+      await db.put('viewedRecords', { ...record, deletedAt: now } as VideoRecord);
+    }
+  }
+}
+
+/** 恢复单条番号（清除 deletedAt） */
+export async function viewedRestore(videoId: string): Promise<void> {
+  const db = await initDB();
+  const record = await db.get('viewedRecords', videoId) as VideoRecord | undefined;
+  if (record && record.deletedAt) {
+    const { deletedAt, ...rest } = record;
+    await db.put('viewedRecords', rest as VideoRecord);
+  }
+}
+
+/** 批量恢复番号 */
+export async function viewedBulkRestore(videoIds: string[]): Promise<void> {
+  if (!videoIds || videoIds.length === 0) return;
+  const db = await initDB();
+  for (const id of videoIds) {
+    const record = await db.get('viewedRecords', id) as VideoRecord | undefined;
+    if (record && record.deletedAt) {
+      const { deletedAt, ...rest } = record;
+      await db.put('viewedRecords', rest as VideoRecord);
+    }
+  }
+}
+
+/** 永久删除单条番号（物理删除 + 清理二级索引） */
+export async function viewedPurge(videoId: string): Promise<void> {
+  const db = await initDB();
   const tx = db.transaction(['viewedRecords', 'viewedByTag', 'viewedByList'], 'readwrite');
-  const viewedStore = tx.objectStore('viewedRecords');
+  await clearViewedSecondaryIndexesByVideoId(tx.objectStore('viewedByTag'), tx.objectStore('viewedByList'), videoId);
+  await tx.objectStore('viewedRecords').delete(videoId);
+  await tx.done;
+}
+
+/** 批量永久删除番号 */
+export async function viewedBulkPurge(videoIds: string[]): Promise<void> {
+  if (!videoIds || videoIds.length === 0) return;
+  const db = await initDB();
+  const tx = db.transaction(['viewedRecords', 'viewedByTag', 'viewedByList'], 'readwrite');
   try {
     for (const id of videoIds) {
       await clearViewedSecondaryIndexesByVideoId(tx.objectStore('viewedByTag'), tx.objectStore('viewedByList'), id);
-      await viewedStore.delete(id);
+      await tx.objectStore('viewedRecords').delete(id);
     }
     await tx.done;
   } catch (e) {
     try { await tx.done; } catch {}
     throw e;
   }
+}
+
+/** 查询番号回收站（deletedAt != null，按 deletedAt 降序） */
+export async function viewedQueryRecycleBin(params?: { offset?: number; limit?: number }): Promise<{ items: VideoRecord[]; total: number }> {
+  const { offset = 0, limit = 50 } = params || {};
+  const db = await initDB();
+  const all = await db.getAll('viewedRecords');
+  const trashed = all.filter(r => !!r.deletedAt);
+  trashed.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+  return { items: trashed.slice(offset, offset + limit), total: trashed.length };
+}
+
+/** 清理过期番号（deletedAt 超过 expiryMs 的记录） */
+export async function viewedPurgeExpired(expiryMs: number): Promise<number> {
+  const db = await initDB();
+  const all = await db.getAll('viewedRecords');
+  const now = Date.now();
+  const expired = all.filter(r => r.deletedAt && (now - r.deletedAt > expiryMs));
+  if (expired.length === 0) return 0;
+  const ids = expired.map(r => r.id);
+  await viewedBulkPurge(ids);
+  return ids.length;
 }
 
 export async function viewedCount(): Promise<number> {
@@ -811,11 +893,13 @@ export async function viewedPage(params: ViewedPageParams): Promise<{ items: Vid
     let skipped = 0;
     let collected = 0;
     for (let cursor = await source.openCursor(range as any, dir); cursor; cursor = await cursor.continue()) {
+      const record = cursor.value as VideoRecord;
+      if (record.deletedAt) continue; // 跳过已删除记录
       if (skipped < offset) {
         skipped++;
         continue;
       }
-      items.push(cursor.value as VideoRecord);
+      items.push(record);
       collected++;
       if (collected >= limit) break;
     }
@@ -827,6 +911,7 @@ export async function viewedPage(params: ViewedPageParams): Promise<{ items: Vid
     const allItems: VideoRecord[] = [];
     for (let cursor = await store.openCursor(); cursor; cursor = await cursor.continue()) {
       const record = cursor.value as VideoRecord;
+      if (record.deletedAt) continue; // 跳过已删除记录
       const matchesStatus = !status || record.status === status;
       const matchesFavorite = !favoriteOnly || record.isFavorite === true;
       if (matchesStatus && matchesFavorite) {
@@ -1474,6 +1559,9 @@ export interface ActorsQueryParams {
 
 export async function actorsPut(record: ActorRecord): Promise<void> {
   const db = await initDB();
+  // 如果记录在回收站中，跳过更新（保留软删除状态）
+  const existing = await db.get('actors', record.id) as ActorRecord | undefined;
+  if (existing?.deletedAt) return;
   await db.put('actors', record);
 }
 
@@ -1483,6 +1571,9 @@ export async function actorsBulkPut(records: ActorRecord[]): Promise<void> {
   const tx = db.transaction('actors', 'readwrite');
   try {
     for (const r of records) {
+      const existing = await tx.store.get(r.id) as ActorRecord | undefined;
+      // 如果记录在回收站中，跳过更新（保留软删除状态）
+      if (existing?.deletedAt) continue;
       await tx.store.put(r);
     }
     await tx.done;
@@ -1499,7 +1590,76 @@ export async function actorsGet(id: string): Promise<ActorRecord | undefined> {
 
 export async function actorsDelete(id: string): Promise<void> {
   const db = await initDB();
+  const record = await db.get('actors', id) as ActorRecord | undefined;
+  if (record) {
+    await db.put('actors', { ...record, deletedAt: Date.now() } as ActorRecord);
+  }
+}
+
+/** 恢复单条演员 */
+export async function actorsRestore(id: string): Promise<void> {
+  const db = await initDB();
+  const record = await db.get('actors', id) as ActorRecord | undefined;
+  if (record && record.deletedAt) {
+    const { deletedAt, ...rest } = record;
+    await db.put('actors', rest as ActorRecord);
+  }
+}
+
+/** 批量恢复演员 */
+export async function actorsBulkRestore(ids: string[]): Promise<void> {
+  if (!ids || ids.length === 0) return;
+  const db = await initDB();
+  for (const id of ids) {
+    const record = await db.get('actors', id) as ActorRecord | undefined;
+    if (record && record.deletedAt) {
+      const { deletedAt, ...rest } = record;
+      await db.put('actors', rest as ActorRecord);
+    }
+  }
+}
+
+/** 永久删除单条演员 */
+export async function actorsPurge(id: string): Promise<void> {
+  const db = await initDB();
   await db.delete('actors', id);
+}
+
+/** 批量永久删除演员 */
+export async function actorsBulkPurge(ids: string[]): Promise<void> {
+  if (!ids || ids.length === 0) return;
+  const db = await initDB();
+  const tx = db.transaction('actors', 'readwrite');
+  try {
+    for (const id of ids) {
+      await tx.store.delete(id);
+    }
+    await tx.done;
+  } catch (e) {
+    try { await tx.done; } catch {}
+    throw e;
+  }
+}
+
+/** 查询演员回收站（deletedAt != null，按 deletedAt 降序） */
+export async function actorsQueryRecycleBin(params?: { offset?: number; limit?: number }): Promise<{ items: ActorRecord[]; total: number }> {
+  const { offset = 0, limit = 50 } = params || {};
+  const db = await initDB();
+  const all = await db.getAll('actors');
+  const trashed = all.filter(a => !!a.deletedAt);
+  trashed.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+  return { items: trashed.slice(offset, offset + limit), total: trashed.length };
+}
+
+/** 清理过期演员（deletedAt 超过 expiryMs 的记录） */
+export async function actorsPurgeExpired(expiryMs: number): Promise<number> {
+  const db = await initDB();
+  const all = await db.getAll('actors');
+  const now = Date.now();
+  const expired = all.filter(a => a.deletedAt && (now - a.deletedAt > expiryMs));
+  if (expired.length === 0) return 0;
+  await actorsBulkPurge(expired.map(a => a.id));
+  return expired.length;
 }
 
 export async function actorsQuery(params: ActorsQueryParams): Promise<{ items: ActorRecord[]; total: number; }> {
@@ -1508,6 +1668,7 @@ export async function actorsQuery(params: ActorsQueryParams): Promise<{ items: A
   const all = await db.getAll('actors');
   const q = (query || '').trim().toLowerCase();
   let filtered = all.filter((a) => {
+    if (a.deletedAt) return false; // 排除已删除记录
     if (q) {
       const inName = (a.name || '').toLowerCase().includes(q);
       const inAliases = Array.isArray(a.aliases) && a.aliases.some(s => (s || '').toLowerCase().includes(q));

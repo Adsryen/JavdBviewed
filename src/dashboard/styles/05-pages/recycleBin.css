@@ -1,0 +1,630 @@
+/* ===================================================================
+   回收站样式 - Recycle Bin Page Styles
+   ================================================================ */
+
+.recycle-bin-page {
+    --rb-primary: #2563eb;
+    --rb-info: #0891b2;
+    --rb-success: #059669;
+    --rb-warning: #d97706;
+    --rb-danger: #dc2626;
+    --rb-card: color-mix(in srgb, var(--surface-primary) 92%, #ffffff 8%);
+    --rb-card-soft: color-mix(in srgb, var(--surface-secondary) 88%, #ffffff 12%);
+    --rb-border: color-mix(in srgb, var(--border-primary) 78%, transparent);
+    --rb-muted: var(--text-secondary);
+    --rb-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    --rb-shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.06);
+    position: relative;
+    overflow: visible;
+    padding: 14px;
+    border: 1px solid var(--rb-border);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(220, 38, 38, 0.08), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(217, 119, 6, 0.10), transparent 30%),
+        var(--surface-primary);
+}
+
+[data-theme="dark"] .recycle-bin-page {
+    --rb-card: color-mix(in srgb, var(--surface-primary) 92%, #0f172a 8%);
+    --rb-card-soft: color-mix(in srgb, var(--surface-secondary) 88%, #0f172a 12%);
+    --rb-border: color-mix(in srgb, var(--border-primary) 84%, rgba(148, 163, 184, 0.18));
+    --rb-shadow: 0 20px 56px rgba(0, 0, 0, 0.30);
+    --rb-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.22);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(239, 68, 68, 0.12), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(251, 146, 60, 0.10), transparent 30%),
+        var(--surface-primary);
+}
+
+/* Hero 区域 */
+.recycle-bin-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.recycle-bin-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--rb-warning) 13%, transparent);
+    color: var(--rb-warning);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.recycle-bin-hero h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.recycle-bin-hero p {
+    margin: 3px 0 0;
+    color: var(--rb-muted);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.recycle-bin-hero-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--rb-warning) 12%, transparent);
+    color: var(--rb-warning);
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+/* 区块容器 */
+.recycle-bin-section {
+    margin-bottom: 24px;
+    background: var(--rb-card);
+    border-radius: 12px;
+    border: 1px solid var(--rb-border);
+    overflow: hidden;
+    box-shadow: var(--rb-shadow-soft);
+}
+
+.recycle-bin-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rb-border);
+    background: var(--rb-card-soft);
+}
+
+.recycle-bin-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.recycle-bin-section-title i {
+    color: var(--rb-muted);
+    font-size: 14px;
+}
+
+.recycle-bin-count {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--rb-primary) 12%, transparent);
+    color: var(--rb-primary);
+    font-weight: 600;
+}
+
+/* 操作按钮组 */
+.recycle-bin-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.recycle-bin-actions button {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--rb-border);
+    background: var(--rb-card);
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.recycle-bin-actions button:hover:not(:disabled) {
+    background: var(--rb-card-soft);
+    border-color: var(--rb-primary);
+    transform: translateY(-1px);
+}
+
+.recycle-bin-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.recycle-bin-actions .btn-primary {
+    background: var(--rb-primary);
+    color: #fff;
+    border-color: var(--rb-primary);
+}
+
+.recycle-bin-actions .btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--rb-primary) 85%, black);
+}
+
+.recycle-bin-actions .btn-danger {
+    background: transparent;
+    color: var(--rb-danger);
+    border-color: var(--rb-danger);
+}
+
+.recycle-bin-actions .btn-danger:hover:not(:disabled) {
+    background: var(--rb-danger);
+    color: #fff;
+}
+
+/* 列表容器 */
+.recycle-bin-list {
+    min-height: 80px;
+}
+
+.recycle-bin-empty {
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--rb-muted);
+    font-size: 14px;
+}
+
+.recycle-bin-empty i {
+    display: block;
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.3;
+}
+
+/* ===================================================================
+   番号列表项 - Video Record Items
+   ================================================================ */
+
+.recycle-video-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rb-border);
+    transition: background-color 0.2s ease;
+}
+
+.recycle-video-item:hover {
+    background: var(--rb-card-soft);
+}
+
+.recycle-video-item:last-child {
+    border-bottom: none;
+}
+
+.recycle-video-checkbox {
+    flex-shrink: 0;
+    padding-top: 4px;
+}
+
+.recycle-video-checkbox input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--rb-primary);
+}
+
+/* 封面 */
+.recycle-video-cover {
+    flex-shrink: 0;
+    width: 80px;
+    height: 56px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--rb-card-soft);
+    position: relative;
+}
+
+.recycle-video-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.recycle-video-cover:hover img {
+    transform: scale(1.05);
+}
+
+.recycle-video-cover-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rb-muted);
+    font-size: 20px;
+}
+
+/* 内容区 */
+.recycle-video-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recycle-video-id-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.recycle-video-id {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--rb-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.recycle-video-id:hover {
+    color: color-mix(in srgb, var(--rb-primary) 80%, black);
+    text-decoration: underline;
+}
+
+.recycle-video-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.recycle-video-status.status-viewed {
+    background: color-mix(in srgb, var(--rb-success) 15%, transparent);
+    color: var(--rb-success);
+}
+
+.recycle-video-status.status-want {
+    background: color-mix(in srgb, var(--rb-primary) 15%, transparent);
+    color: var(--rb-primary);
+}
+
+.recycle-video-status.status-browsed {
+    background: color-mix(in srgb, var(--rb-warning) 15%, transparent);
+    color: var(--rb-warning);
+}
+
+.recycle-video-title {
+    font-size: 13px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recycle-video-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.recycle-video-tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--rb-card-soft);
+    color: var(--rb-muted);
+}
+
+/* 元信息 */
+.recycle-video-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+    min-width: 120px;
+}
+
+.recycle-video-deleted {
+    font-size: 11px;
+    color: var(--rb-muted);
+}
+
+.recycle-video-remaining {
+    font-size: 11px;
+    color: var(--rb-warning);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.recycle-video-remaining i {
+    font-size: 10px;
+}
+
+/* 操作按钮 */
+.recycle-video-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.recycle-video-actions .btn-restore {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--rb-primary);
+    background: transparent;
+    color: var(--rb-primary);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.recycle-video-actions .btn-restore:hover {
+    background: var(--rb-primary);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.recycle-video-actions .btn-purge {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--rb-border);
+    background: transparent;
+    color: var(--rb-muted);
+    transition: all 0.2s ease;
+}
+
+.recycle-video-actions .btn-purge:hover {
+    border-color: var(--rb-danger);
+    color: var(--rb-danger);
+    background: color-mix(in srgb, var(--rb-danger) 8%, transparent);
+}
+
+/* ===================================================================
+   演员列表项 - Actor Items
+   ================================================================ */
+
+.recycle-actor-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rb-border);
+    transition: background-color 0.2s ease;
+}
+
+.recycle-actor-item:hover {
+    background: var(--rb-card-soft);
+}
+
+.recycle-actor-item:last-child {
+    border-bottom: none;
+}
+
+.recycle-actor-checkbox {
+    flex-shrink: 0;
+}
+
+.recycle-actor-checkbox input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--rb-primary);
+}
+
+/* 演员头像 */
+.recycle-actor-avatar {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--rb-card-soft);
+    border: 2px solid var(--rb-border);
+    transition: border-color 0.2s;
+}
+
+.recycle-actor-item:hover .recycle-actor-avatar {
+    border-color: var(--rb-primary);
+}
+
+.recycle-actor-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.recycle-actor-avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rb-muted);
+    font-size: 18px;
+}
+
+/* 演员信息 */
+.recycle-actor-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recycle-actor-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.recycle-actor-name a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.recycle-actor-name a:hover {
+    color: var(--rb-primary);
+    text-decoration: underline;
+}
+
+.recycle-actor-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--rb-muted);
+}
+
+.recycle-actor-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 演员元信息 */
+.recycle-actor-deleted-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+    min-width: 120px;
+}
+
+.recycle-actor-deleted {
+    font-size: 11px;
+    color: var(--rb-muted);
+}
+
+.recycle-actor-remaining {
+    font-size: 11px;
+    color: var(--rb-warning);
+    font-weight: 600;
+}
+
+/* 演员操作按钮 */
+.recycle-actor-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.recycle-actor-actions .btn-restore,
+.recycle-actor-actions .btn-purge {
+    composes: btn-restore btn-purge from './recycleBin.css';
+}
+
+/* ===================================================================
+   分页 - Pagination
+   ================================================================ */
+
+.recycle-bin-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--rb-border);
+    font-size: 13px;
+    color: var(--rb-muted);
+    background: var(--rb-card-soft);
+}
+
+.recycle-bin-pagination button {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--rb-border);
+    background: var(--rb-card);
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.recycle-bin-pagination button:hover:not(:disabled) {
+    background: var(--rb-card-soft);
+    border-color: var(--rb-primary);
+}
+
+.recycle-bin-pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===================================================================
+   响应式 - Responsive
+   ================================================================ */
+
+@media (max-width: 768px) {
+    .recycle-bin-section-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .recycle-bin-actions {
+        width: 100%;
+    }
+
+    .recycle-video-item {
+        flex-wrap: wrap;
+    }
+
+    .recycle-video-cover {
+        width: 60px;
+        height: 42px;
+    }
+
+    .recycle-video-meta {
+        width: 100%;
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .recycle-video-actions,
+    .recycle-actor-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

@@ -54,6 +54,13 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
       './styles/05-pages/drive115Tasks.css',
     ],
   },
+  // 回收站
+  'tab-recycle-bin': {
+    name: 'tabs/recycle-bin.html',
+    styles: [
+      './styles/05-pages/recycleBin.css',
+    ],
+  },
   'tab-insights': {
     name: 'tabs/insights.html',
     styles: [
