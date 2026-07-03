@@ -34,6 +34,7 @@ export function renderActorListRuntime(
 
   const actorCards = result.actors
     .map(actor => buildActorCardHtml(actor, {
+      viewMode: options.currentViewMode,
       isSubscribed: options.subscribedActorIds.has(actor.id),
       showBlacklistBadge: options.showBlacklistBadge,
     }))
@@ -68,19 +69,16 @@ export function renderActorListRuntime(
     }
 
     if (avatarContainer) {
+      // 根据视图模式设置头像大小
+      const avatarSize = options.currentViewMode === 'card' ? 'large' : 'small';
       const avatarElement = SimpleActorAvatar.create(
         actor.id,
         actor.avatarUrl,
         actor.gender,
-        'large',
+        avatarSize,
         actorId => options.openActorWorks(actorId),
       );
       avatarContainer.appendChild(avatarElement);
-
-      if (actor.avatarUrl && actorCard) {
-        actorCard.setAttribute('data-has-avatar', 'true');
-        actorCard.style.setProperty('--avatar-bg', `url("${actor.avatarUrl}")`);
-      }
     }
 
     options.setupActorCard(actor);

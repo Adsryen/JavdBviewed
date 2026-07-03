@@ -382,9 +382,9 @@
     border: 1px solid #f5c2c2;
 }
 
-/* 已订阅图标样式 */
+/* 已订阅图标样式 - 金色铃铛 */
 .actor-subscribed-icon {
-    color: #28a745;
+    color: #ffc107; /* 金色，更像真实的铃铛 */
     font-size: 14px;
     margin-left: 8px;
     animation: bellRing 2s ease-in-out infinite;
@@ -406,7 +406,7 @@
 }
 
 .actor-subscribed-icon:hover {
-    color: #218838;
+    color: #e0a800; /* 深金色 hover 效果 */
     animation: none;
 }
 
@@ -570,41 +570,87 @@
     flex-direction: column;
 }
 
-/* 演员卡片背景 */
-.actor-card::before {
+/* 头像容器 - 毛玻璃背景 */
+.actor-card-avatar-container {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* 毛玻璃背景层 */
+.actor-card-avatar-container::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 200px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    bottom: 0;
+    background: linear-gradient(135deg,
+        rgba(255, 182, 193, 0.6) 0%,
+        rgba(255, 105, 180, 0.4) 50%,
+        rgba(255, 192, 203, 0.6) 100%); /* 默认粉色（女性） */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     z-index: 1;
-    transition: all 0.3s ease;
 }
 
-.actor-card[data-has-avatar="true"]::before {
-    background-size: cover;
-    background-position: center top;
-    background-repeat: no-repeat;
+/* 男性 - 蓝色毛玻璃 */
+.actor-card[data-gender="male"] .actor-card-avatar-container::before {
+    background: linear-gradient(135deg,
+        rgba(135, 206, 250, 0.6) 0%,
+        rgba(100, 149, 237, 0.4) 50%,
+        rgba(173, 216, 230, 0.6) 100%);
 }
 
-/* 渐变遮罩 */
-.actor-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 200px;
-    background: linear-gradient(180deg,
-        rgba(0, 0, 0, 0.05) 0%,
-        rgba(0, 0, 0, 0.1) 30%,
-        rgba(0, 0, 0, 0.2) 60%,
-        rgba(255, 255, 255, 0.8) 85%,
-        rgba(255, 255, 255, 0.95) 100%);
+/* 女性 - 粉色毛玻璃（默认） */
+.actor-card[data-gender="female"] .actor-card-avatar-container::before {
+    background: linear-gradient(135deg,
+        rgba(255, 182, 193, 0.6) 0%,
+        rgba(255, 105, 180, 0.4) 50%,
+        rgba(255, 192, 203, 0.6) 100%);
+}
+
+/* 未知性别 - 紫色毛玻璃 */
+.actor-card[data-gender="unknown"] .actor-card-avatar-container::before {
+    background: linear-gradient(135deg,
+        rgba(216, 191, 216, 0.6) 0%,
+        rgba(186, 85, 211, 0.4) 50%,
+        rgba(221, 160, 221, 0.6) 100%);
+}
+
+/* 拉黑 - 灰色毛玻璃（优先级最高） */
+.actor-card[data-blacklisted="true"] .actor-card-avatar-container::before {
+    background: linear-gradient(135deg,
+        rgba(169, 169, 169, 0.7) 0%,
+        rgba(128, 128, 128, 0.5) 50%,
+        rgba(192, 192, 192, 0.7) 100%) !important;
+}
+
+/* 头像样式 */
+.actor-card-avatar {
+    position: relative;
     z-index: 2;
-    transition: all 0.3s ease;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 4px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.actor-card:hover .actor-card-avatar {
+    transform: scale(1.05);
+}
+
+.actor-card-avatar .actor-avatar {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 .actor-card:hover {
@@ -613,42 +659,65 @@
     border-color: var(--primary);
 }
 
-.actor-card:hover::after {
-    background: linear-gradient(180deg,
-        rgba(0, 0, 0, 0.02) 0%,
-        rgba(0, 0, 0, 0.08) 30%,
-        rgba(0, 0, 0, 0.15) 60%,
-        rgba(255, 255, 255, 0.85) 85%,
-        rgba(255, 255, 255, 0.98) 100%);
-}
-
-.actor-card-avatar {
-    position: relative;
-    z-index: 3;
-    display: flex;
-    justify-content: center;
-    margin-top: 80px;
-    margin-bottom: 16px;
-}
-
-/* 头像样式增强 */
-.actor-avatar {
-    border: 3px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
 .actor-card-info {
     position: relative;
     z-index: 3;
     text-align: center;
-    margin-bottom: 12px;
-    padding: 0 16px;
+    margin-bottom: 0;
+    padding: 16px 16px 12px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start; /* 改为顶部对齐，避免内容过多时挤压 */
-    min-height: 0; /* 允许内容收缩 */
-    overflow: hidden; /* 防止内容溢出 */
+    justify-content: flex-start;
+    min-height: 0;
+    overflow-y: auto; /* 允许垂直滚动 */
+    overflow-x: hidden; /* 隐藏水平溢出 */
+    /* 自定义滚动条样式 - 默认隐藏 */
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+}
+
+/* 鼠标悬停时显示滚动条 */
+.actor-card-info:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Webkit 浏览器滚动条样式 */
+.actor-card-info::-webkit-scrollbar {
+    width: 6px;
+}
+
+.actor-card-info::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.actor-card-info::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 3px;
+    transition: background-color 0.3s ease;
+}
+
+/* 鼠标悬停时显示滚动条滑块 */
+.actor-card-info:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.actor-card-info:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+/* 暗色主题滚动条 */
+[data-theme="dark"] .actor-card-info:hover {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+[data-theme="dark"] .actor-card-info:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .actor-card-info:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.35);
 }
 
 /* 演员主要名字 */
@@ -1147,7 +1216,7 @@
     border-color: var(--success);
 }
 
-/* 订阅按钮 - 绿色 */
+/* 订阅按钮 - 金色铃铛色 */
 .actor-subscribe-toggle-btn {
     background: var(--surface-secondary);
     color: var(--text-secondary);
@@ -1155,19 +1224,19 @@
 }
 
 .actor-subscribe-toggle-btn:hover {
-    background: var(--success);
-    color: white;
-    border-color: var(--success);
+    background: #ffc107; /* 金色 */
+    color: #212529;
+    border-color: #ffc107;
 }
 
 .actor-subscribe-toggle-btn[data-sub="1"] {
-    background: var(--success);
-    color: white;
-    border-color: var(--success);
+    background: #ffc107; /* 金色，已订阅状态 */
+    color: #212529;
+    border-color: #ffc107;
 }
 
 .actor-subscribe-toggle-btn[data-sub="1"]:hover {
-    background: var(--danger);
+    background: var(--danger); /* 取消订阅时变红 */
     color: white;
     border-color: var(--danger);
 }
@@ -1990,7 +2059,7 @@
     color: white;
 }
 
-/* 订阅按钮 - 绿色 */
+/* 订阅按钮 - 金色铃铛色 */
 .actor-list .actor-subscribe-toggle-btn {
     background: var(--surface-secondary);
     color: var(--text-secondary);
@@ -1998,19 +2067,19 @@
 }
 
 .actor-list .actor-subscribe-toggle-btn:hover {
-    background: var(--success);
-    color: white;
+    background: #ffc107; /* 金色 */
+    color: #212529;
     transform: scale(1.1);
 }
 
 .actor-list .actor-subscribe-toggle-btn[data-sub="1"] {
-    background: var(--success);
-    color: white;
-    border-color: var(--success);
+    background: #ffc107; /* 金色，已订阅状态 */
+    color: #212529;
+    border-color: #ffc107;
 }
 
 .actor-list .actor-subscribe-toggle-btn[data-sub="1"]:hover {
-    background: var(--danger);
+    background: var(--danger); /* 取消订阅时变红 */
     color: white;
 }
 
