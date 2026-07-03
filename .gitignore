@@ -73,6 +73,7 @@ vitepress/.vitepress/cache/
 
 # Temp files
 temp/
+tmp/
 *debug*.html
 *test*.html
 *temp*.html
