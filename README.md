@@ -196,6 +196,11 @@ Output Directory: vitepress/.vitepress/dist
 - 💬 提交 [Issue](https://github.com/Adsryen/JavdBviewed/issues) - 报告问题或提出功能建议
 - 🗨️ 发起 [Discussion](https://github.com/Adsryen/JavdBviewed/discussions) - 参与讨论和交流
 
+
+## 致谢
+
+- [Linux Do](https://linux.do) - 佬友开发社区
+
 ---
 
 <div align="center">
