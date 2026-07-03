@@ -1,7 +1,7 @@
 {
   "name": "javdb-extension",
   "type": "module",
-  "version": "1.20.3",
+  "version": "1.21.0",
   "description": "Jav 助手",
   "scripts": {
     "vitepress:dev": "vitepress dev vitepress --host 127.0.0.1 --port 5174",

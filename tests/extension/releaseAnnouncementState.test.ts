@@ -124,10 +124,10 @@ describe('release announcement state', () => {
   });
 
   it('ships user-facing release notes for recent versions', () => {
-    expect(RELEASE_NOTES.map(note => note.version)).toEqual(['1.20.3', '1.20.2', '1.20.1', '1.20.0']);
+    expect(RELEASE_NOTES.map(note => note.version)).toEqual(['1.21.0', '1.20.2', '1.20.1', '1.20.0']);
     expect(RELEASE_NOTES[0]?.highlights).toEqual(expect.arrayContaining([
-      'WebDAV 支持按设备筛选、清理和恢复备份。',
-      'Emby/Jellyfin 新增入库状态和服务器识别。',
+      'WebDAV 备份/恢复支持按类别选择、进度反馈和设备筛选。',
+      'Emby/Jellyfin 新增入库状态显示和服务器自动识别。',
     ]));
     expect(RELEASE_NOTES[1]?.highlights).toEqual(expect.arrayContaining([
       '影片页新增在线可看、外部搜索和字幕搜索入口。',
