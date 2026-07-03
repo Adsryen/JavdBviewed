@@ -20,7 +20,7 @@ export function registerDbMessageRouter(): void {
       // DB message routing
       if (message.type === 'DB:VIEWED_PUT') {
         const record = message?.payload?.record;
-        idbViewedPut(record).then((result) => sendResponse({ success: true, ...result }))
+        idbViewedPut(record).then((result) => sendResponse(result))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'idb put failed' }));
         return true; // async
       }

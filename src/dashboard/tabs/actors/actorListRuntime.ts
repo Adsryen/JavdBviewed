@@ -58,6 +58,11 @@ export function renderActorListRuntime(
     }
 
     if (actorCard) {
+      if (actor.avatarUrl) {
+        actorCard.setAttribute('data-has-avatar', 'true');
+        actorCard.style.setProperty('--avatar-bg', `url("${actor.avatarUrl}")`);
+      }
+
       actorCard.addEventListener('click', event => {
         if ((event.target as HTMLElement).closest('button, a, .actor-social-link')) {
           return;

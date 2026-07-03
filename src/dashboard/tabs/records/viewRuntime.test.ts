@@ -25,6 +25,7 @@ describe('records view runtime', () => {
       handleExportRecords: vi.fn(async () => {}),
       getRecordsForExport: vi.fn(async () => filteredRecords),
     };
+    const selectedRecordIds = new Set<string>(['AAA-001']);
     const createListViewController = vi.fn(() => listViewController);
     const createPaginationRuntime = vi.fn(() => paginationRuntime);
     const createExportRuntime = vi.fn(() => exportRuntime);
@@ -52,7 +53,7 @@ describe('records view runtime', () => {
       },
       updateSearchResultCount: vi.fn(),
       ensureListMetaLoaded: vi.fn(),
-      selectedRecordIds: new Set<string>(),
+      selectedRecordIds,
       selectedTags: new Set<string>(),
       selectedListIds: new Set<string>(),
       listNameById: new Map([['list-1', '清单']]),
@@ -111,5 +112,6 @@ describe('records view runtime', () => {
     expect(exportOptions.getSearchText()).toBe('AAA');
     expect(exportOptions.getStatus()).toBe('all');
     expect(exportOptions.getSort()).toEqual({ field: 'updatedAt', direction: 'desc' });
+    expect(exportOptions.selectedRecordIds).toBe(selectedRecordIds);
   });
 });

@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import manifest from '../../src/manifest.json';
 
 const rootDir = resolve(__dirname, '../..');
 const buildScript = readFileSync(resolve(rootDir, 'build.sh'), 'utf8');
@@ -62,5 +63,13 @@ describe('release notes guard', () => {
     expect(guardIndex).toBeGreaterThanOrEqual(0);
     expect(tagIndex).toBeGreaterThan(guardIndex);
     expect(publishIndex).toBeGreaterThan(guardIndex);
+  });
+});
+
+describe('extension ID stability guard', () => {
+  it('does not inject a manifest key that changes the existing unpacked extension ID', () => {
+    expect(manifest).not.toHaveProperty('key');
+    expect(buildScript).not.toContain('extract-public-key');
+    expect(powershellBuildScript).not.toContain('extract-public-key');
   });
 });

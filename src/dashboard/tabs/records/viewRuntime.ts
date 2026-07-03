@@ -119,6 +119,7 @@ export function createRecordsViewRuntime(options: CreateRecordsViewRuntimeOption
     getSearchText: options.getSearchText,
     getStatus: options.getStatus,
     getSort: options.getSort,
+    selectedRecordIds: options.selectedRecordIds,
     selectedTags: options.selectedTags,
     selectedListIds: options.selectedListIds,
     listNameById: options.listNameById,
