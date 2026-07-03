@@ -18,7 +18,7 @@ import { initDrive115Features } from '../../features/drive115/content';
 import { defaultDataAggregator } from '../../features/dataAggregator';
 import { contentFilterManager } from '../../features/contentFilter';
 import { keyboardShortcutsManager } from '../../features/keyboardShortcuts';
-import { magnetSearchManager } from '../../features/magnets';
+import { magnetSearchManager, normalizeMagnetSortMode } from '../../features/magnets';
 import { anchorOptimizationManager } from '../../features/anchorOptimization/content';
 import { listEnhancementManager } from '../../features/listEnhancement';
 import { actorEnhancementManager, actorQuickActionsManager } from '../../features/actorEnhancement';
@@ -463,6 +463,7 @@ async function initialize(): Promise<void> {
                     showFloatingButton: true,
                     autoSearch: magnetSearchConfig.autoSearch === true,
                     blockMojContent: magnetSearchConfig.blockMojContent !== false,
+                    sortMode: normalizeMagnetSortMode(magnetSearchConfig.sortMode),
                     sources: {
                         sukebei: sources.sukebei !== false,
                         btdig: sources.btdig !== false,

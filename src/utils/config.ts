@@ -507,6 +507,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         },
         autoSearch: false,
         blockMojContent: true,
+        sortMode: 'default',
         maxResults: 15,
         timeoutMs: 6000,
         concurrency: {

@@ -42,8 +42,9 @@ import {
   isValidMagnetResultName,
   normalizeMagnetDate,
   parseSizeToBytes,
-  sortMagnetResults,
 } from '../application/resultMetadata';
+import { normalizeMagnetSortMode, sortMagnetResultsByMode } from '../application/resultSort';
+import { buildNativeMagnetResult, createMagnetQualityTag } from './qualityTag';
 import {
   buildJavbusAjaxUrl,
   extractJavbusAjaxParams,
@@ -93,7 +94,7 @@ export class MagnetSearchManager {
   private sourceBackoffState: MagnetSourceBackoffState = {};
 
   constructor(config: Partial<MagnetSearchConfig> = {}) {
-    this.config = {
+    const mergedConfig: MagnetSearchConfig = {
       enabled: true,
       showInlineResults: true,
       showFloatingButton: true,
@@ -109,7 +110,12 @@ export class MagnetSearchManager {
       },
       maxResults: 20,
       timeout: 15000, // 增加超时时间
+      sortMode: 'default',
       ...config,
+    };
+    this.config = {
+      ...mergedConfig,
+      sortMode: normalizeMagnetSortMode(mergedConfig.sortMode),
     };
   }
 
@@ -389,7 +395,10 @@ export class MagnetSearchManager {
 
     const sourceResults = await Promise.all(searchPromises);
     const discoveredCount = sourceResults.reduce((total, results) => total + results.length, 0);
-      const uniqueResults = sortMagnetResults(deduplicateMagnetResults(allResults));
+    const uniqueResults = sortMagnetResultsByMode(
+      deduplicateMagnetResults(allResults),
+      this.config.sortMode,
+    );
 
     return {
       discoveredCount,
@@ -883,7 +892,7 @@ export class MagnetSearchManager {
 
       // 去重和排序
       const uniqueResults = deduplicateMagnetResults(allResults);
-      const sortedResults = sortMagnetResults(uniqueResults);
+      const sortedResults = sortMagnetResultsByMode(uniqueResults, this.config.sortMode);
       const displayLimit = sortedResults.length > 30 ? sortedResults.length : this.config.maxResults;
       const limitedResults = sortedResults.slice(0, displayLimit);
       const duplicateCount = Math.max(0, discoveredCount - uniqueResults.length);
@@ -1147,12 +1156,11 @@ export class MagnetSearchManager {
       sourceTag.textContent = 'JavDB';
       tags.prepend(sourceTag);
     }
+    if (tags && !tags.querySelector('.jdb-magnet-quality-tag')) {
+      const qualityTag = createMagnetQualityTag(buildNativeMagnetResult(row));
+      tags.appendChild(qualityTag);
+    }
   }
-
-  /**
-   * 显示单个搜索源的结果
-   */
-
 
   /**
    * 创建统一样式的磁力项目元素
@@ -1212,6 +1220,8 @@ export class MagnetSearchManager {
       sourceTag.textContent = source;
       tagsDiv.appendChild(sourceTag);
     });
+
+    tagsDiv.appendChild(createMagnetQualityTag(result));
 
     // 添加质量标签
     if (result.quality) {
@@ -2418,7 +2428,11 @@ export class MagnetSearchManager {
    * 更新配置
    */
   updateConfig(newConfig: Partial<MagnetSearchConfig>): void {
-    this.config = { ...this.config, ...newConfig };
+    const mergedConfig = { ...this.config, ...newConfig };
+    this.config = {
+      ...mergedConfig,
+      sortMode: normalizeMagnetSortMode(mergedConfig.sortMode),
+    };
   }
 
   /**

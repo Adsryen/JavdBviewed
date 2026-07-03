@@ -1234,6 +1234,19 @@
                                                 <p class="input-description">开启后，进入<strong>未看</strong>影片页自动搜索磁力资源；已看影片仍需手动点击加载。关闭后无论是否已看均需手动加载。</p>
                                             </div>
 
+                                            <div class="form-group" style="margin-top: 10px;">
+                                                <label for="magnetSortMode">磁力结果排序:</label>
+                                                <select id="magnetSortMode" class="form-control">
+                                                    <option value="default">默认排序</option>
+                                                    <option value="quality">质量优先</option>
+                                                    <option value="seeders">做种优先</option>
+                                                    <option value="size">文件大小优先</option>
+                                                    <option value="date">日期优先</option>
+                                                    <option value="subtitle">字幕优先</option>
+                                                </select>
+                                                <p class="input-description">默认排序保持旧行为；质量优先会结合字幕、画质、做种、大小和来源命中进行评分。</p>
+                                            </div>
+
                                             <div class="info-box">
                                                 <p><strong>搜索源说明：</strong></p>
                                                 <ul>

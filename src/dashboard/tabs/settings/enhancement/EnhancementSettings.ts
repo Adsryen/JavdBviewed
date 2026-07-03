@@ -34,6 +34,7 @@ import type { OrchestratorDesignTask } from './orchestrator/orchestratorDesign';
 import { getDesignTaskMeta, getTimelineFilters } from './orchestrator/orchestratorUtils';
 import { getStatusLabel, getGlobalTaskStatus, getWaitReasonLabel, buildGlobalTaskDetail, getTaskDescription } from './orchestrator/orchestratorData';
 import { getTaskDisplayNameForExport } from './orchestrator/orchestratorExport';
+import { normalizeMagnetSortMode } from '../../../../features/magnets';
 
 /**
  * 功能增强设置面板类
@@ -90,6 +91,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private magnetSourceJavbus!: HTMLInputElement;
     private magnetBlockMojContent!: HTMLInputElement;
     private magnetAutoSearch!: HTMLInputElement;
+    private magnetSortMode: HTMLSelectElement | null = null;
     // 磁力搜索并发与限流配置
     private magnetPageMaxConcurrentRequests!: HTMLInputElement;
     private magnetBgGlobalMaxConcurrent!: HTMLInputElement;
@@ -745,6 +747,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     },
                     blockMojContent: this.magnetBlockMojContent?.checked !== false,
                     autoSearch: this.magnetAutoSearch?.checked === true,
+                    sortMode: normalizeMagnetSortMode(this.magnetSortMode?.value),
                     maxResults: (STATE.settings?.magnetSearch as any)?.maxResults ?? 15,
                     timeoutMs: (STATE.settings?.magnetSearch as any)?.timeoutMs ?? 6000,
                     concurrency: {

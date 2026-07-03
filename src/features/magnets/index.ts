@@ -7,6 +7,7 @@ export type {
   MagnetExternalSearchResult,
   MagnetResult,
   MagnetSearchConfig,
+  MagnetSortMode,
   MagnetSourceKey,
   MagnetSourceRunState,
   MagnetSourceSearchState,
@@ -52,6 +53,15 @@ export {
   parseSizeToBytes,
   sortMagnetResults,
 } from './application/resultMetadata';
+export {
+  calculateMagnetQualityScore,
+  type MagnetQualityLevel,
+  type MagnetQualityScore,
+} from './application/qualityScore';
+export {
+  normalizeMagnetSortMode,
+  sortMagnetResultsByMode,
+} from './application/resultSort';
 export {
   buildJavbusAjaxUrl,
   extractJavbusAjaxParams,

@@ -1,6 +1,7 @@
 import { STATE } from '../../../../state';
 import { getDefaultTags } from '../../../../config/actorFilterTags';
 import { applyOnlineAvailabilitySiteStates } from './onlineAvailabilitySites';
+import { normalizeMagnetSortMode } from '../../../../../features/magnets';
 
 export type EnhancementLoadHost = any;
 
@@ -33,6 +34,7 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.magnetSourceJavbus) host.magnetSourceJavbus.checked = !!msSources.javbus;
   if (host.magnetBlockMojContent) host.magnetBlockMojContent.checked = magnetSearch.blockMojContent !== false;
   if (host.magnetAutoSearch) host.magnetAutoSearch.checked = magnetSearch.autoSearch === true;
+  if (host.magnetSortMode) host.magnetSortMode.value = normalizeMagnetSortMode(magnetSearch.sortMode);
 
   const cc = (magnetSearch.concurrency || {}) as any;
   if (host.magnetPageMaxConcurrentRequests) host.magnetPageMaxConcurrentRequests.value = String(typeof cc.pageMaxConcurrentRequests === 'number' ? cc.pageMaxConcurrentRequests : 2);

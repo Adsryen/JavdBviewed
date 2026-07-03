@@ -29,6 +29,7 @@ export function initializeElements(host: EnhancementInitHost): void {
     ['magnetSourceJavbus', 'magnetSourceJavbus'],
     ['magnetBlockMojContent', 'magnetBlockMojContent'],
     ['magnetAutoSearch', 'magnetAutoSearch'],
+    ['magnetSortMode', 'magnetSortMode'],
     ['anchorButtonPosition', 'anchorButtonPosition'],
     ['showPreviewButton', 'showPreviewButton'],
     ['enableClickEnhancement', 'enableClickEnhancement'],

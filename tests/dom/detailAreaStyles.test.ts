@@ -62,6 +62,22 @@ describe('detail area visual polish', () => {
     expect(sourceTags).toEqual(['JavDB', 'Sukebei']);
   });
 
+  it('renders compact quality score labels for unified magnet rows', () => {
+    const manager = new MagnetSearchManager() as any;
+
+    const item = manager.createUnifiedMagnetItem(magnet({
+      name: 'JUR-730 中文字幕 1080p',
+      seeders: 88,
+      source: 'JavDB / Sukebei',
+      sources: ['JavDB', 'Sukebei'],
+    }), 0);
+    const qualityTag = item.querySelector<HTMLElement>('.jdb-magnet-quality-tag');
+
+    expect(qualityTag).toBeTruthy();
+    expect(qualityTag?.textContent).toMatch(/质量|推荐/);
+    expect(qualityTag?.title).toContain('字幕');
+  });
+
   it('filters unified magnet rows by source without losing the complete result set', async () => {
     const manager = new MagnetSearchManager({ maxResults: 20 }) as any;
     document.body.innerHTML = '<div id="magnets-content"></div>';
@@ -163,6 +179,7 @@ describe('detail area visual polish', () => {
     expect(rows[0].querySelector('.jdb-magnet-title')).toBeTruthy();
     expect(rows[0].querySelector('.jdb-magnet-meta')).toBeTruthy();
     expect(rows[0].querySelector('.jdb-magnet-tags')).toBeTruthy();
+    expect(rows[0].querySelector('.jdb-magnet-quality-tag')).toBeTruthy();
     expect(rows.filter(row => !row.classList.contains('jdb-magnet-page-hidden'))).toHaveLength(10);
     expect(document.querySelector('.jdb-magnet-pagination')).toBeTruthy();
 

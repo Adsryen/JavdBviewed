@@ -6,6 +6,9 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.magnetSourceBtsow?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetSourceTorrentz2?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetSourceJavbus?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.magnetBlockMojContent?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.magnetAutoSearch?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.magnetSortMode?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetPageMaxConcurrentRequests?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetBgGlobalMaxConcurrent?.addEventListener('change', host.handleSettingChange.bind(host));
   host.magnetBgPerHostMaxConcurrent?.addEventListener('change', host.handleSettingChange.bind(host));

@@ -9,7 +9,7 @@ import { keyboardShortcutsManager } from '../../features/keyboardShortcuts';
 import { embyEnhancementManager } from '../../features/embyEnhancement/content';
 import { performanceOptimizer } from '../../platform/tasks';
 import { contentFilterManager } from '../../features/contentFilter';
-import { magnetSearchManager } from '../../features/magnets';
+import { magnetSearchManager, normalizeMagnetSortMode } from '../../features/magnets';
 import { listEnhancementManager } from '../../features/listEnhancement';
 import { actorEnhancementManager } from '../../features/actorEnhancement';
 import { stopPreviewVideoWatcher } from '../../features/previews';
@@ -87,6 +87,7 @@ export function installContentLifecycleHandlers(): void {
                         javbus: sources.javbus === true,
                         custom: [],
                     },
+                    sortMode: normalizeMagnetSortMode(magnetSearchConfig.sortMode),
                     maxResults: (magnetSearchConfig.maxResults ?? 15),
                     timeout: (magnetSearchConfig.timeoutMs ?? 8000),
                 });

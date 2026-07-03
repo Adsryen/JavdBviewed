@@ -1,6 +1,7 @@
 import { getDefaultTags } from '../../../../config/actorFilterTags';
 import type { ExtensionSettings } from '../../../../../types';
 import { applyOnlineAvailabilitySiteStates, collectOnlineAvailabilitySiteStates } from './onlineAvailabilitySites';
+import { normalizeMagnetSortMode } from '../../../../../features/magnets';
 
 export type EnhancementSettingsSyncHost = any;
 
@@ -33,6 +34,7 @@ export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<Extens
         javbus: host.magnetSourceJavbus?.checked === true,
         custom: [],
       },
+      sortMode: normalizeMagnetSortMode(host.magnetSortMode?.value),
     } as any,
     videoEnhancement: {
       enableRelatedLists: host.veEnableRelatedLists?.checked !== false,

@@ -15,6 +15,9 @@ export interface MagnetResult {
   hasSubtitle: boolean;                               // 是否有字幕
 }
 
+/** 磁力结果排序策略 */
+export type MagnetSortMode = 'default' | 'quality' | 'seeders' | 'size' | 'date' | 'subtitle';
+
 /** 磁力源标识 */
 export type MagnetSourceKey = 'sukebei' | 'btdig' | 'btsow' | 'torrentz2' | 'javbus';
 /** 单个磁力源的搜索状态 */
@@ -37,6 +40,7 @@ export interface MagnetSearchConfig {
   };
   maxResults: number;                                 // 最大结果数
   timeout: number;                                    // 单源超时时间（毫秒）
+  sortMode?: MagnetSortMode;                          // 结果排序策略
 }
 
 /** 单个磁力源的运行时状态 */
