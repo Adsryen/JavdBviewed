@@ -7,7 +7,7 @@
 **Jav 视频浏览助手**
 
 [![GitHub release](https://img.shields.io/github/v/release/Adsryen/JavdBviewed)](https://github.com/Adsryen/JavdBviewed/releases)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://github.com/Adsryen/JavdBviewed/releases)
 
 </div>
@@ -188,7 +188,7 @@ Output Directory: vitepress/.vitepress/dist
 
 ## 📄 许可证
 
-本项目采用 [GPL-3.0](LICENSE) 许可证。
+本项目采用 [AGPL-3.0](LICENSE) 许可证。修改、分发或通过网络提供修改版时，必须按 AGPL-3.0 公开对应源码；如需闭源集成、商业二开或托管修改版而不公开源码，请先取得作者书面授权。
 
 ## 🤝 支持与反馈
 

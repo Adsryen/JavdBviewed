@@ -2,6 +2,7 @@
   "name": "javdb-extension",
   "type": "module",
   "version": "1.21.1",
+  "license": "AGPL-3.0-only",
   "description": "Jav 助手",
   "scripts": {
     "vitepress:dev": "vitepress dev vitepress --host 127.0.0.1 --port 5174",
