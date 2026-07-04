@@ -124,17 +124,21 @@ describe('release announcement state', () => {
   });
 
   it('ships user-facing release notes for recent versions', () => {
-    expect(RELEASE_NOTES.map(note => note.version)).toEqual(['1.21.0', '1.20.2', '1.20.1', '1.20.0']);
+    expect(RELEASE_NOTES.map(note => note.version)).toEqual(['1.21.1', '1.21.0', '1.20.2', '1.20.1', '1.20.0']);
     expect(RELEASE_NOTES[0]?.highlights).toEqual(expect.arrayContaining([
+      '磁力结果新增质量评分排序，优先显示更可靠资源。',
+      '服务端入口新增 GitHub 引导和本地缓存兜底。',
+    ]));
+    expect(RELEASE_NOTES[1]?.highlights).toEqual(expect.arrayContaining([
       'WebDAV 备份/恢复支持按类别选择、进度反馈和设备筛选。',
       'Emby/Jellyfin 新增入库状态显示和服务器自动识别。',
     ]));
-    expect(RELEASE_NOTES[1]?.highlights).toEqual(expect.arrayContaining([
+    expect(RELEASE_NOTES[2]?.highlights).toEqual(expect.arrayContaining([
       '影片页新增在线可看、外部搜索和字幕搜索入口。',
       '磁力升级多源聚合、分页、来源筛选和 JAVBUS 兜底。',
     ]));
-    expect(RELEASE_NOTES[2]?.highlights).toContain('115 离线下载支持选择目标文件夹。');
-    expect(RELEASE_NOTES[3]?.highlights).toContain('全局任务中心接入详情页增强和后台任务。');
+    expect(RELEASE_NOTES[3]?.highlights).toContain('115 离线下载支持选择目标文件夹。');
+    expect(RELEASE_NOTES[4]?.highlights).toContain('全局任务中心接入详情页增强和后台任务。');
     for (const note of RELEASE_NOTES) {
       expect(note.highlights.length).toBeGreaterThanOrEqual(3);
       expect(note.highlights.every(item => item.length >= 12 && item.length <= 42)).toBe(true);

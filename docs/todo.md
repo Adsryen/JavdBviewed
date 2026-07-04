@@ -165,14 +165,19 @@ Release notes：
 
 ### P0：发布阻断
 
-- [ ] 处理 `1.21.0` 发布后反馈的安装、升级、构建、发布公告问题
-- [ ] 处理 WebDAV 备份/恢复/清理相关数据问题
-- [ ] 处理 Emby/Jellyfin 设置兼容和媒体库索引问题
-- [ ] 处理 IndexedDB 番号库迁移、查询、标签统计回归问题
-- [ ] `chrome.storage` 不可用上下文防护（来源：xie1995 fork 后续提交 `afc0c508`）
-  - [ ] 覆盖测试、非扩展页面、content script 早期注入等 `chrome.storage` 不存在或不可访问场景
-  - [ ] 不改变现有 storage 数据结构，只在平台封装层增加可用性检查和降级路径
-  - [ ] 验证 `src/platform/storage/cache.ts` 相关调用不会因上下文不可用直接抛错
+- [x] 处理 `1.21.0` 发布后反馈的安装、升级、构建、发布公告问题
+  - [x] 补齐 `1.21.1` 发布公告并通过 release notes guard
+  - [x] `pnpm run build` 通过，构建号副作用已还原
+- [x] 处理 WebDAV 备份/恢复/清理相关数据问题
+  - [x] 回归套件覆盖 WebDAV baseline、恢复向导和 Alist URL 提示
+- [x] 处理 Emby/Jellyfin 设置兼容和媒体库索引问题
+  - [x] 已覆盖变体匹配、封面图直读、`storage.onChanged` 自动刷新
+- [x] 处理 IndexedDB 番号库迁移、查询、标签统计回归问题
+  - [x] `pnpm test`、`pnpm run test:dom` 已覆盖 IndexedDB/番号库相关回归
+- [x] `chrome.storage` 不可用上下文防护（来源：xie1995 fork 后续提交 `afc0c508`）
+  - [x] 覆盖测试、非扩展页面、content script 早期注入等 `chrome.storage` 不存在或不可访问场景
+  - [x] 不改变现有 storage 数据结构，只在平台封装层增加可用性检查和降级路径
+  - [x] 验证 `src/platform/storage/cache.ts` 相关调用不会因上下文不可用直接抛错
 
 ### P1：已完成增量能力
 
@@ -192,23 +197,24 @@ Release notes：
 
 ### P1：低风险功能补齐
 
-- [ ] WebDAV 设置：Alist URL 规范化提示
-  - [ ] 检测常见 Alist `/dav/` 路径问题
-  - [ ] 给出可操作的修正提示
-- [ ] 在线可看站点校准
-  - [ ] 持续按误报样本修正 FANZA、Jable 等站点 selector
-  - [ ] 失败站点显示逻辑继续受设置项控制
-- [ ] 日志设置：检查所有功能增强是否具备独立标识
+- [x] WebDAV 设置：Alist URL 规范化提示
+  - [x] 检测常见 Alist `/dav/` 路径问题
+  - [x] 给出可操作的修正提示
+- [x] 在线可看站点校准
+  - [x] 持续按误报样本修正 FANZA、Jable 等站点 selector
+  - [x] 失败站点显示逻辑继续受设置项控制
+- [x] 日志设置：检查所有功能增强是否具备独立标识
 
 ### P2：体验优化
 
-- [ ] 新作品：添加演员弹窗优化
-  - [ ] 弹窗列出的列表添加标识排除拉黑演员
+- [x] 新作品：添加演员弹窗优化
+  - [x] 弹窗列出的列表添加标识排除拉黑演员
 
 ### 发布状态
 
-- 代码侧已完成：磁力质量评分、Emby/Jellyfin 三项增强、服务端入口容灾与配置完整性。
-- release 侧未完成：P0 防护/回归修复、发布门槛、release notes、clean build。
+- 代码侧已完成：磁力质量评分、Emby/Jellyfin 三项增强、服务端入口容灾与配置完整性、WebDAV Alist 提示、在线可看校准、功能增强日志模块、新作品演员弹窗提示。
+- release 侧已完成：P0 审计、release notes、typecheck、`pnpm test`、`pnpm run test:dom`、`pnpm run build`。
+- 正式发布前只需在干净工作区重新执行 clean build，并计算最终 ZIP SHA256 写入 GitHub Release notes。
 
 ---
 

@@ -11,7 +11,20 @@ import type { ReleaseNote } from './types';
 // 1.20.1: v1.20.0..v1.20.1
 // 1.20.2: v1.20.1..v1.20.2
 // 1.21.0: v1.20.2..v1.21.0
+// 1.21.1: v1.21.0..v1.21.1
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '1.21.1',
+    highlights: [
+      '磁力结果新增质量评分排序，优先显示更可靠资源。',
+      'Emby/Jellyfin 支持番号变体、封面直读和自动刷新。',
+      '服务端入口新增 GitHub 引导和本地缓存兜底。',
+      'WebDAV Alist 地址会提示 /dav/ 路径修正。',
+      '在线可看修正 FANZA、Jable 搜索页误报。',
+      '日志设置新增功能增强独立开关，便于排查问题。',
+      '新作品添加演员弹窗提示已排除的黑名单演员。',
+    ],
+  },
   {
     version: '1.21.0',
     highlights: [
