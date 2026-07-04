@@ -108,4 +108,55 @@ describe('serverEndpointResolver', () => {
     });
     expect(getChromeStorageSnapshot()[SERVER_ENDPOINT_STATE_KEY]).toBeUndefined();
   });
+
+  it('uses stale last known good endpoint without fetching while retry backoff is active', async () => {
+    vi.setSystemTime(new Date('2026-07-04T00:00:00.000Z'));
+    const now = Date.now();
+    const { SERVER_ENDPOINT_STATE_KEY, buildServerApiUrl } = await import('../../src/platform/network/serverEndpointResolver');
+    setChromeStorage({
+      [SERVER_ENDPOINT_STATE_KEY]: {
+        apiBaseUrl: 'https://cached-api.example',
+        source: 'test-cache',
+        updatedAt: now - 7_200_000,
+        expiresAt: now - 1_000,
+        failureCount: 2,
+        nextRetryAt: now + 60_000,
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(buildServerApiUrl('/v1/config')).resolves.toBe('https://cached-api.example/v1/config');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('records exponential backoff after consecutive bootstrap failures with stale cache', async () => {
+    vi.setSystemTime(new Date('2026-07-04T00:00:00.000Z'));
+    const now = Date.now();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, text: async () => '' });
+    vi.stubGlobal('fetch', fetchMock);
+    const { SERVER_ENDPOINT_STATE_KEY, refreshServerEndpoint } = await import('../../src/platform/network/serverEndpointResolver');
+    setChromeStorage({
+      [SERVER_ENDPOINT_STATE_KEY]: {
+        apiBaseUrl: 'https://cached-api.example',
+        source: 'test-cache',
+        updatedAt: now - 7_200_000,
+        expiresAt: now - 1_000,
+        failureCount: 1,
+      },
+    });
+
+    await expect(refreshServerEndpoint({ force: true })).resolves.toMatchObject({
+      apiBaseUrl: 'https://cached-api.example',
+      failureCount: 2,
+      nextRetryAt: now + 120_000,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getChromeStorageSnapshot()[SERVER_ENDPOINT_STATE_KEY]).toEqual(expect.objectContaining({
+      apiBaseUrl: 'https://cached-api.example',
+      failureCount: 2,
+      nextRetryAt: now + 120_000,
+    }));
+  });
 });

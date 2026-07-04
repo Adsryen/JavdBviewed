@@ -33,6 +33,8 @@ export type ServerEndpointState = {
   updatedAt: number;
   expiresAt: number;
   checksum?: string;
+  failureCount?: number;
+  nextRetryAt?: number;
 };
 
 export type RefreshServerEndpointOptions = {
@@ -42,6 +44,8 @@ export type RefreshServerEndpointOptions = {
 type BuildQuery = Record<string, string | number | boolean | undefined>;
 
 const DEFAULT_TTL_SECONDS = 60 * 60;
+const MIN_RETRY_BACKOFF_MS = 60 * 1000;
+const MAX_RETRY_BACKOFF_MS = 60 * 60 * 1000;
 
 export async function buildServerApiUrl(path: string, query?: BuildQuery): Promise<string> {
   const endpoint = await resolveServerEndpoint();
@@ -64,7 +68,7 @@ export async function buildTelemetryReportUrl(): Promise<string> {
 
 export async function resolveServerEndpoint(): Promise<ServerEndpointState> {
   const current = await readEndpointState();
-  if (isFreshEndpointState(current)) {
+  if (isFreshEndpointState(current) || isRetryBackoffActive(current)) {
     return current;
   }
 
@@ -73,7 +77,7 @@ export async function resolveServerEndpoint(): Promise<ServerEndpointState> {
 
 export async function refreshServerEndpoint(options: RefreshServerEndpointOptions = {}): Promise<ServerEndpointState> {
   const current = await readEndpointState();
-  if (!options.force && isFreshEndpointState(current)) {
+  if (!options.force && (isFreshEndpointState(current) || isRetryBackoffActive(current))) {
     return current;
   }
 
@@ -97,7 +101,9 @@ export async function refreshServerEndpoint(options: RefreshServerEndpointOption
   }
 
   if (current?.apiBaseUrl) {
-    return current;
+    const failedState = buildFailedEndpointState(current);
+    await writeEndpointState(failedState);
+    return failedState;
   }
 
   return {
@@ -187,6 +193,24 @@ function isFreshEndpointState(value: ServerEndpointState | null): value is Serve
   return Boolean(value?.apiBaseUrl && value.expiresAt > Date.now());
 }
 
+function isRetryBackoffActive(value: ServerEndpointState | null): value is ServerEndpointState {
+  return Boolean(value?.apiBaseUrl && typeof value.nextRetryAt === 'number' && value.nextRetryAt > Date.now());
+}
+
+function buildFailedEndpointState(current: ServerEndpointState): ServerEndpointState {
+  const failureCount = Math.max(0, current.failureCount ?? 0) + 1;
+  return {
+    ...current,
+    failureCount,
+    nextRetryAt: Date.now() + calculateRetryBackoffMs(failureCount),
+  };
+}
+
+function calculateRetryBackoffMs(failureCount: number): number {
+  const exponent = Math.min(Math.max(failureCount - 1, 0), 6);
+  return Math.min(MAX_RETRY_BACKOFF_MS, MIN_RETRY_BACKOFF_MS * 2 ** exponent);
+}
+
 async function readEndpointState(): Promise<ServerEndpointState | null> {
   const result = await chrome.storage.local.get(SERVER_ENDPOINT_STATE_KEY);
   const value = result[SERVER_ENDPOINT_STATE_KEY] as Partial<ServerEndpointState> | undefined;
@@ -199,6 +223,12 @@ async function readEndpointState(): Promise<ServerEndpointState | null> {
     updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : 0,
     expiresAt: typeof value.expiresAt === 'number' ? value.expiresAt : 0,
     checksum: typeof value.checksum === 'string' ? value.checksum : undefined,
+    failureCount: typeof value.failureCount === 'number' && Number.isFinite(value.failureCount)
+      ? Math.max(0, Math.floor(value.failureCount))
+      : undefined,
+    nextRetryAt: typeof value.nextRetryAt === 'number' && Number.isFinite(value.nextRetryAt)
+      ? value.nextRetryAt
+      : undefined,
   };
 }
 
