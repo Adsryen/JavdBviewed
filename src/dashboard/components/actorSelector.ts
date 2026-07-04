@@ -32,6 +32,9 @@ export class ActorSelector {
             console.log('ActorSelector: 获取到演员数量:', allActors.length);
 
             // 过滤掉已订阅的演员和拉黑的演员
+            const blacklistedExcludedCount = allActors.filter(actor =>
+                !excludeIds.includes(actor.id) && actor.blacklisted
+            ).length;
             const availableActors = allActors.filter(actor => 
                 !excludeIds.includes(actor.id) && !actor.blacklisted
             );
@@ -44,7 +47,7 @@ export class ActorSelector {
             }
 
             console.log('ActorSelector: 开始创建弹窗...');
-            this.createModal(availableActors);
+            this.createModal(availableActors, blacklistedExcludedCount);
 
             console.log('ActorSelector: 开始显示弹窗...');
             this.showModal();
@@ -59,7 +62,7 @@ export class ActorSelector {
     /**
      * 创建弹窗
      */
-    private createModal(actors: ActorRecord[]): void {
+    private createModal(actors: ActorRecord[], blacklistedExcludedCount = 0): void {
         console.log('ActorSelector: 开始创建弹窗，演员数量:', actors.length);
 
         // 移除已存在的弹窗
@@ -82,6 +85,7 @@ export class ActorSelector {
                         <div class="actor-selector-search">
                             <input type="text" id="actorSelectorSearch" placeholder="搜索演员姓名..." />
                         </div>
+                        ${this.renderBlacklistExclusionNote(blacklistedExcludedCount)}
                         <div class="actor-selector-list" id="actorSelectorList">
                             ${this.renderActorList(actors)}
                         </div>
@@ -114,6 +118,22 @@ export class ActorSelector {
 
         this.setupModalEventListeners(actors);
         console.log('ActorSelector: 事件监听器已设置');
+    }
+
+    /**
+     * 渲染黑名单排除提示
+     */
+    private renderBlacklistExclusionNote(count: number): string {
+        if (count <= 0) {
+            return '';
+        }
+
+        return `
+            <div class="actor-selector-exclusion-note" role="status">
+                <i class="fas fa-user-slash"></i>
+                <span>已排除 ${count} 位黑名单演员</span>
+            </div>
+        `;
     }
 
     /**

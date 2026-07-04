@@ -1069,6 +1069,25 @@
     box-shadow: var(--ring);
 }
 
+.actor-selector-exclusion-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: -8px 0 14px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 8px;
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.actor-selector-exclusion-note i {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
 .actor-selector-list {
     max-height: 450px;
     overflow-y: auto;
