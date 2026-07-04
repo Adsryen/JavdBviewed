@@ -19,6 +19,7 @@ export function installDashboardConsoleProxy(): void {
       sync: { enabled: true, match: /\[Sync|DataSync\]|同步|WebDAV|Sync/i, label: 'SYNC', color: '#3498db' },
       drive115: { enabled: true, match: /\[(Drive115|115V?2?)\]|115网盘|Drive115/i, label: '115', color: '#d35400' },
       privacy: { enabled: true, match: /\[(Privacy|PrivacyManager|LockScreen)\]|隐私|Privacy|Lock/i, label: 'PRIVACY', color: '#c0392b' },
+      enhancement: { enabled: true, match: /\[(Enhancement|ListEnhancement|CoverEnhancement|OnlineAvailability|ReviewBreaker|FC2Breaker|EmbyEnhancement)\]|功能增强|列表增强|视频增强|封面增强|在线可看|评论破解|FC2增强|Emby增强/i, label: 'ENHANCEMENT', color: '#7d3c98' },
     },
   });
 

@@ -391,6 +391,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             orchestrator: true,
             drive115: true,
             privacy: true,
+            enhancement: true,
             magnet: true,
             actor: true,
             storage: true,

@@ -120,6 +120,12 @@ function buildDefaultCategories(): Record<string, CategoryRule> {
       label: 'AI',
       color: '#9b59b6',
     },
+    enhancement: {
+      enabled: false,
+      match: /\[(Enhancement|ListEnhancement|CoverEnhancement|OnlineAvailability|ReviewBreaker|FC2Breaker|EmbyEnhancement)\]|功能增强|列表增强|视频增强|封面增强|在线可看|评论破解|FC2增强|Emby增强/i,
+      label: 'ENHANCEMENT',
+      color: '#7d3c98',
+    },
     
     // ========== 系统功能 ==========
     update: {
@@ -325,7 +331,7 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
       const cleanedArgs = args.map((arg, index) => {
         if (index === 0 && typeof arg === 'string') {
           // 移除常见的分类标签模式：[NewWorks]、[Actor]、[Magnet] 等
-          return arg.replace(/^\[(NewWorks|NewWorksManager|Actor|ActorManager|Magnet|Sync|DataSync|Drive115|115V?2?|Privacy|PrivacyManager|AI|Update|UpdateChecker|Help|Settings|CORE|Extension|Storage|STORAGE|Orchestrator|IDB|Background|Popup|Dashboard|Content|Enhancement|QA|LogController|Cache|LockScreen|INSIGHTS|dbRouter)\]\s*/i, '');
+          return arg.replace(/^\[(NewWorks|NewWorksManager|Actor|ActorManager|Magnet|Sync|DataSync|Drive115|115V?2?|Privacy|PrivacyManager|AI|Enhancement|ListEnhancement|CoverEnhancement|OnlineAvailability|ReviewBreaker|FC2Breaker|EmbyEnhancement|Update|UpdateChecker|Help|Settings|CORE|Extension|Storage|STORAGE|Orchestrator|IDB|Background|Popup|Dashboard|Content|QA|LogController|Cache|LockScreen|INSIGHTS|dbRouter)\]\s*/i, '');
         }
         return arg;
       });
