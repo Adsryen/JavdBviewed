@@ -205,6 +205,16 @@
                         <input type="text" id="modalWebdavFolder" placeholder="文件夹 (可选)" style="width: 150px; box-sizing: border-box;">
                     </div>
                     <p class="input-description" style="margin-top: 4px; font-size: 12px; color: var(--text-secondary);">选择厂商后会自动填充服务器地址，文件夹为远端存储路径（可选，留空则使用根目录）</p>
+                    <div id="modalWebdavAlistHint" class="webdav-alist-hint" hidden>
+                        <div class="webdav-alist-hint-main">
+                            <i class="fas fa-info-circle"></i>
+                            <span data-role="alist-url-hint-message"></span>
+                        </div>
+                        <div class="webdav-alist-hint-action">
+                            <code data-role="alist-url-hint-suggestion"></code>
+                            <button type="button" class="button-secondary" data-action="apply-alist-url-hint">应用建议</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">

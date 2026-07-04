@@ -10,6 +10,7 @@ import { showMessage } from '../../../ui/toast';
 import type { ExtensionSettings, WebDAVConfig, WebDAVClientProfile } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
+import { getAlistWebDavUrlHint } from '../../../../features/webdavSync/domain/paths';
 
 /**
  * WebDAV设置面板类
@@ -51,6 +52,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private modalWebdavProvider!: HTMLSelectElement;
     private modalWebdavUrl!: HTMLInputElement;
     private modalWebdavFolder!: HTMLInputElement;
+    private modalWebdavAlistHint!: HTMLDivElement;
     private modalWebdavUser!: HTMLInputElement;
     private modalWebdavPass!: HTMLInputElement;
     private modalToggleWebdavPasswordVisibilityBtn!: HTMLButtonElement;
@@ -70,6 +72,9 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private readonly onDiagnoseClick = () => { this.handleDiagnoseWebDAV().catch(() => {}); };
     private readonly onAddConfigClick = () => { this.openConfigModal('add'); };
     private readonly onModalProviderChange = () => { this.handleModalProviderChange(); };
+    private readonly onModalWebdavUrlInput = () => { this.updateModalAlistUrlHint(); };
+    private readonly onModalWebdavFolderInput = () => { this.updateModalAlistUrlHint(); };
+    private readonly onApplyAlistUrlHintClick = () => { this.applyModalAlistUrlHint(); };
     private readonly onModalTogglePasswordClick = () => { this.handleModalTogglePasswordVisibility(); };
     private readonly onModalCopyFullUrlClick = () => { this.handleModalCopyFullUrl(); };
     private readonly onModalCopyUserClick = () => { this.handleModalCopyUser(); };
@@ -263,6 +268,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.modalWebdavProvider = document.getElementById('modalWebdavProvider') as HTMLSelectElement;
         this.modalWebdavUrl = document.getElementById('modalWebdavUrl') as HTMLInputElement;
         this.modalWebdavFolder = document.getElementById('modalWebdavFolder') as HTMLInputElement;
+        this.modalWebdavAlistHint = document.getElementById('modalWebdavAlistHint') as HTMLDivElement;
         this.modalWebdavUser = document.getElementById('modalWebdavUser') as HTMLInputElement;
         this.modalWebdavPass = document.getElementById('modalWebdavPass') as HTMLInputElement;
         this.modalToggleWebdavPasswordVisibilityBtn = document.getElementById('modalToggleWebdavPasswordVisibility') as HTMLButtonElement;
@@ -274,7 +280,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
             !this.diagnoseWebdavConnectionBtn || !this.addWebdavConfigBtn || !this.webdavConfigList ||
             !this.webdavClientProfileContainer || !this.webdavClientsListContainer || !this.refreshWebdavClientsBtn ||
             !this.webdavConfigModal || !this.modalConfigName || !this.modalWebdavProvider || 
-            !this.modalWebdavUrl || !this.modalWebdavFolder || !this.modalWebdavUser || !this.modalWebdavPass) {
+            !this.modalWebdavUrl || !this.modalWebdavFolder || !this.modalWebdavAlistHint ||
+            !this.modalWebdavUser || !this.modalWebdavPass) {
             throw new Error('WebDAV设置相关的DOM元素未找到');
         }
     }
@@ -305,6 +312,11 @@ export class WebDAVSettings extends BaseSettingsPanel {
         
         // 弹窗事件
         this.modalWebdavProvider.addEventListener('change', this.onModalProviderChange);
+        this.modalWebdavUrl.addEventListener('input', this.onModalWebdavUrlInput);
+        this.modalWebdavFolder.addEventListener('input', this.onModalWebdavFolderInput);
+        this.modalWebdavAlistHint
+            .querySelector('[data-action="apply-alist-url-hint"]')
+            ?.addEventListener('click', this.onApplyAlistUrlHintClick);
         this.modalToggleWebdavPasswordVisibilityBtn.addEventListener('click', this.onModalTogglePasswordClick);
         this.modalCopyWebdavFullUrlBtn.addEventListener('click', this.onModalCopyFullUrlClick);
         this.modalCopyWebdavUserBtn.addEventListener('click', this.onModalCopyUserClick);
@@ -345,6 +357,11 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.refreshWebdavClientsBtn?.replaceWith(this.refreshWebdavClientsBtn.cloneNode(true));
         
         this.modalWebdavProvider?.removeEventListener('change', this.onModalProviderChange);
+        this.modalWebdavUrl?.removeEventListener('input', this.onModalWebdavUrlInput);
+        this.modalWebdavFolder?.removeEventListener('input', this.onModalWebdavFolderInput);
+        this.modalWebdavAlistHint
+            ?.querySelector('[data-action="apply-alist-url-hint"]')
+            ?.removeEventListener('click', this.onApplyAlistUrlHintClick);
         this.modalToggleWebdavPasswordVisibilityBtn?.removeEventListener('click', this.onModalTogglePasswordClick);
         this.modalCopyWebdavFullUrlBtn?.removeEventListener('click', this.onModalCopyFullUrlClick);
         this.modalCopyWebdavUserBtn?.removeEventListener('click', this.onModalCopyUserClick);
@@ -937,6 +954,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         // 显示弹窗
         this.webdavConfigModal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        this.updateModalAlistUrlHint();
     }
 
     /**
@@ -946,6 +964,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavConfigModal.style.display = 'none';
         document.body.style.overflow = '';
         this.currentEditingConfigId = null;
+        this.hideModalAlistUrlHint();
     }
 
     /**
@@ -1282,6 +1301,56 @@ export class WebDAVSettings extends BaseSettingsPanel {
                     break;
             }
         }
+        this.updateModalAlistUrlHint();
+    }
+
+    /**
+     * 更新弹窗内 Alist URL 提示
+     */
+    private updateModalAlistUrlHint(): void {
+        if (this.modalWebdavProvider.value !== 'custom') {
+            this.hideModalAlistUrlHint();
+            return;
+        }
+
+        const fullUrl = this.combineUrl(this.modalWebdavUrl.value.trim(), this.modalWebdavFolder.value.trim());
+        const hint = getAlistWebDavUrlHint(fullUrl);
+        if (!hint) {
+            this.hideModalAlistUrlHint();
+            return;
+        }
+
+        const message = this.modalWebdavAlistHint.querySelector<HTMLElement>('[data-role="alist-url-hint-message"]');
+        const suggestion = this.modalWebdavAlistHint.querySelector<HTMLElement>('[data-role="alist-url-hint-suggestion"]');
+        if (message) {
+            message.textContent = hint.message;
+        }
+        if (suggestion) {
+            suggestion.textContent = hint.suggestedUrl;
+        }
+        this.modalWebdavAlistHint.dataset.suggestedUrl = hint.suggestedUrl;
+        this.modalWebdavAlistHint.hidden = false;
+    }
+
+    /**
+     * 隐藏弹窗内 Alist URL 提示
+     */
+    private hideModalAlistUrlHint(): void {
+        this.modalWebdavAlistHint.hidden = true;
+        this.modalWebdavAlistHint.dataset.suggestedUrl = '';
+    }
+
+    /**
+     * 应用弹窗内 Alist URL 建议
+     */
+    private applyModalAlistUrlHint(): void {
+        const suggestedUrl = this.modalWebdavAlistHint.dataset.suggestedUrl || '';
+        if (!suggestedUrl) return;
+
+        const { baseUrl, folder } = this.splitUrl(suggestedUrl);
+        this.modalWebdavUrl.value = baseUrl;
+        this.modalWebdavFolder.value = folder;
+        this.updateModalAlistUrlHint();
     }
 
     /**

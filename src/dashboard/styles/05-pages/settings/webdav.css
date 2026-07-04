@@ -434,6 +434,54 @@
     margin-top: 0.25rem;
 }
 
+.webdav-alist-hint {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(139, 90, 43, 0.24);
+    border-radius: 6px;
+    background: rgba(139, 90, 43, 0.08);
+    color: var(--text-primary);
+    font-size: 12px;
+}
+
+.webdav-alist-hint[hidden] {
+    display: none;
+}
+
+.webdav-alist-hint-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.5;
+}
+
+.webdav-alist-hint-main i {
+    color: var(--webdav-primary);
+}
+
+.webdav-alist-hint-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.webdav-alist-hint-action code {
+    flex: 1;
+    min-width: 220px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.webdav-alist-hint-action button {
+    padding: 6px 10px;
+    white-space: nowrap;
+}
+
 #webdav-settings .webdav-actions {
     display: flex;
     gap: 0.75rem;
