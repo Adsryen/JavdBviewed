@@ -4,6 +4,8 @@
  * @module features/telemetry
  */
 import { getSettings } from '../../../utils/storage';
+import { buildTelemetryReportUrl } from '../../../platform/network';
+import { TELEMETRY_REPORT_ENDPOINT } from '../../../utils/config';
 import type { TelemetryErrorPayload, TelemetryEventType, TelemetryReportResult } from '../domain/types';
 import { getTelemetryClientState, writeTelemetryClientState } from './clientState';
 import { buildTelemetryPayload } from './buildTelemetryPayload';
@@ -65,7 +67,7 @@ export async function reportTelemetryEvent(
   const telemetrySettings = settings?.telemetry || {};
   if (telemetrySettings.enabled === false) return { sent: false, reason: 'disabled' };
 
-  const endpoint = String(telemetrySettings.endpoint || '').trim();
+  const endpoint = await resolveTelemetryReportEndpoint(String(telemetrySettings.endpoint || '').trim());
   if (!endpoint) return { sent: false, reason: 'missing-endpoint' };
 
   const now = options.now || new Date();
@@ -159,6 +161,18 @@ function getEventStatePatch(event: TelemetryEventType, now: Date): Partial<{ las
   if (event === 'startup') return { lastStartupAt: now.getTime() };
   if (event === 'heartbeat') return { lastHeartbeatAt: now.getTime() };
   return {};
+}
+
+async function resolveTelemetryReportEndpoint(endpoint: string): Promise<string> {
+  if (!endpoint) return '';
+  if (normalizeEndpoint(endpoint) !== normalizeEndpoint(TELEMETRY_REPORT_ENDPOINT)) {
+    return endpoint;
+  }
+  return buildTelemetryReportUrl();
+}
+
+function normalizeEndpoint(endpoint: string): string {
+  return endpoint.replace(/\/+$/, '');
 }
 
 function buildErrorThrottleKey(error: TelemetryErrorPayload): string {

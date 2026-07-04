@@ -5,7 +5,8 @@
  */
 
 import type { ExtensionSettings } from '../../types';
-import { DEFAULT_SETTINGS, SERVER_API_BASE_URL } from '../../utils/config';
+import { buildServerApiUrl, verifyJsonChecksum } from '../../platform/network';
+import { DEFAULT_SETTINGS } from '../../utils/config';
 
 export type ServiceType = 'javdb' | 'javbus';
 
@@ -60,7 +61,23 @@ interface ServerRemoteConfig {
         releaseUrl?: string;
     };
     featureFlags?: Record<string, boolean>;
+    checksum?: string;
 }
+
+type ServerRemoteConfigFetchResult =
+    | { status: 'ok'; config: ServerRemoteConfig }
+    | { status: 'unavailable' }
+    | { status: 'rejected' };
+
+type ServerRemoteConfigParseResult =
+    | { status: 'ok'; config: ServerRemoteConfig }
+    | { status: 'invalid' };
+
+type NavigatorWithUserAgentData = Navigator & {
+    userAgentData?: {
+        platform?: string;
+    };
+};
 
 /**
  * 线路更新状态
@@ -238,9 +255,9 @@ export class RouteManager {
                 lastCheckTime: Date.now()
             });
 
-            const serverConfig = await this.fetchServerRemoteConfig();
-            if (serverConfig) {
-                const remoteConfig = this.convertServerConfigToRoutesConfig(serverConfig);
+            const serverConfigResult = await this.fetchServerRemoteConfig();
+            if (serverConfigResult.status === 'ok') {
+                const remoteConfig = this.convertServerConfigToRoutesConfig(serverConfigResult.config);
                 if (updateStatus.currentVersion === remoteConfig.version) {
                     console.debug('[RouteManager] 已是最新版本:', remoteConfig.version);
                     return false;
@@ -257,6 +274,10 @@ export class RouteManager {
                 this.clearCache();
                 console.info('[RouteManager] 线路配置已从服务端更新到版本:', remoteConfig.version);
                 return true;
+            }
+
+            if (serverConfigResult.status === 'rejected') {
+                return false;
             }
 
             // 获取远程配置
@@ -306,9 +327,9 @@ export class RouteManager {
         }
     }
 
-    private async fetchServerRemoteConfig(): Promise<ServerRemoteConfig | null> {
+    private async fetchServerRemoteConfig(): Promise<ServerRemoteConfigFetchResult> {
         try {
-            const url = this.buildServerConfigUrl();
+            const url = await this.buildServerConfigUrl();
             const response = await fetch(url, {
                 cache: 'no-cache',
                 headers: {
@@ -318,32 +339,74 @@ export class RouteManager {
 
             if (!response.ok) {
                 console.warn('[RouteManager] 获取服务端远程配置失败:', response.status);
-                return null;
+                return { status: 'unavailable' };
             }
 
-            const config = await response.json() as ServerRemoteConfig;
-            if (!config || config.schemaVersion !== 1 || !config.routes || typeof config.routes !== 'object') {
-                console.warn('[RouteManager] 服务端远程配置格式无效');
-                return null;
+            const parsed = await this.parseServerConfigResponse(response);
+            if (parsed.status !== 'ok') {
+                console.debug('[RouteManager] 服务端远程配置被拒绝');
+                return { status: 'rejected' };
             }
-            return config;
+            return { status: 'ok', config: parsed.config };
         } catch (error) {
             console.warn('[RouteManager] 获取服务端远程配置异常:', error);
-            return null;
+            return { status: 'unavailable' };
         }
     }
 
-    private buildServerConfigUrl(): string {
+    private async parseServerConfigResponse(response: Response): Promise<ServerRemoteConfigParseResult> {
+        const config = await this.readResponseJson(response);
+        if (!this.isServerRemoteConfig(config)) {
+            console.debug('[RouteManager] 服务端远程配置格式无效');
+            return { status: 'invalid' };
+        }
+        const checksum = this.getResponseHeader(response, 'x-config-checksum')
+            || (typeof config.checksum === 'string' ? config.checksum : '');
+
+        if (checksum && !await verifyJsonChecksum(config, checksum)) {
+            console.debug('[RouteManager] 服务端远程配置 checksum 校验失败');
+            return { status: 'invalid' };
+        }
+
+        return { status: 'ok', config };
+    }
+
+    private isServerRemoteConfig(value: unknown): value is ServerRemoteConfig {
+        if (!value || typeof value !== 'object') return false;
+        const config = value as Partial<ServerRemoteConfig>;
+        return config.schemaVersion === 1
+            && typeof config.updatedAt === 'string'
+            && Boolean(config.routes)
+            && typeof config.routes === 'object';
+    }
+
+    private async readResponseJson(response: Response): Promise<unknown> {
+        const textReader = (response as Response & { text?: () => Promise<string> }).text;
+        if (typeof textReader === 'function') {
+            return JSON.parse(await textReader.call(response));
+        }
+        return response.json();
+    }
+
+    private getResponseHeader(response: Response, name: string): string {
+        const headers = (response as Response & { headers?: { get: (headerName: string) => string | null } }).headers;
+        return headers?.get(name) || '';
+    }
+
+    private async buildServerConfigUrl(): Promise<string> {
         const manifest = chrome.runtime.getManifest();
-        const version = encodeURIComponent(String(manifest?.version || 'unknown'));
-        const platform = encodeURIComponent(this.detectPlatform());
-        const locale = encodeURIComponent(this.getLocale());
-        return `${SERVER_API_BASE_URL}/v1/config?channel=stable&version=${version}&platform=${platform}&locale=${locale}`;
+        return buildServerApiUrl('/v1/config', {
+            channel: 'stable',
+            version: String(manifest?.version || 'unknown'),
+            platform: this.detectPlatform(),
+            locale: this.getLocale(),
+        });
     }
 
     private detectPlatform(): string {
         try {
-            const platform = String((navigator as any).userAgentData?.platform || navigator.platform || '').toLowerCase();
+            const nav = navigator as NavigatorWithUserAgentData;
+            const platform = String(nav.userAgentData?.platform || nav.platform || '').toLowerCase();
             if (platform.includes('win')) return 'windows';
             if (platform.includes('mac')) return 'macos';
             if (platform.includes('linux')) return 'linux';
@@ -370,7 +433,7 @@ export class RouteManager {
             version: config.updatedAt || String(config.updatePolicy?.latestVersion || Date.now()),
             lastUpdated: config.updatedAt || new Date().toISOString(),
             updateInterval: 24 * 60 * 60 * 1000,
-            remoteUrl: `${SERVER_API_BASE_URL}/v1/config`,
+            remoteUrl: '/v1/config',
             services: {
                 javdb: this.convertServerRouteGroup('JavDB', javdbRoutes, DEFAULT_SETTINGS.routes!.javdb.primary),
                 javbus: this.convertServerRouteGroup('JavBus', javbusRoutes, DEFAULT_SETTINGS.routes!.javbus.primary),

@@ -3,7 +3,8 @@
  * @description telemetry settings defaults 测试
  * @module tests/extension
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SERVER_ENDPOINT_STATE_KEY } from '../../src/platform/network';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../../src/utils/config';
 import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';
 
@@ -483,6 +484,16 @@ describe('telemetry payload', () => {
 });
 
 describe('telemetry reporter', () => {
+  beforeEach(() => {
+    setChromeStorage({
+      [SERVER_ENDPOINT_STATE_KEY]: {
+        apiBaseUrl: 'https://jbd-server.we-together.club',
+        updatedAt: Date.now(),
+        expiresAt: Date.now() + 60_000,
+      },
+    });
+  });
+
   it('does not schedule heartbeat alarms while the endpoint is empty', async () => {
     const { TELEMETRY_HEARTBEAT_ALARM, syncTelemetryHeartbeatAlarm } = await import('../../src/features/telemetry');
 
@@ -542,6 +553,42 @@ describe('telemetry reporter', () => {
 
     expect(result).toEqual({ sent: true, status: 200 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes the default telemetry endpoint through the server endpoint resolver', async () => {
+    const { reportTelemetryEvent, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    setChromeStorage({
+      [SERVER_ENDPOINT_STATE_KEY]: {
+        apiBaseUrl: 'https://resolved-api.example',
+        updatedAt: Date.now(),
+        expiresAt: Date.now() + 60_000,
+      },
+      [TELEMETRY_CLIENT_STATE_KEY]: {
+        installId: 'persisted-install-id',
+        sessionId: 'session-existing',
+        sessionStartedAt: '2026-05-26T00:00:00.000Z',
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+
+    const result = await reportTelemetryEvent('heartbeat', {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        telemetry: {
+          enabled: true,
+          endpoint: 'https://jbd-server.we-together.club/v1/telemetry/report',
+          channel: 'stable',
+        },
+      },
+      fetchImpl: fetchMock,
+      now: new Date('2026-05-26T06:00:00.000Z'),
+    });
+
+    expect(result).toEqual({ sent: true, status: 200 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://resolved-api.example/v1/telemetry/report',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('reports immediately for dashboard open even when heartbeat was just sent', async () => {

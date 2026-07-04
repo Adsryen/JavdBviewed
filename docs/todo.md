@@ -332,6 +332,14 @@ Release notes：
   - [ ] 评估后台同步、批量刷新、WebDAV 恢复等流程是否可以拦截图片与视频资源请求
   - [ ] 降低原站压力，提高后台请求速度
   - [ ] 覆盖正常页面加载和后台数据请求的差异测试
+- [ ] 服务端入口容灾与配置完整性
+  - [ ] 将客户端固定后端地址抽象为 Endpoint Resolver，不再让业务代码直接依赖 `SERVER_API_BASE_URL`
+  - [ ] 内置主域名 `/v1/bootstrap` 与 GitHub raw `public/bootstrap.json` 两个发现源，不暴露 `workers.dev` 域名
+  - [ ] 保存 last known good API 地址与远程配置，服务端或主域名不可用时先用上次成功配置降级
+  - [ ] 为 bootstrap/config 增加 checksum 或签名校验，客户端校验通过后才更新本地缓存
+  - [ ] 为 `/v1/bootstrap`、`/v1/config` 增加合理缓存策略，支持缓存命中与 stale-if-error 降级
+  - [ ] 使用 TTL、指数退避和连续失败熔断，避免服务端故障时客户端反复重试
+  - [ ] 覆盖 `/v1/config` 和 telemetry 入口，确保现有服务端调用统一走 resolver
 
 ### P2：资源入口优化
 

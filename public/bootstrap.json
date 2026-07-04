@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-04T00:00:00.000Z",
+  "ttlSeconds": 3600,
+  "apiBaseUrls": [
+    {
+      "url": "https://jbd-server.we-together.club",
+      "priority": 10,
+      "status": "active"
+    }
+  ],
+  "configPath": "/v1/config",
+  "telemetryPath": "/v1/telemetry/report",
+  "checksum": "820854c1e82cc33e3dda1e58d70d238f6621e1ddfcbb2766e764ddf4c33e9356"
+}

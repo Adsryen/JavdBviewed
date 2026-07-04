@@ -10,8 +10,9 @@ import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalCo
 import { PrivacyConfig } from '../types/privacy';
 import { normalizeDrive115Settings } from '../features/drive115/app';
 import { DEFAULT_AI_SETTINGS } from '../types/ai';
+import { DEFAULT_SERVER_API_BASE_URL } from '../platform/network/serverEndpointResolver';
 
-export const SERVER_API_BASE_URL = 'https://jbd-server.we-together.club';
+export const SERVER_API_BASE_URL = DEFAULT_SERVER_API_BASE_URL;
 export const TELEMETRY_REPORT_ENDPOINT = `${SERVER_API_BASE_URL}/v1/telemetry/report`;
 
 export const STORAGE_KEYS = {

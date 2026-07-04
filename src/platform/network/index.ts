@@ -11,6 +11,22 @@ export {
   type RequestConfig,
 } from './httpClient';
 export {
+  buildServerApiUrl,
+  buildTelemetryReportUrl,
+  DEFAULT_SERVER_API_BASE_URL,
+  GITHUB_BOOTSTRAP_URL,
+  PRIMARY_BOOTSTRAP_URL,
+  refreshServerEndpoint,
+  resolveServerEndpoint,
+  SERVER_ENDPOINT_STATE_KEY,
+  stableStringifyWithoutChecksum,
+  verifyJsonChecksum,
+  type BootstrapApiBaseUrl,
+  type RefreshServerEndpointOptions,
+  type ServerBootstrapDocument,
+  type ServerEndpointState,
+} from './serverEndpointResolver';
+export {
   RequestScheduler,
   requestScheduler,
   type RequestSchedulerOptions,
