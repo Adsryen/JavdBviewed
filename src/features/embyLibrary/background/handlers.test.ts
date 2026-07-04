@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { handleEmbyLibraryCheckCodes, handleEmbyLibrarySync } from './handlers';
 import type { EmbyLibraryState, EmbyMediaServer } from '../types';
 
+type FetchImpl = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+type FetchMock = ReturnType<typeof vi.fn<FetchImpl>>;
+
 const server: EmbyMediaServer = {
   id: 'main',
   type: 'emby',
@@ -10,6 +13,10 @@ const server: EmbyMediaServer = {
   apiKey: 'api-secret',
   enabled: true,
 };
+
+function createFetchMock(impl: FetchImpl): FetchMock {
+  return vi.fn<FetchImpl>(impl);
+}
 
 function createDeps(fetchImpl: typeof fetch, storedState: EmbyLibraryState = { entries: {}, updatedAt: 0 }) {
   return {
@@ -33,17 +40,22 @@ function createDeps(fetchImpl: typeof fetch, storedState: EmbyLibraryState = { e
 describe('emby library background handlers', () => {
   it('syncs enabled servers and saves a redacted library state', async () => {
     const sendResponse = vi.fn();
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+    const fetchImpl = createFetchMock(async () => new Response(JSON.stringify({
       Items: [
-        { Id: 'item-1', Name: 'ABC-101 Sample', Path: '/movies/ABC-101.mkv' },
+        {
+          Id: 'item-1',
+          Name: 'ABC-101 Sample',
+          Path: '/movies/ABC-101.mkv',
+          ImageTags: { Primary: 'cover-tag' },
+        },
       ],
-    }), { status: 200 })) as any;
+    }), { status: 200 }));
     const deps = createDeps(fetchImpl);
 
     await handleEmbyLibrarySync({ manual: true }, sendResponse, deps);
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'http://media.local:8096/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path&api_key=api-secret',
+      'http://media.local:8096/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path%2CPrimaryImageAspectRatio%2CImageTags&api_key=api-secret',
       expect.objectContaining({ method: 'GET' }),
     );
     expect(deps.saveState).toHaveBeenCalledWith(expect.objectContaining({
@@ -57,6 +69,7 @@ describe('emby library background handlers', () => {
       serverName: 'Main',
       serverUrl: 'http://media.local:8096',
       itemId: 'item-1',
+      coverImageUrl: 'http://media.local:8096/Items/item-1/Images/Primary?tag=cover-tag',
     });
     expect(JSON.stringify(savedState)).not.toContain('api-secret');
     expect(sendResponse).toHaveBeenCalledWith({ success: true, synced: 1, failed: 0 });
@@ -64,7 +77,7 @@ describe('emby library background handlers', () => {
 
   it('keeps previous successful entries when a server returns 401', async () => {
     const sendResponse = vi.fn();
-    const fetchImpl = vi.fn(async () => new Response('unauthorized', { status: 401 })) as any;
+    const fetchImpl = createFetchMock(async () => new Response('unauthorized', { status: 401 }));
     const previousState: EmbyLibraryState = {
       entries: {
         'ABC-102': [{
@@ -93,7 +106,7 @@ describe('emby library background handlers', () => {
 
   it('preserves the last successful index timestamp when every server fails', async () => {
     const sendResponse = vi.fn();
-    const fetchImpl = vi.fn(async () => new Response('server error', { status: 500 })) as any;
+    const fetchImpl = createFetchMock(async () => new Response('server error', { status: 500 }));
     const previousState: EmbyLibraryState = {
       entries: {
         'ABC-103': [{
@@ -125,11 +138,11 @@ describe('emby library background handlers', () => {
     vi.useFakeTimers();
     try {
       const sendResponse = vi.fn();
-      const fetchImpl = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      const fetchImpl = createFetchMock((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => {
           reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
         });
-      })) as any;
+      }));
       const previousState: EmbyLibraryState = {
         entries: {
           'ABC-104': [{
@@ -164,11 +177,11 @@ describe('emby library background handlers', () => {
 
   it('replaces previous entries for the same server URL after a server is renamed', async () => {
     const sendResponse = vi.fn();
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+    const fetchImpl = createFetchMock(async () => new Response(JSON.stringify({
       Items: [
         { Id: 'new-item', Name: 'ABC-105 Renamed Server Hit', Path: '/movies/ABC-105.mkv' },
       ],
-    }), { status: 200 })) as any;
+    }), { status: 200 }));
     const previousState: EmbyLibraryState = {
       entries: {
         'ABC-105': [{
@@ -194,32 +207,58 @@ describe('emby library background handlers', () => {
     });
   });
 
-  it('checks duplicate codes once and uses server-side search terms', async () => {
+  it('checks duplicate codes once with search variants and filters noisy server results', async () => {
     const sendResponse = vi.fn();
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      Items: [
-        { Id: 'item-201', Name: 'ABC-201 Search Hit', Path: '/movies/ABC-201.mkv' },
-      ],
-    }), { status: 200 })) as any;
+    const fetchImpl = createFetchMock(async (input: RequestInfo | URL) => {
+      const searchTerm = new URL(String(input)).searchParams.get('SearchTerm');
+      const itemsByTerm: Record<string, unknown[]> = {
+        'ABC-201': [
+          { Id: 'item-201', Name: 'ABC-201 Search Hit', Path: '/movies/ABC-201.mkv' },
+          { Id: 'noise-999', Name: 'ABC-999 Noisy Hit', Path: '/movies/ABC-999.mkv' },
+        ],
+        ABC201: [
+          { Id: 'item-201', Name: 'ABC-201 Search Hit', Path: '/movies/ABC-201.mkv' },
+          { Id: 'item-201-compact', Name: 'ABC201 Compact Hit', Path: '/movies/ABC201.mkv' },
+        ],
+      };
+
+      return new Response(JSON.stringify({
+        Items: itemsByTerm[searchTerm || ''] || [],
+      }), { status: 200 });
+    });
     const deps = createDeps(fetchImpl);
 
     await handleEmbyLibraryCheckCodes({ codes: ['abc-201', 'ABC_201'] }, sendResponse, deps);
 
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(fetchImpl.mock.calls[0][0]).toContain('SearchTerm=ABC-201');
+    expect(fetchImpl).toHaveBeenCalledTimes(6);
+    expect(fetchImpl.mock.calls.map(([url]) => new URL(String(url)).searchParams.get('SearchTerm'))).toEqual([
+      'ABC-201',
+      'ABC201',
+      'ABC_201',
+      'abc-201',
+      'abc201',
+      'abc_201',
+    ]);
     expect(deps.saveState).toHaveBeenCalledWith(expect.objectContaining({
       entries: expect.objectContaining({
         'ABC-201': [
           expect.objectContaining({ itemId: 'item-201' }),
+          expect.objectContaining({ itemId: 'item-201-compact' }),
         ],
       }),
     }));
+    const savedState = deps.saveState.mock.calls[0][0] as EmbyLibraryState;
+    expect(savedState.entries['ABC-201'].map((entry) => entry.itemId)).toEqual([
+      'item-201',
+      'item-201-compact',
+    ]);
     expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
       checked: 1,
       matches: {
         'ABC-201': [
           expect.objectContaining({ itemId: 'item-201' }),
+          expect.objectContaining({ itemId: 'item-201-compact' }),
         ],
       },
     }));
@@ -227,11 +266,11 @@ describe('emby library background handlers', () => {
 
   it('keeps the full sync timestamp when realtime checks update entries', async () => {
     const sendResponse = vi.fn();
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+    const fetchImpl = createFetchMock(async () => new Response(JSON.stringify({
       Items: [
         { Id: 'item-202', Name: 'ABC-202 Search Hit', Path: '/movies/ABC-202.mkv' },
       ],
-    }), { status: 200 })) as any;
+    }), { status: 200 }));
     const previousState: EmbyLibraryState = {
       entries: {},
       updatedAt: 500,

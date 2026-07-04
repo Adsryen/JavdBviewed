@@ -654,9 +654,21 @@ div.url-item input.url-input:disabled {
     text-decoration: none;
 }
 
+.emby-library-check-match.has-cover {
+    grid-template-columns: 36px minmax(90px, auto) minmax(72px, auto) minmax(0, 1fr);
+}
+
 .emby-library-check-match:hover {
     border-color: var(--primary);
     box-shadow: var(--ring);
+}
+
+.emby-library-check-cover {
+    width: 36px;
+    height: 48px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--surface-secondary);
 }
 
 .emby-library-check-server,

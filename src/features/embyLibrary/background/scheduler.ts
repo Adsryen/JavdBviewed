@@ -3,6 +3,7 @@
  * @description scheduler
  * @module features/embyLibrary
  */
+import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings } from '../../../utils/storage';
 import { handleEmbyLibrarySync } from './handlers';
 
@@ -11,8 +12,10 @@ export const EMBY_LIBRARY_SYNC_ALARM = 'emby.library.sync';
 const DEFAULT_SYNC_INTERVAL_MINUTES = 60;
 const MIN_SYNC_INTERVAL_MINUTES = 5;
 const MAX_SYNC_INTERVAL_MINUTES = 10080;
+const LIBRARY_STATE_BROADCAST_DEBOUNCE_MS = 50;
 
 type SyncLibrary = (message: { manual: boolean }) => Promise<any>;
+let libraryStateBroadcastTimer: ReturnType<typeof setTimeout> | null = null;
 
 export interface EmbyLibraryAlarmDeps {
   syncLibrary?: SyncLibrary;
@@ -85,6 +88,27 @@ async function broadcastLibraryStateUpdated(): Promise<void> {
   }));
 }
 
+function scheduleLibraryStateUpdatedBroadcast(): void {
+  if (libraryStateBroadcastTimer) {
+    clearTimeout(libraryStateBroadcastTimer);
+  }
+
+  libraryStateBroadcastTimer = setTimeout(() => {
+    libraryStateBroadcastTimer = null;
+    broadcastLibraryStateUpdated().catch(() => {});
+  }, LIBRARY_STATE_BROADCAST_DEBOUNCE_MS);
+}
+
+export function handleEmbyLibraryStateStorageChange(
+  changes: Record<string, chrome.storage.StorageChange>,
+  areaName: string,
+): void {
+  if (areaName !== 'local') return;
+  if (!changes[STORAGE_KEYS.EMBY_LIBRARY_STATE]) return;
+
+  scheduleLibraryStateUpdatedBroadcast();
+}
+
 export async function handleEmbyLibraryAlarm(
   alarmName: string,
   deps: EmbyLibraryAlarmDeps = {},
@@ -94,7 +118,7 @@ export async function handleEmbyLibraryAlarm(
   const syncLibrary = deps.syncLibrary || runSyncLibrary;
   const response = await syncLibrary({ manual: false });
   if (response?.success && response?.skipped !== true) {
-    await broadcastLibraryStateUpdated();
+    scheduleLibraryStateUpdatedBroadcast();
   }
 
   return true;

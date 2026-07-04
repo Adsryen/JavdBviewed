@@ -128,5 +128,45 @@ describe('Emby settings', () => {
     expect(result.textContent).toContain('已入库');
     expect(result.textContent).toContain('家庭 Emby');
     expect(result.textContent).toContain('ABC-123 Movie');
+    expect(result.querySelector('.emby-library-check-cover')).toBeNull();
+  });
+
+  it('shows a diagnostic thumbnail when a media library match has a cover URL', async () => {
+    setEmbySettingsHtml();
+    createSettings();
+    vi.mocked(chrome.runtime.sendMessage).mockImplementationOnce((message: unknown, callback?: (response: unknown) => void) => {
+      expect(message).toEqual({
+        type: 'EMBY_LIBRARY_CHECK_CODES',
+        codes: ['abc-124'],
+      });
+      callback?.({
+        success: true,
+        checked: 1,
+        matches: {
+          'ABC-124': [
+            {
+              serverType: 'emby',
+              serverName: 'Home Emby',
+              serverUrl: 'http://192.168.1.10:8096',
+              itemId: 'item-124',
+              itemName: 'ABC-124 Movie',
+              coverImageUrl: 'http://192.168.1.10:8096/Items/item-124/Images/Primary?tag=cover-tag',
+              updatedAt: 100,
+            },
+          ],
+        },
+      });
+    });
+
+    (document.getElementById('emby-library-check-code') as HTMLInputElement).value = 'abc-124';
+    (document.getElementById('test-emby-library-check') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const result = document.getElementById('emby-library-check-result') as HTMLDivElement;
+    const cover = result.querySelector<HTMLImageElement>('.emby-library-check-cover');
+
+    expect(cover).not.toBeNull();
+    expect(cover?.getAttribute('src')).toBe('http://192.168.1.10:8096/Items/item-124/Images/Primary?tag=cover-tag');
+    expect(cover?.getAttribute('alt')).toBe('');
   });
 });

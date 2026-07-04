@@ -55,6 +55,72 @@ export function extractCodeFromMediaItem(item: EmbyMediaItem): string | null {
   return normalizeVideoCode(item.Name || '') || normalizeVideoCode(item.Path || '');
 }
 
+function addSearchTerm(terms: string[], canonicalCode: string, term: string): void {
+  const normalizedTerm = normalizeVideoCode(term);
+  if (normalizedTerm !== canonicalCode || terms.includes(term)) return;
+  terms.push(term);
+}
+
+export function generateVideoCodeSearchTerms(videoCode: string): string[] {
+  const canonicalCode = normalizeVideoCode(videoCode);
+  if (!canonicalCode) return [];
+
+  const terms: string[] = [];
+  const fc2Match = canonicalCode.match(/^FC2-PPV-(\d+)$/);
+  if (fc2Match) {
+    const number = fc2Match[1];
+    const upperTerms = [
+      `FC2-PPV-${number}`,
+      `FC2PPV${number}`,
+      `FC2_PPV_${number}`,
+    ];
+    for (const term of upperTerms) {
+      addSearchTerm(terms, canonicalCode, term);
+    }
+    for (const term of upperTerms) {
+      addSearchTerm(terms, canonicalCode, term.toLowerCase());
+    }
+    return terms;
+  }
+
+  const codeMatch = canonicalCode.match(/^([A-Z0-9]+)-([A-Z0-9]+)$/);
+  if (!codeMatch) {
+    addSearchTerm(terms, canonicalCode, canonicalCode);
+    addSearchTerm(terms, canonicalCode, canonicalCode.toLowerCase());
+    return terms;
+  }
+
+  const [, prefix, suffix] = codeMatch;
+  const upperTerms = [
+    `${prefix}-${suffix}`,
+    `${prefix}${suffix}`,
+    `${prefix}_${suffix}`,
+  ];
+  for (const term of upperTerms) {
+    addSearchTerm(terms, canonicalCode, term);
+  }
+  for (const term of upperTerms) {
+    addSearchTerm(terms, canonicalCode, term.toLowerCase());
+  }
+
+  return terms;
+}
+
+export function buildMediaItemCoverImageUrl(
+  server: Pick<EmbyMediaServer, 'url'>,
+  item: Pick<EmbyMediaItem, 'Id' | 'ImageTags' | 'PrimaryImageTag'>,
+): string | undefined {
+  const itemId = String(item.Id || '').trim();
+  const primaryImageTag = String(item.ImageTags?.Primary || item.PrimaryImageTag || '').trim();
+  if (!itemId || !primaryImageTag) return undefined;
+
+  const serverUrl = normalizeServerUrl(server.url);
+  if (!serverUrl) return undefined;
+
+  const params = new URLSearchParams({ tag: primaryImageTag });
+  return `${serverUrl}/Items/${encodeURIComponent(itemId)}/Images/Primary?${params.toString()}`;
+}
+
 export function buildLibraryIndex(
   server: EmbyMediaServer,
   items: EmbyMediaItem[],
@@ -70,6 +136,7 @@ export function buildLibraryIndex(
     const code = extractCodeFromMediaItem(item);
     if (!code) continue;
 
+    const coverImageUrl = buildMediaItemCoverImageUrl(server, item);
     const entry: EmbyLibraryIndexEntry = {
       serverType: server.type || 'emby',
       serverName: server.name || (server.type === 'jellyfin' ? 'Jellyfin' : 'Emby'),
@@ -78,6 +145,7 @@ export function buildLibraryIndex(
       serverId: item.ServerId ? String(item.ServerId) : undefined,
       itemName: String(item.Name || code),
       path: item.Path,
+      ...(coverImageUrl ? { coverImageUrl } : {}),
       updatedAt: now,
     };
 

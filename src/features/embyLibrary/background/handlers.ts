@@ -8,6 +8,7 @@ import { getSettings, getValue, setValue } from '../../../utils/storage';
 import {
   buildLibraryIndex,
   extractCodeFromMediaItem,
+  generateVideoCodeSearchTerms,
   mergeLibraryIndexes,
   normalizeServerUrl,
   normalizeVideoCode,
@@ -86,7 +87,7 @@ async function fetchAllMediaItems(
   const params = new URLSearchParams({
     Recursive: 'true',
     IncludeItemTypes: 'Movie',
-    Fields: 'Path',
+    Fields: 'Path,PrimaryImageAspectRatio,ImageTags',
     api_key: server.apiKey,
   });
   if (searchTerm) {
@@ -152,6 +153,20 @@ function removeEntriesForSuccessfulServers(
   }
 
   return next;
+}
+
+function deduplicateMediaItemsById(items: EmbyMediaItem[]): EmbyMediaItem[] {
+  const seenIds = new Set<string>();
+  const deduplicatedItems: EmbyMediaItem[] = [];
+
+  for (const item of items) {
+    const itemId = String(item.Id || '').trim();
+    if (!itemId || seenIds.has(itemId)) continue;
+    seenIds.add(itemId);
+    deduplicatedItems.push(item);
+  }
+
+  return deduplicatedItems;
 }
 
 export async function handleEmbyLibrarySync(
@@ -271,7 +286,12 @@ export async function handleEmbyLibraryCheckCodes(
       const foundForCode: EmbyLibraryIndexEntry[] = [];
       for (const server of servers) {
         try {
-          const items = await fetchAllMediaItems(server, deps.fetchImpl, code);
+          const searchTerms = generateVideoCodeSearchTerms(code);
+          const returnedItems: EmbyMediaItem[] = [];
+          for (const searchTerm of searchTerms) {
+            returnedItems.push(...await fetchAllMediaItems(server, deps.fetchImpl, searchTerm));
+          }
+          const items = deduplicateMediaItemsById(returnedItems);
           const matchedItems = items.filter((item) => extractCodeFromMediaItem(item) === code);
           const index = buildLibraryIndex(server, matchedItems, now);
           const serverMatches = index.entries[code] || [];

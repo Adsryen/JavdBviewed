@@ -92,6 +92,8 @@ describe('Emby library scheduler', () => {
 
     expect(handled).toBe(true);
     expect(syncLibrary).toHaveBeenCalledWith({ manual: false });
+    expect(getTabsMessages()).toEqual([]);
+    await vi.advanceTimersByTimeAsync(50);
     expect(getTabsMessages()).toEqual([
       { tabId: 1, message: { type: 'EMBY_LIBRARY_STATE_UPDATED' } },
       { tabId: 2, message: { type: 'EMBY_LIBRARY_STATE_UPDATED' } },
@@ -106,5 +108,105 @@ describe('Emby library scheduler', () => {
 
     expect(handled).toBe(true);
     expect(chrome.tabs.query).not.toHaveBeenCalled();
+  });
+
+  it('notifies content tabs when the library state changes in local storage', async () => {
+    const { handleEmbyLibraryStateStorageChange } = await import('../../src/features/embyLibrary/background/scheduler');
+    vi.mocked(chrome.tabs.query).mockResolvedValueOnce([
+      { id: 1, url: 'https://javdb.com/' } as chrome.tabs.Tab,
+      { id: 2, url: 'https://javdb.com/v/abc' } as chrome.tabs.Tab,
+    ]);
+
+    handleEmbyLibraryStateStorageChange({
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: {
+        oldValue: { entries: {}, updatedAt: 0 },
+        newValue: { entries: {}, updatedAt: 100 },
+      },
+    }, 'local');
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(getTabsMessages()).toEqual([
+      { tabId: 1, message: { type: 'EMBY_LIBRARY_STATE_UPDATED' } },
+      { tabId: 2, message: { type: 'EMBY_LIBRARY_STATE_UPDATED' } },
+    ]);
+  });
+
+  it('does not notify content tabs for ordinary settings changes', async () => {
+    const { handleEmbyLibraryStateStorageChange } = await import('../../src/features/embyLibrary/background/scheduler');
+
+    handleEmbyLibraryStateStorageChange({
+      [STORAGE_KEYS.SETTINGS]: {
+        oldValue: {},
+        newValue: DEFAULT_SETTINGS,
+      },
+    }, 'local');
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(chrome.tabs.query).not.toHaveBeenCalled();
+    expect(getTabsMessages()).toEqual([]);
+  });
+
+  it('coalesces rapid library state storage changes into one broadcast', async () => {
+    const { handleEmbyLibraryStateStorageChange } = await import('../../src/features/embyLibrary/background/scheduler');
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { id: 1, url: 'https://javdb.com/' } as chrome.tabs.Tab,
+    ]);
+
+    handleEmbyLibraryStateStorageChange({
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { oldValue: undefined, newValue: { entries: {}, updatedAt: 1 } },
+    }, 'local');
+    handleEmbyLibraryStateStorageChange({
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { oldValue: undefined, newValue: { entries: {}, updatedAt: 2 } },
+    }, 'local');
+    handleEmbyLibraryStateStorageChange({
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { oldValue: undefined, newValue: { entries: {}, updatedAt: 3 } },
+    }, 'local');
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(chrome.tabs.query).toHaveBeenCalledTimes(1);
+    expect(getTabsMessages()).toEqual([
+      { tabId: 1, message: { type: 'EMBY_LIBRARY_STATE_UPDATED' } },
+    ]);
+  });
+
+  it('coalesces alarm success and storage state changes into one broadcast', async () => {
+    const {
+      EMBY_LIBRARY_SYNC_ALARM,
+      handleEmbyLibraryAlarm,
+      handleEmbyLibraryStateStorageChange,
+    } = await import('../../src/features/embyLibrary/background/scheduler');
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { id: 1, url: 'https://javdb.com/' } as chrome.tabs.Tab,
+    ]);
+    const syncLibrary = vi.fn(async () => ({ success: true, synced: 1, failed: 0 }));
+
+    const handled = await handleEmbyLibraryAlarm(EMBY_LIBRARY_SYNC_ALARM, { syncLibrary });
+    handleEmbyLibraryStateStorageChange({
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { oldValue: undefined, newValue: { entries: {}, updatedAt: 100 } },
+    }, 'local');
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(handled).toBe(true);
+    expect(chrome.tabs.query).toHaveBeenCalledTimes(1);
+    expect(getTabsMessages()).toEqual([
+      { tabId: 1, message: { type: 'EMBY_LIBRARY_STATE_UPDATED' } },
+    ]);
+  });
+
+  it('registers the background storage listener for direct library state changes', async () => {
+    const { registerBackgroundSettingsChangeRouter } = await import('../../src/apps/background/alarmRouter');
+    vi.mocked(chrome.tabs.query).mockResolvedValueOnce([
+      { id: 1, url: 'https://javdb.com/' } as chrome.tabs.Tab,
+    ]);
+
+    registerBackgroundSettingsChangeRouter();
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { entries: {}, updatedAt: 100 },
+    });
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(getTabsMessages()).toEqual([
+      { tabId: 1, message: { type: 'EMBY_LIBRARY_STATE_UPDATED' } },
+    ]);
   });
 });

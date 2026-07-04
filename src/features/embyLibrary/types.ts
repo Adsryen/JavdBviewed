@@ -37,6 +37,7 @@ export interface EmbyLibraryIndexEntry {
   serverId?: string;
   itemName: string;                                   // 媒体名称
   path?: string;                                      // 文件路径
+  coverImageUrl?: string;
   updatedAt: number;
 }
 
@@ -69,4 +70,6 @@ export interface EmbyMediaItem {
   Name?: string;
   Path?: string;
   ServerId?: string;
+  ImageTags?: Record<string, string>;
+  PrimaryImageTag?: string;
 }

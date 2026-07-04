@@ -553,7 +553,6 @@ export class EmbySettings extends BaseSettingsPanel {
             if (response?.success) {
                 this.syncStatusEl.textContent = `同步完成：成功 ${synced} 个服务器，失败 ${failed} 个服务器`;
                 showMessage('媒体库同步完成', 'success');
-                this.broadcastLibraryStateUpdated();
             } else {
                 const error = response?.error || (failed > 0 ? `失败 ${failed} 个服务器` : '同步失败');
                 this.syncStatusEl.textContent = `同步失败：${error}`;
@@ -603,7 +602,6 @@ export class EmbySettings extends BaseSettingsPanel {
             }
 
             this.renderLibraryCheckResult(response?.matches || {});
-            this.broadcastLibraryStateUpdated();
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.renderLibraryCheckError(`检测失败：${message}`);
@@ -637,8 +635,13 @@ export class EmbySettings extends BaseSettingsPanel {
 
     private renderLibraryCheckMatch(code: string, entry: EmbyLibraryIndexEntry): string {
         const href = buildMediaItemUrl(entry);
+        const coverHtml = entry.coverImageUrl
+            ? `<img class="emby-library-check-cover" src="${this.escapeHtml(entry.coverImageUrl)}" alt="" loading="lazy">`
+            : '';
+        const matchClass = entry.coverImageUrl ? 'emby-library-check-match has-cover' : 'emby-library-check-match';
         return `
-            <a class="emby-library-check-match" href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+            <a class="${matchClass}" href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+                ${coverHtml}
                 <span class="emby-library-check-server">${this.escapeHtml(entry.serverName || entry.serverType)}</span>
                 <span class="emby-library-check-code">${this.escapeHtml(code)}</span>
                 <span class="emby-library-check-title">${this.escapeHtml(entry.itemName || entry.itemId)}</span>
@@ -748,17 +751,6 @@ export class EmbySettings extends BaseSettingsPanel {
             } catch (error) {
                 reject(error);
             }
-        });
-    }
-
-    private broadcastLibraryStateUpdated(): void {
-        if (typeof chrome === 'undefined' || !chrome.tabs) return;
-        chrome.tabs.query({}, (tabs) => {
-            tabs.forEach(tab => {
-                if (tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { type: 'EMBY_LIBRARY_STATE_UPDATED' }).catch(() => {});
-                }
-            });
         });
     }
 

@@ -10,6 +10,7 @@ import { getSettings } from '../../utils/storage';
 import { registerDynamicContentScripts } from './dynamicContentScripts';
 import {
   handleEmbyLibraryAlarm,
+  handleEmbyLibraryStateStorageChange,
   syncEmbyLibrarySyncAlarmFromCurrentSettings,
   syncEmbyLibrarySyncAlarmFromSettings,
 } from '../../features/embyLibrary/background/scheduler';
@@ -112,6 +113,8 @@ export function registerBackgroundAlarmRouter(): void {
 export function registerBackgroundSettingsChangeRouter(): void {
   try {
     chrome.storage.onChanged.addListener(async (changes, area) => {
+      handleEmbyLibraryStateStorageChange(changes, area);
+
       if (area === 'local' && changes['settings']) {
         try {
           const settings = await getSettings();
