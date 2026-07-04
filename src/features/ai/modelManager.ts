@@ -5,7 +5,8 @@
  */
 // AI模型管理器
 
-import type { AIModel, AISettings } from '../../types/ai';
+import { AI_STORAGE_KEYS, type AIModel, type AISettings } from '../../types/ai';
+import { createChromeStorage } from '../../platform/storage/chromeStorage';
 import { NewApiClient } from './newApiClient';
 
 /**
@@ -16,6 +17,8 @@ interface ModelCache {
     timestamp: number;
     apiUrl: string;
 }
+
+const modelCacheStorage = createChromeStorage();
 
 /**
  * AI模型管理器
@@ -47,8 +50,7 @@ export class ModelManager {
      */
     private async loadCache(): Promise<void> {
         try {
-            const result = await chrome.storage.local.get('ai_models_cache');
-            const cached = result['ai_models_cache'] as ModelCache | undefined;
+            const cached = await modelCacheStorage.getValue<ModelCache | null>(AI_STORAGE_KEYS.MODELS_CACHE, null);
 
             if (cached && this.isCacheValid(cached)) {
                 this.cache = cached;
@@ -65,9 +67,7 @@ export class ModelManager {
         if (!this.cache) return;
 
         try {
-            await chrome.storage.local.set({
-                'ai_models_cache': this.cache
-            });
+            await modelCacheStorage.setValue(AI_STORAGE_KEYS.MODELS_CACHE, this.cache);
         } catch (error) {
             console.warn('保存模型缓存失败:', error);
         }
@@ -87,7 +87,7 @@ export class ModelManager {
     async clearCache(): Promise<void> {
         this.cache = null;
         try {
-            await chrome.storage.local.remove('ai_models_cache');
+            await modelCacheStorage.removeKeys([AI_STORAGE_KEYS.MODELS_CACHE]);
         } catch (error) {
             console.warn('清除模型缓存失败:', error);
         }

@@ -3,7 +3,7 @@
  * @description storage chrome adapter 测试
  * @module tests/extension
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createChromeStorage } from '../../src/platform/storage/chromeStorage';
 import { STORAGE_KEYS } from '../../src/utils/config';
 import { getValue as getLegacyValue, setValue as setLegacyValue } from '../../src/utils/storage';
@@ -14,6 +14,20 @@ import {
   setChromeStorage,
   setRuntimeMessageHandler,
 } from '../setup/chrome';
+
+function removeChromeStorage(): void {
+  Object.defineProperty(globalThis, 'chrome', {
+    value: {
+      runtime: {
+        id: 'test-runtime',
+        lastError: null,
+        sendMessage: vi.fn(),
+      },
+    },
+    configurable: true,
+    writable: true,
+  });
+}
 
 const createViewedStorage = () =>
   createChromeStorage({
@@ -102,5 +116,28 @@ describe('storage chrome adapter', () => {
     await setLegacyValue('legacy-key', { title: 'saved' });
 
     await expect(getLegacyValue('legacy-key', { title: 'fallback' })).resolves.toEqual({ title: 'saved' });
+  });
+
+  it('falls back safely when chrome.storage.local is unavailable', async () => {
+    removeChromeStorage();
+    const storage = createChromeStorage();
+
+    await expect(storage.getValue('missing-key', { title: 'fallback' })).resolves.toEqual({ title: 'fallback' });
+    await expect(storage.setValue('sample-key', { title: 'ignored' })).resolves.toBeUndefined();
+    await expect(storage.removeKeys(['sample-key'])).resolves.toBeUndefined();
+    await expect(storage.getAllKeys()).resolves.toEqual([]);
+  });
+
+  it('keeps platform cache calls non-throwing when chrome storage is unavailable', async () => {
+    vi.resetModules();
+    removeChromeStorage();
+    const { CacheManager } = await import('../../src/platform/storage/cache');
+    const cache = new CacheManager({ cleanupInterval: 60_000 });
+
+    await expect(cache.getVideoDetail('ABC-001')).resolves.toBeNull();
+    await expect(cache.setVideoDetail('ABC-001', { id: 'ABC-001' })).resolves.toBeUndefined();
+    await expect(cache.clearAll()).resolves.toBeUndefined();
+
+    cache.destroy();
   });
 });

@@ -54,12 +54,16 @@ function encodeSize(value: any): number {
   }
 }
 
-function storageAreaFrom(options: ChromeStorageOptions): chrome.storage.StorageArea {
-  return options.area ?? chrome.storage.local;
+function storageAreaFrom(options: ChromeStorageOptions): chrome.storage.StorageArea | null {
+  if (options.area) return options.area;
+  if (typeof chrome === 'undefined') return null;
+  return chrome.storage?.local ?? null;
 }
 
-function runtimeFrom(options: ChromeStorageOptions): Pick<typeof chrome.runtime, 'id' | 'lastError' | 'sendMessage'> {
-  return options.runtime ?? chrome.runtime;
+function runtimeFrom(options: ChromeStorageOptions): Pick<typeof chrome.runtime, 'id' | 'lastError' | 'sendMessage'> | null {
+  if (options.runtime) return options.runtime;
+  if (typeof chrome === 'undefined') return null;
+  return chrome.runtime ?? null;
 }
 
 function chromeGet(area: chrome.storage.StorageArea, keys: string | string[] | null): Promise<Record<string, any>> {
@@ -219,6 +223,7 @@ async function loadMigratedLargeObject<T>(
   if (!loader) return undefined;
 
   const area = storageAreaFrom(options);
+  if (!area) return undefined;
   const migrated = !!(await chromeGet(area, [loader.migratedFlagKey]))[loader.migratedFlagKey];
   if (!migrated) return undefined;
 
@@ -238,6 +243,7 @@ export function createChromeStorage(options: ChromeStorageOptions = {}): ChromeS
 
   async function setValue<T>(key: string, value: T): Promise<void> {
     const area = storageAreaFrom(options);
+    if (!area) return;
     if (largeKeys.has(key) && isPlainRecord(value)) {
       try {
         await setLargeObject(area, key, value);
@@ -251,6 +257,7 @@ export function createChromeStorage(options: ChromeStorageOptions = {}): ChromeS
 
   async function getValue<T>(key: string, defaultValue: T): Promise<T> {
     const area = storageAreaFrom(options);
+    if (!area) return defaultValue;
     if (largeKeys.has(key)) {
       const migratedValue = await loadMigratedLargeObject<T>(options, key);
       if (migratedValue !== undefined) {
@@ -266,11 +273,15 @@ export function createChromeStorage(options: ChromeStorageOptions = {}): ChromeS
 
   async function removeKeys(keys: string[]): Promise<void> {
     if (keys.length === 0) return;
-    await chromeRemove(storageAreaFrom(options), keys);
+    const area = storageAreaFrom(options);
+    if (!area) return;
+    await chromeRemove(area, keys);
   }
 
   async function getAllKeys(): Promise<string[]> {
-    return Object.keys(await chromeGet(storageAreaFrom(options), null));
+    const area = storageAreaFrom(options);
+    if (!area) return [];
+    return Object.keys(await chromeGet(area, null));
   }
 
   return {
