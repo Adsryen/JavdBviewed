@@ -94,6 +94,22 @@ describe('online availability helpers', () => {
     expect(result.available).toBe(false);
   });
 
+  it('marks FANZA unavailable when a list shell only echoes the requested product title', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'fanza');
+    if (!site) throw new Error('FANZA site rule not found');
+    const doc = new DOMParser().parseFromString(`
+      <title>FANZA動画 検索</title>
+      <form action="/search/"><input name="searchstr" value="JUR-730"></form>
+      <section class="d-item-list">
+        <a class="productTitle" href="/digital/videoa/-/list/">JUR-730 Sample Recommendation</a>
+      </section>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=JUR00730/', 200);
+
+    expect(result.available).toBe(false);
+  });
+
   it('marks FANZA available when the detail page carries a product cid signal', () => {
     const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'fanza')!;
     const doc = new DOMParser().parseFromString(`
@@ -128,6 +144,22 @@ describe('online availability helpers', () => {
       <title>Jable 搜索</title>
       <div class="info-header">JUR-730</div>
       <main class="search-results">No videos found for JUR-730</main>
+    `, 'text/html');
+
+    const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://jable.tv/videos/jur-730/', 200);
+
+    expect(result.available).toBe(false);
+  });
+
+  it('marks Jable unavailable when og video metadata appears without detail-page signals', () => {
+    const site = DEFAULT_ONLINE_AVAILABILITY_SITES.find(item => item.key === 'jable');
+    if (!site) throw new Error('Jable site rule not found');
+    const doc = new DOMParser().parseFromString(`
+      <title>Jable Search JUR-730</title>
+      <link rel="canonical" href="https://jable.tv/search/jur-730/">
+      <meta property="og:type" content="video.movie">
+      <div class="info-header">JUR-730</div>
+      <main class="search-results">JUR-730</main>
     `, 'text/html');
 
     const result = parseOnlineAvailabilityDocument(site, doc, 'JUR-730', 'https://jable.tv/videos/jur-730/', 200);

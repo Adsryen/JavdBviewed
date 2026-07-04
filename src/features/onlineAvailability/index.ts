@@ -529,40 +529,48 @@ function isSoftMissingPage(text: string): boolean {
 }
 
 function hasFanzaDetailSignal(doc: Document, expectedCid: string, normalizedVideoId: string): boolean {
-  const detailSelectors = [
+  const urlSelectors = [
     'link[rel="canonical"][href*="/digital/videoa/-/detail/=/cid="]',
     'meta[property="og:url"][content*="/digital/videoa/-/detail/=/cid="]',
-    '[class*="productTitle"]',
+  ];
+  const productDataSelectors = [
     '#mu',
     '[data-pid]',
   ];
 
-  const detailText = detailSelectors
+  const urlText = urlSelectors
+    .flatMap(selector => Array.from(doc.querySelectorAll(selector)))
+    .map(element => [
+      element.getAttribute('href') || '',
+      element.getAttribute('content') || '',
+    ].join(' '))
+    .join(' ');
+  const productDataText = productDataSelectors
     .flatMap(selector => Array.from(doc.querySelectorAll(selector)))
     .map(element => [
       element.textContent || '',
-      element.getAttribute('href') || '',
-      element.getAttribute('content') || '',
       element.getAttribute('data-pid') || '',
     ].join(' '))
     .join(' ');
   const scripts = Array.from(doc.querySelectorAll('script:not([src])'))
     .map(script => script.textContent || '')
     .join(' ');
-  const normalizedDetailText = normalizeCode(`${detailText} ${scripts}`);
+  const normalizedUrlText = normalizeCode(urlText);
+  const normalizedProductDataText = normalizeCode(`${productDataText} ${scripts}`);
 
-  return normalizedDetailText.includes(expectedCid) || normalizedDetailText.includes(normalizedVideoId);
+  return normalizedUrlText.includes(expectedCid)
+    || normalizedUrlText.includes(normalizedVideoId)
+    || normalizedProductDataText.includes(expectedCid)
+    || normalizedProductDataText.includes(normalizedVideoId);
 }
 
 function hasJableDetailSignal(doc: Document, normalizedVideoId: string): boolean {
   const canonical = doc.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href || '';
   const ogUrl = doc.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.content || '';
-  const ogType = doc.querySelector<HTMLMetaElement>('meta[property="og:type"]')?.content || '';
   const urlSignals = normalizeCode(`${canonical} ${ogUrl}`);
   const hasDetailUrl = urlSignals.includes(normalizedVideoId) && /\/videos\//i.test(`${canonical} ${ogUrl}`);
 
   return hasDetailUrl
-    || /video/i.test(ogType)
     || Boolean(doc.querySelector('.video-info, .plyr, video, script[type="application/ld+json"]'));
 }
 
