@@ -591,6 +591,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         },
         showStatusBadge: true,
         enableStatusQuickAction: false,
+        enableListFavoriteQuickAction: false,
     },
 
     // 新增：Emby/Jellyfin 增强默认配置

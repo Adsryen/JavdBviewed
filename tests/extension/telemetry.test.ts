@@ -164,6 +164,7 @@ describe('telemetry payload', () => {
       'scrollPagingEnabled',
       'actorWatermarkEnabled',
       'listStatusQuickActionEnabled',
+      'listFavoriteQuickActionEnabled',
       'actorEnhancementEnabled',
       'embyEnabled',
       'embyLibraryStatusEnabled',
@@ -279,6 +280,7 @@ describe('telemetry payload', () => {
           enableScrollPaging: true,
           enableActorWatermark: true,
           enableStatusQuickAction: true,
+          enableListFavoriteQuickAction: true,
         },
         actorEnhancement: {
           ...(DEFAULT_SETTINGS as any).actorEnhancement,
@@ -379,6 +381,7 @@ describe('telemetry payload', () => {
         scrollPagingEnabled: true,
         actorWatermarkEnabled: true,
         listStatusQuickActionEnabled: true,
+        listFavoriteQuickActionEnabled: true,
         actorEnhancementEnabled: true,
         embyEnabled: true,
         embyLibraryStatusEnabled: true,

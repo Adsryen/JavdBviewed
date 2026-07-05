@@ -268,6 +268,124 @@ describe('list item processor', () => {
       },
     });
   });
+
+  it('skips list favorite quick action when the switch is disabled', () => {
+    const list = document.querySelector('.movie-list')!;
+    list.appendChild(renderBoxListItem('ABC-009'));
+    (STATE.settings as any).listEnhancement.enableListFavoriteQuickAction = false;
+
+    processVisibleItems();
+
+    expect(document.querySelector('.jdb-list-favorite-actions')).toBeNull();
+    expect(document.querySelector('.jdb-list-favorite-action')).toBeNull();
+  });
+
+  it('renders list favorite quick action when the switch is enabled', () => {
+    const list = document.querySelector('.movie-list')!;
+    const item = renderBoxListItem('ABC-010');
+    list.appendChild(item);
+    (STATE.settings as any).listEnhancement.enableListFavoriteQuickAction = true;
+
+    processVisibleItems();
+
+    const link = item.querySelector('a.box');
+    const actions = item.querySelector('.jdb-list-favorite-actions');
+    const button = item.querySelector<HTMLButtonElement>('.jdb-list-favorite-action');
+    expect(actions?.parentElement).toBe(link);
+    expect(actions?.classList.contains('pos-top-right')).toBe(true);
+    expect(button?.getAttribute('aria-pressed')).toBe('false');
+    expect(button?.title).toBe('添加到收藏');
+  });
+
+  it('writes favorite state and favoritedAt when a list favorite quick action is clicked', async () => {
+    const list = document.querySelector('.movie-list')!;
+    const item = renderBoxListItem('ABC-011');
+    list.appendChild(item);
+    (STATE.settings as any).listEnhancement.enableListFavoriteQuickAction = true;
+
+    processVisibleItems();
+
+    const button = item.querySelector<HTMLButtonElement>('.jdb-list-favorite-action')!;
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    button.dispatchEvent(clickEvent);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const record = STATE.records['ABC-011'];
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(record?.isFavorite).toBe(true);
+    expect(record?.favoritedAt).toEqual(expect.any(Number));
+    expect(record?.status).toBe(VIDEO_STATUS.BROWSED);
+    expect(button.classList.contains('is-active')).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.title).toBe('取消收藏');
+    expect((chrome.runtime.sendMessage as any).mock.calls.at(-1)?.[0]).toMatchObject({
+      type: 'DB:VIEWED_PUT',
+      payload: {
+        record: {
+          id: 'ABC-011',
+          isFavorite: true,
+          favoritedAt: expect.any(Number),
+        },
+      },
+    });
+  });
+
+  it('clears favorite state and favoritedAt when a list favorite quick action is clicked again', async () => {
+    const list = document.querySelector('.movie-list')!;
+    const item = renderBoxListItem('ABC-012');
+    list.appendChild(item);
+    (STATE.settings as any).listEnhancement.enableListFavoriteQuickAction = true;
+    STATE.records = {
+      'ABC-012': {
+        ...createRecord('ABC-012', VIDEO_STATUS.WANT),
+        isFavorite: true,
+        favoritedAt: 12345,
+      },
+    };
+
+    processVisibleItems();
+
+    const button = item.querySelector<HTMLButtonElement>('.jdb-list-favorite-action')!;
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    button.dispatchEvent(clickEvent);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const record = STATE.records['ABC-012'];
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(record?.status).toBe(VIDEO_STATUS.WANT);
+    expect(record?.isFavorite).toBe(false);
+    expect(record?.favoritedAt).toBeUndefined();
+    expect(button.classList.contains('is-active')).toBe(false);
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.title).toBe('添加到收藏');
+    const savedRecord = (chrome.runtime.sendMessage as any).mock.calls.at(-1)?.[0]?.payload?.record;
+    expect(savedRecord).toMatchObject({
+      id: 'ABC-012',
+      status: VIDEO_STATUS.WANT,
+      isFavorite: false,
+    });
+    expect(savedRecord).not.toHaveProperty('favoritedAt');
+  });
+
+  it('keeps favorite and status quick action containers separate when both switches are enabled', () => {
+    const list = document.querySelector('.movie-list')!;
+    const item = renderBoxListItem('ABC-013');
+    list.appendChild(item);
+    (STATE.settings as any).listEnhancement.enableListFavoriteQuickAction = true;
+    (STATE.settings as any).listEnhancement.enableStatusQuickAction = true;
+
+    processVisibleItems();
+
+    const favoriteActions = item.querySelector('.jdb-list-favorite-actions');
+    const statusActions = item.querySelector('.jdb-list-status-actions');
+    expect(favoriteActions).not.toBeNull();
+    expect(statusActions).not.toBeNull();
+    expect(favoriteActions).not.toBe(statusActions);
+    expect(favoriteActions?.classList.contains('pos-top-right')).toBe(true);
+    expect(statusActions?.classList.contains('pos-bottom-right')).toBe(true);
+  });
 });
 
 function renderBoxListItem(videoId: string): HTMLElement {

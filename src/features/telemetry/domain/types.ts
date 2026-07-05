@@ -114,6 +114,7 @@ export interface TelemetryPayload {
     scrollPagingEnabled: boolean;
     actorWatermarkEnabled: boolean;
     listStatusQuickActionEnabled: boolean;
+    listFavoriteQuickActionEnabled: boolean;
     actorEnhancementEnabled: boolean;
     embyEnabled: boolean;
     embyLibraryStatusEnabled: boolean;

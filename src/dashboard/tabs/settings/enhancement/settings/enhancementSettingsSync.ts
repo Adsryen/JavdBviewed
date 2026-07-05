@@ -5,6 +5,14 @@ import { normalizeMagnetSortMode } from '../../../../../features/magnets';
 
 export type EnhancementSettingsSyncHost = any;
 
+function collectListEnhancementSettings(host: EnhancementSettingsSyncHost): Record<string, boolean> {
+  const settings: Record<string, boolean> = {};
+  if (host.showStatusBadge) settings.showStatusBadge = host.showStatusBadge.checked;
+  if (host.enableStatusQuickAction) settings.enableStatusQuickAction = host.enableStatusQuickAction.checked;
+  if (host.enableListFavoriteQuickAction) settings.enableListFavoriteQuickAction = host.enableListFavoriteQuickAction.checked;
+  return settings;
+}
+
 export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<ExtensionSettings> {
   return {
     dataEnhancement: {
@@ -45,6 +53,7 @@ export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<Extens
       onlineAvailabilitySites: collectOnlineAvailabilitySiteStates(host.onlineAvailabilitySiteInputs) ?? {},
       enableSubtitleSearch: host.veEnableSubtitleSearch?.checked !== false,
     } as any,
+    listEnhancement: collectListEnhancementSettings(host) as any,
     contentFilter: {
       keywordRules: host.currentFilterRules,
     } as any,
@@ -91,6 +100,7 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.actorWatermarkOpacity && typeof le.actorWatermarkOpacity === 'number') host.actorWatermarkOpacity.value = String(le.actorWatermarkOpacity);
       if (host.showStatusBadge && typeof le.showStatusBadge === 'boolean') host.showStatusBadge.checked = le.showStatusBadge;
       if (host.enableStatusQuickAction && typeof le.enableStatusQuickAction === 'boolean') host.enableStatusQuickAction.checked = le.enableStatusQuickAction;
+      if (host.enableListFavoriteQuickAction && typeof le.enableListFavoriteQuickAction === 'boolean') host.enableListFavoriteQuickAction.checked = le.enableListFavoriteQuickAction;
       if (host.enablePopularityEffects && typeof le.popularityEffects?.enabled === 'boolean') host.enablePopularityEffects.checked = le.popularityEffects.enabled;
       if (host.popularityMinRating && typeof le.popularityEffects?.minRating === 'number') host.popularityMinRating.value = String(le.popularityEffects.minRating);
       if (host.popularityMinRatingCount && typeof le.popularityEffects?.minRatingCount === 'number') host.popularityMinRatingCount.value = String(le.popularityEffects.minRatingCount);

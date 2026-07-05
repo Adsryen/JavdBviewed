@@ -233,6 +233,13 @@ export const TELEMETRY_FEATURE_CATALOG = [
     select: (settings) => isListEnhancementEnabled(settings) && settings?.listEnhancement?.enableStatusQuickAction === true,
   },
   {
+    key: 'listFavoriteQuickActionEnabled',
+    label: '列表收藏快捷按钮',
+    category: 'list',
+    order: 256,
+    select: (settings) => isListEnhancementEnabled(settings) && settings?.listEnhancement?.enableListFavoriteQuickAction === true,
+  },
+  {
     key: 'actorEnhancementEnabled',
     label: '演员页增强',
     category: 'actor',

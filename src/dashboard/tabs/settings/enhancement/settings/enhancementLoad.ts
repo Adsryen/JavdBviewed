@@ -57,6 +57,7 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.enableActorWatermark) host.enableActorWatermark.checked = (listEnhancement as any).enableActorWatermark === true;
   if (host.showStatusBadge) host.showStatusBadge.checked = (listEnhancement as any).showStatusBadge !== false;
   if (host.enableStatusQuickAction) host.enableStatusQuickAction.checked = (listEnhancement as any).enableStatusQuickAction === true;
+  if (host.enableListFavoriteQuickAction) host.enableListFavoriteQuickAction.checked = (listEnhancement as any).enableListFavoriteQuickAction === true;
   if (host.enablePopularityEffects) host.enablePopularityEffects.checked = (listEnhancement as any).popularityEffects?.enabled === true;
   if (host.popularityMinRating) host.popularityMinRating.value = String((listEnhancement as any).popularityEffects?.minRating ?? 4);
   if (host.popularityMinRatingCount) host.popularityMinRatingCount.value = String((listEnhancement as any).popularityEffects?.minRatingCount ?? 350);
@@ -125,6 +126,7 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.enableContainerExpansion && typeof (listEnhancement as any).listDisplayControl?.enableContainerExpansion === 'boolean') host.enableContainerExpansion.checked = (listEnhancement as any).listDisplayControl.enableContainerExpansion;
   if (host.showStatusBadge && typeof (listEnhancement as any).showStatusBadge === 'boolean') host.showStatusBadge.checked = (listEnhancement as any).showStatusBadge;
   if (host.enableStatusQuickAction && typeof (listEnhancement as any).enableStatusQuickAction === 'boolean') host.enableStatusQuickAction.checked = (listEnhancement as any).enableStatusQuickAction;
+  if (host.enableListFavoriteQuickAction && typeof (listEnhancement as any).enableListFavoriteQuickAction === 'boolean') host.enableListFavoriteQuickAction.checked = (listEnhancement as any).enableListFavoriteQuickAction;
   if (host.enablePopularityEffects && typeof (listEnhancement as any).popularityEffects?.enabled === 'boolean') host.enablePopularityEffects.checked = (listEnhancement as any).popularityEffects.enabled;
   if (host.popularityMinRating && typeof (listEnhancement as any).popularityEffects?.minRating === 'number') host.popularityMinRating.value = String((listEnhancement as any).popularityEffects.minRating);
   if (host.popularityMinRatingCount && typeof (listEnhancement as any).popularityEffects?.minRatingCount === 'number') host.popularityMinRatingCount.value = String((listEnhancement as any).popularityEffects.minRatingCount);

@@ -21,6 +21,7 @@ type EnhancementSaveHost = {
   enableContainerExpansion?: HTMLInputElement;
   showStatusBadge?: HTMLInputElement;
   enableStatusQuickAction?: HTMLInputElement;
+  enableListFavoriteQuickAction?: HTMLInputElement;
   enablePopularityEffects?: HTMLInputElement;
   popularityMinRating?: HTMLInputElement;
   popularityMinRatingCount?: HTMLInputElement;
@@ -93,6 +94,7 @@ export function mergeEnhancementSettingsForSave(
       },
       showStatusBadge: host.showStatusBadge?.checked ?? (existingListEnhancement as any).showStatusBadge ?? true,
       enableStatusQuickAction: host.enableStatusQuickAction?.checked ?? (existingListEnhancement as any).enableStatusQuickAction ?? false,
+      enableListFavoriteQuickAction: host.enableListFavoriteQuickAction?.checked ?? (existingListEnhancement as any).enableListFavoriteQuickAction ?? false,
       popularityEffects: {
         ...existingPopularityEffects,
         enabled: host.enablePopularityEffects?.checked ?? existingPopularityEffects.enabled ?? false,

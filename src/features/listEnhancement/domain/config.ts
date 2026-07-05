@@ -43,6 +43,7 @@ export interface ListEnhancementConfig {
   listDisplayControl?: ListDisplayControlConfig;
   showStatusBadge?: boolean;
   enableStatusQuickAction?: boolean;
+  enableListFavoriteQuickAction?: boolean;
   popularityEffects?: PopularityEffectsConfig;
 }
 
@@ -88,6 +89,7 @@ export function createDefaultListEnhancementConfig(): ListEnhancementConfig {
     },
     showStatusBadge: true,
     enableStatusQuickAction: false,
+    enableListFavoriteQuickAction: false,
     popularityEffects: {
       enabled: false,
       minRating: 4,
