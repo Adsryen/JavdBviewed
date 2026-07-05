@@ -10,9 +10,15 @@ describe('extractVideoId', () => {
   it('extracts common JavDB video ids from mixed text', () => {
     expect(extractVideoId('HODV-22069 破壊力抜群')).toBe('HODV-22069');
     expect(extractVideoId('fc2-ppv-4903984 title')).toBe('FC2-PPV-4903984');
+    expect(extractVideoId('FC2PPV4903984 title')).toBe('FC2-PPV-4903984');
     expect(extractVideoId('072625_01 Sample')).toBe('072625_01');
     expect(extractVideoId('4903984 FC2 title')).toBe('4903984');
     expect(extractVideoId('1pondo-123456_01 title')).toBe('1PONDO-123456_01');
+  });
+
+  it('extracts a single video id from noisy page text', () => {
+    expect(extractVideoId('评论提到 SSIS-123，建议补票')).toBe('SSIS-123');
+    expect(extractVideoId('这个片段来自 1pondo-123456_01，画质不错')).toBe('1PONDO-123456_01');
   });
 
   it('extracts numeric-dash-numeric ids without truncation', () => {

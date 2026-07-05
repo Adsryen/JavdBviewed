@@ -58,14 +58,16 @@ describe('emby library index', () => {
   it('normalizes video codes from media item names and paths', () => {
     expect(normalizeVideoCode('abc_001')).toBe('ABC-001');
     expect(normalizeVideoCode('FC2-PPV-123456')).toBe('FC2-PPV-123456');
+    expect(normalizeVideoCode('FC2PPV4903984')).toBe('FC2-PPV-4903984');
+    expect(normalizeVideoCode('/media/1pondo-123456_01.mp4')).toBe('1PONDO-123456_01');
 
     const index = buildLibraryIndex(embyServer, [
       { Id: '1', Name: 'ABC-001 Sample Title', Path: '/media/other.mkv' },
       { Id: '2', Name: 'No code title', Path: '/media/fc2-ppv-123456.mp4' },
-      { Id: '3', Name: 'ignored title', Path: '' },
+      { Id: '3', Name: 'ignored title', Path: '/media/1pondo-123456_01.mp4' },
     ]);
 
-    expect(Object.keys(index.entries)).toEqual(['ABC-001', 'FC2-PPV-123456']);
+    expect(Object.keys(index.entries)).toEqual(['ABC-001', 'FC2-PPV-123456', '1PONDO-123456_01']);
     expect(index.entries['ABC-001'][0]).toMatchObject({
       serverType: 'emby',
       serverName: 'Main Emby',

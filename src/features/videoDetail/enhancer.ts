@@ -19,6 +19,7 @@ import { initOrchestrator } from '../../apps/content/orchestrator';
 import { showEnhancementDone } from '../../platform/browser/enhancementLoadingIndicator';
 import { getJavdbTheme, isDarkTheme, type JavdbTheme } from '../../platform/browser/domUtils';
 import { addTaskUrlsV2 } from '../drive115/router';
+import { enhanceReviewCodeRecognition as enhanceReviewCodeRecognitionInRoot } from './ui/reviewCodeRecognition';
 import {
   activatePreviewVideoPreload,
   releasePreviewVideoMedia,
@@ -2837,7 +2838,7 @@ export class VideoDetailEnhancer {
     if (!text) return;
 
     const fragment = document.createDocumentFragment();
-    const regex = /(magnet:\?[^\s\u00a0<>"']+)|\b([A-Z]{2,8}-\d{2,6})\b/gi;
+    const regex = /magnet:\?[^\s\u00a0<>"']+/gi;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
@@ -2846,19 +2847,11 @@ export class VideoDetailEnhancer {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
       }
 
-      const magnetText = match[1];
-      const rawId = match[2];
+      const magnetText = match[0];
       const link = document.createElement('a');
 
-      if (magnetText) {
-        link.href = magnetText;
-        link.textContent = magnetText;
-      } else {
-        link.href = `https://javdb.com/search?q=${encodeURIComponent(rawId)}&f=all`;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = rawId;
-      }
+      link.href = magnetText;
+      link.textContent = magnetText;
 
       fragment.appendChild(link);
       lastIndex = match.index + match[0].length;
@@ -2907,18 +2900,28 @@ export class VideoDetailEnhancer {
   }
 
   private enhanceExistingReviewContent(): void {
-    if (!this.options.enableReviewEnhancement || !this.options.enableReviewMagnetLinkify) return;
     const reviewRoot = document.querySelector('div[data-movie-tab-target="reviews"], #reviews');
     if (!reviewRoot) return;
 
-    const paragraphs = Array.from(reviewRoot.querySelectorAll('.review-item .content p')) as HTMLElement[];
-    for (const paragraph of paragraphs) {
-      if (paragraph.getAttribute('data-jhs-review-enhanced') === '1') continue;
-      const text = (paragraph.textContent || '').trim();
-      if (!text) continue;
-      this.renderReviewContent(paragraph, text);
-      paragraph.setAttribute('data-jhs-review-enhanced', '1');
+    if (this.options.enableReviewEnhancement && this.options.enableReviewMagnetLinkify) {
+      const paragraphs = Array.from(reviewRoot.querySelectorAll('.review-item .content p')) as HTMLElement[];
+      for (const paragraph of paragraphs) {
+        if (paragraph.getAttribute('data-jhs-review-enhanced') === '1') continue;
+        const text = (paragraph.textContent || '').trim();
+        if (!text) continue;
+        this.renderReviewContent(paragraph, text);
+        paragraph.setAttribute('data-jhs-review-enhanced', '1');
+      }
     }
+
+    this.enhanceReviewCodeRecognition(reviewRoot);
+  }
+
+  private enhanceReviewCodeRecognition(reviewRoot: ParentNode): void {
+    enhanceReviewCodeRecognitionInRoot(reviewRoot, {
+      searchEngines: STATE.settings?.searchEngines,
+      libraryState: STATE.embyLibraryState,
+    });
   }
 
   /**

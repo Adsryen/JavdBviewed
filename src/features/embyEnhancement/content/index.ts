@@ -7,6 +7,7 @@ import { STATE, log } from '../../contentState';
 import { extractVideoId } from '../../../platform/browser';
 import { showToast } from '../../../platform/browser/toast';
 import { getEffectiveEmbyMatchUrls, matchesEmbyUrlPattern } from '../domain/matchUrls';
+import { extractVideoCodesFromText } from '../../../shared/utils/videoCodeExtractor';
 
 interface EmbyConfig {
     enabled: boolean;
@@ -24,6 +25,13 @@ interface EmbyConfig {
     // 右侧悬浮快捷按钮显示控制
     showQuickSearchCode?: boolean;
     showQuickSearchActor?: boolean;
+}
+
+interface VideoLinkTarget {
+    raw: string;
+    videoId: string;
+    index: number;
+    end: number;
 }
 
 /**
@@ -211,80 +219,114 @@ class EmbyEnhancementManager {
         if (!this.config || !textNode.textContent) return;
 
         const text = textNode.textContent;
-        const videoIds = this.extractVideoIds(text);
+        const targets = this.extractVideoLinkTargets(text);
 
-        if (videoIds.length === 0) return;
+        if (targets.length === 0) return;
 
         // 标记父元素为已处理
         if (textNode.parentElement) {
             this.processedElements.add(textNode.parentElement);
         }
 
-        // 创建包含链接的HTML
-        let newHTML = text;
+        const parentNode = textNode.parentNode;
+        if (!parentNode) return;
 
-        videoIds.forEach(videoId => {
-            const link = this.createVideoLink(videoId);
-            const regex = new RegExp(this.escapeRegExp(videoId), 'gi');
-            newHTML = newHTML.replace(regex, link);
+        const fragment = document.createDocumentFragment();
+        let cursor = 0;
+        targets.forEach(target => {
+            if (target.index < cursor) return;
+            if (target.index > cursor) {
+                fragment.appendChild(document.createTextNode(text.slice(cursor, target.index)));
+            }
+            fragment.appendChild(this.createVideoLinkElement(target.videoId));
+            cursor = target.end;
         });
-
-        // 如果内容发生了变化，替换文本节点
-        if (newHTML !== text) {
-            const wrapper = document.createElement('span');
-            wrapper.innerHTML = newHTML;
-
-            // 应用样式
-            this.applyLinkStyles(wrapper);
-
-            textNode.parentNode?.replaceChild(wrapper, textNode);
+        if (cursor < text.length) {
+            fragment.appendChild(document.createTextNode(text.slice(cursor)));
         }
+
+        parentNode.replaceChild(fragment, textNode);
     }
 
     /**
      * 从文本中提取番号
      */
     private extractVideoIds(text: string): string[] {
-        const videoIds: string[] = [];
+        return this.extractVideoLinkTargets(text).map(target => target.videoId);
+    }
+
+    /**
+     * 从文本中提取可链接番号命中，保留原始文本位置用于安全替换
+     */
+    private extractVideoLinkTargets(text: string): VideoLinkTarget[] {
+        const targets: VideoLinkTarget[] = extractVideoCodesFromText(text).map(code => ({
+            raw: code.raw,
+            videoId: code.normalized,
+            index: code.index,
+            end: code.index + code.raw.length,
+        }));
+        const seenVideoIds = new Set(targets.map(target => target.videoId));
         const patterns = this.config?.videoCodePatterns || [];
 
         patterns.forEach(pattern => {
             try {
                 const regex = new RegExp(pattern, 'gi');
-                const matches = text.match(regex);
-                if (matches) {
-                    matches.forEach(match => {
-                        const cleanId = extractVideoId(match);
-                        if (cleanId && !videoIds.includes(cleanId)) {
-                            videoIds.push(cleanId);
-                        }
+                for (const match of text.matchAll(regex)) {
+                    const raw = match[0];
+                    if (!raw || match.index === undefined) continue;
+                    const cleanId = extractVideoId(raw);
+                    if (!cleanId || seenVideoIds.has(cleanId)) continue;
+
+                    const index = match.index;
+                    const end = index + raw.length;
+                    if (this.hasTargetOverlap(targets, index, end)) continue;
+
+                    targets.push({
+                        raw,
+                        videoId: cleanId,
+                        index,
+                        end,
                     });
+                    seenVideoIds.add(cleanId);
                 }
             } catch (error) {
                 console.warn('Invalid regex pattern:', pattern, error);
             }
         });
 
-        return videoIds;
+        return targets.sort((a, b) => a.index - b.index);
+    }
+
+    private hasTargetOverlap(targets: VideoLinkTarget[], index: number, end: number): boolean {
+        return targets.some(target => index < target.end && target.index < end);
     }
 
     /**
      * 创建视频链接
      */
-    private createVideoLink(videoId: string): string {
+    private createVideoLinkElement(videoId: string): HTMLAnchorElement {
+        const link = document.createElement('a');
         const url = this.generateVideoUrl(videoId);
         const style = this.config?.highlightStyle;
 
-        const styleStr = style ? `
-            background-color: ${style.backgroundColor};
-            color: ${style.color};
-            border-radius: ${style.borderRadius};
-            padding: ${style.padding};
-            text-decoration: none;
-            cursor: pointer;
-        ` : '';
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'emby-video-link';
+        link.title = `点击跳转到JavDB查看 ${videoId}`;
+        link.textContent = videoId;
 
-        return `<a href="${url}" target="_blank" style="${styleStr}" class="emby-video-link" title="点击跳转到JavDB查看 ${videoId}">${videoId}</a>`;
+        if (style) {
+            link.style.backgroundColor = style.backgroundColor;
+            link.style.color = style.color;
+            link.style.borderRadius = style.borderRadius;
+            link.style.padding = style.padding;
+        }
+        link.style.textDecoration = 'none';
+        link.style.cursor = 'pointer';
+
+        this.bindVideoLinkEvents(link);
+        return link;
     }
 
     /**
@@ -316,67 +358,57 @@ class EmbyEnhancementManager {
     /**
      * 应用链接样式
      */
-    private applyLinkStyles(container: HTMLElement): void {
-        const links = container.querySelectorAll('.emby-video-link');
-        links.forEach(link => {
-            link.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const videoId = link.textContent?.trim();
-                if (!videoId) return;
+    private bindVideoLinkEvents(link: HTMLAnchorElement): void {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const videoId = link.textContent?.trim();
+            if (!videoId) return;
 
-                log(`User clicked on video link: ${videoId}`);
+            log(`User clicked on video link: ${videoId}`);
 
-                // 优先：直达详情（需要本地有直链或可即时刷新获取）
-                if (this.config?.linkBehavior === 'javdb-direct') {
-                    const local = STATE.records?.[videoId];
-                    if (local?.javdbUrl && local.javdbUrl !== '#') {
-                        window.open(local.javdbUrl, '_blank');
-                        return;
-                    }
-                    try {
-                        chrome.runtime.sendMessage({ type: 'refresh-record', videoId }, (resp: any) => {
-                            if ((typeof chrome !== 'undefined') && chrome.runtime && chrome.runtime.lastError) {
-                                const url = this.generateVideoUrl(videoId);
-                                window.open(url, '_blank');
-                                return;
-                            }
-                            const updatedUrl = resp?.record?.javdbUrl;
-                            if (resp?.success && updatedUrl && updatedUrl !== '#') {
-                                window.open(updatedUrl, '_blank');
-                            } else {
-                                const url = this.generateVideoUrl(videoId);
-                                window.open(url, '_blank');
-                            }
-                        });
-                    } catch {
-                        const url = this.generateVideoUrl(videoId);
-                        window.open(url, '_blank');
-                    }
+            // 优先：直达详情（需要本地有直链或可即时刷新获取）
+            if (this.config?.linkBehavior === 'javdb-direct') {
+                const local = STATE.records?.[videoId];
+                if (local?.javdbUrl && local.javdbUrl !== '#') {
+                    window.open(local.javdbUrl, '_blank');
                     return;
                 }
+                try {
+                    chrome.runtime.sendMessage({ type: 'refresh-record', videoId }, (resp: any) => {
+                        if ((typeof chrome !== 'undefined') && chrome.runtime && chrome.runtime.lastError) {
+                            const url = this.generateVideoUrl(videoId);
+                            window.open(url, '_blank');
+                            return;
+                        }
+                        const updatedUrl = resp?.record?.javdbUrl;
+                        if (resp?.success && updatedUrl && updatedUrl !== '#') {
+                            window.open(updatedUrl, '_blank');
+                        } else {
+                            const url = this.generateVideoUrl(videoId);
+                            window.open(url, '_blank');
+                        }
+                    });
+                } catch {
+                    const url = this.generateVideoUrl(videoId);
+                    window.open(url, '_blank');
+                }
+                return;
+            }
 
-                // 回退：统一走搜索
-                const url = this.generateVideoUrl(videoId);
-                window.open(url, '_blank');
-            });
-
-            // 添加悬停效果
-            link.addEventListener('mouseenter', () => {
-                (link as HTMLElement).style.opacity = '0.8';
-            });
-
-            link.addEventListener('mouseleave', () => {
-                (link as HTMLElement).style.opacity = '1';
-            });
+            // 回退：统一走搜索
+            const url = this.generateVideoUrl(videoId);
+            window.open(url, '_blank');
         });
-    }
 
-    /**
-     * 转义正则表达式特殊字符
-     */
-    private escapeRegExp(string: string): string {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // 添加悬停效果
+        link.addEventListener('mouseenter', () => {
+            link.style.opacity = '0.8';
+        });
+
+        link.addEventListener('mouseleave', () => {
+            link.style.opacity = '1';
+        });
     }
 
     /**

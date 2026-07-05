@@ -9,13 +9,7 @@ import type {
   EmbyMediaItem,
   EmbyMediaServer,
 } from '../types';
-
-const CODE_PATTERNS = [
-  /FC2[-_\s]?PPV[-_\s]?(\d{3,})/i,
-  /([A-Z]{2,12})[-_](\d{2,10})/i,
-  /\b([A-Z]{2,10})(\d{3,6})\b/i,
-  /\b(\d{4,8})[_-](\d{1,3})\b/i,
-];
+import { normalizeVideoCodeCandidate } from '../../../shared/utils/videoCodeExtractor';
 
 const GENERIC_FIRST_WORDS = new Set(['THE', 'THIS', 'WHAT', 'WITH', 'MOVIE', 'VIDEO', 'SAMPLE']);
 
@@ -27,17 +21,8 @@ export function normalizeVideoCode(value: string): string | null {
   const text = String(value || '').trim();
   if (!text) return null;
 
-  for (const pattern of CODE_PATTERNS) {
-    const match = text.match(pattern);
-    if (!match) continue;
-    if (/FC2/i.test(match[0])) {
-      return `FC2-PPV-${match[1]}`.toUpperCase();
-    }
-    if (match.length >= 3) {
-      return `${match[1]}-${match[2]}`.toUpperCase();
-    }
-    return match[1].toUpperCase();
-  }
+  const extracted = normalizeVideoCodeCandidate(text);
+  if (extracted) return extracted;
 
   const firstWord = text.match(/^([a-z0-9][a-z0-9_-]{2,24})/i)?.[1];
   if (
