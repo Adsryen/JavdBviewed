@@ -59,6 +59,8 @@ function updateViewModeButton(
 function updateFavoritesButton(button: HTMLButtonElement | null | undefined, active: boolean): void {
   if (!button) return;
   button.classList.toggle('active', active);
+  button.setAttribute('aria-pressed', String(active));
+  button.title = active ? '取消收藏筛选' : '只看收藏番号';
 }
 
 export function createRecordsViewToolbarController(

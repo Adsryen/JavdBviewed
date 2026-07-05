@@ -125,7 +125,11 @@ describe('records stats controller', () => {
     const fixture = buildFixture();
 
     await fixture.controller.updateStats();
-    fixture.container.querySelector<HTMLElement>('[data-filter="viewed"]')?.click();
+    const viewedCard = fixture.container.querySelector<HTMLElement>('[data-filter="viewed"]');
+    expect(viewedCard?.getAttribute('role')).toBe('button');
+    expect(viewedCard?.getAttribute('tabindex')).toBe('0');
+    expect(viewedCard?.getAttribute('aria-pressed')).toBe('false');
+    viewedCard?.click();
 
     expect(fixture.searchInput.value).toBe('');
     expect([...fixture.selectedTags]).toEqual([]);
@@ -139,6 +143,19 @@ describe('records stats controller', () => {
     expect(fixture.renderAdvancedConditions).toHaveBeenCalled();
     expect(fixture.onFilterApplied).toHaveBeenCalled();
     expect(fixture.container.querySelector('[data-filter="viewed"]')?.classList.contains('active')).toBe(true);
+    expect(fixture.container.querySelector('[data-filter="viewed"]')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('applies stats card filters from keyboard activation', async () => {
+    const fixture = buildFixture();
+
+    await fixture.controller.updateStats();
+    const wantCard = fixture.container.querySelector<HTMLElement>('[data-filter="want"]');
+    wantCard?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+    expect(fixture.filterSelect.value).toBe('want');
+    expect(fixture.onFilterApplied).toHaveBeenCalledTimes(1);
+    expect(wantCard?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('adds recent advanced conditions from quick date cards', async () => {

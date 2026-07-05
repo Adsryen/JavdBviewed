@@ -67,28 +67,29 @@ function buildServerStats(serverStats: ServerRecordsStats): RecordsStats {
 
 function renderStatsCards(container: HTMLElement, stats: RecordsStats, activeFilter: string | null): void {
   const activeClass = (filter: string) => filter === activeFilter ? ' active' : '';
+  const ariaPressed = (filter: string) => String(filter === activeFilter);
   container.innerHTML = `
-    <div class="stat-card new-works-stat clickable${activeClass('all')}" data-filter="all" title="点击查看所有番号">
+    <div class="stat-card new-works-stat clickable${activeClass('all')}" data-filter="all" title="点击查看所有番号" role="button" tabindex="0" aria-pressed="${ariaPressed('all')}">
       <div class="stat-value">${stats.total}</div>
       <div class="stat-label">总番号数</div>
     </div>
-    <div class="stat-card new-works-stat clickable${activeClass('viewed')}" data-filter="viewed" title="点击查看已观看">
+    <div class="stat-card new-works-stat clickable${activeClass('viewed')}" data-filter="viewed" title="点击查看已观看" role="button" tabindex="0" aria-pressed="${ariaPressed('viewed')}">
       <div class="stat-value">${stats.viewed}</div>
       <div class="stat-label">已观看</div>
     </div>
-    <div class="stat-card new-works-stat clickable${activeClass('browsed')}" data-filter="browsed" title="点击查看已浏览">
+    <div class="stat-card new-works-stat clickable${activeClass('browsed')}" data-filter="browsed" title="点击查看已浏览" role="button" tabindex="0" aria-pressed="${ariaPressed('browsed')}">
       <div class="stat-value">${stats.browsed}</div>
       <div class="stat-label">已浏览</div>
     </div>
-    <div class="stat-card new-works-stat clickable${activeClass('want')}" data-filter="want" title="点击查看我想看">
+    <div class="stat-card new-works-stat clickable${activeClass('want')}" data-filter="want" title="点击查看我想看" role="button" tabindex="0" aria-pressed="${ariaPressed('want')}">
       <div class="stat-value">${stats.want}</div>
       <div class="stat-label">我想看</div>
     </div>
-    <div class="stat-card new-works-stat clickable${activeClass('thisWeek')}" data-filter="thisWeek" title="点击查看本周新增">
+    <div class="stat-card new-works-stat clickable${activeClass('thisWeek')}" data-filter="thisWeek" title="点击查看本周新增" role="button" tabindex="0" aria-pressed="${ariaPressed('thisWeek')}">
       <div class="stat-value">${stats.thisWeek}</div>
       <div class="stat-label">本周新增</div>
     </div>
-    <div class="stat-card new-works-stat clickable${activeClass('thisMonth')}" data-filter="thisMonth" title="点击查看本月新增">
+    <div class="stat-card new-works-stat clickable${activeClass('thisMonth')}" data-filter="thisMonth" title="点击查看本月新增" role="button" tabindex="0" aria-pressed="${ariaPressed('thisMonth')}">
       <div class="stat-value">${stats.thisMonth}</div>
       <div class="stat-label">本月新增</div>
     </div>
@@ -144,17 +145,30 @@ export function createRecordsStatsController(options: CreateRecordsStatsControll
       setRecentCondition('month');
     }
 
-    options.container?.querySelectorAll('.stat-card').forEach(item => item.classList.remove('active'));
+    options.container?.querySelectorAll<HTMLElement>('.stat-card').forEach(item => {
+      item.classList.remove('active');
+      item.setAttribute('aria-pressed', 'false');
+    });
     card.classList.add('active');
+    if (card instanceof HTMLElement) {
+      card.setAttribute('aria-pressed', 'true');
+    }
     options.onFilterApplied();
   };
 
   const bindCards = () => {
     options.container?.querySelectorAll('.stat-card.clickable').forEach((card) => {
-      card.addEventListener('click', () => {
+      const activate = () => {
         const filterType = card.getAttribute('data-filter');
         if (!filterType) return;
         applyFilter(filterType, card);
+      };
+      card.addEventListener('click', activate);
+      card.addEventListener('keydown', (event) => {
+        const keyboardEvent = event as KeyboardEvent;
+        if (keyboardEvent.key !== 'Enter' && keyboardEvent.key !== ' ') return;
+        keyboardEvent.preventDefault();
+        activate();
       });
     });
   };

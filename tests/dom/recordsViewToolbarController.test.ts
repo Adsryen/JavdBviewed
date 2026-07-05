@@ -46,6 +46,8 @@ describe('records view toolbar controller', () => {
     expect(elements.toggleViewModeBtn.querySelector('.view-icon')?.className).toBe('fas fa-th-large view-icon');
     expect(elements.toggleViewModeBtn.querySelector('.view-text')?.textContent).toBe('卡片视图');
     expect(elements.videoList.classList.contains('card-view')).toBe(true);
+    expect(elements.favoritesButton.getAttribute('aria-pressed')).toBe('false');
+    expect(elements.favoritesButton.title).toBe('只看收藏番号');
   });
 
   it('toggles covers and persists settings', () => {
@@ -111,5 +113,7 @@ describe('records view toolbar controller', () => {
     expect(favoritesActive).toBe(true);
     expect(onFilterChanged).toHaveBeenCalledTimes(1);
     expect(elements.favoritesButton.classList.contains('active')).toBe(true);
+    expect(elements.favoritesButton.getAttribute('aria-pressed')).toBe('true');
+    expect(elements.favoritesButton.title).toBe('取消收藏筛选');
   });
 });
