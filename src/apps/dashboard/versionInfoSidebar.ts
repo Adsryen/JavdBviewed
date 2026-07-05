@@ -6,6 +6,9 @@
 import { STATE } from '../../dashboard/state';
 import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';
 
+const AUTHOR_NAME = 'Adsryen';
+const AUTHOR_PROFILE_URL = 'https://github.com/Adsryen';
+
 export function renderDashboardVersionInfo(): void {
   const infoContainer = document.getElementById('versionInfoSidebar') || document.getElementById('infoContainer');
   if (!infoContainer) return;
@@ -59,11 +62,17 @@ export function renderDashboardVersionInfo(): void {
         </div>`
     : '';
 
+  const authorLine = `
+        <div class="info-author">
+            <span class="info-author-label">Author:</span>
+            <a class="info-author-link" href="${AUTHOR_PROFILE_URL}" target="_blank" rel="noopener noreferrer" title="打开 ${AUTHOR_NAME} GitHub 主页">${AUTHOR_NAME}</a>
+        </div>`;
+
   infoContainer.innerHTML = `
         <div class="info-item">
             <span class="info-label">Version:</span>
             <span class="info-value version-state-${versionInfo.state}" title="${getStateTitle(versionInfo.state)}">${versionInfo.version}</span>
-        </div>${buildLine}${commitLine}${stateLine}${builtAtLine}${deviceIdLine}
+        </div>${buildLine}${commitLine}${stateLine}${builtAtLine}${deviceIdLine}${authorLine}
     `;
 }
 

@@ -294,6 +294,7 @@ describe('list item processor', () => {
     expect(actions?.parentElement).toBe(link);
     expect(actions?.classList.contains('pos-top-right')).toBe(true);
     expect(button?.getAttribute('aria-pressed')).toBe('false');
+    expect(button?.textContent).toBe('♡');
     expect(button?.title).toBe('添加到收藏');
   });
 
@@ -318,6 +319,7 @@ describe('list item processor', () => {
     expect(record?.status).toBe(VIDEO_STATUS.BROWSED);
     expect(button.classList.contains('is-active')).toBe(true);
     expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.textContent).toBe('♥');
     expect(button.title).toBe('取消收藏');
     expect((chrome.runtime.sendMessage as any).mock.calls.at(-1)?.[0]).toMatchObject({
       type: 'DB:VIEWED_PUT',
@@ -359,6 +361,7 @@ describe('list item processor', () => {
     expect(record?.favoritedAt).toBeUndefined();
     expect(button.classList.contains('is-active')).toBe(false);
     expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.textContent).toBe('♡');
     expect(button.title).toBe('添加到收藏');
     const savedRecord = (chrome.runtime.sendMessage as any).mock.calls.at(-1)?.[0]?.payload?.record;
     expect(savedRecord).toMatchObject({

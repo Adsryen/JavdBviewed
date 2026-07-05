@@ -9,6 +9,9 @@ import { showToast } from '../../../platform/browser/toast';
 import { VIDEO_STATUS } from '../../../utils/config';
 import { STATE, log } from '../../contentState';
 
+const FAVORITE_ICON_ACTIVE = '♥';
+const FAVORITE_ICON_INACTIVE = '♡';
+
 export function renderListFavoriteQuickAction(
   item: HTMLElement,
   videoId: string,
@@ -100,7 +103,7 @@ function syncFavoriteActionState(item: HTMLElement, isFavorite: boolean): void {
 
 function syncFavoriteButton(button: HTMLButtonElement, isFavorite: boolean): void {
   button.classList.toggle('is-active', isFavorite);
-  button.textContent = isFavorite ? '★' : '☆';
+  button.textContent = isFavorite ? FAVORITE_ICON_ACTIVE : FAVORITE_ICON_INACTIVE;
   button.title = isFavorite ? '取消收藏' : '添加到收藏';
   button.setAttribute('aria-label', button.title);
   button.setAttribute('aria-pressed', String(isFavorite));
@@ -171,8 +174,8 @@ function ensureListFavoriteQuickActionStyles(): void {
 
     .jdb-list-favorite-action:hover,
     .jdb-list-favorite-action.is-active {
-      color: #92400e;
-      background: #fde68a;
+      color: #be123c;
+      background: #ffe4e6;
     }
   `;
   document.head.appendChild(style);
