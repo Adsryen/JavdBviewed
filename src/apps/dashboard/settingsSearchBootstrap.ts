@@ -35,6 +35,8 @@ async function buildDashboardSettingsSearchIndex(): Promise<ReturnType<typeof bu
     .filter(([key]) => key.startsWith('tab-settings-') && key !== 'tab-settings');
 
   for (const [key, cfg] of entries) {
+    if (!cfg) continue;
+
     const html = await loadPartial(cfg.name);
     if (!html) continue;
 

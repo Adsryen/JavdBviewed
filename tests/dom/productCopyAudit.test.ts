@@ -1,0 +1,47 @@
+/**
+ * @file productCopyAudit.test.ts
+ * @description 用户可见文案巡检回归测试
+ * @module tests/dom
+ */
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const auditedFiles = [
+  'src/dashboard/partials/tabs/media.html',
+  'src/dashboard/tabs/insights/samplePreviewModel.ts',
+  'src/dashboard/tabs/insights/reportExportModel.ts',
+  'src/dashboard/tabs/insights/reportGenerationModel.ts',
+  'src/dashboard/tabs/settings/sync/SyncSettings.ts',
+];
+
+function readAuditedSource(): string {
+  return auditedFiles
+    .map(file => readFileSync(resolve(process.cwd(), file), 'utf8'))
+    .join('\n');
+}
+
+describe('product copy audit', () => {
+  it('keeps internal task wording out of audited user-visible copy', () => {
+    const source = readAuditedSource();
+
+    expect(source).not.toContain('当前页面不会读取');
+    expect(source).not.toContain('避免用户误以为');
+    expect(source).not.toContain('先把入口放出来');
+    expect(source).not.toContain('真实报告会');
+    expect(source).not.toContain('AI 文案');
+    expect(source).not.toContain('（占位）');
+    expect(source).not.toContain('该导出为占位');
+    expect(source).not.toContain('解析测试功能正在开发中');
+  });
+
+  it('uses product-side guidance for preview and pending surfaces', () => {
+    const source = readAuditedSource();
+
+    expect(source).toContain('媒体库入口先开放');
+    expect(source).toContain('欢迎补充你最想优先看到的使用场景');
+    expect(source).toContain('生成自己的月报时');
+    expect(source).toContain('Markdown 导出还在整理中，目前可先导出 HTML 报告');
+    expect(source).toContain('解析测试暂未开放');
+  });
+});

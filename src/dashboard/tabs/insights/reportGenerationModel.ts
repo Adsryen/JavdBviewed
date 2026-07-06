@@ -150,7 +150,7 @@ export function buildReportGenerationFields(input: BuildReportGenerationFieldsIn
     activeDays: String(input.daysCount),
     avgPerDay: (totalAll / Math.max(input.daysCount, 1)).toFixed(1),
     totalTags: String(topList.length),
-    viewerProfile: '基于你的观影习惯，你是一个多元探索型观影者。建议后续可以尝试相关类型的影片。',
+    viewerProfile: '根据当前标签分布，报告会优先展示偏好结构和变化方向，方便你观察下个月是否延续。',
     ...buildInsightsVisualFields(input.stats, {
       activeDays: input.modeUsed === 'compare' ? Number(input.stats?.metrics?.daysCount || 0) : input.daysCount,
       modeLabel: input.modeUsed === 'compare' ? 'Compare Wrapped' : 'Monthly Wrapped',
@@ -167,7 +167,7 @@ export function buildReportPlaceholderFields(input: BuildReportPlaceholderFields
   return {
     reportTitle: '我的观影标签报告',
     periodText: `统计范围：${input.periodStart} ~ ${input.periodEnd}`,
-    summary: '（占位）基于本地统计与模板生成的摘要。',
+    summary: '这份报告先展示本地标签统计和排行；生成预览后，可以补上更完整的月报分析。',
     insightList: [
       topBrief ? `本月偏好标签集中于：${topBrief}` : '数据量较少，暂无法判断主要偏好',
       `累计观看天数：${input.daysCount} 天`,
@@ -181,7 +181,7 @@ export function buildReportPlaceholderFields(input: BuildReportPlaceholderFields
     baseHref: input.baseHref,
     statsJSON: JSON.stringify(input.stats || {}),
     rankingRows: buildRankingRows(topList, totalAll),
-    viewerProfile: '基于你的观影习惯生成的画像会展示在这里；建议先生成预览，再保存为月报。',
+    viewerProfile: '观影画像会在生成预览后补上；当前报告先保留本地统计、排行和图表。',
     ...buildInsightsVisualFields(input.stats, { activeDays: input.daysCount, modeLabel: 'Monthly Wrapped' }),
   };
 }

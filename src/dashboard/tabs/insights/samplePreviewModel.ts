@@ -58,7 +58,7 @@ export function buildSamplePreviewFields(input: BuildSamplePreviewFieldsInput): 
   return {
     reportTitle: '我的观影标签月报（示例）',
     periodText: '统计范围：2026-04-01 ~ 2026-04-30（示例数据）',
-    summary: '这个示例展示的是新版 Wrapped 风格：本月主打标签是「剧情」，Top3 占比 58.0%，说明偏好比较集中但还保留了一点探索空间。中后段热度明显升温，「剧情」比上期多了 12.0 个百分点，「收藏向」和「企划」也开始冒头。真实报告会把这里替换成你的本地统计与 AI 文案。',
+    summary: '这个示例展示的是新版 Wrapped 风格：本月主打标签是「剧情」，Top3 占比 58.0%，说明偏好比较集中但还保留了一点探索空间。中后段热度明显升温，「剧情」比上期多了 12.0 个百分点，「收藏向」和「企划」也开始冒头。生成自己的月报时，这里会换成你的本地统计和已选择的分析口吻。',
     insightList: [
       '<li>【主打标签】剧情 18 次，占 24.0%，是这个月最突出的关键词。</li>',
       '<li>【集中度】Top3 占比 58.0%，口味比较集中，但不是完全单一路线。</li>',
@@ -66,7 +66,7 @@ export function buildSamplePreviewFields(input: BuildSamplePreviewFieldsInput): 
       '<li>【新鲜感】收藏向 6 次，属于本月新出现的小探索。</li>',
       '<li>【节奏】月中后段趋势升温，观看节奏比月初更密集。</li>',
     ].join(''),
-    methodology: '示例数据仅用于展示新版模板效果；真实报告会按本地观看记录去重后统计标签次数、占比、趋势和与上一周期的变化。',
+    methodology: '示例数据仅用于展示新版模板效果；生成自己的月报时，会按本地观看记录去重后统计标签次数、占比、趋势和与上一周期的变化。',
     disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
     generatedAt: input.generatedAt,
     version: '0.0.1',
@@ -74,7 +74,7 @@ export function buildSamplePreviewFields(input: BuildSamplePreviewFieldsInput): 
     baseHref: input.baseHref,
     statsJSON: JSON.stringify(SAMPLE_STATS),
     rankingRows: buildSampleRankingRows(),
-    viewerProfile: '示例画像：你像是“有主线的探索型观影者”——会围绕剧情和制服这类稳定偏好深入，同时也会被新鲜企划吸引。真实报告会结合你的标签变化，给出更贴近个人口味的画像和下月方向。',
+    viewerProfile: '示例画像：你像是“有主线的探索型观影者”——会围绕剧情和制服这类稳定偏好深入，同时也会被新鲜企划吸引。生成自己的月报时，画像会结合你的标签变化，给出更贴近个人口味的观察和下月方向。',
     ...buildInsightsVisualFields(SAMPLE_STATS, { activeDays: 6, modeLabel: 'Sample Wrapped' }),
   };
 }

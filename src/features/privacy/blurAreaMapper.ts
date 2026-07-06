@@ -34,6 +34,10 @@ const AREA_SELECTORS: Record<BlurArea, string[]> = {
     ],
     
     'navigation': [
+        // === Dashboard 9C 导航 ===
+        '.dashboard-main-tab',            // 一级分组导航
+        '.dashboard-sub-tab',             // 二级页面导航
+
         // === 导航标签文字 ===
         '.tab-link[data-tab="tab-home"]',      // 首页标签
         '.tab-link[data-tab="tab-records"]',   // 番号库标签

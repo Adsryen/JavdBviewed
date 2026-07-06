@@ -446,7 +446,7 @@ export class SyncSettings extends BaseSettingsPanel {
             testResultsDiv.innerHTML = `
                 <div class="test-result-info">
                     <i class="fas fa-info-circle"></i>
-                    解析测试功能正在开发中，将在后续版本中提供。
+                    解析测试暂未开放；保存演员同步配置后，可以先用“测试连接”确认页面是否可访问。
                 </div>
             `;
 

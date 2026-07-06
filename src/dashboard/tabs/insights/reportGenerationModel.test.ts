@@ -50,6 +50,8 @@ describe('insights report generation model', () => {
     expect(fields.summary).toContain('样本量：新增 8 / 基线 20');
     expect(fields.insightList).toContain('风格变化：偏好从「纯爱」向「剧情」迁移');
     expect(fields.insightList).toContain('新增样本：8；基线样本：20');
+    expect(fields.viewerProfile).toContain('偏好结构和变化方向');
+    expect(fields.viewerProfile).not.toContain('建议后续');
     expect(fields.rankingRows).toContain('剧情&lt;强&gt;');
     expect(fields.totalViews).toBe('10');
     expect(fields.activeDays).toBe('2');
@@ -73,10 +75,12 @@ describe('insights report generation model', () => {
 
     expect(fields.reportTitle).toBe('我的观影标签报告');
     expect(fields.periodText).toBe('统计范围：2026-05-01 ~ 2026-05-31');
-    expect(fields.summary).toBe('（占位）基于本地统计与模板生成的摘要。');
+    expect(fields.summary).toBe('这份报告先展示本地标签统计和排行；生成预览后，可以补上更完整的月报分析。');
+    expect(fields.summary).not.toContain('占位');
     expect(fields.insightList).toContain('累计观看天数：3 天');
     expect(fields.rankingRows).toContain('剧情&lt;强&gt;');
-    expect(fields.viewerProfile).toContain('建议先生成预览');
+    expect(fields.viewerProfile).toContain('当前报告先保留本地统计');
+    expect(fields.viewerProfile).not.toContain('建议先生成预览');
   });
 
   it('resolves page model override from selector state', () => {

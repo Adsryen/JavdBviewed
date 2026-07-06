@@ -4,7 +4,12 @@
 import { loadPartial } from '../loaders/partialsLoader';
 import { prefetchStyles } from '../loaders/stylesLoader';
 
-export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> = {
+export type TabPartialResource = {
+  name: string;
+  styles?: string[];
+};
+
+export const TAB_PARTIALS: Partial<Record<string, TabPartialResource>> = {
   // 首页（首屏）
   'tab-home': {
     name: 'tabs/home.html',
@@ -52,6 +57,13 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
     name: 'tabs/drive115-tasks.html',
     styles: [
       './styles/05-pages/drive115Tasks.css',
+    ],
+  },
+  // 媒体库
+  'tab-media': {
+    name: 'tabs/media.html',
+    styles: [
+      './styles/05-pages/media.css',
     ],
   },
   // 回收站
@@ -195,7 +207,7 @@ export const prefetchedTabs = new Set<string>();
 
 export async function prefetchTabResources(tabId: string): Promise<void> {
   try {
-    const cfg = (TAB_PARTIALS as any)[tabId];
+    const cfg = TAB_PARTIALS[tabId];
     if (!cfg) return;
     // 预取 partial（raw 内联命中则无网络）
     loadPartial(cfg.name).catch(() => {});

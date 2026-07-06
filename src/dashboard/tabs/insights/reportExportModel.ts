@@ -36,7 +36,7 @@ export function buildInsightsMarkdownPlaceholder(month?: string): string {
   return [
     title,
     '',
-    '- 该导出为占位，后续将输出结构化 Markdown 内容',
+    '- Markdown 导出还在整理中，目前可先导出 HTML 报告',
   ].join('\n');
 }
 

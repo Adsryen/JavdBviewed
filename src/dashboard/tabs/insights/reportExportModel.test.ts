@@ -22,6 +22,9 @@ describe('insights report export model', () => {
   it('builds markdown placeholder for current preview and saved month', () => {
     expect(buildInsightsMarkdownPlaceholder()).toContain('# 观影标签月报（预览）');
     expect(buildInsightsMarkdownPlaceholder('2026-05')).toContain('# 观影标签月报（2026-05）');
+    expect(buildInsightsMarkdownPlaceholder()).toContain('Markdown 导出还在整理中，目前可先导出 HTML 报告');
+    expect(buildInsightsMarkdownPlaceholder()).not.toContain('占位');
+    expect(buildInsightsMarkdownPlaceholder()).not.toContain('后续将输出');
   });
 
   it('reads selected history months from a checkbox container', () => {

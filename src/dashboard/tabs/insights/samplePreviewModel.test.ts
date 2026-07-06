@@ -18,6 +18,13 @@ describe('insights sample preview model', () => {
     expect(fields.reportBadge).toBe('Sample Wrapped');
     expect(fields.totalViews).toBe('74');
     expect(fields.activeDays).toBe('6');
+    expect(fields.summary).toContain('生成自己的月报时');
+    expect(fields.methodology).toContain('按本地观看记录去重后统计');
+    expect(fields.viewerProfile).toContain('生成自己的月报时');
+    expect(fields.summary).not.toContain('真实报告会');
+    expect(fields.summary).not.toContain('AI 文案');
+    expect(fields.methodology).not.toContain('真实报告会');
+    expect(fields.viewerProfile).not.toContain('真实报告会');
     expect(JSON.parse(fields.statsJSON).metrics.totalAll).toBe(74);
   });
 });

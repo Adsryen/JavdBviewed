@@ -1,0 +1,58 @@
+<div class="media-library-page">
+  <header class="media-library-header">
+    <div>
+      <p class="media-library-kicker">媒体库 · 开发中</p>
+      <h2>正在规划媒体库</h2>
+      <p class="media-library-description">
+        媒体库入口先开放，欢迎补充你最想优先看到的使用场景。115、Emby、Jellyfin 的片库浏览、来源筛选、播放入口和任务联动，会按场景继续拆分。
+      </p>
+    </div>
+  </header>
+
+  <section class="media-feedback-panel" aria-label="媒体库需求反馈">
+    <div class="media-feedback-icon">
+      <i class="fas fa-comments" aria-hidden="true"></i>
+    </div>
+    <div class="media-feedback-copy">
+      <h3>媒体库优先做哪一块？</h3>
+      <p>欢迎补充具体用法：115 任务怎么接、Emby/Jellyfin 要看哪些字段、播放入口和筛选先解决什么。需求、优先级、截图或例子都可以发到 Issue。</p>
+    </div>
+    <a class="media-feedback-link" href="https://github.com/Adsryen/JavdBviewed/issues" target="_blank" rel="noopener noreferrer">
+      <span>提交需求或建议</span>
+      <i class="fas fa-external-link-alt" aria-hidden="true"></i>
+    </a>
+  </section>
+
+  <section class="media-source-grid" aria-label="媒体库来源">
+    <article class="media-source-card" data-media-source="all">
+      <span class="media-source-label">全部</span>
+      <h3>跨来源总览</h3>
+      <p>规划把 115、Emby 与 Jellyfin 放到同一视图里，重点看来源、匹配状态和筛选方式怎么组织。</p>
+    </article>
+    <article class="media-source-card" data-media-source="115">
+      <span class="media-source-label">115</span>
+      <h3>115 片库与任务</h3>
+      <p>规划 115 文件识别、离线任务进度和媒体识别结果的管理方式，暂时不会连接你的 115。</p>
+    </article>
+    <article class="media-source-card" data-media-source="emby">
+      <span class="media-source-label">Emby</span>
+      <h3>Emby 片库接入</h3>
+      <p>规划服务器片库、播放状态、同步结果与本地番号记录的关联方式，暂时不会连接你的 Emby。</p>
+    </article>
+    <article class="media-source-card" data-media-source="jellyfin">
+      <span class="media-source-label">Jellyfin</span>
+      <h3>Jellyfin 片库接入</h3>
+      <p>规划 Jellyfin 片库浏览、匹配结果和播放入口的接入方式，暂时不会连接你的 Jellyfin。</p>
+    </article>
+  </section>
+
+  <section class="media-library-empty" aria-label="媒体库空状态">
+    <div class="media-library-empty-icon">
+      <i class="fas fa-film" aria-hidden="true"></i>
+    </div>
+    <div>
+      <h3>入口先开放，能力还在补</h3>
+      <p>这里暂时不会连接你的 115、Emby 或 Jellyfin。媒体库如果要优先覆盖某个场景，可以到 Issue 里补充需求、截图或例子。</p>
+    </div>
+  </section>
+</div>

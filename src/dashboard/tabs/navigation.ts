@@ -1,189 +1,276 @@
 // src/dashboard/tabs/navigation.ts
-// 负责标签页的切换、预取、hash 解析与初始化
+// 负责 Dashboard 9C 导航渲染、Tab 切换、预取、hash 解析与初始化
 
 import { initializeTabById, prefetchModuleById } from './registry';
 import { mountTabIfNeeded } from './mount';
+import {
+  DASHBOARD_NAV_GROUPS,
+  buildDashboardNavHash,
+  resolveDashboardNavState,
+  type DashboardNavGroup,
+  type DashboardNavItem,
+  type DashboardNavState,
+} from './navModel';
 import { prefetchedTabs, prefetchTabResources } from './resources';
+
+type NavigationRuntime = {
+  mainTabsRoot: HTMLElement;
+  sectionNavRoot: HTMLElement;
+  contents: HTMLElement[];
+};
+
+type ActivateOptions = {
+  updateHash: boolean;
+};
+
+function findGroup(groupId: string): DashboardNavGroup | null {
+  return DASHBOARD_NAV_GROUPS.find(group => group.id === groupId) ?? null;
+}
+
+function findItem(group: DashboardNavGroup, itemId: string): DashboardNavItem | null {
+  return group.items.find(item => item.id === itemId) ?? null;
+}
+
+function getDefaultItem(group: DashboardNavGroup): DashboardNavItem | null {
+  return findItem(group, group.defaultItemId) ?? group.items[0] ?? null;
+}
+
+function createState(group: DashboardNavGroup, item: DashboardNavItem, subPath?: string): DashboardNavState {
+  const state: DashboardNavState = {
+    groupId: group.id,
+    itemId: item.id,
+    tabId: item.tabId,
+  };
+
+  const nextSubPath = subPath ?? item.subPath;
+  if (nextSubPath) {
+    state.subPath = nextSubPath;
+  }
+
+  return state;
+}
+
+function collectRuntime(): NavigationRuntime | null {
+  const mainTabsRoot = document.getElementById('dashboard-main-tabs');
+  const sectionNavRoot = document.getElementById('dashboard-section-nav');
+  const contents = Array.from(document.querySelectorAll<HTMLElement>('.tab-content'));
+
+  if (!mainTabsRoot) {
+    console.warn('[Navigation] 未找到 Dashboard 一级导航容器');
+    return null;
+  }
+  if (!sectionNavRoot) {
+    console.warn('[Navigation] 未找到 Dashboard 二级导航容器');
+    return null;
+  }
+  if (contents.length === 0) {
+    console.warn('[Navigation] 未找到标签页内容元素');
+    return null;
+  }
+
+  return { mainTabsRoot, sectionNavRoot, contents };
+}
+
+function prefetchTab(tabId: string): void {
+  if (!tabId || prefetchedTabs.has(tabId)) {
+    return;
+  }
+
+  prefetchModuleById(tabId).catch(() => {});
+  prefetchTabResources(tabId).catch(() => {});
+}
+
+function createMainButton(group: DashboardNavGroup, activeGroupId: string, onActivate: (group: DashboardNavGroup) => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'dashboard-main-tab';
+  button.dataset.navGroupId = group.id;
+  button.textContent = group.label;
+  button.setAttribute('aria-pressed', group.id === activeGroupId ? 'true' : 'false');
+
+  if (group.id === activeGroupId) {
+    button.classList.add('active');
+  }
+
+  button.addEventListener('mouseenter', () => {
+    const defaultItem = getDefaultItem(group);
+    if (defaultItem) {
+      prefetchTab(defaultItem.tabId);
+    }
+  });
+  button.addEventListener('click', () => onActivate(group));
+
+  return button;
+}
+
+function createSubButton(
+  group: DashboardNavGroup,
+  item: DashboardNavItem,
+  activeState: DashboardNavState,
+  onActivate: (state: DashboardNavState) => void,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'dashboard-sub-tab';
+  button.dataset.navGroupId = group.id;
+  button.dataset.navItemId = item.id;
+  button.dataset.tab = item.tabId;
+  button.textContent = item.label;
+
+  const isActive = activeState.groupId === group.id && activeState.itemId === item.id;
+  if (isActive) {
+    button.classList.add('active');
+  }
+  button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+
+  button.addEventListener('mouseenter', () => prefetchTab(item.tabId));
+  button.addEventListener('click', () => onActivate(createState(group, item)));
+
+  return button;
+}
+
+function renderMainTabs(runtime: NavigationRuntime, activeState: DashboardNavState, onActivate: (group: DashboardNavGroup) => void): void {
+  runtime.mainTabsRoot.textContent = '';
+
+  for (const group of DASHBOARD_NAV_GROUPS) {
+    runtime.mainTabsRoot.appendChild(createMainButton(group, activeState.groupId, onActivate));
+  }
+}
+
+function renderSectionTabs(runtime: NavigationRuntime, activeState: DashboardNavState, onActivate: (state: DashboardNavState) => void): void {
+  runtime.sectionNavRoot.textContent = '';
+
+  const group = findGroup(activeState.groupId);
+  if (!group) {
+    runtime.sectionNavRoot.hidden = true;
+    return;
+  }
+
+  if (group.items.length <= 1) {
+    runtime.sectionNavRoot.hidden = true;
+    return;
+  }
+
+  runtime.sectionNavRoot.hidden = false;
+
+  const tabs = document.createElement('div');
+  tabs.className = 'dashboard-sub-tabs';
+
+  for (const item of group.items) {
+    tabs.appendChild(createSubButton(group, item, activeState, onActivate));
+  }
+
+  runtime.sectionNavRoot.appendChild(tabs);
+}
+
+function placeSectionTabsInActivePage(runtime: NavigationRuntime, tabId: string): void {
+  const activeContent = document.getElementById(tabId);
+  if (!activeContent) {
+    return;
+  }
+
+  if (runtime.sectionNavRoot.parentElement === activeContent) {
+    return;
+  }
+
+  activeContent.insertBefore(runtime.sectionNavRoot, activeContent.firstChild);
+}
+
+function updateHash(state: DashboardNavState): void {
+  const nextHash = buildDashboardNavHash(state);
+  if (window.location.hash === nextHash) {
+    return;
+  }
+
+  if (history.pushState) {
+    history.pushState(null, '', nextHash);
+    return;
+  }
+
+  window.location.hash = nextHash;
+}
+
+function dispatchTabEvent(name: 'tab:hide' | 'tab:show', tabId: string): void {
+  window.dispatchEvent(new CustomEvent(name, { detail: { tabId } }));
+}
+
+function switchTabContent(runtime: NavigationRuntime, tabId: string): boolean {
+  const previousActive = document.querySelector<HTMLElement>('.tab-content.active');
+  const previousTabId = previousActive?.id ?? null;
+  const nextContent = document.getElementById(tabId);
+
+  if (!nextContent) {
+    console.warn('[Navigation] 未找到目标标签页内容:', tabId);
+    return false;
+  }
+
+  if (previousTabId && previousTabId !== tabId) {
+    dispatchTabEvent('tab:hide', previousTabId);
+  }
+
+  runtime.contents.forEach(content => content.classList.remove('active'));
+  nextContent.classList.add('active');
+  dispatchTabEvent('tab:show', tabId);
+
+  return true;
+}
+
+async function activateState(runtime: NavigationRuntime, state: DashboardNavState, options: ActivateOptions): Promise<void> {
+  const group = findGroup(state.groupId);
+  if (!group) {
+    return;
+  }
+
+  const item = findItem(group, state.itemId) ?? getDefaultItem(group);
+  if (!item) {
+    return;
+  }
+
+  const resolvedState = createState(group, item, state.subPath);
+  renderMainTabs(runtime, resolvedState, groupToActivate => {
+    const defaultItem = getDefaultItem(groupToActivate);
+    if (!defaultItem) {
+      return;
+    }
+
+    void activateState(runtime, createState(groupToActivate, defaultItem), { updateHash: true });
+  });
+  const switched = switchTabContent(runtime, resolvedState.tabId);
+  if (!switched) {
+    return;
+  }
+
+  if (options.updateHash) {
+    updateHash(resolvedState);
+  }
+
+  await mountTabIfNeeded(resolvedState.tabId);
+  placeSectionTabsInActivePage(runtime, resolvedState.tabId);
+  renderSectionTabs(runtime, resolvedState, nextState => {
+    void activateState(runtime, nextState, { updateHash: true });
+  });
+  await initializeTabById(resolvedState.tabId);
+
+  if (resolvedState.tabId === 'tab-home') {
+    window.dispatchEvent(new CustomEvent('home:init-required'));
+  }
+}
 
 export async function initTabs(): Promise<void> {
   try {
-    console.log('[Navigation] initTabs 开始执行');
-    const tabs = document.querySelectorAll('.tab-link');
-    const contents = document.querySelectorAll('.tab-content');
-
-    if (!tabs || tabs.length === 0) {
-      console.warn('未找到标签页链接元素');
-      return;
-    }
-    if (!contents || contents.length === 0) {
-      console.warn('未找到标签页内容元素');
+    const runtime = collectRuntime();
+    if (!runtime) {
       return;
     }
 
-    const switchTab = (tabButton: Element | null, preserveSubPath: boolean = false) => {
-      if (!tabButton) return;
-      const tabId = tabButton.getAttribute('data-tab');
-      if (!tabId) return;
+    const initialState = resolveDashboardNavState(window.location.hash);
 
-      try {
-        // 在移除 active 前记录之前的激活 tab，用于分发 hide
-        let prevId: string | null = null;
-        try {
-          const prevActive = document.querySelector('.tab-link.active') as Element | null;
-          prevId = (prevActive?.getAttribute('data-tab') ?? null);
-        } catch {}
-
-        if (tabs && (tabs as any).forEach) {
-          (tabs as any).forEach((t: Element) => t.classList.remove('active'));
-        }
-        if (contents && (contents as any).forEach) {
-          (contents as any).forEach((c: Element) => c.classList.remove('active'));
-        }
-
-        // 分发隐藏事件（上一个激活的 tab）
-        try {
-          if (prevId) window.dispatchEvent(new CustomEvent('tab:hide', { detail: { tabId: prevId } }));
-        } catch {}
-
-        tabButton.classList.add('active');
-        document.getElementById(tabId)?.classList.add('active');
-
-        // 对于设置页面，只在明确要求保留子路径时才保留
-        let newHash = `#${tabId}`;
-        if (tabId === 'tab-settings' && preserveSubPath) {
-          const currentHash = window.location.hash.substring(1);
-          const [currentMain, currentSub] = currentHash.split('/');
-          // 如果当前已经在设置页且有子路径，保留它
-          if (currentMain === 'tab-settings' && currentSub) {
-            newHash = `#${tabId}/${currentSub}`;
-          }
-        }
-
-        if (history.pushState) {
-          history.pushState(null, '', newHash);
-        } else {
-          location.hash = newHash;
-        }
-
-        // 分发显示事件（当前激活的 tab）
-        try {
-          window.dispatchEvent(new CustomEvent('tab:show', { detail: { tabId } }));
-        } catch {}
-      } catch (error) {
-        console.error('切换标签页时出错:', error);
-      }
-    };
-
-    // 给每个标签页添加预取与点击事件
-    if (tabs && (tabs as any).forEach) {
-      (tabs as any).forEach((tab: Element) => {
-        try {
-          // 悬停预取资源，提升首次点击体验
-          tab.addEventListener('mouseenter', () => {
-            const id = tab.getAttribute('data-tab') || '';
-            if (!id || prefetchedTabs.has(id)) return;
-            try { prefetchModuleById(id); } catch {}
-            prefetchTabResources(id);
-          });
-
-          tab.addEventListener('click', async () => {
-            switchTab(tab);
-            const tabId = tab.getAttribute('data-tab');
-            await mountTabIfNeeded(tabId || '');
-            await initializeTabById(tabId || '');
-          });
-        } catch (error) {
-          console.error('为标签页添加事件监听器时出错:', error);
-        }
-      });
-    }
-
-    // 监听 URL 变化（必须在初始化逻辑之前注册，避免提前 return 导致监听器未注册）
-    console.log('[Navigation] 注册 hashchange 监听器');
-    window.addEventListener('hashchange', async () => {
-      console.log('[Navigation] hashchange 事件触发');
-      const newHash = window.location.hash.substring(1) || 'tab-home';
-      const [newMainTab, newSubSection] = newHash.split('/');
-      console.log('[Navigation] newHash:', newHash);
-      console.log('[Navigation] newMainTab:', newMainTab);
-      console.log('[Navigation] newSubSection:', newSubSection);
-
-      // 如果是设置页（无论是否有子页面），激活设置标签并加载对应页面
-      if (newMainTab === 'tab-settings') {
-        console.log('[Navigation] 检测到设置页面');
-        const settingsTab = document.querySelector(`.tab-link[data-tab="tab-settings"]`);
-        const currentActiveTab = document.querySelector('.tab-link.active');
-        if (currentActiveTab !== settingsTab) {
-          console.log('[Navigation] 激活设置标签');
-          // 不要调用 switchTab，直接激活标签，保持原有 URL
-          if (settingsTab) {
-            if (tabs && (tabs as any).forEach) {
-              (tabs as any).forEach((t: Element) => t.classList.remove('active'));
-            }
-            if (contents && (contents as any).forEach) {
-              (contents as any).forEach((c: Element) => c.classList.remove('active'));
-            }
-            settingsTab.classList.add('active');
-            document.getElementById('tab-settings')?.classList.add('active');
-          }
-        }
-        console.log('[Navigation] 调用 mountTabIfNeeded');
-        await mountTabIfNeeded('tab-settings');
-        console.log('[Navigation] 调用 initializeTabById');
-        await initializeTabById('tab-settings');
-        console.log('[Navigation] 设置页面处理完成');
-        return;
-      }
-
-      const currentActiveTab = document.querySelector('.tab-link.active');
-      const currentTabId = currentActiveTab?.getAttribute('data-tab');
-
-      if (currentTabId !== newMainTab) {
-        const newTargetTab = document.querySelector(`.tab-link[data-tab="${newMainTab}"]`);
-        if (newTargetTab) {
-          switchTab(newTargetTab, false);
-          await mountTabIfNeeded(newMainTab);
-        }
-      }
-
-      await initializeTabById(newMainTab);
-      if (newMainTab === 'tab-home') {
-        try { window.dispatchEvent(new CustomEvent('home:init-required')); } catch {}
-      }
+    window.addEventListener('hashchange', () => {
+      const nextState = resolveDashboardNavState(window.location.hash);
+      void activateState(runtime, nextState, { updateHash: false });
     });
-    console.log('[Navigation] hashchange 监听器注册完成');
 
-    // 解析当前 hash，支持二级路径
-    const fullHash = window.location.hash.substring(1) || 'tab-home';
-    const [mainTab, subSection] = fullHash.split('/');
-    
-    // 如果是设置页的子页面，激活设置标签并加载对应页面
-    if (mainTab === 'tab-settings' && subSection) {
-      const settingsTab = document.querySelector(`.tab-link[data-tab="tab-settings"]`);
-      // 不要调用 switchTab，直接激活标签，保持原有 URL
-      if (settingsTab) {
-        if (tabs && (tabs as any).forEach) {
-          (tabs as any).forEach((t: Element) => t.classList.remove('active'));
-        }
-        if (contents && (contents as any).forEach) {
-          (contents as any).forEach((c: Element) => c.classList.remove('active'));
-        }
-        settingsTab.classList.add('active');
-        document.getElementById('tab-settings')?.classList.add('active');
-      }
-      await mountTabIfNeeded('tab-settings');
-      await initializeTabById('tab-settings');
-      return;
-    }
-    
-    const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
-    switchTab(targetTab || ((tabs && tabs.length > 0) ? tabs[0] : null), false);
-    await mountTabIfNeeded(mainTab);
-
-    await initializeTabById(mainTab);
-    if (mainTab === 'tab-home') {
-      try { window.dispatchEvent(new CustomEvent('home:init-required')); } catch {}
-    }
+    await activateState(runtime, initialState, { updateHash: true });
   } catch (error) {
     console.error('初始化标签页时出错:', error);
   }

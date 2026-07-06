@@ -5,6 +5,10 @@ import { ensureMounted, loadPartial, injectPartial } from '../loaders/partialsLo
 import { ensureStylesLoaded } from '../loaders/stylesLoader';
 import { TAB_PARTIALS } from './resources';
 
+function getTabPartial(tabId: string) {
+  return TAB_PARTIALS[tabId] ?? null;
+}
+
 export async function mountTabIfNeeded(tabId: string): Promise<void> {
   try {
     // 处理设置页面的子路径（tab-settings/xxx-settings）
@@ -18,7 +22,7 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
         
         // 构建子页面的配置键（例如：network-test-settings -> tab-settings-network-test）
         const subPageKey = `tab-settings-${subSection.replace('-settings', '')}`;
-        const subCfg = (TAB_PARTIALS as any)[subPageKey];
+        const subCfg = getTabPartial(subPageKey);
         
         console.debug('[mount] 子页面配置键:', subPageKey);
         console.debug('[mount] 子页面配置:', subCfg);
@@ -43,7 +47,7 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
       }
       
       // 没有子路径或子页面配置不存在，加载设置导航页
-      const cfg = (TAB_PARTIALS as any)['tab-settings'];
+      const cfg = getTabPartial('tab-settings');
       if (cfg) {
         const selector = '#tab-settings';
         const html = await loadPartial(cfg.name);
@@ -62,7 +66,7 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
     }
     
     // 原有逻辑
-    const cfg = (TAB_PARTIALS as any)[tabId];
+    const cfg = getTabPartial(tabId);
     if (!cfg) return;
 
     const selector = `#${tabId}`;
