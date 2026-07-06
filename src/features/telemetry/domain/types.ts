@@ -65,7 +65,7 @@ export interface TelemetryErrorPayload {
 export interface TelemetryPayload {
   schemaVersion: 1;                                   // 负载格式版本
   eventId: string;                                    // 事件唯一 ID（用于去重）
-  deviceId: string;                                   // 设备 ID
+  deviceId?: string;                                  // 设备 ID
   installId: string;
   anonymous: true;                                    // 固定为 true，保证匿名
   event: TelemetryEventType;

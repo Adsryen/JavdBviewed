@@ -16,10 +16,12 @@ import { registerWebDAVRouter } from '../../features/webdavSync/background/contr
 import { globalTaskCenter } from '../../background/globalTaskCenter';
 import { registerNetProxyRouter } from '../../platform/network/backgroundFetchRouter';
 import { installConsoleProxyWithSettings } from '../../platform/logging/backgroundConsole';
+import { ensureWebDAVClientIdentity } from '../../features/webdavSync';
 import {
   handleTelemetryRuntimeMessage,
   initializeTelemetryReporter,
 } from '../../features/telemetry';
+import { getSettings, saveSettings } from '../../utils/storage';
 import { initializeBackgroundAlarmWiring } from './alarmRouter';
 import { registerDbMessageRouter } from './dbMessageRouter';
 import {
@@ -31,12 +33,17 @@ import { installCoversRefererDNR } from './dnrRules';
 import { registerBackgroundErrorHandlers } from './errorHandlers';
 import { registerReleaseAnnouncementEvents } from './releaseAnnouncementEvents';
 import { initializeRouteAutoUpdate } from './routeAutoUpdate';
+import { initializeTelemetryAfterClientIdentity } from './telemetryStartup';
 
 installConsoleProxyWithSettings();
 installDrive115V2Proxy();
 ensureMigrationsStart();
 registerReleaseAnnouncementEvents();
-initializeTelemetryReporter().catch(() => {});
+initializeTelemetryAfterClientIdentity({
+  ensureClientIdentity: () => ensureWebDAVClientIdentity({ getSettings, saveSettings }),
+  initializeTelemetry: initializeTelemetryReporter,
+  logWarning: (message, context) => console.warn(message, context),
+}).catch(() => {});
 
 globalTaskCenter.restoreFromStorage().catch(console.warn);
 

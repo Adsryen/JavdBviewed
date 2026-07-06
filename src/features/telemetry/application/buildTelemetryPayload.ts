@@ -63,9 +63,9 @@ export async function buildTelemetryPayload(input: BuildTelemetryPayloadInput): 
   ]);
   const sessionStartedAt = normalizeDate(input.state.sessionStartedAt, now);
   const installId = normalizeTelemetryId(input.state.installId) || 'unknown-device';
-  const deviceId = normalizeTelemetryId(settings?.webdav?.clientId) || installId;
+  const deviceId = normalizeTelemetryId(settings?.webdav?.clientId);
 
-  return {
+  return removeUndefined({
     schemaVersion: 1,
     eventId: createTelemetryEventId(),
     deviceId,
@@ -94,7 +94,7 @@ export async function buildTelemetryPayload(input: BuildTelemetryPayloadInput): 
     metrics,
     error: input.error,
     sentAt: now.toISOString(),
-  };
+  });
 }
 
 async function buildMetrics(settings: any): Promise<TelemetryPayload['metrics']> {

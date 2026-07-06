@@ -453,7 +453,7 @@ describe('telemetry payload', () => {
     expect(payload.installId).toBe('persisted-telemetry-install-id');
   });
 
-  it('falls back to telemetry installId when settings Device ID is missing', async () => {
+  it('does not report an install-prefixed telemetry ID as the real Device ID when settings Device ID is missing', async () => {
     const { buildTelemetryPayload } = await import('../../src/features/telemetry');
 
     const payload = await buildTelemetryPayload({
@@ -471,7 +471,7 @@ describe('telemetry payload', () => {
         },
       },
       state: {
-        installId: 'persisted-telemetry-install-id',
+        installId: 'install-8c1a06f9-d196-4471-97c2-989ddab243fa',
         sessionId: 'session-test',
         sessionStartedAt: '2026-05-26T01:00:00.000Z',
       },
@@ -481,8 +481,8 @@ describe('telemetry payload', () => {
       },
     });
 
-    expect(payload.deviceId).toBe('persisted-telemetry-install-id');
-    expect(payload.installId).toBe('persisted-telemetry-install-id');
+    expect(payload.deviceId).toBeUndefined();
+    expect(payload.installId).toBe('install-8c1a06f9-d196-4471-97c2-989ddab243fa');
   });
 });
 

@@ -887,6 +887,28 @@ describe('WebDAV backup and restore baseline', () => {
     });
   });
 
+  it('keeps generated WebDAV client IDs in UUID format when randomUUID is unavailable', async () => {
+    const { createUuidLike } = await import('../../src/features/webdavSync');
+    const bytes = new Uint8Array([
+      0x3c, 0x60, 0xde, 0xc6,
+      0x63, 0xd8,
+      0x43, 0xc5,
+      0x8f, 0x6b,
+      0xd8, 0x23, 0x6c, 0x42, 0x36, 0xf4,
+    ]);
+    vi.stubGlobal('crypto', {
+      getRandomValues(target: Uint8Array): Uint8Array {
+        target.set(bytes.slice(0, target.length));
+        return target;
+      },
+    });
+
+    const clientId = createUuidLike();
+
+    expect(clientId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(clientId.startsWith('wd-')).toBe(false);
+  });
+
   it('normalizes restore collections and batches writes', async () => {
     const { chunk, toArrayFromObjMap } = await import('../../src/background/webdav');
 
