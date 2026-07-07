@@ -18,8 +18,8 @@ describe('Dashboard 9C navigation model', () => {
       '首页',
       '资料库',
       '媒体库',
-      '同步与任务',
-      '分析与诊断',
+      '任务与备份',
+      '报告与日志',
       '设置',
     ]);
 
@@ -34,6 +34,10 @@ describe('Dashboard 9C navigation model', () => {
 
     const analysis = DASHBOARD_NAV_GROUPS.find(group => group.id === 'analysis');
     expect(analysis?.items.map(item => item.label)).toEqual(['报告', '日志']);
+
+    const sync = DASHBOARD_NAV_GROUPS.find(group => group.id === 'sync');
+    expect(sync?.defaultItemId).toBe('sync');
+    expect(sync?.items.map(item => item.label)).toEqual(['数据同步', '115任务', '备份与恢复']);
   });
 
   it('resolves old direct tab hashes to the correct group and item', () => {
@@ -47,6 +51,12 @@ describe('Dashboard 9C navigation model', () => {
       groupId: 'sync',
       itemId: 'drive115-tasks',
       tabId: 'tab-drive115-tasks',
+    });
+
+    expect(resolveDashboardNavState('#tab-backup')).toMatchObject({
+      groupId: 'sync',
+      itemId: 'backup',
+      tabId: 'tab-backup',
     });
 
     expect(resolveDashboardNavState('#tab-insights')).toMatchObject({

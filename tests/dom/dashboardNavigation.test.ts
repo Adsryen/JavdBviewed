@@ -59,8 +59,8 @@ describe('Dashboard 9C navigation runtime', () => {
       '首页',
       '资料库',
       '媒体库',
-      '同步与任务',
-      '分析与诊断',
+      '任务与备份',
+      '报告与日志',
       '设置',
     ]);
     expect(readButtonLabels('.dashboard-sub-tab')).toEqual([
@@ -98,6 +98,17 @@ describe('Dashboard 9C navigation runtime', () => {
     expect(host.querySelector('.dashboard-nav-quick')).toBeNull();
     expect(host.textContent).not.toContain('页面内二级目录');
     expect(sectionNav?.closest('.dashboard-nav-shell')).toBeNull();
+  });
+
+  it('keeps the production skeleton aligned with every dashboard tab container', () => {
+    const skeletonHtml = readFileSync(
+      resolve(process.cwd(), 'src/dashboard/partials/layout/skeleton.html'),
+      'utf8',
+    );
+
+    expect(skeletonHtml).toContain('id="tab-backup"');
+    expect(skeletonHtml).toContain('id="tab-sync"');
+    expect(skeletonHtml).toContain('id="tab-drive115-tasks"');
   });
 
   it('uses the dashboard blue theme instead of the indigo 9C prototype colors', () => {
@@ -153,6 +164,77 @@ describe('Dashboard 9C navigation runtime', () => {
     expect(issueLink?.target).toBe('_blank');
     expect(issueLink?.rel).toContain('noopener');
     expect(issueLink?.rel).toContain('noreferrer');
+  });
+
+  it('opens data sync as the default task group page with backup placed last', async () => {
+    window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-home');
+
+    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    await initTabs();
+    await flushNavigationTasks();
+
+    document.querySelector<HTMLButtonElement>('.dashboard-main-tab[data-nav-group-id="sync"]')?.click();
+    await flushNavigationTasks();
+
+    expect(window.location.hash).toBe('#tab-sync');
+    expect(document.querySelector('.dashboard-main-tab.active')?.textContent).toBe('任务与备份');
+    expect(readButtonLabels('.dashboard-sub-tab')).toEqual(['数据同步', '115任务', '备份与恢复']);
+    expect(document.querySelector('.dashboard-sub-tab.active')?.textContent).toBe('数据同步');
+    expect(document.getElementById('dashboard-section-nav')?.parentElement).toBe(document.getElementById('tab-sync'));
+    expect(document.getElementById('tab-sync')?.classList.contains('active')).toBe(true);
+    expect(navigationMocks.mountTabIfNeeded).toHaveBeenCalledWith('tab-sync');
+    expect(navigationMocks.initializeTabById).toHaveBeenCalledWith('tab-sync');
+  });
+
+  it('renders the backup page with local and WebDAV backup controls', () => {
+    const host = document.createElement('div');
+    const backupHtml = readFileSync(
+      resolve(process.cwd(), 'src/dashboard/partials/tabs/backup.html'),
+      'utf8',
+    );
+    host.innerHTML = backupHtml;
+    const backupPage = host.querySelector('.backup-page.card');
+
+    expect(backupPage).toBeTruthy();
+    expect(host.querySelector('.backup-panels')).toBeNull();
+    expect(host.querySelectorAll('.backup-panel')).toHaveLength(0);
+    expect(backupPage?.querySelectorAll('.backup-section')).toHaveLength(2);
+    expect(backupHtml).toContain('备份与恢复');
+    expect(backupHtml).toContain('本地备份');
+    expect(backupHtml).toContain('WebDAV 云端备份');
+    expect(backupHtml).toContain('id="importFile"');
+    expect(backupHtml).toContain('id="exportBtn"');
+    expect(backupHtml).toContain('id="syncNow"');
+    expect(backupHtml).toContain('id="syncDown"');
+    expect(backupHtml).toContain('id="lastSyncTime"');
+    expect(backupHtml).toContain('id="syncIndicator"');
+  });
+
+  it('keeps backup page action button colors scoped to the dashboard theme', () => {
+    const backupCss = readFileSync(
+      resolve(process.cwd(), 'src/dashboard/styles/05-pages/backup.css'),
+      'utf8',
+    );
+
+    expect(backupCss).toContain('.backup-page #exportBtn');
+    expect(backupCss).toContain('.backup-page #syncNow');
+    expect(backupCss).toContain('.backup-page #syncDown');
+    expect(backupCss).toContain('background-color: var(--primary)');
+    expect(backupCss).toContain('background-color: var(--success)');
+  });
+
+  it('removes backup action blocks from the sidebar partial', () => {
+    const sidebarHtml = readFileSync(
+      resolve(process.cwd(), 'src/dashboard/partials/layout/sidebar.html'),
+      'utf8',
+    );
+
+    expect(sidebarHtml).not.toContain('<h4>本地备份</h4>');
+    expect(sidebarHtml).not.toContain('<h4>WebDAV 备份</h4>');
+    expect(sidebarHtml).not.toContain('id="importFile"');
+    expect(sidebarHtml).not.toContain('id="exportBtn"');
+    expect(sidebarHtml).not.toContain('id="syncNow"');
+    expect(sidebarHtml).not.toContain('id="syncDown"');
   });
 
   it('hides the secondary menu for the single-entry home group', async () => {
@@ -224,6 +306,7 @@ function setupDashboardShell(): void {
     <div id="tab-new-works" class="tab-content"></div>
     <div id="tab-recycle-bin" class="tab-content"></div>
     <div id="tab-media" class="tab-content"></div>
+    <div id="tab-backup" class="tab-content"></div>
     <div id="tab-sync" class="tab-content"></div>
     <div id="tab-drive115-tasks" class="tab-content"></div>
     <div id="tab-insights" class="tab-content"></div>

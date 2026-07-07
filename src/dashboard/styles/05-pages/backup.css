@@ -1,0 +1,281 @@
+/* ============================================
+   备份与恢复页面
+   ============================================ */
+
+.backup-page {
+  --backup-primary: #2563eb;
+  --backup-success: #059669;
+  --backup-border: color-mix(in srgb, var(--border-primary) 82%, transparent);
+  --backup-soft: color-mix(in srgb, var(--surface-secondary) 88%, #ffffff 12%);
+  --backup-muted: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 18px !important;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(37, 99, 235, 0.10), transparent 34%),
+    radial-gradient(circle at 92% 6%, rgba(5, 150, 105, 0.10), transparent 30%),
+    var(--surface-primary);
+  border-color: var(--backup-border);
+}
+
+[data-theme="dark"] .backup-page {
+  --backup-border: color-mix(in srgb, var(--border-primary) 84%, rgba(148, 163, 184, 0.18));
+  --backup-soft: color-mix(in srgb, var(--surface-secondary) 88%, #0f172a 12%);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(96, 165, 250, 0.14), transparent 34%),
+    radial-gradient(circle at 92% 6%, rgba(45, 212, 191, 0.10), transparent 30%),
+    var(--surface-primary);
+}
+
+.backup-page-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 2px 2px 18px;
+  border-bottom: 1px solid var(--backup-border);
+}
+
+.backup-page-hero-copy {
+  min-width: 0;
+}
+
+.backup-page-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-bottom: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--backup-primary) 13%, transparent);
+  color: var(--backup-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.backup-page h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.backup-page-hero p,
+.backup-section-summary p,
+.backup-section-note {
+  margin: 4px 0 0;
+  color: var(--backup-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.backup-settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--backup-primary) 28%, var(--backup-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-primary) 88%, var(--backup-primary) 12%);
+  color: var(--backup-primary);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.backup-settings-link:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary-active);
+  transform: translateY(-1px);
+}
+
+.backup-section-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.backup-section {
+  display: grid;
+  grid-template-columns: minmax(190px, 250px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  padding: 20px 2px;
+}
+
+.backup-section + .backup-section {
+  border-top: 1px solid var(--backup-border);
+}
+
+.backup-section-summary {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.backup-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--backup-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--backup-primary) 13%, transparent);
+  color: var(--backup-primary);
+}
+
+.backup-section-icon-cloud {
+  background: color-mix(in srgb, var(--backup-success) 13%, transparent);
+  color: var(--backup-success);
+}
+
+.backup-section h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.backup-section-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backup-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.backup-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  min-width: 150px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.backup-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.1);
+}
+
+.backup-action-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.backup-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+  box-shadow: none;
+}
+
+.backup-action-btn-primary {
+  background: var(--primary);
+  color: var(--text-inverse);
+}
+
+.backup-page #exportBtn,
+.backup-page #syncNow {
+  background-color: var(--primary);
+}
+
+.backup-page #exportBtn:hover:not(:disabled),
+.backup-page #syncNow:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.backup-action-btn-secondary {
+  background: var(--backup-soft);
+  border-color: var(--backup-border);
+  color: var(--text-primary);
+}
+
+.backup-action-btn-secondary:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-primary);
+}
+
+.backup-action-btn-success {
+  background: var(--success);
+  color: var(--text-inverse);
+}
+
+.backup-page #syncDown {
+  background-color: var(--success);
+}
+
+.backup-page #syncDown:hover:not(:disabled) {
+  background-color: var(--success-hover);
+}
+
+.backup-file-input {
+  display: none;
+}
+
+.backup-warning-banner {
+  display: none;
+  margin: 0;
+  border-radius: 14px;
+}
+
+.backup-sync-status {
+  margin-top: 0;
+}
+
+.backup-page .sync-status {
+  border: 1px solid var(--backup-border);
+  border-radius: 14px;
+  background: var(--backup-soft);
+}
+
+@media (max-width: 900px) {
+  .backup-section {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .backup-page {
+    padding: 16px !important;
+  }
+
+  .backup-page-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .backup-settings-link,
+  .backup-action-btn {
+    width: 100%;
+  }
+}

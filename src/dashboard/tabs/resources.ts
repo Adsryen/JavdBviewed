@@ -52,6 +52,13 @@ export const TAB_PARTIALS: Partial<Record<string, TabPartialResource>> = {
       './styles/05-pages/sync.css',
     ],
   },
+  // 备份与恢复
+  'tab-backup': {
+    name: 'tabs/backup.html',
+    styles: [
+      './styles/05-pages/backup.css',
+    ],
+  },
   // 115 任务
   'tab-drive115-tasks': {
     name: 'tabs/drive115-tasks.html',

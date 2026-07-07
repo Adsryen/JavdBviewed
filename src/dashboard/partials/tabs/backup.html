@@ -1,0 +1,87 @@
+<section class="card backup-page">
+  <div class="backup-page-hero">
+    <div class="backup-page-hero-copy">
+      <span class="backup-page-eyebrow">Backup Hub</span>
+      <h3>备份与恢复</h3>
+      <p>本地文件和 WebDAV 云端备份集中管理。更换设备、重装扩展或恢复数据时，可以直接从这里处理。</p>
+    </div>
+    <a class="backup-settings-link" href="#tab-settings/webdav-settings">
+      <i class="fas fa-cloud"></i>
+      <span>WebDAV 配置</span>
+    </a>
+  </div>
+
+  <div class="backup-section-list">
+    <section class="backup-section backup-section-local">
+      <div class="backup-section-summary">
+        <div class="backup-section-icon">
+          <i class="fas fa-file-code"></i>
+        </div>
+        <div>
+          <h4>本地备份</h4>
+          <p>导出完整备份文件，或从本机 JSON 文件恢复数据。</p>
+        </div>
+      </div>
+
+      <div class="backup-section-body">
+        <div class="backup-action-row">
+          <label for="importFile" class="backup-action-btn backup-action-btn-secondary">
+            <i class="fas fa-file-import"></i>
+            <span>导入本地备份</span>
+          </label>
+          <input type="file" id="importFile" class="backup-file-input" accept=".json">
+          <button id="exportBtn" type="button" class="backup-action-btn backup-action-btn-primary">
+            <i class="fas fa-file-export"></i>
+            <span>导出本地备份</span>
+          </button>
+        </div>
+        <p class="backup-section-note">导入前会显示备份信息并请求确认，避免误覆盖现有数据。</p>
+      </div>
+    </section>
+
+    <section class="backup-section backup-section-cloud">
+      <div class="backup-section-summary">
+        <div class="backup-section-icon backup-section-icon-cloud">
+          <i class="fas fa-cloud-upload-alt"></i>
+        </div>
+        <div>
+          <h4>WebDAV 云端备份</h4>
+          <p>把当前数据上传到云端，或从已保存的云端备份中恢复。</p>
+        </div>
+      </div>
+
+      <div class="backup-section-body">
+        <div id="webdavWarningBanner" class="webdav-warning-banner backup-warning-banner">
+          <i class="fas fa-exclamation-triangle"></i>
+          <div class="warning-content">
+            <div class="warning-title">需要备份</div>
+            <div class="warning-message" id="webdavWarningMessage"></div>
+          </div>
+        </div>
+
+        <div class="backup-action-row">
+          <button id="syncNow" type="button" class="backup-action-btn backup-action-btn-primary">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <span>立即上传至云端</span>
+          </button>
+          <button id="syncDown" type="button" class="backup-action-btn backup-action-btn-success">
+            <i class="fas fa-cloud-download-alt"></i>
+            <span>从云端恢复</span>
+          </button>
+        </div>
+
+        <div class="backup-sync-status sync-status">
+          <div class="sync-time-info">
+            <i class="fas fa-clock"></i>
+            <span class="sync-label">上次同步:</span>
+            <span id="lastSyncTime" class="sync-time">从未</span>
+          </div>
+          <div class="sync-indicator" id="syncIndicator">
+            <span class="sync-dot"></span>
+            <span class="sync-status-text">未同步</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>

@@ -6,6 +6,13 @@ import { setValue, getValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 import { showWebDAVRestoreModal } from '../webdavRestore';
 import { showImportModal } from '../import';
+import { sendRuntimeMessage } from '../../platform/browser/runtimeMessages';
+
+type BackupActionResponse = {
+  success?: boolean;
+  data?: unknown;
+  error?: string;
+};
 
 const WEBDAV_WARN_LAST_AT_KEY = 'webdav-warn-last-at';
 const WEBDAV_WARN_THROTTLE_MS = 6 * 60 * 60 * 1000;
@@ -32,7 +39,8 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
     // 显示/隐藏预警横幅
     if (warningDays > 0 && diffDays > warningDays) {
       syncIndicator.classList.add('error');
-      (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '需要同步';
+      const statusText = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
+      if (statusText) statusText.textContent = '需要同步';
       
       // 显示预警横幅
       if (warningBanner && warningMessage) {
@@ -47,10 +55,12 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
       
       if (diffDays > 1) {
         syncIndicator.classList.add('synced');
-        (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '已同步';
+        const statusText = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
+        if (statusText) statusText.textContent = '已同步';
       } else {
         syncIndicator.classList.add('synced');
-        (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '最新';
+        const statusText = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
+        if (statusText) statusText.textContent = '最新';
       }
     }
   } else {
@@ -153,25 +163,53 @@ export function initSidebarToggle(): void {
 
 export function initSidebarActions(): void {
   initSidebarToggle();
-  
-  // 初始化时更新同步状态
-  updateSyncStatus();
-  
-  const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
-  const syncNowBtn = document.getElementById('syncNow') as HTMLButtonElement;
-  const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
-  const importFileInput = document.getElementById('importFile') as HTMLInputElement;
+  initBackupActions(document);
+}
 
-  if (exportBtn) {
+function queryBackupElement<T extends HTMLElement>(root: ParentNode, selector: string): T | null {
+  return root.querySelector(selector) as T | null;
+}
+
+function markBackupActionBound(element: HTMLElement, action: string): boolean {
+  const key = `backup${action}Bound`;
+  if (element.dataset[key] === 'true') {
+    return false;
+  }
+
+  element.dataset[key] = 'true';
+  return true;
+}
+
+function getBackupActionErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+  return fallback;
+}
+
+export function initBackupActions(root: ParentNode = document): void {
+  const exportBtn = queryBackupElement<HTMLButtonElement>(root, '#exportBtn');
+  const syncNowBtn = queryBackupElement<HTMLButtonElement>(root, '#syncNow');
+  const syncDownBtn = queryBackupElement<HTMLButtonElement>(root, '#syncDown');
+  const importFileInput = queryBackupElement<HTMLInputElement>(root, '#importFile');
+
+  if (exportBtn && markBackupActionBound(exportBtn, 'Export')) {
     exportBtn.addEventListener('click', async () => {
       logAsync('INFO', '用户点击了"导出到本地"按钮');
       exportBtn.disabled = true;
-      const originalText = exportBtn.textContent;
-      exportBtn.textContent = '正在导出...';
+      const originalHtml = exportBtn.innerHTML;
+      exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>正在导出...</span>';
       try {
-        const response = await new Promise<any>((resolve) => {
-          chrome.runtime.sendMessage({ type: 'collect-backup-data' }, resolve);
-        });
+        const response = await sendRuntimeMessage<BackupActionResponse>({ type: 'collect-backup-data' });
         if (!response?.success) throw new Error(response?.error || '获取备份数据失败');
         const dataStr = JSON.stringify(response.data, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -183,17 +221,18 @@ export function initSidebarActions(): void {
         URL.revokeObjectURL(url);
         showMessage('数据导出成功', 'success');
         logAsync('INFO', '本地数据导出成功');
-      } catch (err: any) {
-        showMessage(`导出失败: ${err?.message}`, 'error');
-        logAsync('ERROR', '本地数据导出失败', { error: err?.message });
+      } catch (err: unknown) {
+        const message = getBackupActionErrorMessage(err, '导出失败');
+        showMessage(`导出失败: ${message}`, 'error');
+        logAsync('ERROR', '本地数据导出失败', { error: message });
       } finally {
         exportBtn.disabled = false;
-        exportBtn.textContent = originalText;
+        exportBtn.innerHTML = originalHtml;
       }
     });
   }
 
-  if (importFileInput) {
+  if (importFileInput && markBackupActionBound(importFileInput, 'Import')) {
     importFileInput.addEventListener('change', (event) => {
       logAsync('INFO', '用户选择了本地文件进行导入');
       const file = (event.target as HTMLInputElement).files?.[0];
@@ -210,22 +249,36 @@ export function initSidebarActions(): void {
     });
   }
 
-  if (syncNowBtn) {
-    syncNowBtn.addEventListener('click', () => {
-      syncNowBtn.textContent = '正在上传...';
+  if (syncNowBtn && markBackupActionBound(syncNowBtn, 'Upload')) {
+    syncNowBtn.addEventListener('click', async () => {
+      const originalHtml = syncNowBtn.innerHTML;
+      syncNowBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>正在上传...</span>';
       syncNowBtn.disabled = true;
       setSyncingStatus(true);
       logAsync('INFO', '用户点击“立即上传至云端”，开始上传数据');
-      chrome.runtime.sendMessage({ type: 'webdav-upload' }, (response) => {
-        syncNowBtn.textContent = '立即上传至云端';
+      try {
+        const response = await sendRuntimeMessage<BackupActionResponse>({ type: 'webdav-upload' });
+        if (!response?.success) {
+          throw new Error(response?.error || '上传失败');
+        }
+
+        showMessage('数据已成功上传至云端', 'success');
+        logAsync('INFO', '数据成功上传至云端');
+      } catch (error: unknown) {
+        const message = getBackupActionErrorMessage(error, '上传失败');
+        showMessage(`上传失败: ${message}`, 'error');
+        logAsync('ERROR', '数据上传至云端失败', { error: message });
+      } finally {
+        syncNowBtn.innerHTML = originalHtml;
         syncNowBtn.disabled = false;
-        if (response?.success) { showMessage('数据已成功上传至云端', 'success'); logAsync('INFO', '数据成功上传至云端'); setTimeout(() => updateSyncStatus(), 500); }
-        else { showMessage(`上传失败: ${response?.error}`, 'error'); logAsync('ERROR', '数据上传至云端失败', { error: response?.error }); setTimeout(() => updateSyncStatus(), 500); }
-      });
+        setTimeout(() => updateSyncStatus(), 500);
+      }
     });
   }
 
-  if (syncDownBtn) {
+  if (syncDownBtn && markBackupActionBound(syncDownBtn, 'Restore')) {
     syncDownBtn.addEventListener('click', () => { logAsync('INFO', '用户点击“从云端恢复”，打开恢复弹窗'); showWebDAVRestoreModal(); });
   }
+
+  updateSyncStatus();
 }

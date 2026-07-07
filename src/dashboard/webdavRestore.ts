@@ -7,6 +7,7 @@ import { analyzeDataDifferences, type DataDiffResult, type MergeOptions } from '
 import { mergeData } from '../features/webdavSync/application/dataMerge';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
+import { type RuntimeMessage, sendRuntimeMessage } from '../platform/browser/runtimeMessages';
 import { requireAuthIfRestricted } from '../features/privacy';
 import { dbMagnetPushLogsBulkAdd, dbMagnetPushLogsClear } from './dbClient';
 import { showConfirm } from './components/confirmModal';
@@ -37,6 +38,39 @@ import {
 
 // 全局变量
 let selectedFile: WebDAVFile | null = null;
+
+type WebDAVRuntimeResponse = {
+    success?: boolean;
+    error?: string;
+    [key: string]: unknown;
+};
+
+function getRuntimeErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+        const message = (error as { message?: unknown }).message;
+        if (typeof message === 'string' && message.trim()) {
+            return message;
+        }
+    }
+    if (typeof error === 'string' && error.trim()) {
+        return error;
+    }
+    return fallback;
+}
+
+function sendWebDAVRuntimeMessage(message: RuntimeMessage, callback: (response: WebDAVRuntimeResponse) => void): void {
+    sendRuntimeMessage<WebDAVRuntimeResponse>(message)
+        .then(callback)
+        .catch((error) => {
+            callback({
+                success: false,
+                error: getRuntimeErrorMessage(error, 'WebDAV 请求失败'),
+            });
+        });
+}
 
 function getRestoreModal(): HTMLElement | null {
     return restoreModalShellController.getRestoreModal();
@@ -108,9 +142,7 @@ const restoreFilePreviewController = new WebDAVRestoreFilePreviewController({
     setCloudData: (data) => {
         currentCloudData = data;
     },
-    sendRuntimeMessage: (message, callback) => {
-        chrome.runtime.sendMessage(message, callback);
-    },
+    sendRuntimeMessage: sendWebDAVRuntimeMessage,
     logInfo: (message, payload) => {
         logAsync('INFO', message, payload);
     },
@@ -148,9 +180,7 @@ const restoreAnalysisController = new WebDAVRestoreAnalysisController({
         currentDiffResult = diffResult;
     },
     getValue,
-    sendRuntimeMessage: (message, callback) => {
-        chrome.runtime.sendMessage(message, callback);
-    },
+    sendRuntimeMessage: sendWebDAVRuntimeMessage,
     analyzeDataDifferences,
     initializeRestoreInterface,
     showMessage,
@@ -252,9 +282,7 @@ const restoreUnifiedExecutorController = new WebDAVRestoreUnifiedExecutorControl
     clearProgressTimer: () => {
         restoreProgressResultsController.clearProgressTimer();
     },
-    sendRuntimeMessage: (message, callback) => {
-        chrome.runtime.sendMessage(message, callback);
-    },
+    sendRuntimeMessage: sendWebDAVRuntimeMessage,
     logInfo: (message, payload) => {
         logAsync('INFO', message, payload);
     },

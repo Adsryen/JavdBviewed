@@ -14,4 +14,11 @@ describe('Dashboard tab resources', () => {
       styles: ['./styles/05-pages/media.css'],
     });
   });
+
+  it('registers the backup and restore partial with page-scoped styles', () => {
+    expect(TAB_PARTIALS['tab-backup']).toEqual({
+      name: 'tabs/backup.html',
+      styles: ['./styles/05-pages/backup.css'],
+    });
+  });
 });

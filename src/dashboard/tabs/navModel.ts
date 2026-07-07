@@ -64,16 +64,17 @@ export const DASHBOARD_NAV_GROUPS: readonly DashboardNavGroup[] = [
   },
   {
     id: 'sync',
-    label: '同步与任务',
+    label: '任务与备份',
     defaultItemId: 'sync',
     items: [
       { id: 'sync', label: '数据同步', tabId: 'tab-sync' },
       { id: 'drive115-tasks', label: '115任务', tabId: 'tab-drive115-tasks' },
+      { id: 'backup', label: '备份与恢复', tabId: 'tab-backup' },
     ],
   },
   {
     id: 'analysis',
-    label: '分析与诊断',
+    label: '报告与日志',
     defaultItemId: 'insights',
     items: [
       { id: 'insights', label: '报告', tabId: 'tab-insights' },
