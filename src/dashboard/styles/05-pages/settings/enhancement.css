@@ -2921,6 +2921,10 @@
     min-height: 3em;
 }
 
+#enhancement-settings .popularity-effect-overlap-note {
+    color: var(--warning);
+}
+
 @media (max-width: 900px) {
     #enhancement-settings .popularity-threshold-row {
         grid-template-columns: 1fr;
