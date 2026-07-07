@@ -5,7 +5,7 @@
  */
 import JSZip from 'jszip';
 import { buildUploadId, DEFAULT_UPLOAD_INDEX_LIMIT, normalizeWebDavBaseUrl } from '../domain/paths';
-import type { WebDAVUploadIndexItem } from '../domain/types';
+import type { WebDAVKnownDevice, WebDAVUploadIndexItem } from '../domain/types';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
 import { ensureWebDAVSupportDirs } from '../infrastructure/webdavClient';
 import { getWebDAVClientProfile } from './clientIdentity';
@@ -13,11 +13,34 @@ import { updateWebDAVClientRegistry } from './clientRegistry';
 import { byteSizeOf, collectBackupData } from './backupCollector';
 import { appendWebDAVUploadIndex } from './uploadIndex';
 import { cleanupOldBackups } from './cleanupService';
+import { mergeKnownDevices, type WebDAVKnownDeviceSourceInput } from './deviceRegistry';
 
 export interface WebDAVUploadServiceOptions {
   getSettings: () => Promise<any>;
   saveSettings: (settings: any) => Promise<void>;
   logger?: WebDAVClientLog;
+}
+
+function readKnownDevices(value: unknown): WebDAVKnownDevice[] {
+  return Array.isArray(value) ? value as WebDAVKnownDevice[] : [];
+}
+
+function buildUploadKnownDeviceSource(settings: any, baseUrl: string, uploadedAt: string, uploadId: string): WebDAVKnownDeviceSourceInput {
+  const webdav = settings?.webdav || {};
+  const activeConfigId = String(webdav.activeConfigId || '').trim();
+  const configs = Array.isArray(webdav.configs) ? webdav.configs : [];
+  const activeConfig = configs.find((config: any) => String(config?.id || '').trim() === activeConfigId);
+
+  return {
+    configId: activeConfigId || String(activeConfig?.id || '').trim() || 'default',
+    configName: String(activeConfig?.name || '').trim() || undefined,
+    urlFingerprint: `${baseUrl}|${String(webdav.username || '').trim()}`,
+    seenAt: uploadedAt,
+    hasClientProfile: true,
+    hasBackup: true,
+    lastUploadId: uploadId,
+    lastUploadAt: uploadedAt,
+  };
 }
 
 export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): Promise<{ success: boolean; error?: string }> {
@@ -112,6 +135,15 @@ export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): 
     updatedSettings.webdav.clientLastSyncAt = uploadedAt;
     updatedSettings.webdav.clientLastSyncStatus = 'success';
     updatedSettings.webdav.clientLastUploadId = uploadId;
+    updatedSettings.webdav.knownDevices = mergeKnownDevices(
+      readKnownDevices(updatedSettings.webdav.knownDevices),
+      [{
+        profile: clientProfile,
+        source: buildUploadKnownDeviceSource(updatedSettings, baseUrl, uploadedAt, uploadId),
+        preferDeviceLabel: true,
+      }],
+      { now: Date.parse(uploadedAt) || Date.now() },
+    );
 
     const activeConfigId = updatedSettings.webdav.activeConfigId;
     if (activeConfigId && updatedSettings.webdav.configs) {

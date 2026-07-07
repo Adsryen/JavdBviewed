@@ -10,6 +10,7 @@ export * from './infrastructure/webdavClient';
 export * from './application/backupCollector';
 export * from './application/clientIdentity';
 export * from './application/clientRegistry';
+export * from './application/deviceRegistry';
 export * from './application/cleanupService';
 export * from './application/diagnostics';
 export * from './application/importSanitizer';

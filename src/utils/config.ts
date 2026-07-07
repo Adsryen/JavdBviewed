@@ -239,6 +239,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         clientLastSyncAt: '',
         clientLastSyncStatus: '',
         clientLastUploadId: '',
+        knownDevices: [],
         uploadIndexLimit: 50,
         autoSync: false,
         syncInterval: 1440, // 24 hours in minutes

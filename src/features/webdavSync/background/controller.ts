@@ -10,10 +10,15 @@ import { getSettings, saveSettings } from '../../../utils/storage';
 import {
   getClientFilePath,
   normalizeWebDavBaseUrl,
+  WEBDAV_UPLOAD_INDEX_FILE,
 } from '../domain/paths';
 import type {
   WebDAVClientProfile,
   WebDAVFile,
+  WebDAVKnownDevice,
+  WebDAVKnownDeviceView,
+  WebDAVUploadIndex,
+  WebDAVUploadIndexItem,
 } from '../domain/types';
 import {
   ensureWebDAVClientIdentity as ensureWebDAVClientIdentityCore,
@@ -26,7 +31,15 @@ import {
   updateWebDAVClientRegistry,
 } from '../application/clientRegistry';
 import {
+  buildKnownDeviceInputsFromRemoteState,
+  buildKnownDeviceViews,
+  buildMissingRemoteClientProfiles,
+  mergeKnownDevices,
+  type WebDAVKnownDeviceSourceInput,
+} from '../application/deviceRegistry';
+import {
   ensureWebDAVSupportDirs,
+  webDavReadJsonFile,
   webDavWriteJsonFile,
 } from '../infrastructure/webdavClient';
 import {
@@ -73,7 +86,100 @@ async function ensureWebDAVClientIdentity(): Promise<any> {
   return ensureWebDAVClientIdentityCore({ getSettings, saveSettings });
 }
 
-async function listWebDAVClients(): Promise<{ success: boolean; clients?: WebDAVClientProfile[]; error?: string }> {
+function readKnownDevices(value: unknown): WebDAVKnownDevice[] {
+  return Array.isArray(value) ? value as WebDAVKnownDevice[] : [];
+}
+
+function buildActiveWebDAVKnownDeviceSource(webdav: any, baseUrl: string, seenAt: number): WebDAVKnownDeviceSourceInput {
+  const activeConfigId = String(webdav?.activeConfigId || '').trim();
+  const configs = Array.isArray(webdav?.configs) ? webdav.configs : [];
+  const activeConfig = configs.find((config: any) => String(config?.id || '').trim() === activeConfigId);
+  const configId = activeConfigId || String(activeConfig?.id || '').trim() || 'default';
+  const configName = String(activeConfig?.name || '').trim() || undefined;
+  const username = String(webdav?.username || '').trim();
+
+  return {
+    configId,
+    configName,
+    urlFingerprint: `${baseUrl}|${username}`,
+    seenAt,
+    hasClientProfile: false,
+    hasBackup: false,
+  };
+}
+
+async function readWebDAVUploadIndexItems(
+  baseUrl: string,
+  auth: { username: string; password: string },
+): Promise<WebDAVUploadIndexItem[]> {
+  const uploadIndex = await webDavReadJsonFile<WebDAVUploadIndex>(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE).catch(() => null);
+  return Array.isArray(uploadIndex?.items) ? uploadIndex.items : [];
+}
+
+async function persistKnownDevicesIfChanged(settings: any, knownDevices: WebDAVKnownDevice[]): Promise<void> {
+  const previous = JSON.stringify(settings?.webdav?.knownDevices || []);
+  const next = JSON.stringify(knownDevices);
+  if (previous === next) return;
+
+  await saveSettings({
+    ...settings,
+    webdav: {
+      ...(settings.webdav || {}),
+      knownDevices,
+    },
+  } as any);
+}
+
+function normalizeWebDAVClientListError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+    return '无法连接到 WebDAV 服务器，请检查服务器地址和当前网络。';
+  }
+  if (/CORS/i.test(message)) {
+    return 'WebDAV 服务器拒绝了当前请求，请检查服务器跨域或访问策略。';
+  }
+  return message || '已知设备清单读取失败。';
+}
+
+async function backfillKnownDevicesToCurrentRemote(
+  baseUrl: string,
+  auth: { username: string; password: string },
+  knownDevices: WebDAVKnownDevice[],
+  remoteProfiles: WebDAVClientProfile[],
+  source: WebDAVKnownDeviceSourceInput,
+): Promise<{ written: number; failed: number; writtenProfiles: WebDAVClientProfile[] }> {
+  const missingProfiles = buildMissingRemoteClientProfiles(knownDevices, remoteProfiles);
+  if (missingProfiles.length === 0) return { written: 0, failed: 0, writtenProfiles: [] };
+
+  let written = 0;
+  let failed = 0;
+  const writtenProfiles: WebDAVClientProfile[] = [];
+
+  for (const profile of missingProfiles) {
+    try {
+      await updateWebDAVClientRegistry(baseUrl, auth, profile);
+      written += 1;
+      writtenProfiles.push(profile);
+    } catch (error: any) {
+      failed += 1;
+      bgLog('WARN', 'Failed to backfill WebDAV known device profile', {
+        clientId: profile.clientId,
+        configId: source.configId,
+        error: error?.message,
+      });
+    }
+  }
+
+  return { written, failed, writtenProfiles };
+}
+
+async function listWebDAVClients(): Promise<{
+  success: boolean;
+  clients?: WebDAVKnownDeviceView[];
+  currentClientId?: string;
+  remoteSync?: { attempted: boolean; written: number; failed: number };
+  error?: string;
+}> {
   const settings = await ensureWebDAVClientIdentity();
   const webdav = settings.webdav || {};
   if (!webdav.enabled || !webdav.url || !webdav.username || !webdav.password) {
@@ -81,11 +187,71 @@ async function listWebDAVClients(): Promise<{ success: boolean; clients?: WebDAV
   }
 
   const baseUrl = normalizeWebDavBaseUrl(webdav.url);
+  const auth = { username: webdav.username, password: webdav.password };
+  const now = Date.now();
+  const currentProfile = getWebDAVClientProfile(settings);
+  const currentSource = buildActiveWebDAVKnownDeviceSource(webdav, baseUrl, now);
   try {
-    const clients = await listWebDAVClientProfiles(baseUrl, { username: webdav.username, password: webdav.password });
-    return { success: true, clients };
+    const remoteProfiles = await listWebDAVClientProfiles(baseUrl, auth);
+    const uploadItems = await readWebDAVUploadIndexItems(baseUrl, auth);
+    let knownDevices = mergeKnownDevices(
+      readKnownDevices(webdav.knownDevices),
+      buildKnownDeviceInputsFromRemoteState({
+        profiles: remoteProfiles,
+        uploadItems,
+        source: currentSource,
+        now,
+      }),
+      {
+        now,
+        currentProfile,
+        currentSource: {
+          ...currentSource,
+          hasClientProfile: remoteProfiles.some((profile) => String(profile.clientId || '').trim() === currentProfile.clientId),
+          hasBackup: uploadItems.some((item) => String(item.clientId || '').trim() === currentProfile.clientId && item.status === 'success'),
+        },
+      },
+    );
+
+    await persistKnownDevicesIfChanged(settings, knownDevices);
+
+    const remoteSync = await backfillKnownDevicesToCurrentRemote(baseUrl, auth, knownDevices, remoteProfiles, currentSource);
+    if (remoteSync.writtenProfiles.length > 0) {
+      knownDevices = mergeKnownDevices(
+        knownDevices,
+        remoteSync.writtenProfiles.map((profile) => ({
+          profile,
+          source: { ...currentSource, seenAt: Date.now(), hasClientProfile: true, hasBackup: false },
+        })),
+        { now: Date.now() },
+      );
+      await persistKnownDevicesIfChanged(await getSettings(), knownDevices);
+    }
+
+    return {
+      success: true,
+      clients: buildKnownDeviceViews(knownDevices, currentProfile.clientId, currentSource),
+      currentClientId: currentProfile.clientId,
+      remoteSync: {
+        attempted: true,
+        written: remoteSync.written,
+        failed: remoteSync.failed,
+      },
+    };
   } catch (error: any) {
-    return { success: false, error: error?.message || 'Failed to list WebDAV clients.' };
+    const knownDevices = mergeKnownDevices(
+      readKnownDevices(webdav.knownDevices),
+      [],
+      { now, currentProfile, currentSource },
+    );
+    await persistKnownDevicesIfChanged(settings, knownDevices);
+    return {
+      success: true,
+      clients: buildKnownDeviceViews(knownDevices, currentProfile.clientId, currentSource),
+      currentClientId: currentProfile.clientId,
+      remoteSync: { attempted: false, written: 0, failed: 0 },
+      error: normalizeWebDAVClientListError(error),
+    };
   }
 }
 
@@ -156,17 +322,27 @@ async function updateCurrentWebDAVDeviceLabel(deviceLabel: string): Promise<{ su
 
     const settings = await ensureWebDAVClientIdentity();
     const nextSettings = { ...settings, webdav: { ...(settings.webdav || {}), deviceLabel: trimmedLabel } } as any;
-    await saveSettings(nextSettings);
+    const labelUpdatedAt = new Date().toISOString();
 
     const profile = getWebDAVClientProfile(nextSettings, {
       deviceLabel: trimmedLabel,
-      lastSeenAt: new Date().toISOString(),
+      lastSeenAt: labelUpdatedAt,
     });
-
     const webdav = nextSettings.webdav || {};
+    const baseUrl = webdav.url ? normalizeWebDavBaseUrl(webdav.url) : '';
+    nextSettings.webdav.knownDevices = mergeKnownDevices(
+      readKnownDevices(settings.webdav?.knownDevices),
+      [{
+        profile,
+        source: buildActiveWebDAVKnownDeviceSource(webdav, baseUrl, Date.parse(labelUpdatedAt) || Date.now()),
+        preferDeviceLabel: true,
+      }],
+      { now: Date.parse(labelUpdatedAt) || Date.now() },
+    );
+    await saveSettings(nextSettings);
+
     if (webdav.enabled && webdav.url && webdav.username && webdav.password) {
       try {
-        const baseUrl = normalizeWebDavBaseUrl(webdav.url);
         await ensureWebDAVSupportDirs(baseUrl, webdav.username, webdav.password, { logger: bgLog });
         await updateWebDAVClientRegistry(baseUrl, { username: webdav.username, password: webdav.password }, profile);
       } catch (error: any) {
@@ -207,10 +383,26 @@ async function updateWebDAVClientDeviceLabel(clientId: string, deviceLabel: stri
     await webDavWriteJsonFile(baseUrl, auth, filePath, nextProfile);
 
     const currentClientId = String(settings.webdav?.clientId || '').trim();
+    const nextKnownDevices = mergeKnownDevices(
+      readKnownDevices(settings.webdav?.knownDevices),
+      [{
+        profile: nextProfile,
+        source: buildActiveWebDAVKnownDeviceSource(webdav, baseUrl, Date.now()),
+        preferDeviceLabel: true,
+      }],
+      { now: Date.now() },
+    );
+    const nextSettings = {
+      ...settings,
+      webdav: {
+        ...(settings.webdav || {}),
+        knownDevices: nextKnownDevices,
+      },
+    } as any;
     if (currentClientId && currentClientId === trimmedClientId) {
-      const nextSettings = { ...settings, webdav: { ...(settings.webdav || {}), deviceLabel: trimmedLabel } } as any;
-      await saveSettings(nextSettings);
+      nextSettings.webdav.deviceLabel = trimmedLabel;
     }
+    await saveSettings(nextSettings);
 
     return { success: true, profile: nextProfile };
   } catch (error: any) {

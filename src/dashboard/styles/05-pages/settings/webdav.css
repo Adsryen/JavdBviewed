@@ -1094,6 +1094,36 @@
     gap: 8px;
 }
 
+.webdav-known-devices-head {
+    display: grid;
+    gap: 3px;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bg-secondary, #f8fafc);
+}
+
+.webdav-known-devices-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-color, #111827);
+}
+
+.webdav-known-devices-copy,
+.webdav-client-notice {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-muted, #64748b);
+}
+
+.webdav-client-notice {
+    padding: 8px 10px;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.08);
+}
+
 .webdav-client-card {
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 10px;
@@ -1111,6 +1141,37 @@
     margin-bottom: 6px;
     font-size: 14px;
     color: var(--text-color, #111827);
+}
+
+.webdav-client-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 8px;
+}
+
+.webdav-client-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 1px solid transparent;
+}
+
+.webdav-client-status.ok {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #bbf7d0;
+}
+
+.webdav-client-status.muted {
+    color: #475569;
+    background: #f1f5f9;
+    border-color: #e2e8f0;
 }
 
 .webdav-client-meta {
@@ -1200,10 +1261,33 @@
     border-color: #374151;
 }
 
+[data-theme="dark"] .webdav-known-devices-head {
+    background: #111827;
+    border-color: #374151;
+}
+
 [data-theme="dark"] .webdav-client-title,
 [data-theme="dark"] .webdav-client-meta,
-[data-theme="dark"] .webdav-client-form-label {
+[data-theme="dark"] .webdav-client-form-label,
+[data-theme="dark"] .webdav-known-devices-title {
     color: #e5e7eb;
+}
+
+[data-theme="dark"] .webdav-known-devices-copy,
+[data-theme="dark"] .webdav-client-notice {
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .webdav-client-status.ok {
+    color: #bbf7d0;
+    background: rgba(22, 101, 52, 0.38);
+    border-color: rgba(134, 239, 172, 0.32);
+}
+
+[data-theme="dark"] .webdav-client-status.muted {
+    color: #cbd5e1;
+    background: #334155;
+    border-color: #475569;
 }
 
 [data-theme="dark"] .webdav-client-actions input[type="text"] {
@@ -1270,11 +1354,39 @@
     min-width: 0;
 }
 
+.config-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
 .config-name {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 4px;
+}
+
+.config-default-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: auto;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    color: var(--webdav-primary);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    opacity: 0.82;
+    white-space: nowrap;
+}
+
+.config-default-badge i {
+    font-size: 10px;
 }
 
 .config-details {
@@ -1296,10 +1408,68 @@
     color: var(--text-muted);
 }
 
-.config-actions {
+.webdav-config-item .config-actions {
     display: flex;
-    gap: 6px;
+    gap: 2px;
     flex-shrink: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    padding-top: 0;
+    background: transparent;
+    border: none;
+    border-top: none;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.config-default-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 28px;
+    padding: 0 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.68;
+    white-space: nowrap;
+    transition: color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.webdav-config-item:hover .config-default-btn,
+.config-default-btn:focus-visible {
+    opacity: 1;
+}
+
+.config-default-btn:hover,
+.config-default-btn:focus-visible {
+    background: transparent;
+    border-color: transparent;
+    color: var(--webdav-primary);
+}
+
+.config-default-btn i {
+    font-size: 11px;
+}
+
+.webdav-config-item .config-actions .config-default-btn {
+    flex: 0 0 auto;
+    min-width: auto;
+    padding: 0 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    box-shadow: none;
+    transform: none;
 }
 
 .config-action-btn {
@@ -1310,22 +1480,55 @@
     height: 28px;
     padding: 0;
     background: transparent;
-    border: 1px solid var(--border-primary);
+    border: 1px solid transparent;
     border-radius: 4px;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    opacity: 0.5;
+    transition: color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
 }
 
-.config-action-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--webdav-primary);
+.webdav-config-item .config-actions .config-action-btn {
+    flex: 0 0 auto;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    box-shadow: none;
+    transform: none;
+}
+
+.webdav-config-item:hover .config-action-btn {
+    opacity: 1;
+}
+
+.config-action-btn:focus-visible {
+    opacity: 1;
+}
+
+.config-action-btn:hover,
+.config-action-btn:focus-visible {
+    background: transparent;
+    border-color: transparent;
     color: var(--webdav-primary);
 }
 
-.config-action-btn.delete:hover {
-    border-color: var(--error);
+.config-action-btn.delete:hover,
+.config-action-btn.delete:focus-visible {
+    background: transparent;
+    border-color: transparent;
     color: var(--error);
+}
+
+.webdav-config-item .config-actions .config-default-btn:hover,
+.webdav-config-item .config-actions .config-default-btn:focus-visible,
+.webdav-config-item .config-actions .config-action-btn:hover,
+.webdav-config-item .config-actions .config-action-btn:focus-visible {
+    box-shadow: none;
+    transform: none;
 }
 
 .config-action-btn i {
@@ -1334,18 +1537,35 @@
 
 /* 深色主题下的配置操作按钮优化 */
 [data-theme="dark"] .config-action-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--border-primary);
+    background: transparent;
+    border-color: transparent;
+}
+
+[data-theme="dark"] .config-default-badge {
+    background: transparent;
+    border: none;
+    color: var(--webdav-primary);
+}
+
+[data-theme="dark"] .config-default-btn {
+    background: transparent;
+    border-color: transparent;
+}
+
+[data-theme="dark"] .config-default-btn:hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--webdav-primary);
 }
 
 [data-theme="dark"] .config-action-btn:hover {
-    background: rgba(212, 165, 116, 0.15);
-    border-color: var(--webdav-primary);
+    background: transparent;
+    border-color: transparent;
 }
 
 [data-theme="dark"] .config-action-btn.delete:hover {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: var(--error);
+    background: transparent;
+    border-color: transparent;
 }
 
 .webdav-config-empty {
@@ -1377,7 +1597,7 @@
         flex-wrap: wrap;
     }
     
-    .config-actions {
+    .webdav-config-item .config-actions {
         width: 100%;
         justify-content: flex-end;
     }

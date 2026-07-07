@@ -206,6 +206,9 @@ export interface ExtensionSettings {
 export type {
   WebDAVClientProfile,
   WebDAVConfig,
+  WebDAVKnownDevice,
+  WebDAVKnownDeviceSource,
+  WebDAVKnownDeviceView,
   WebDAVUploadIndex,
   WebDAVUploadIndexItem,
 } from '../features/webdavSync/domain/types';

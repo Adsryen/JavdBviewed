@@ -34,6 +34,39 @@ export interface WebDAVClientProfile {
   disabled?: boolean;                                 // 是否已禁用
 }
 
+/** 本地已知设备的来源记录 —— 只描述设备清单与备份状态，不代表备份文件已被镜像 */
+export interface WebDAVKnownDeviceSource {
+  configId: string;                                   // WebDAV 配置 ID，或 local
+  configName?: string;
+  urlFingerprint: string;                             // 由 URL + 用户名归一化得到，不包含密码
+  firstSeenAt: number;                                // Unix 毫秒
+  lastSeenAt: number;                                 // Unix 毫秒
+  hasClientProfile: boolean;                          // 当前来源是否有 clients/{clientId}.json
+  hasBackup: boolean;                                 // 当前来源是否有真实备份记录
+  lastUploadId?: string;
+  lastUploadAt?: number;                              // Unix 毫秒
+}
+
+/** 本地已知设备主表条目 */
+export interface WebDAVKnownDevice extends WebDAVClientProfile {
+  firstSeenAt: number;                                // Unix 毫秒
+  lastKnownAt: number;                                // Unix 毫秒
+  sources: WebDAVKnownDeviceSource[];
+}
+
+/** 设置页展示用设备条目 */
+export interface WebDAVKnownDeviceView extends WebDAVKnownDevice {
+  isCurrent: boolean;
+  currentRemote: {
+    configId: string;
+    configName?: string;
+    hasClientProfile: boolean;
+    hasBackup: boolean;
+    lastUploadId?: string;
+    lastUploadAt?: number;
+  };
+}
+
 /** 上传索引条目 —— 记录每次全量备份的元数据 */
 export interface WebDAVUploadIndexItem {
   uploadId: string;                                   // 上传批次 ID（时间戳）

@@ -852,6 +852,16 @@ describe('WebDAV backup and restore baseline', () => {
           deviceLabel: 'Cloud Device',
           browserName: 'Cloud Browser',
           clientInstalledAt: '2026-01-01T00:00:00.000Z',
+          knownDevices: [
+            {
+              clientId: 'cloud-client',
+              deviceLabel: 'Cloud Device',
+              browserName: 'Cloud Browser',
+              firstSeenAt: 1780000000000,
+              lastKnownAt: 1780000000000,
+              sources: [],
+            },
+          ],
         },
       },
       {
@@ -860,6 +870,17 @@ describe('WebDAV backup and restore baseline', () => {
           deviceLabel: 'Local Device',
           browserName: 'Chrome',
           clientInstalledAt: '2026-05-01T00:00:00.000Z',
+          knownDevices: [
+            {
+              clientId: 'local-client',
+              deviceLabel: 'Local Device',
+              browserName: 'Chrome',
+              installedAt: '2026-05-01T00:00:00.000Z',
+              firstSeenAt: 1782000000000,
+              lastKnownAt: 1782000000000,
+              sources: [],
+            },
+          ],
         },
       },
     )).toEqual({
@@ -870,6 +891,16 @@ describe('WebDAV backup and restore baseline', () => {
         deviceLabel: 'Local Device',
         browserName: 'Chrome',
         clientInstalledAt: '2026-05-01T00:00:00.000Z',
+        knownDevices: [
+          expect.objectContaining({
+            clientId: 'local-client',
+            deviceLabel: 'Local Device',
+          }),
+          expect.objectContaining({
+            clientId: 'cloud-client',
+            deviceLabel: 'Cloud Device',
+          }),
+        ],
       },
     });
 
