@@ -48,7 +48,8 @@ export class ReviewBreakerService {
         const parts = storedSign.split('.');
         if (parts.length === 3) {
           const timestamp = parseInt(parts[0], 10);
-          if (!isNaN(timestamp) && curr - timestamp <= 300) {
+          const ageSeconds = curr - timestamp;
+          if (!isNaN(timestamp) && ageSeconds >= 0 && ageSeconds <= 300) {
             log(`[ReviewBreaker] Using cached signature: ${storedSign.substring(0, 30)}...`);
             return storedSign;
           }
