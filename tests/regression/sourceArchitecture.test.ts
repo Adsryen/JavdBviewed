@@ -866,6 +866,13 @@ describe('source architecture cleanup', () => {
     }
   });
 
+  it('keeps background route updates off browser-only network modules', () => {
+    const routeManagementSource = fs.readFileSync(path.resolve(root, 'src/features/routeManagement/index.ts'), 'utf8');
+
+    expect(routeManagementSource, 'RouteManager runs from the MV3 service worker and must not pull the platform/network barrel').not.toMatch(/platform\/network['"]/);
+    expect(routeManagementSource, 'RouteManager should import only the server endpoint resolver helpers it needs').toMatch(/platform\/network\/serverEndpointResolver/);
+  });
+
   it('keeps TTL cache under platform storage with utils path as a compatibility export', () => {
     const targetPath = 'src/platform/storage/cache.ts';
     expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);

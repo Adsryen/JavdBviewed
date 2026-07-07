@@ -18,6 +18,27 @@ export interface WebDAVCleanupOptions extends WebDAVClientOptions, WebDAVSetting
   listFiles?: (options: WebDAVCleanupOptions) => Promise<{ success: boolean; error?: string; files?: WebDAVFile[] }>;
 }
 
+function getWebDAVErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return '获取云端文件列表失败';
+}
+
+function normalizeWebDAVListError(error: unknown): string {
+  const message = getWebDAVErrorMessage(error);
+  if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+    return '无法连接到 WebDAV 服务器，请检查服务器地址和当前网络。';
+  }
+  if (/CORS/i.test(message)) {
+    return 'WebDAV 服务器拒绝了当前请求，请检查服务器跨域或访问策略。';
+  }
+  return message;
+}
+
 export async function listWebDAVFiles(options: WebDAVCleanupOptions): Promise<{ success: boolean; error?: string; files?: WebDAVFile[] }> {
   const logger = options.logger;
   logger?.('INFO', 'Attempting to list files from WebDAV.');
@@ -65,14 +86,17 @@ export async function listWebDAVFiles(options: WebDAVCleanupOptions): Promise<{ 
     if (files.length === 0) logger?.('WARN', 'No backup files found in WebDAV response. This might be normal if no backups exist yet.');
 
     return { success: true, files };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const latestSettings = await options.getSettings();
+    const originalMessage = getWebDAVErrorMessage(error);
+    const userMessage = normalizeWebDAVListError(error);
     logger?.('ERROR', 'Failed to list WebDAV files.', {
-      error: error.message,
-      url: latestSettings.webdav.url,
-      username: latestSettings.webdav.username ? '[CONFIGURED]' : '[NOT SET]',
+      error: originalMessage,
+      userMessage,
+      url: latestSettings.webdav?.url,
+      username: latestSettings.webdav?.username ? '[CONFIGURED]' : '[NOT SET]',
     });
-    return { success: false, error: error.message };
+    return { success: false, error: userMessage };
   }
 }
 

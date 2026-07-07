@@ -7,6 +7,43 @@ import { describe, it, expect, vi } from 'vitest';
 import type { WebDAVFile } from '../../src/features/webdavSync/domain/types';
 
 describe('WebDAV cleanup service - per-device retention', () => {
+  it('returns a readable WebDAV connection error when file listing fetch fails', async () => {
+    vi.resetModules();
+    global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as any;
+    const logs: Array<{ level: string; message: string; payload?: any }> = [];
+
+    const { listWebDAVFiles } = await import('../../src/features/webdavSync/application/cleanupService');
+
+    const result = await listWebDAVFiles({
+      getSettings: async () => ({
+        webdav: {
+          enabled: true,
+          url: 'https://dav.example.com/dav/',
+          username: 'user',
+          password: 'pass',
+        },
+      }),
+      logger: (level, message, payload) => {
+        logs.push({ level, message, payload });
+      },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: '无法连接到 WebDAV 服务器，请检查服务器地址和当前网络。',
+    });
+    expect(logs).toContainEqual(expect.objectContaining({
+      level: 'ERROR',
+      message: 'Failed to list WebDAV files.',
+      payload: expect.objectContaining({
+        error: 'Failed to fetch',
+        userMessage: '无法连接到 WebDAV 服务器，请检查服务器地址和当前网络。',
+        url: 'https://dav.example.com/dav/',
+        username: '[CONFIGURED]',
+      }),
+    }));
+  });
+
   it('cleans up old backups per device independently', async () => {
     const mockFiles: WebDAVFile[] = [
       // Device A - 5 files (should keep 3, delete 2)

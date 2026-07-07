@@ -5,10 +5,12 @@
  */
 
 import type { ExtensionSettings } from '../../types';
-import { buildServerApiUrl, verifyJsonChecksum } from '../../platform/network';
+import { buildServerApiUrl, verifyJsonChecksum } from '../../platform/network/serverEndpointResolver';
 import { DEFAULT_SETTINGS } from '../../utils/config';
 
 export type ServiceType = 'javdb' | 'javbus';
+
+const DEFAULT_ROUTES = DEFAULT_SETTINGS.routes;
 
 /**
  * 远程线路配置接口
@@ -133,7 +135,7 @@ export class RouteManager {
 
         // 从存储获取配置
         const settings = await this.getSettings();
-        const routes = settings.routes || DEFAULT_SETTINGS.routes!;
+        const routes = settings.routes || DEFAULT_ROUTES;
         const serviceRoutes = routes[service];
 
         // 优先使用用户设置的首选线路
@@ -164,7 +166,7 @@ export class RouteManager {
      */
     async getAllEnabledRoutes(service: ServiceType): Promise<string[]> {
         const settings = await this.getSettings();
-        const routes = settings.routes || DEFAULT_SETTINGS.routes!;
+        const routes = settings.routes || DEFAULT_ROUTES;
         const serviceRoutes = routes[service];
 
         const enabledRoutes = [serviceRoutes.primary];
@@ -435,8 +437,8 @@ export class RouteManager {
             updateInterval: 24 * 60 * 60 * 1000,
             remoteUrl: '/v1/config',
             services: {
-                javdb: this.convertServerRouteGroup('JavDB', javdbRoutes, DEFAULT_SETTINGS.routes!.javdb.primary),
-                javbus: this.convertServerRouteGroup('JavBus', javbusRoutes, DEFAULT_SETTINGS.routes!.javbus.primary),
+                javdb: this.convertServerRouteGroup('JavDB', javdbRoutes, DEFAULT_ROUTES.javdb.primary),
+                javbus: this.convertServerRouteGroup('JavBus', javbusRoutes, DEFAULT_ROUTES.javbus.primary),
             },
         };
     }
@@ -469,7 +471,7 @@ export class RouteManager {
      */
     private async mergeRemoteRoutes(remoteConfig: RemoteRoutesConfig): Promise<void> {
         const settings = await this.getSettings();
-        const currentRoutes = settings.routes || DEFAULT_SETTINGS.routes!;
+        const currentRoutes = settings.routes || DEFAULT_ROUTES;
 
         // 处理 JavDB 线路
         const javdbRemote = remoteConfig.services.javdb;
