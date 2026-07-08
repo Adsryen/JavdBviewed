@@ -42,6 +42,16 @@ function getActorRemarksPerActorTimeoutMs(taskTimeoutMs: number, actorCount: num
 let statusObserver: MutationObserver | null = null;
 let lastDetectedStatus: typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] | null = null;
 let statusCheckTimer: number | null = null;
+const WANT_SYNC_BOUND_ATTR = 'data-jdb-want-sync-bound';
+const WANT_SYNC_CONFIRM_DELAYS_MS = [800, 1600, 3000] as const;
+
+function isWantSyncEnabled(): boolean {
+    return STATE.settings?.videoEnhancement?.enableWantSync !== false;
+}
+
+function isPageConfirmedWantStatus(): boolean {
+    return detectPageUserStatus() === VIDEO_STATUS.WANT;
+}
 
 function scheduleStatusCheck(videoId: string, delayMs = 500): void {
     if (statusCheckTimer !== null) {
@@ -203,6 +213,9 @@ async function checkAndUpdateStatusIfChanged(videoId: string): Promise<void> {
 
         const existing = STATE.records[videoId];
         if (!existing) {
+            if (currentStatus === VIDEO_STATUS.WANT && isWantSyncEnabled()) {
+                await upsertWantStatus(videoId);
+            }
             return;
         }
 
@@ -1147,34 +1160,62 @@ export async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
 // 绑定“想看”按钮点击事件：将本地番号库状态升级为 WANT（若无记录则创建）
 function bindWantSyncOnClick(videoId: string): void {
     try {
-        const enabled = STATE.settings?.videoEnhancement?.enableWantSync !== false;
-        if (!enabled) return;
+        if (!isWantSyncEnabled()) return;
 
         // 兼容多种DOM：优先 form[data-remote][action*="/reviews/want_to_watch"]，回退到包含文本“想看”的按钮
-        const wantForm = document.querySelector<HTMLFormElement>('form.button_to[action*="/reviews/want_to_watch"]');
-        const wantButton = wantForm?.querySelector('button') || Array.from(document.querySelectorAll('button')).find(btn => (btn.textContent || '').includes('想看')) || null;
+        const wantForm = document.querySelector<HTMLFormElement>(
+            'form.button_to[action*="/reviews/want_to_watch"], form[action*="/reviews/want_to_watch"]'
+        );
+        const wantButton = wantForm?.querySelector<HTMLElement>('button, input[type="submit"]')
+            || Array.from(document.querySelectorAll<HTMLElement>('button')).find(btn => (btn.textContent || '').includes('想看'))
+            || null;
         const target: Element | null = wantForm || wantButton || null;
         if (!target) return;
 
-        const FLAG = '__bound_want_sync__';
-        if ((target as any)[FLAG]) return;
-        (target as any)[FLAG] = true;
+        if (target.getAttribute(WANT_SYNC_BOUND_ATTR) === 'true') return;
+        target.setAttribute(WANT_SYNC_BOUND_ATTR, 'true');
 
+        let lastInteractionAt = 0;
         const handler = (_e: Event) => {
-            // 不拦截默认行为，仅在提交后短暂延迟本地写入
-            setTimeout(() => {
-                upsertWantStatus(videoId).catch(err => log('upsertWantStatus error:', err));
-            }, 800);
+            const now = Date.now();
+            if (now - lastInteractionAt < 100) {
+                return;
+            }
+            lastInteractionAt = now;
+            scheduleWantSyncAfterInteraction(videoId);
         };
 
         if (wantForm) {
             wantForm.addEventListener('submit', handler, { capture: true });
+            if (wantButton) {
+                wantButton.addEventListener('click', handler, { capture: true });
+            }
         } else if (wantButton) {
             wantButton.addEventListener('click', handler, { capture: true });
         }
     } catch (e) {
         log('bindWantSyncOnClick failed:', e as any);
     }
+}
+
+function scheduleWantSyncAfterInteraction(videoId: string): void {
+    let completed = false;
+    WANT_SYNC_CONFIRM_DELAYS_MS.forEach((delayMs) => {
+        window.setTimeout(() => {
+            if (completed) {
+                return;
+            }
+            if (STATE.records[videoId]?.status === VIDEO_STATUS.WANT) {
+                completed = true;
+                return;
+            }
+            if (!isPageConfirmedWantStatus()) {
+                return;
+            }
+            completed = true;
+            upsertWantStatus(videoId).catch(err => log('upsertWantStatus error:', err));
+        }, delayMs);
+    });
 }
 
 // 将本地番号库状态升级为 WANT（若无记录则创建）
