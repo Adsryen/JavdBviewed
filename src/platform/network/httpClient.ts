@@ -5,6 +5,7 @@
  */
 
 import { FetchOptions, NetworkError } from './types';
+import { DOCUMENT_ONLY_ACCEPT } from './documentRequestHeaders';
 
 export { NetworkError } from './types';
 export type { FetchOptions } from './types';
@@ -56,7 +57,14 @@ export class HttpClient {
   }
 
   async getDocument(url: string, options: FetchOptions = {}): Promise<Document> {
-    const html = await this.get<string>(url, { ...options, responseType: 'text' });
+    const html = await this.get<string>(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Accept: DOCUMENT_ONLY_ACCEPT,
+      },
+      responseType: 'text',
+    });
     const parser = new DOMParser();
     return parser.parseFromString(html, 'text/html');
   }
@@ -124,7 +132,7 @@ export class HttpClient {
       requestHeaders['Content-Type'] = 'application/json';
     }
 
-    let lastError: Error;
+    let lastError: Error = new Error('Request failed');
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -172,7 +180,7 @@ export class HttpClient {
       }
     }
 
-    throw lastError!;
+    throw lastError;
   }
 
   private async parseResponse<T>(response: Response, responseType: string): Promise<T> {

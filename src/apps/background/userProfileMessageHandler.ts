@@ -10,6 +10,7 @@ import {
   setValue as defaultSetValue,
 } from '../../utils/storage';
 import { requestScheduler as defaultRequestScheduler } from '../../platform/network/requestScheduler';
+import { DOCUMENT_ONLY_ACCEPT } from '../../platform/network/documentRequestHeaders';
 import type { RequestSchedulerLike } from './networkMessageHandlers';
 
 export interface FetchUserProfileDependencies {
@@ -38,7 +39,7 @@ export async function fetchUserProfileFromJavDB(deps: FetchUserProfileDependenci
           method: 'GET',
           credentials: 'include' as any,
           headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept': DOCUMENT_ONLY_ACCEPT,
             'Accept-Language': 'zh-CN,zh;q=0.9',
             'Referer': 'https://javdb.com/',
             'Cache-Control': 'no-cache',

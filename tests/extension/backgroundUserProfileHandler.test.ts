@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   fetchUserProfileFromJavDB,
 } from '../../src/apps/background/userProfileMessageHandler';
+import { DOCUMENT_ONLY_ACCEPT } from '../../src/platform/network/documentRequestHeaders';
 
 describe('background user profile message handler', () => {
   it('parses JavDB profile counts and profile fields from profile html', async () => {
@@ -47,6 +48,14 @@ describe('background user profile message handler', () => {
       },
     });
     expect(setValue).toHaveBeenCalledWith(expect.any(String), profile);
+    expect(requestScheduler.enqueue).toHaveBeenCalledWith(
+      'https://javdb.com/users/profile',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: DOCUMENT_ONLY_ACCEPT,
+        }),
+      }),
+    );
   });
 
   it('throws when the profile page is not logged in', async () => {

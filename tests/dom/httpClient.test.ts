@@ -26,4 +26,20 @@ describe('HttpClient background fetch handling', () => {
       retries: 0,
     })).rejects.toThrow('HTTP 404');
   });
+
+  it('uses document-only accept headers for HTML document requests', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html><body>OK</body></html>', { status: 200 }),
+    );
+    const client = new HttpClient(window.location.origin, {
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    });
+
+    await client.getDocument('/sync-page', { retries: 0 });
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const headers = init?.headers as Record<string, string> | undefined;
+    expect(headers?.Accept).toBe('text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.1');
+    expect(headers?.Accept).not.toContain('image/');
+  });
 });
