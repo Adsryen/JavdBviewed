@@ -61,6 +61,9 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.enablePopularityEffects) host.enablePopularityEffects.checked = (listEnhancement as any).popularityEffects?.enabled === true;
   if (host.popularityMinRating) host.popularityMinRating.value = String((listEnhancement as any).popularityEffects?.minRating ?? 4);
   if (host.popularityMinRatingCount) host.popularityMinRatingCount.value = String((listEnhancement as any).popularityEffects?.minRatingCount ?? 350);
+  if (host.enableListSorting) host.enableListSorting.checked = (listEnhancement as any).sorting?.enabled === true;
+  if (host.listSortingAppendStrategy) host.listSortingAppendStrategy.value = (listEnhancement as any).sorting?.appendStrategy === 'auto-resort' ? 'auto-resort' : 'prompt';
+  if (host.listSortingAutoResortPosition) host.listSortingAutoResortPosition.value = (listEnhancement as any).sorting?.autoResortPosition === 'top' ? 'top' : 'preserve';
 
   const preferred = (listEnhancement as any).preferredPreviewSource || 'auto';
   if (host.previewSourceAuto) host.previewSourceAuto.checked = preferred === 'auto';
@@ -130,6 +133,9 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.enablePopularityEffects && typeof (listEnhancement as any).popularityEffects?.enabled === 'boolean') host.enablePopularityEffects.checked = (listEnhancement as any).popularityEffects.enabled;
   if (host.popularityMinRating && typeof (listEnhancement as any).popularityEffects?.minRating === 'number') host.popularityMinRating.value = String((listEnhancement as any).popularityEffects.minRating);
   if (host.popularityMinRatingCount && typeof (listEnhancement as any).popularityEffects?.minRatingCount === 'number') host.popularityMinRatingCount.value = String((listEnhancement as any).popularityEffects.minRatingCount);
+  if (host.enableListSorting && typeof (listEnhancement as any).sorting?.enabled === 'boolean') host.enableListSorting.checked = (listEnhancement as any).sorting.enabled;
+  if (host.listSortingAppendStrategy && typeof (listEnhancement as any).sorting?.appendStrategy === 'string') host.listSortingAppendStrategy.value = (listEnhancement as any).sorting.appendStrategy === 'auto-resort' ? 'auto-resort' : 'prompt';
+  if (host.listSortingAutoResortPosition && typeof (listEnhancement as any).sorting?.autoResortPosition === 'string') host.listSortingAutoResortPosition.value = (listEnhancement as any).sorting.autoResortPosition === 'top' ? 'top' : 'preserve';
 
   const contentFilter = settings?.contentFilter || {};
   host.currentFilterRules = contentFilter?.keywordRules || [];

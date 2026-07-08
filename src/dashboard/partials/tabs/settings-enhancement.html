@@ -48,6 +48,7 @@
                                     <input type="checkbox" id="showStatusBadge">
                                     <input type="checkbox" id="enableStatusQuickAction">
                                     <input type="checkbox" id="enableListFavoriteQuickAction">
+                                    <input type="checkbox" id="enableListSorting">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
                                     <input type="checkbox" id="veShowLoadingIndicator">
                                     <input type="checkbox" id="veEnableReviewEnhancement">
@@ -802,6 +803,54 @@
                                         </p>
                                     </div>
                                     <!-- 列表页收藏快捷按钮 结束 -->
+
+                                    <!-- 列表页排序增强 -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">↕️ 排序增强</h6>
+                                                    <span class="enhancement-feature-status beta">试用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableListSorting"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在列表页顶部增加排序按钮，可按评分或评价人数整理已经加载出来的影片。<br>
+                                            <strong>说明：</strong>排序范围只包含当前页面已显示的影片；继续翻页时，JavDB 原站排序仍决定后续加载顺序。
+                                        </p>
+                                        <div class="sub-settings" id="listSortingConfig" style="display: block;">
+                                            <div class="sub-settings-header compact">
+                                                <h5>排序与翻页</h5>
+                                                <p class="sub-description">和滚动翻页一起使用时，新加载内容可以先提示再手动整理，也可以自动重新整理。</p>
+                                            </div>
+                                            <div class="list-sorting-warning">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span>这项能力整理的是已加载内容，不会抓取全部分页。</span>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group-inline">
+                                                    <label for="listSortingAppendStrategy">加载下一页后</label>
+                                                    <select id="listSortingAppendStrategy" class="select-input">
+                                                        <option value="prompt">提示后手动重新排序</option>
+                                                        <option value="auto-resort">自动重新排序已加载影片</option>
+                                                    </select>
+                                                    <p class="input-description">默认先提示，不打断当前浏览位置。</p>
+                                                </div>
+                                                <div class="form-group-inline">
+                                                    <label for="listSortingAutoResortPosition">自动重排后</label>
+                                                    <select id="listSortingAutoResortPosition" class="select-input">
+                                                        <option value="preserve">保持当前位置</option>
+                                                        <option value="top">回到排序结果顶部</option>
+                                                    </select>
+                                                    <p class="input-description">只有选择自动重排时生效。</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- 列表页排序增强 结束 -->
 
                                     <div class="form-group" data-subtab="other">
                                         <input type="checkbox" id="enablePopularityEffects" hidden>

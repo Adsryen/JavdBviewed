@@ -1472,6 +1472,7 @@ describe('source architecture cleanup', () => {
       'src/features/listEnhancement/application/actorHiding.ts',
       'src/features/listEnhancement/application/actorHidingWorkflow.ts',
       'src/features/listEnhancement/application/actorWatermark.ts',
+      'src/features/listEnhancement/application/listSorting.ts',
       'src/features/listEnhancement/application/popularityEffects.ts',
       'src/features/listEnhancement/application/scrollPaging.ts',
       'src/features/listEnhancement/ui/clickEnhancement.ts',
@@ -1479,6 +1480,7 @@ describe('source architecture cleanup', () => {
       'src/features/listEnhancement/ui/listItemDom.ts',
       'src/features/listEnhancement/ui/listScrollState.ts',
       'src/features/listEnhancement/ui/listDisplayControl.ts',
+      'src/features/listEnhancement/ui/listSortingControls.ts',
       'src/features/listEnhancement/ui/previewHoverController.ts',
       'src/features/listEnhancement/ui/styles.ts',
       'src/features/previews/listPreviewLoader.ts',
@@ -1514,6 +1516,7 @@ describe('source architecture cleanup', () => {
     expect(featureSource).toMatch(/\.\/domain\/config/);
     expect(featureSource).toMatch(/\.\/application\/actorHidingWorkflow/);
     expect(featureSource).toMatch(/\.\/application\/actorWatermark/);
+    expect(featureSource).toMatch(/\.\/ui\/listSortingControls/);
     expect(featureSource).toMatch(/loadListPreviewVideo/);
     expect(featureSource).toMatch(/\.\/application\/popularityEffects/);
     expect(featureSource).toMatch(/\.\/application\/scrollPaging/);

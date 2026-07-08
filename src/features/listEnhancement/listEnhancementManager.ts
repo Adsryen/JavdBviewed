@@ -23,6 +23,7 @@ import {
   createDefaultListEnhancementConfig,
   type ListDisplayControlConfig,
   type ListEnhancementConfig,
+  type ListSortingConfig,
 } from './domain/config';
 import {
   createActorDataCache,
@@ -70,11 +71,24 @@ import {
   createListScrollStateController,
   type ListScrollStateController,
 } from './ui/listScrollState';
+import {
+  createListSortingController,
+  type ListSortingController,
+} from './ui/listSortingControls';
 
 export type { ListEnhancementConfig } from './domain/config';
 
+function normalizeListSortingConfig(config?: ListSortingConfig): ListSortingConfig {
+  return {
+    enabled: config?.enabled === true,
+    appendStrategy: config?.appendStrategy === 'auto-resort' ? 'auto-resort' : 'prompt',
+    autoResortPosition: config?.autoResortPosition === 'top' ? 'top' : 'preserve',
+  };
+}
+
 class ListEnhancementManager {
   private config: ListEnhancementConfig = createDefaultListEnhancementConfig();
+  private hasInitialized = false;
   
   // 保存上一次的列表显示控制配置，用于检测变化
   private lastDisplayControl: ListDisplayControlConfig | null = null;
@@ -94,6 +108,12 @@ class ListEnhancementManager {
     releasePreviewVideoMedia,
     runtimeSendMessage: (message) => chrome.runtime.sendMessage(message),
   });
+  private readonly listSortingController: ListSortingController = createListSortingController({
+    document,
+    window,
+    config: normalizeListSortingConfig(this.config.sorting),
+    logger: (...args) => log(...args),
+  });
   private readonly scrollPagingController: ListScrollPagingController = createListScrollPagingController({
     document,
     window,
@@ -107,6 +127,7 @@ class ListEnhancementManager {
     },
     processVisibleItems: () => processVisibleItems(),
     clearActorCaches: () => this.clearActorCaches(),
+    onItemsAppended: event => this.listSortingController.handleItemsAppended(event),
   });
   private readonly actorDataCache = createActorDataCache({
     getAllActors: () => actorManager.getAllActors(),
@@ -187,6 +208,11 @@ class ListEnhancementManager {
     if (popularityChanged) {
       this.ensurePopularityStyles();
       this.reapplyPopularityEffects();
+    }
+
+    const sortingChanged = JSON.stringify(oldConfig.sorting || null) !== JSON.stringify(this.config.sorting || null);
+    if (sortingChanged && this.hasInitialized) {
+      this.listSortingController.updateConfig(normalizeListSortingConfig(this.config.sorting));
     }
   }
 
@@ -344,6 +370,7 @@ class ListEnhancementManager {
     }
 
     log('Initializing list enhancement features...');
+    this.hasInitialized = true;
 
     // 初始化滚动监听（防止滚动时触发预览）
     this.scrollStateController.init();
@@ -363,6 +390,8 @@ class ListEnhancementManager {
 
     // 处理现有的影片项目
     this.processExistingItems();
+
+    this.listSortingController.init();
 
     // 监听新添加的项目
     this.observeNewItems();

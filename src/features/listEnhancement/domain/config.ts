@@ -18,6 +18,16 @@ export interface PopularityEffectsConfig {
   minRatingCount: number;
 }
 
+export type ListSortMode = 'original' | 'rating-desc' | 'rating-count-desc';
+export type ListSortingAppendStrategy = 'prompt' | 'auto-resort';
+export type ListSortingPositionStrategy = 'preserve' | 'top';
+
+export interface ListSortingConfig {
+  enabled: boolean;
+  appendStrategy: ListSortingAppendStrategy;
+  autoResortPosition: ListSortingPositionStrategy;
+}
+
 export interface ListEnhancementConfig {
   enabled: boolean;
   enableClickEnhancement: boolean;
@@ -45,6 +55,7 @@ export interface ListEnhancementConfig {
   enableStatusQuickAction?: boolean;
   enableListFavoriteQuickAction?: boolean;
   popularityEffects?: PopularityEffectsConfig;
+  sorting?: ListSortingConfig;
 }
 
 export interface VideoPreviewSource {
@@ -94,6 +105,11 @@ export function createDefaultListEnhancementConfig(): ListEnhancementConfig {
       enabled: false,
       minRating: 4,
       minRatingCount: 350,
+    },
+    sorting: {
+      enabled: false,
+      appendStrategy: 'prompt',
+      autoResortPosition: 'preserve',
     },
   };
 }

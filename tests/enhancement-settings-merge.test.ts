@@ -54,6 +54,29 @@ describe('mergeEnhancementSettingsForSave', () => {
     expect(enabledMerged.listEnhancement?.enableStatusQuickAction).toBe(true);
   });
 
+  it('persists list sorting controls and preserves existing config when controls are missing', () => {
+    const current = structuredClone(DEFAULT_SETTINGS);
+    current.listEnhancement.sorting = {
+      enabled: false,
+      appendStrategy: 'prompt',
+      autoResortPosition: 'preserve',
+    };
+
+    const enabledMerged = mergeEnhancementSettingsForSave(current, {
+      enableListSorting: { checked: true },
+      listSortingAppendStrategy: { value: 'auto-resort' },
+      listSortingAutoResortPosition: { value: 'top' },
+    } as any);
+    const preservedMerged = mergeEnhancementSettingsForSave(enabledMerged, {} as any);
+
+    expect(enabledMerged.listEnhancement?.sorting).toEqual({
+      enabled: true,
+      appendStrategy: 'auto-resort',
+      autoResortPosition: 'top',
+    });
+    expect(preservedMerged.listEnhancement?.sorting).toEqual(enabledMerged.listEnhancement?.sorting);
+  });
+
   it('persists the online availability failure tag toggle with a default off value', () => {
     const current = structuredClone(DEFAULT_SETTINGS);
 

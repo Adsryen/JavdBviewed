@@ -25,6 +25,9 @@ type EnhancementSaveHost = {
   enablePopularityEffects?: HTMLInputElement;
   popularityMinRating?: HTMLInputElement;
   popularityMinRatingCount?: HTMLInputElement;
+  enableListSorting?: HTMLInputElement;
+  listSortingAppendStrategy?: HTMLSelectElement;
+  listSortingAutoResortPosition?: HTMLSelectElement;
   veEnableRelatedLists?: HTMLInputElement;
   veEnableExternalEntryPanel?: HTMLInputElement;
   veEnableExternalSearch?: HTMLInputElement;
@@ -40,6 +43,18 @@ function parseNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function normalizeListSortingAppendStrategy(value: string | undefined, fallback: string): 'prompt' | 'auto-resort' {
+  return value === 'auto-resort' || value === 'prompt'
+    ? value
+    : (fallback === 'auto-resort' ? 'auto-resort' : 'prompt');
+}
+
+function normalizeListSortingPosition(value: string | undefined, fallback: string): 'preserve' | 'top' {
+  return value === 'top' || value === 'preserve'
+    ? value
+    : (fallback === 'top' ? 'top' : 'preserve');
+}
+
 export function mergeEnhancementSettingsForSave(
   current: ExtensionSettings,
   host: EnhancementSaveHost
@@ -47,6 +62,7 @@ export function mergeEnhancementSettingsForSave(
   const existingListEnhancement = current.listEnhancement || {};
   const existingListDisplayControl = (existingListEnhancement as any).listDisplayControl || {};
   const existingPopularityEffects = (existingListEnhancement as any).popularityEffects || {};
+  const existingListSorting = (existingListEnhancement as any).sorting || {};
   const existingVideoEnhancement = (current as any).videoEnhancement || {};
   const existingUserExperience = (current as any).userExperience || {};
   const onlineAvailabilitySites = collectOnlineAvailabilitySiteStates(host.onlineAvailabilitySiteInputs);
@@ -100,6 +116,18 @@ export function mergeEnhancementSettingsForSave(
         enabled: host.enablePopularityEffects?.checked ?? existingPopularityEffects.enabled ?? false,
         minRating: Math.max(0, Math.min(5, parseNumber(host.popularityMinRating?.value, existingPopularityEffects.minRating ?? 4))),
         minRatingCount: Math.max(0, Math.round(parseNumber(host.popularityMinRatingCount?.value, existingPopularityEffects.minRatingCount ?? 350))),
+      },
+      sorting: {
+        ...existingListSorting,
+        enabled: host.enableListSorting?.checked ?? existingListSorting.enabled ?? false,
+        appendStrategy: normalizeListSortingAppendStrategy(
+          host.listSortingAppendStrategy?.value,
+          existingListSorting.appendStrategy ?? 'prompt',
+        ),
+        autoResortPosition: normalizeListSortingPosition(
+          host.listSortingAutoResortPosition?.value,
+          existingListSorting.autoResortPosition ?? 'preserve',
+        ),
       },
     },
   };

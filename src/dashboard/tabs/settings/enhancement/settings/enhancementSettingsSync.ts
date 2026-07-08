@@ -5,11 +5,26 @@ import { normalizeMagnetSortMode } from '../../../../../features/magnets';
 
 export type EnhancementSettingsSyncHost = any;
 
-function collectListEnhancementSettings(host: EnhancementSettingsSyncHost): Record<string, boolean> {
-  const settings: Record<string, boolean> = {};
+function normalizeListSortingAppendStrategy(value: string | undefined): 'prompt' | 'auto-resort' {
+  return value === 'auto-resort' ? 'auto-resort' : 'prompt';
+}
+
+function normalizeListSortingPosition(value: string | undefined): 'preserve' | 'top' {
+  return value === 'top' ? 'top' : 'preserve';
+}
+
+function collectListEnhancementSettings(host: EnhancementSettingsSyncHost): Record<string, unknown> {
+  const settings: Record<string, unknown> = {};
   if (host.showStatusBadge) settings.showStatusBadge = host.showStatusBadge.checked;
   if (host.enableStatusQuickAction) settings.enableStatusQuickAction = host.enableStatusQuickAction.checked;
   if (host.enableListFavoriteQuickAction) settings.enableListFavoriteQuickAction = host.enableListFavoriteQuickAction.checked;
+  if (host.enableListSorting || host.listSortingAppendStrategy || host.listSortingAutoResortPosition) {
+    settings.sorting = {
+      enabled: host.enableListSorting?.checked === true,
+      appendStrategy: normalizeListSortingAppendStrategy(host.listSortingAppendStrategy?.value),
+      autoResortPosition: normalizeListSortingPosition(host.listSortingAutoResortPosition?.value),
+    };
+  }
   return settings;
 }
 
@@ -104,6 +119,9 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.enablePopularityEffects && typeof le.popularityEffects?.enabled === 'boolean') host.enablePopularityEffects.checked = le.popularityEffects.enabled;
       if (host.popularityMinRating && typeof le.popularityEffects?.minRating === 'number') host.popularityMinRating.value = String(le.popularityEffects.minRating);
       if (host.popularityMinRatingCount && typeof le.popularityEffects?.minRatingCount === 'number') host.popularityMinRatingCount.value = String(le.popularityEffects.minRatingCount);
+      if (host.enableListSorting && typeof le.sorting?.enabled === 'boolean') host.enableListSorting.checked = le.sorting.enabled;
+      if (host.listSortingAppendStrategy && typeof le.sorting?.appendStrategy === 'string') host.listSortingAppendStrategy.value = normalizeListSortingAppendStrategy(le.sorting.appendStrategy);
+      if (host.listSortingAutoResortPosition && typeof le.sorting?.autoResortPosition === 'string') host.listSortingAutoResortPosition.value = normalizeListSortingPosition(le.sorting.autoResortPosition);
       if (le.listDisplayControl) {
         const ldc = le.listDisplayControl;
         if (host.listColumnCount && typeof ldc.columnCount === 'number') host.listColumnCount.value = String(ldc.columnCount);

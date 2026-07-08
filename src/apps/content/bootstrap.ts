@@ -549,6 +549,11 @@ async function initialize(): Promise<void> {
                 enabled: (settings.listEnhancement as any)?.popularityEffects?.enabled === true,                minRating: Math.max(0, Math.min(5, parseFloat(String((settings.listEnhancement as any)?.popularityEffects?.minRating ?? 4)) || 4)),
                 minRatingCount: Math.max(0, parseInt(String((settings.listEnhancement as any)?.popularityEffects?.minRatingCount ?? 350), 10) || 350),
             },
+            sorting: {
+                enabled: (settings.listEnhancement as any)?.sorting?.enabled === true,
+                appendStrategy: (settings.listEnhancement as any)?.sorting?.appendStrategy === 'auto-resort' ? 'auto-resort' : 'prompt',
+                autoResortPosition: (settings.listEnhancement as any)?.sorting?.autoResortPosition === 'top' ? 'top' : 'preserve',
+            },
         });
         if (!isVideoPage) {
             initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init', delayMs: 100, priority: 7, visibilityPolicy: 'background_allowed' });

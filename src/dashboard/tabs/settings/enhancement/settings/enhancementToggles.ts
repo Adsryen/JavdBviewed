@@ -115,6 +115,7 @@ export function toggleConfigSections(host: EnhancementTogglesHost): void {
 
   setConfigEnabled(document.getElementById('actorAutoApplyConfig') as HTMLElement | null, host.enableAutoApplyTags?.checked === true);
   setConfigEnabled(document.getElementById('popularityEffectsConfig') as HTMLElement | null, host.enablePopularityEffects?.checked === true);
+  setConfigEnabled(document.getElementById('listSortingConfig') as HTMLElement | null, host.enableListSorting?.checked === true);
 }
 
 export function handleSettingChange(host: EnhancementTogglesHost): void {

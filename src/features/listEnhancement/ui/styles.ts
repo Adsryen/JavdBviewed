@@ -340,6 +340,64 @@ export const LIST_ENHANCEMENT_BASE_STYLES = `
       white-space: nowrap;
     }
 
+    /* 列表排序增强 */
+    .x-list-sort-toolbar {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      margin: 10px 0 12px;
+    }
+
+    .x-list-sort-toolbar .x-list-sort-buttons {
+      margin-bottom: 0;
+    }
+
+    .x-list-sort-toolbar .button {
+      cursor: pointer;
+    }
+
+    .x-list-sort-notice {
+      max-width: 720px;
+      padding: 6px 10px;
+      border-left: 3px solid #3273dc;
+      border-radius: 4px;
+      background: rgba(50, 115, 220, 0.08);
+      color: #4a4a4a;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .x-list-sort-notice[hidden] {
+      display: none;
+    }
+
+    .x-list-sort-page-prompt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin: 8px 5px;
+      padding: 8px 10px;
+      border: 1px solid rgba(50, 115, 220, 0.24);
+      border-left: 3px solid #3273dc;
+      border-radius: 4px;
+      background: rgba(50, 115, 220, 0.08);
+      color: #4a4a4a;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+
+    .x-list-sort-page-prompt > span {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .x-list-sort-page-prompt .button {
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
     /* 演员水印 */
     .x-actor-wm {
       position: absolute;

@@ -593,6 +593,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         showStatusBadge: true,
         enableStatusQuickAction: false,
         enableListFavoriteQuickAction: false,
+        sorting: {
+            enabled: false,
+            appendStrategy: 'prompt',
+            autoResortPosition: 'preserve',
+        },
     },
 
     // 新增：Emby/Jellyfin 增强默认配置

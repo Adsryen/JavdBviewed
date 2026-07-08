@@ -429,6 +429,25 @@
         var(--surface-secondary);
 }
 
+#enhancement-settings .list-sorting-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--status-beta-border);
+    border-radius: 6px;
+    background: var(--status-beta-bg);
+    color: var(--status-beta-text);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+#enhancement-settings .list-sorting-warning i {
+    flex: 0 0 auto;
+    color: var(--status-beta-text);
+}
+
 #enhancement-settings .form-group {
     margin-bottom: 1rem;
 }

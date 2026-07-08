@@ -107,6 +107,7 @@ describe('list scroll paging helpers', () => {
     const pushState = vi.fn();
     const processVisibleItems = vi.fn();
     const clearActorCaches = vi.fn();
+    const onItemsAppended = vi.fn();
 
     const controller = createListScrollPagingController({
       document,
@@ -118,6 +119,7 @@ describe('list scroll paging helpers', () => {
       fetchText: async () => '<div class="movie-list"><div class="item">new</div></div>',
       processVisibleItems,
       clearActorCaches,
+      onItemsAppended,
       pushState,
     });
 
@@ -128,5 +130,11 @@ describe('list scroll paging helpers', () => {
     expect(pushState).toHaveBeenCalledWith('http://localhost:3000/?page=2');
     expect(processVisibleItems).toHaveBeenCalledTimes(1);
     expect(clearActorCaches).toHaveBeenCalledTimes(1);
+    expect(onItemsAppended).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'fetched',
+      page: 2,
+      appended: 1,
+      items: [document.querySelector('.movie-list .item')],
+    }));
   });
 });

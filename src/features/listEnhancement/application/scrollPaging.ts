@@ -47,6 +47,7 @@ export interface ListScrollPagingControllerOptions {
   fetchText: (url: string) => Promise<string>;
   processVisibleItems: () => void;
   clearActorCaches: () => void;
+  onItemsAppended?: (event: ListScrollPagingAppendEvent) => void;
   pushState?: (url: string) => void;
 }
 
@@ -56,6 +57,13 @@ export interface ListScrollPagingController {
   handleScroll: () => void;
   loadNextPage: () => Promise<void>;
   getState: () => { isLoadingNextPage: boolean; currentPage: number; maxPage: number | null };
+}
+
+export interface ListScrollPagingAppendEvent {
+  source: 'fetched' | 'super-ranking';
+  page: number;
+  appended: number;
+  items: HTMLElement[];
 }
 
 const INDICATOR_ID = 'scroll-loading-indicator';
@@ -130,21 +138,28 @@ export function setScrollLoadingIndicatorVisible(documentRef: Document, visible:
   }
 }
 
-export function appendFetchedMovieItems(documentRef: Document, html: string): number {
+function appendFetchedMovieItemsWithRefs(documentRef: Document, html: string): { appended: number; items: HTMLElement[] } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const newItems = doc.querySelectorAll('.movie-list .item');
   const movieList = documentRef.querySelector('.movie-list');
 
   if (!movieList || newItems.length === 0) {
-    return 0;
+    return { appended: 0, items: [] };
   }
 
+  const appendedItems: HTMLElement[] = [];
   newItems.forEach(item => {
-    movieList.appendChild(item.cloneNode(true));
+    const clone = item.cloneNode(true) as HTMLElement;
+    movieList.appendChild(clone);
+    appendedItems.push(clone);
   });
 
-  return newItems.length;
+  return { appended: appendedItems.length, items: appendedItems };
+}
+
+export function appendFetchedMovieItems(documentRef: Document, html: string): number {
+  return appendFetchedMovieItemsWithRefs(documentRef, html).appended;
 }
 
 export function createListScrollPagingController(options: ListScrollPagingControllerOptions): ListScrollPagingController {
@@ -211,6 +226,12 @@ export function createListScrollPagingController(options: ListScrollPagingContro
           if (superRankingResult.url) {
             pushState(superRankingResult.url);
           }
+          options.onItemsAppended?.({
+            source: 'super-ranking',
+            page: superRankingResult.page,
+            appended: superRankingResult.appended,
+            items: [],
+          });
           options.processVisibleItems();
         }
         return;
@@ -218,12 +239,19 @@ export function createListScrollPagingController(options: ListScrollPagingContro
 
       const nextUrl = buildScrollPagingNextPageUrl(options.window.location.href, nextPage);
       const html = await options.fetchText(nextUrl);
-      const appended = appendFetchedMovieItems(options.document, html);
+      const appendResult = appendFetchedMovieItemsWithRefs(options.document, html);
+      const appended = appendResult.appended;
 
       if (appended > 0) {
         currentPage = nextPage;
         logger(`[ScrollPaging] page ${nextPage} appended ${appended} items to DOM at ${new Date().toISOString()}`);
         pushState(buildScrollPagingNextPageUrl(options.window.location.href, nextPage));
+        options.onItemsAppended?.({
+          source: 'fetched',
+          page: nextPage,
+          appended,
+          items: appendResult.items,
+        });
         logger('[ScrollPaging] triggering processVisibleItems for new items');
         options.processVisibleItems();
       }

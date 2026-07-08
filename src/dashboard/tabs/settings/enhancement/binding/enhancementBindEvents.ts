@@ -35,6 +35,8 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.enablePopularityEffects?.addEventListener('change', host.handleSettingChange.bind(host));
   host.popularityMinRating?.addEventListener('change', host.handleSettingChange.bind(host));
   host.popularityMinRatingCount?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.listSortingAppendStrategy?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.listSortingAutoResortPosition?.addEventListener('change', host.handleSettingChange.bind(host));
   host.enableVideoEnhancement?.addEventListener('change', host.handleSettingChange.bind(host));
   host.enableSuperRanking?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableCoverImage?.addEventListener('change', host.handleSettingChange.bind(host));
