@@ -95,8 +95,8 @@ describe('insights report aggregation runtime', () => {
     expect(result.modeUsed).toBe('compare');
     expect(aggregateCompareFromRecords).toHaveBeenCalledWith(
       records,
-      new Date('2026-05-01T00:00:00+08:00').getTime(),
-      new Date('2026-05-31T23:59:59.999+08:00').getTime(),
+      period.startDate.getTime(),
+      period.endDate.getTime(),
       {
         topN: 9,
         previousDays: undefined,
