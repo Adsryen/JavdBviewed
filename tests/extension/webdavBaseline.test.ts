@@ -39,6 +39,8 @@ describe('WebDAV backup and restore baseline', () => {
       'webdav-test-temp',
       'webdav-diagnose',
       'webdav-upload',
+      'webdav-upload-config',
+      'webdav-upload-all',
       'webdav-get-client-profile',
       'webdav-list-clients',
       'webdav-update-device-label',
@@ -66,6 +68,8 @@ describe('WebDAV backup and restore baseline', () => {
       testWebDAVConnectionWithConfig: vi.fn(),
       diagnoseWebDAVConnection: vi.fn(),
       performUpload: vi.fn(),
+      performUploadToConfig: vi.fn(),
+      performUploadToAllConfigs: vi.fn(),
       getCurrentWebDAVClientProfile: vi.fn(),
       listWebDAVClients: vi.fn(),
       updateCurrentWebDAVDeviceLabel: vi.fn(),
@@ -136,6 +140,8 @@ describe('WebDAV backup and restore baseline', () => {
       testWebDAVConnectionWithConfig: vi.fn(),
       diagnoseWebDAVConnection: vi.fn(),
       performUpload: vi.fn(),
+      performUploadToConfig: vi.fn(),
+      performUploadToAllConfigs: vi.fn(),
       getCurrentWebDAVClientProfile: vi.fn(),
       listWebDAVClients: vi.fn(),
       updateCurrentWebDAVDeviceLabel: vi.fn(),
@@ -168,6 +174,112 @@ describe('WebDAV backup and restore baseline', () => {
       categories: { viewed: true },
       categoryModes: { viewed: 'merge' },
     }, 'restore-task-1');
+  });
+
+  it('routes a WebDAV upload to a specific saved config', async () => {
+    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const performUploadToConfig = vi.fn().mockResolvedValue({
+      success: true,
+      configId: 'config-b',
+      configName: '备用端',
+    });
+
+    registerWebDAVRouterListener({
+      listFiles: vi.fn(),
+      previewBackup: vi.fn(),
+      performRestoreUnified: vi.fn(),
+      testWebDAVConnection: vi.fn(),
+      testWebDAVConnectionWithConfig: vi.fn(),
+      diagnoseWebDAVConnection: vi.fn(),
+      performUpload: vi.fn(),
+      performUploadToConfig,
+      performUploadToAllConfigs: vi.fn(),
+      getCurrentWebDAVClientProfile: vi.fn(),
+      listWebDAVClients: vi.fn(),
+      updateCurrentWebDAVDeviceLabel: vi.fn(),
+      updateWebDAVClientDeviceLabel: vi.fn(),
+      collectBackupData: vi.fn(),
+      downloadBackupFileAsBase64: vi.fn(),
+      applyImportDataDirect: vi.fn(),
+    });
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls.at(-1)?.[0];
+    let handled = false;
+    const response = await new Promise<any>((resolve) => {
+      const asyncResult = listener?.(
+        { type: 'webdav-upload-config', configId: 'config-b' },
+        {} as chrome.runtime.MessageSender,
+        resolve,
+      );
+      handled = asyncResult === true;
+      if (!handled) resolve({ success: false, error: 'not handled' });
+    });
+
+    expect(handled).toBe(true);
+    expect(response).toEqual({
+      success: true,
+      configId: 'config-b',
+      configName: '备用端',
+    });
+    expect(performUploadToConfig).toHaveBeenCalledWith('config-b');
+  });
+
+  it('routes WebDAV upload to all saved configs and returns the summary', async () => {
+    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const performUploadToAllConfigs = vi.fn().mockResolvedValue({
+      success: false,
+      total: 2,
+      succeeded: 1,
+      failed: 1,
+      results: [
+        { configId: 'config-a', configName: '坚果云', success: true },
+        { configId: 'config-b', configName: '备用端', success: false, error: '连接失败' },
+      ],
+    });
+
+    registerWebDAVRouterListener({
+      listFiles: vi.fn(),
+      previewBackup: vi.fn(),
+      performRestoreUnified: vi.fn(),
+      testWebDAVConnection: vi.fn(),
+      testWebDAVConnectionWithConfig: vi.fn(),
+      diagnoseWebDAVConnection: vi.fn(),
+      performUpload: vi.fn(),
+      performUploadToConfig: vi.fn(),
+      performUploadToAllConfigs,
+      getCurrentWebDAVClientProfile: vi.fn(),
+      listWebDAVClients: vi.fn(),
+      updateCurrentWebDAVDeviceLabel: vi.fn(),
+      updateWebDAVClientDeviceLabel: vi.fn(),
+      collectBackupData: vi.fn(),
+      downloadBackupFileAsBase64: vi.fn(),
+      applyImportDataDirect: vi.fn(),
+    });
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls.at(-1)?.[0];
+    let handled = false;
+    const response = await new Promise<any>((resolve) => {
+      const asyncResult = listener?.(
+        { type: 'webdav-upload-all' },
+        {} as chrome.runtime.MessageSender,
+        resolve,
+      );
+      handled = asyncResult === true;
+      if (!handled) resolve({ success: false, error: 'not handled' });
+    });
+
+    expect(handled).toBe(true);
+    expect(response).toEqual({
+      success: false,
+      total: 2,
+      succeeded: 1,
+      failed: 1,
+      results: [
+        { configId: 'config-a', configName: '坚果云', success: true },
+        { configId: 'config-b', configName: '备用端', success: false, error: '连接失败' },
+      ],
+    });
+    expect(performUploadToAllConfigs).toHaveBeenCalledTimes(1);
   });
 
   it('backs up list, series, and label records from IndexedDB', async () => {

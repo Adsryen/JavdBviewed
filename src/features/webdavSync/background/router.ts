@@ -11,6 +11,8 @@ export interface WebDAVRouterHandlers {
   testWebDAVConnectionWithConfig: (config: any) => Promise<any>;
   diagnoseWebDAVConnection: () => Promise<any>;
   performUpload: () => Promise<any>;
+  performUploadToConfig: (configId: string) => Promise<any>;
+  performUploadToAllConfigs: () => Promise<any>;
   getCurrentWebDAVClientProfile: () => Promise<any>;
   listWebDAVClients: () => Promise<any>;
   updateCurrentWebDAVDeviceLabel: (deviceLabel: string) => Promise<any>;
@@ -79,6 +81,12 @@ export function registerWebDAVRouterListener(handlers: WebDAVRouterHandlers): vo
           return true;
         case 'webdav-upload':
           handlers.performUpload().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'webdav-upload-config':
+          handlers.performUploadToConfig(message?.configId).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'webdav-upload-all':
+          handlers.performUploadToAllConfigs().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
         case 'webdav-get-client-profile':
           handlers.getCurrentWebDAVClientProfile()

@@ -9,9 +9,32 @@ import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
 import type { ExtensionSettings, WebDAVConfig, WebDAVClientProfile, WebDAVKnownDeviceView } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
-import { saveSettings } from '../../../../utils/storage';
+import { getSettings, saveSettings } from '../../../../utils/storage';
 import { getAlistWebDavUrlHint } from '../../../../features/webdavSync/domain/paths';
 import { sendRuntimeMessage } from '../../../../platform/browser/runtimeMessages';
+
+type WebDAVUploadConfigResponse = {
+    success?: boolean;
+    configId?: string;
+    configName?: string;
+    error?: string;
+};
+
+type WebDAVUploadAllConfigResult = {
+    configId: string;
+    configName?: string;
+    success: boolean;
+    error?: string;
+};
+
+type WebDAVUploadAllConfigsResponse = {
+    success?: boolean;
+    total?: number;
+    succeeded?: number;
+    failed?: number;
+    results?: WebDAVUploadAllConfigResult[];
+    error?: string;
+};
 
 /**
  * WebDAV设置面板类
@@ -37,6 +60,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
     
     // 配置管理
     private addWebdavConfigBtn!: HTMLButtonElement;
+    private backupAllWebdavConfigsBtn: HTMLButtonElement | null = null;
     private webdavConfigList!: HTMLDivElement;
     private webdavClientProfileContainer!: HTMLDivElement;
     private webdavClientsListContainer!: HTMLDivElement;
@@ -72,6 +96,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private readonly onTestClick = () => { this.handleTestWebDAV().catch(() => {}); };
     private readonly onDiagnoseClick = () => { this.handleDiagnoseWebDAV().catch(() => {}); };
     private readonly onAddConfigClick = () => { this.openConfigModal('add'); };
+    private readonly onBackupAllConfigsClick = () => { this.handleBackupAllConfigs().catch(() => {}); };
     private readonly onModalProviderChange = () => { this.handleModalProviderChange(); };
     private readonly onModalWebdavUrlInput = () => { this.updateModalAlistUrlHint(); };
     private readonly onModalWebdavFolderInput = () => { this.updateModalAlistUrlHint(); };
@@ -285,6 +310,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         
         // 配置管理
         this.addWebdavConfigBtn = document.getElementById('addWebdavConfig') as HTMLButtonElement;
+        this.backupAllWebdavConfigsBtn = document.getElementById('backupAllWebdavConfigs') as HTMLButtonElement | null;
         this.webdavConfigList = document.getElementById('webdavConfigList') as HTMLDivElement;
         this.webdavClientProfileContainer = document.getElementById('webdavClientProfile') as HTMLDivElement;
         this.webdavClientsListContainer = document.getElementById('webdavClientsList') as HTMLDivElement;
@@ -310,7 +336,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.modalCopyWebdavPassBtn = document.getElementById('modalCopyWebdavPass') as HTMLButtonElement;
 
         if (!this.webdavEnabled || !this.testWebdavConnectionBtn || 
-            !this.diagnoseWebdavConnectionBtn || !this.addWebdavConfigBtn || !this.webdavConfigList ||
+            !this.diagnoseWebdavConnectionBtn || !this.addWebdavConfigBtn || !this.backupAllWebdavConfigsBtn || !this.webdavConfigList ||
             !this.webdavClientProfileContainer || !this.webdavClientsListContainer || !this.refreshWebdavClientsBtn ||
             !this.webdavConfigModal || !this.modalConfigName || !this.modalWebdavProvider || 
             !this.modalWebdavUrl || !this.modalWebdavFolder || !this.modalWebdavAlistHint ||
@@ -341,6 +367,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.testWebdavConnectionBtn.addEventListener('click', this.onTestClick);
         this.diagnoseWebdavConnectionBtn.addEventListener('click', this.onDiagnoseClick);
         this.addWebdavConfigBtn.addEventListener('click', this.onAddConfigClick);
+        this.backupAllWebdavConfigsBtn?.addEventListener('click', this.onBackupAllConfigsClick);
         this.refreshWebdavClientsBtn.addEventListener('click', () => { this.refreshClientPanels().catch(() => {}); });
         
         // 弹窗事件
@@ -387,6 +414,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.testWebdavConnectionBtn?.removeEventListener('click', this.onTestClick);
         this.diagnoseWebdavConnectionBtn?.removeEventListener('click', this.onDiagnoseClick);
         this.addWebdavConfigBtn?.removeEventListener('click', this.onAddConfigClick);
+        this.backupAllWebdavConfigsBtn?.removeEventListener('click', this.onBackupAllConfigsClick);
         this.refreshWebdavClientsBtn?.replaceWith(this.refreshWebdavClientsBtn.cloneNode(true));
         
         this.modalWebdavProvider?.removeEventListener('change', this.onModalProviderChange);
@@ -867,6 +895,115 @@ export class WebDAVSettings extends BaseSettingsPanel {
         showMessage(fullMessage, messageType, 10000);
     }
 
+    private getConfigDisplayName(configId: string): string {
+        const configs: WebDAVConfig[] = STATE.settings?.webdav?.configs || [];
+        const config = configs.find(item => item.id === configId);
+        return String(config?.name || '').trim() || '该备份端';
+    }
+
+    private setConfigBackupButtonsDisabled(disabled: boolean): void {
+        this.webdavConfigList
+            .querySelectorAll<HTMLButtonElement>('[data-action="backup-now"]')
+            .forEach((button) => {
+                button.disabled = disabled;
+            });
+    }
+
+    private async refreshSettingsAfterBackup(): Promise<void> {
+        try {
+            const nextSettings = await getSettings();
+            if (nextSettings) {
+                STATE.settings = nextSettings;
+            }
+        } catch (error) {
+            logAsync('WARN', 'WebDAV 备份完成后刷新设置失败', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    private renderUploadAllMessage(response: WebDAVUploadAllConfigsResponse): string {
+        const total = Number(response.total || 0);
+        const succeeded = Number(response.succeeded || 0);
+        const failed = Number(response.failed || 0);
+        const failedItems = (response.results || [])
+            .filter(result => !result.success)
+            .map(result => `${result.configName || result.configId || '未命名备份端'}：${result.error || '备份失败'}`);
+
+        if (failedItems.length === 0) {
+            return `已完成 ${succeeded}/${total} 个备份端`;
+        }
+
+        return `已完成 ${succeeded}/${total} 个备份端，${failed} 个失败：${failedItems.join('；')}`;
+    }
+
+    private async handleBackupConfig(configId: string, button: HTMLButtonElement): Promise<void> {
+        const configName = this.getConfigDisplayName(configId);
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await sendRuntimeMessage<WebDAVUploadConfigResponse>({
+                type: 'webdav-upload-config',
+                configId,
+            });
+
+            if (!response?.success) {
+                showMessage(`备份到 ${configName} 失败：${response?.error || '请稍后重试'}`, 'error');
+                return;
+            }
+
+            showMessage(`已备份到：${response.configName || configName}`, 'success');
+            await this.refreshSettingsAfterBackup();
+            this.renderConfigList();
+            this.refreshClientPanels().catch(() => {});
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error || '备份失败');
+            showMessage(`备份到 ${configName} 失败：${message}`, 'error');
+        } finally {
+            if (button.isConnected) {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        }
+    }
+
+    private async handleBackupAllConfigs(): Promise<void> {
+        const button = this.backupAllWebdavConfigsBtn;
+        if (!button) {
+            showMessage('未找到全部备份端操作按钮', 'error');
+            return;
+        }
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在备份...';
+        this.setConfigBackupButtonsDisabled(true);
+
+        try {
+            const response = await sendRuntimeMessage<WebDAVUploadAllConfigsResponse>({
+                type: 'webdav-upload-all',
+            });
+
+            if (!response?.results) {
+                showMessage(response?.error || '备份到全部备份端失败', 'error');
+                return;
+            }
+
+            const message = this.renderUploadAllMessage(response);
+            showMessage(message, response.failed ? 'warn' : 'success', response.failed ? 9000 : undefined);
+            await this.refreshSettingsAfterBackup();
+            this.renderConfigList();
+            this.refreshClientPanels().catch(() => {});
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error || '备份失败');
+            showMessage(`备份到全部备份端失败：${message}`, 'error');
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+            this.setConfigBackupButtonsDisabled(false);
+        }
+    }
 
     /**
      * 渲染配置列表
@@ -930,6 +1067,9 @@ export class WebDAVSettings extends BaseSettingsPanel {
                                 <span>设为默认</span>
                             </button>
                         `}
+                        <button type="button" class="config-action-btn backup" data-action="backup-now" title="立即备份到此端" aria-label="立即备份到此端">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </button>
                         <button type="button" class="config-action-btn edit" data-action="edit" title="编辑">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -958,6 +1098,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 
                 if (action === 'set-default' && configId) {
                     this.handleSwitchConfig(configId);
+                } else if (action === 'backup-now' && configId) {
+                    this.handleBackupConfig(configId, target).catch(() => {});
                 } else if (action === 'edit' && configId) {
                     this.openConfigModal('edit', configId);
                 } else if (action === 'delete' && configId) {

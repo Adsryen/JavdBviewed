@@ -436,6 +436,115 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
   return performWebDAVUpload({ getSettings, saveSettings, logger: bgLog });
 }
 
+type WebDAVUploadConfigResult = {
+  configId: string;
+  configName?: string;
+  success: boolean;
+  error?: string;
+};
+
+type WebDAVUploadAllConfigsResult = {
+  success: boolean;
+  total: number;
+  succeeded: number;
+  failed: number;
+  results: WebDAVUploadConfigResult[];
+  error?: string;
+};
+
+function getSavedWebDAVConfigs(settings: any): any[] {
+  return Array.isArray(settings?.webdav?.configs) ? settings.webdav.configs : [];
+}
+
+function findSavedWebDAVConfig(settings: any, configId: string): any | undefined {
+  const safeConfigId = String(configId || '').trim();
+  return getSavedWebDAVConfigs(settings).find((config: any) => String(config?.id || '').trim() === safeConfigId);
+}
+
+function getWebDAVConfigName(config: any, fallbackId: string): string | undefined {
+  return String(config?.name || '').trim() || String(fallbackId || '').trim() || undefined;
+}
+
+function validateSavedWebDAVConfig(config: any): string | null {
+  const name = getWebDAVConfigName(config, '');
+  const label = name ? `“${name}”` : '该备份端';
+  if (!String(config?.url || '').trim()) return `${label}还没有填写 WebDAV 地址。`;
+  if (!String(config?.username || '').trim()) return `${label}还没有填写用户名。`;
+  if (!String(config?.password || '').trim()) return `${label}还没有填写密码或应用密钥。`;
+  return null;
+}
+
+async function performUploadToConfig(configId: string): Promise<WebDAVUploadConfigResult> {
+  const safeConfigId = String(configId || '').trim();
+  if (!safeConfigId) {
+    return { configId: '', success: false, error: '请选择要备份的 WebDAV 备份端。' };
+  }
+
+  const settings = await getSettings();
+  const config = findSavedWebDAVConfig(settings, safeConfigId);
+  const configName = getWebDAVConfigName(config, safeConfigId);
+  if (!config) {
+    return { configId: safeConfigId, configName, success: false, error: '未找到指定的 WebDAV 备份端。' };
+  }
+
+  const validationError = validateSavedWebDAVConfig(config);
+  if (validationError) {
+    return { configId: safeConfigId, configName, success: false, error: validationError };
+  }
+
+  const result = await performWebDAVUpload({ getSettings, saveSettings, logger: bgLog, configId: safeConfigId });
+  return {
+    configId: safeConfigId,
+    configName,
+    success: result.success,
+    error: result.error,
+  };
+}
+
+async function performUploadToAllConfigs(): Promise<WebDAVUploadAllConfigsResult> {
+  const settings = await getSettings();
+  const configs = getSavedWebDAVConfigs(settings);
+  if (configs.length === 0) {
+    return {
+      success: false,
+      total: 0,
+      succeeded: 0,
+      failed: 0,
+      results: [],
+      error: '还没有可用的 WebDAV 备份端。',
+    };
+  }
+
+  const results: WebDAVUploadConfigResult[] = [];
+  for (const config of configs) {
+    const configId = String(config?.id || '').trim();
+    const configName = getWebDAVConfigName(config, configId);
+    if (!configId) {
+      results.push({ configId: '', configName, success: false, error: '备份端缺少配置 ID。' });
+      continue;
+    }
+
+    const validationError = validateSavedWebDAVConfig(config);
+    if (validationError) {
+      results.push({ configId, configName, success: false, error: validationError });
+      continue;
+    }
+
+    const result = await performUploadToConfig(configId);
+    results.push(result);
+  }
+
+  const succeeded = results.filter(result => result.success).length;
+  const failed = results.length - succeeded;
+  return {
+    success: failed === 0 && results.length > 0,
+    total: results.length,
+    succeeded,
+    failed,
+    results,
+  };
+}
+
 async function applyImportDataDirect(importData: any, options?: Parameters<typeof applyImportDataDirectCore>[1]): Promise<{ success: boolean; error?: string; summary?: any }> {
   return applyImportDataDirectCore(importData, options, { logger: bgLog });
 }
@@ -485,6 +594,8 @@ export function registerWebDAVRouter(): void {
     testWebDAVConnectionWithConfig,
     diagnoseWebDAVConnection,
     performUpload,
+    performUploadToConfig,
+    performUploadToAllConfigs,
     getCurrentWebDAVClientProfile,
     listWebDAVClients,
     updateCurrentWebDAVDeviceLabel,

@@ -421,6 +421,192 @@ describe('WebDAV known device registry', () => {
     vi.doUnmock('../../src/features/webdavSync/application/backupCollector');
   });
 
+  it('uploads to the requested non-default WebDAV config without switching the default endpoint', async () => {
+    vi.useRealTimers();
+    vi.resetModules();
+    vi.doMock('../../src/features/webdavSync/application/backupCollector', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/features/webdavSync/application/backupCollector')>();
+      return {
+        ...actual,
+        collectBackupData: vi.fn().mockResolvedValue({
+          version: 1,
+          data: { 'SSIS-002': { id: 'SSIS-002' } },
+          stats: { storage: { viewed: { count: 1 } } },
+        }),
+      };
+    });
+
+    try {
+      const putUrls: string[] = [];
+      global.fetch = vi.fn(async (url: string, options?: RequestInit) => {
+        if (options?.method === 'PUT') putUrls.push(url);
+        if (options?.method === 'PROPFIND') return new Response('', { status: 207 });
+        if (!options?.method || options.method === 'GET') return new Response('', { status: 404 });
+        if (options?.method === 'PUT') return new Response('', { status: 201 });
+        return new Response('', { status: 200 });
+      }) as any;
+
+      const savedSettings: any[] = [];
+      const initialSettings = {
+        webdav: {
+          enabled: true,
+          url: 'https://dav-a.example.com/dav/backups/',
+          username: 'user-a',
+          password: 'pass-a',
+          activeConfigId: 'config-a',
+          lastSync: '2026-07-01T00:00:00.000Z',
+          configs: [
+            {
+              id: 'config-a',
+              name: 'A 端',
+              url: 'https://dav-a.example.com/dav/backups/',
+              username: 'user-a',
+              password: 'pass-a',
+              updatedAt: 1782892800000,
+              lastSync: '2026-07-01T00:00:00.000Z',
+            },
+            {
+              id: 'config-b',
+              name: 'B 端',
+              url: 'https://dav-b.example.com/dav/backups/',
+              username: 'user-b',
+              password: 'pass-b',
+              updatedAt: 1782979200000,
+              lastSync: null,
+            },
+          ],
+          clientId: 'upload-device',
+          deviceLabel: '上传设备',
+          browserName: 'Chrome',
+          clientInstalledAt: '2026-07-01T00:00:00.000Z',
+          uploadIndexLimit: 50,
+          knownDevices: [],
+        },
+      };
+
+      const { performWebDAVUpload } = await import('../../src/features/webdavSync/application/uploadService');
+      const result = await performWebDAVUpload({
+        getSettings: async () => structuredClone(savedSettings.at(-1) || initialSettings),
+        saveSettings: async (settings: any) => {
+          savedSettings.push(structuredClone(settings));
+        },
+        configId: 'config-b',
+      });
+
+      const finalSettings = savedSettings.at(-1);
+      const backupPutUrls = putUrls.filter(url => url.includes('javdb-extension-backup-'));
+      const finalConfigs = finalSettings?.webdav?.configs || [];
+
+      expect(result.success).toBe(true);
+      expect(backupPutUrls).toHaveLength(1);
+      expect(backupPutUrls[0]).toMatch(/^https:\/\/dav-b\.example\.com\/dav\/backups\/javdb-extension-backup-/);
+      expect(finalSettings?.webdav?.activeConfigId).toBe('config-a');
+      expect(finalSettings?.webdav?.url).toBe('https://dav-a.example.com/dav/backups/');
+      expect(finalSettings?.webdav?.username).toBe('user-a');
+      expect(finalSettings?.webdav?.lastSync).toBe('2026-07-01T00:00:00.000Z');
+      expect(finalConfigs.find((config: any) => config.id === 'config-a')?.lastSync).toBe('2026-07-01T00:00:00.000Z');
+      expect(finalConfigs.find((config: any) => config.id === 'config-b')?.lastSync).toEqual(expect.any(String));
+      expect(finalSettings?.webdav?.knownDevices?.[0]?.sources).toEqual([
+        expect.objectContaining({
+          configId: 'config-b',
+          configName: 'B 端',
+          urlFingerprint: 'https://dav-b.example.com/dav/backups/|user-b',
+          hasBackup: true,
+        }),
+      ]);
+    } finally {
+      vi.doUnmock('../../src/features/webdavSync/application/backupCollector');
+    }
+  });
+
+  it('backs up to all WebDAV configs and keeps reporting partial failures', async () => {
+    vi.useRealTimers();
+    vi.resetModules();
+    vi.doMock('../../src/features/webdavSync/application/backupCollector', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../src/features/webdavSync/application/backupCollector')>();
+      return {
+        ...actual,
+        collectBackupData: vi.fn().mockResolvedValue({
+          version: 1,
+          data: { 'SSIS-003': { id: 'SSIS-003' } },
+          stats: { storage: { viewed: { count: 1 } } },
+        }),
+      };
+    });
+
+    try {
+      const backupPutUrls: string[] = [];
+      global.fetch = vi.fn(async (url: string, options?: RequestInit) => {
+        if (options?.method === 'PUT' && url.includes('javdb-extension-backup-')) {
+          backupPutUrls.push(url);
+          if (url.startsWith('https://dav-b.example.com/')) {
+            return new Response('', { status: 503 });
+          }
+          return new Response('', { status: 201 });
+        }
+        if (options?.method === 'PROPFIND') return new Response('', { status: 207 });
+        if (!options?.method || options.method === 'GET') return new Response('', { status: 404 });
+        if (options?.method === 'PUT') return new Response('', { status: 201 });
+        return new Response('', { status: 200 });
+      }) as any;
+
+      setChromeStorage({
+        [STORAGE_KEYS.SETTINGS]: {
+          webdav: {
+            enabled: true,
+            url: 'https://dav-a.example.com/dav/backups/',
+            username: 'user-a',
+            password: 'pass-a',
+            activeConfigId: 'config-a',
+            configs: [
+              {
+                id: 'config-a',
+                name: 'A 端',
+                url: 'https://dav-a.example.com/dav/backups/',
+                username: 'user-a',
+                password: 'pass-a',
+                updatedAt: 1782892800000,
+                lastSync: null,
+              },
+              {
+                id: 'config-b',
+                name: 'B 端',
+                url: 'https://dav-b.example.com/dav/backups/',
+                username: 'user-b',
+                password: 'pass-b',
+                updatedAt: 1782979200000,
+                lastSync: null,
+              },
+            ],
+            clientId: 'upload-device',
+            deviceLabel: '上传设备',
+            browserName: 'Chrome',
+            clientInstalledAt: '2026-07-01T00:00:00.000Z',
+            uploadIndexLimit: 50,
+            knownDevices: [],
+          },
+        },
+      });
+
+      const response = await sendWebDAVRuntimeMessage({ type: 'webdav-upload-all' });
+
+      expect(backupPutUrls).toHaveLength(2);
+      expect(response).toEqual({
+        success: false,
+        total: 2,
+        succeeded: 1,
+        failed: 1,
+        results: [
+          expect.objectContaining({ configId: 'config-a', configName: 'A 端', success: true }),
+          expect.objectContaining({ configId: 'config-b', configName: 'B 端', success: false, error: expect.stringContaining('503') }),
+        ],
+      });
+      expect(getChromeStorageSnapshot()[STORAGE_KEYS.SETTINGS].webdav.activeConfigId).toBe('config-a');
+    } finally {
+      vi.doUnmock('../../src/features/webdavSync/application/backupCollector');
+    }
+  });
+
   it('updates the current device label in local known devices', async () => {
     global.fetch = vi.fn(async (_url: string, options?: RequestInit) => {
       if (options?.method === 'PROPFIND') return new Response('', { status: 207 });

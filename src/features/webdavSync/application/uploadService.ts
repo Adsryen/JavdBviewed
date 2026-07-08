@@ -15,26 +15,80 @@ import { appendWebDAVUploadIndex } from './uploadIndex';
 import { cleanupOldBackups } from './cleanupService';
 import { mergeKnownDevices, type WebDAVKnownDeviceSourceInput } from './deviceRegistry';
 
+type WebDAVUploadTarget = {
+  configId: string;
+  configName?: string;
+  url: string;
+  username: string;
+  password: string;
+  isDefault: boolean;
+};
+
 export interface WebDAVUploadServiceOptions {
   getSettings: () => Promise<any>;
   saveSettings: (settings: any) => Promise<void>;
   logger?: WebDAVClientLog;
+  configId?: string;
 }
 
 function readKnownDevices(value: unknown): WebDAVKnownDevice[] {
   return Array.isArray(value) ? value as WebDAVKnownDevice[] : [];
 }
 
-function buildUploadKnownDeviceSource(settings: any, baseUrl: string, uploadedAt: string, uploadId: string): WebDAVKnownDeviceSourceInput {
-  const webdav = settings?.webdav || {};
-  const activeConfigId = String(webdav.activeConfigId || '').trim();
-  const configs = Array.isArray(webdav.configs) ? webdav.configs : [];
-  const activeConfig = configs.find((config: any) => String(config?.id || '').trim() === activeConfigId);
+function getConfigId(value: unknown): string {
+  return String(value || '').trim();
+}
 
+function readWebDAVConfigs(webdav: any): any[] {
+  return Array.isArray(webdav?.configs) ? webdav.configs : [];
+}
+
+function resolveWebDAVUploadTarget(settings: any, requestedConfigId?: string): WebDAVUploadTarget {
+  const webdav = settings?.webdav || {};
+  const configs = readWebDAVConfigs(webdav);
+  const activeConfigId = getConfigId(webdav.activeConfigId);
+  const safeRequestedConfigId = getConfigId(requestedConfigId);
+
+  if (safeRequestedConfigId) {
+    const targetConfig = configs.find((config: any) => getConfigId(config?.id) === safeRequestedConfigId);
+    if (!targetConfig) {
+      throw new Error('未找到指定的 WebDAV 备份端。');
+    }
+
+    return {
+      configId: safeRequestedConfigId,
+      configName: String(targetConfig.name || '').trim() || undefined,
+      url: String(targetConfig.url || '').trim(),
+      username: String(targetConfig.username || '').trim(),
+      password: String(targetConfig.password || ''),
+      isDefault: !!activeConfigId && safeRequestedConfigId === activeConfigId,
+    };
+  }
+
+  const activeConfig = configs.find((config: any) => getConfigId(config?.id) === activeConfigId);
   return {
-    configId: activeConfigId || String(activeConfig?.id || '').trim() || 'default',
+    configId: activeConfigId || getConfigId(activeConfig?.id) || 'default',
     configName: String(activeConfig?.name || '').trim() || undefined,
-    urlFingerprint: `${baseUrl}|${String(webdav.username || '').trim()}`,
+    url: String(webdav.url || activeConfig?.url || '').trim(),
+    username: String(webdav.username || activeConfig?.username || '').trim(),
+    password: String(webdav.password || activeConfig?.password || ''),
+    isDefault: true,
+  };
+}
+
+function validateWebDAVUploadTarget(target: WebDAVUploadTarget): string | null {
+  const label = target.configName ? `“${target.configName}”` : '当前备份端';
+  if (!target.url) return `${label}还没有填写 WebDAV 地址。`;
+  if (!target.username) return `${label}还没有填写用户名。`;
+  if (!target.password) return `${label}还没有填写密码或应用密钥。`;
+  return null;
+}
+
+function buildUploadKnownDeviceSource(target: WebDAVUploadTarget, baseUrl: string, uploadedAt: string, uploadId: string): WebDAVKnownDeviceSourceInput {
+  return {
+    configId: target.configId,
+    configName: target.configName,
+    urlFingerprint: `${baseUrl}|${target.username}`,
     seenAt: uploadedAt,
     hasClientProfile: true,
     hasBackup: true,
@@ -47,12 +101,18 @@ export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): 
   const logger = options.logger;
   logger?.('INFO', 'Attempting to perform WebDAV upload.');
   const settings = await options.getSettings();
-  if (!settings.webdav.enabled || !settings.webdav.url) {
+  if (!settings.webdav.enabled) {
     const errorMsg = 'WebDAV is not enabled or URL is not configured.';
     logger?.('WARN', errorMsg);
     return { success: false, error: errorMsg };
   }
   try {
+    const target = resolveWebDAVUploadTarget(settings, options.configId);
+    const targetValidationError = validateWebDAVUploadTarget(target);
+    if (targetValidationError) {
+      logger?.('WARN', targetValidationError, { configId: target.configId });
+      return { success: false, error: targetValidationError };
+    }
     const dataToExport = await collectBackupData({ logger });
 
     const now = new Date();
@@ -65,12 +125,12 @@ export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): 
     const date = `${year}-${month}-${day}`;
     const filename = `javdb-extension-backup-${date}-${hour}-${minute}-${second}.zip`;
 
-    let fileUrl = normalizeWebDavBaseUrl(settings.webdav.url);
+    let fileUrl = normalizeWebDavBaseUrl(target.url);
     const baseUrl = fileUrl;
-    const auth = { username: settings.webdav.username, password: settings.webdav.password };
+    const auth = { username: target.username, password: target.password };
 
     try {
-      await ensureWebDAVSupportDirs(fileUrl, settings.webdav.username, settings.webdav.password, { logger });
+      await ensureWebDAVSupportDirs(fileUrl, target.username, target.password, { logger });
     } catch (dirError: any) {
       logger?.('WARN', 'Failed to ensure directory exists, will try upload anyway', { error: dirError.message });
     }
@@ -89,7 +149,7 @@ export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): 
     const response = await fetch(fileUrl, {
       method: 'PUT',
       headers: {
-        Authorization: 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
+        Authorization: 'Basic ' + btoa(`${target.username}:${target.password}`),
         'Content-Type': 'application/zip',
       },
       body: zipBlob,
@@ -130,7 +190,11 @@ export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): 
     }
 
     const updatedSettings = await options.getSettings();
-    updatedSettings.webdav.lastSync = new Date().toISOString();
+    if (!updatedSettings.webdav) updatedSettings.webdav = {};
+    const lastSync = new Date().toISOString();
+    if (target.isDefault) {
+      updatedSettings.webdav.lastSync = lastSync;
+    }
     updatedSettings.webdav.clientLastSeenAt = uploadedAt;
     updatedSettings.webdav.clientLastSyncAt = uploadedAt;
     updatedSettings.webdav.clientLastSyncStatus = 'success';
@@ -139,17 +203,16 @@ export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): 
       readKnownDevices(updatedSettings.webdav.knownDevices),
       [{
         profile: clientProfile,
-        source: buildUploadKnownDeviceSource(updatedSettings, baseUrl, uploadedAt, uploadId),
+        source: buildUploadKnownDeviceSource(target, baseUrl, uploadedAt, uploadId),
         preferDeviceLabel: true,
       }],
       { now: Date.parse(uploadedAt) || Date.now() },
     );
 
-    const activeConfigId = updatedSettings.webdav.activeConfigId;
-    if (activeConfigId && updatedSettings.webdav.configs) {
-      const configIndex = updatedSettings.webdav.configs.findIndex((c: { id: string }) => c.id === activeConfigId);
+    if (target.configId && updatedSettings.webdav.configs) {
+      const configIndex = updatedSettings.webdav.configs.findIndex((c: { id: string }) => c.id === target.configId);
       if (configIndex !== -1) {
-        updatedSettings.webdav.configs[configIndex].lastSync = updatedSettings.webdav.lastSync;
+        updatedSettings.webdav.configs[configIndex].lastSync = lastSync;
       }
     }
 
@@ -158,7 +221,7 @@ export async function performWebDAVUpload(options: WebDAVUploadServiceOptions): 
 
     try {
       const retentionCount = Number(updatedSettings.webdav.retentionDays ?? 10);
-      if (!isNaN(retentionCount) && retentionCount > 0) {
+      if (target.isDefault && !isNaN(retentionCount) && retentionCount > 0) {
         await cleanupOldBackups(retentionCount, { getSettings: options.getSettings, logger });
       }
     } catch (e: any) {

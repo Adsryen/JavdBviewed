@@ -1082,6 +1082,15 @@
     flex-wrap: wrap;
 }
 
+#webdav-settings .config-backup-all-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+#webdav-settings .config-backup-all-btn i {
+    margin-right: 6px;
+}
+
 .webdav-config-list {
     display: flex;
     flex-direction: column;
@@ -1501,6 +1510,19 @@
     transform: none;
 }
 
+.webdav-config-item .config-actions .config-action-btn.backup {
+    flex: 0 0 auto;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    box-shadow: none;
+    transform: none;
+}
+
 .webdav-config-item:hover .config-action-btn {
     opacity: 1;
 }
@@ -1521,6 +1543,18 @@
     background: transparent;
     border-color: transparent;
     color: var(--error);
+}
+
+.webdav-config-item .config-actions .config-action-btn.backup:hover {
+    background: transparent;
+    border-color: transparent;
+    color: var(--webdav-primary);
+}
+
+.webdav-config-item .config-actions .config-action-btn.backup:focus-visible {
+    background: transparent;
+    border-color: transparent;
+    color: var(--webdav-primary);
 }
 
 .webdav-config-item .config-actions .config-default-btn:hover,
