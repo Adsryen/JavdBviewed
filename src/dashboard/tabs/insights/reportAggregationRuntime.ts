@@ -1,5 +1,11 @@
-import { aggregateMonthly as defaultAggregateMonthly } from '../../../features/insights/aggregator';
-import { aggregateCompareFromRecords as defaultAggregateCompareFromRecords } from '../../../features/insights/compareAggregator';
+import {
+  aggregateMonthly as defaultAggregateMonthly,
+  type AggregateOptions,
+} from '../../../features/insights/aggregator';
+import {
+  aggregateCompareFromRecords as defaultAggregateCompareFromRecords,
+  type CompareAggregateOptions,
+} from '../../../features/insights/compareAggregator';
 import type { VideoRecord } from '../../../types';
 import type { ReportStats, ViewsDaily } from '../../../types/insights';
 import type { MonthRangePeriod, PreviousPeriod } from './reportPeriodModel';
@@ -9,29 +15,114 @@ export type InsightsAggregationMode = 'views' | 'compare' | 'views-fallback';
 
 export interface InsightsStatsAggregationResult {
   stats: ReportStats;
-  days: ViewsDaily[] | any[];
-  previousDays: ViewsDaily[] | any[];
+  days: ViewsDaily[];
+  previousDays: ViewsDaily[];
   previousPeriod: PreviousPeriod;
   modeUsed: InsightsAggregationMode;
   baselineCount: number;
   newCount: number;
 }
 
-interface BuildInsightsStatsInput {
-  period: MonthRangePeriod;
-  insightsSettings?: any;
-  dbInsViewsRange: (start: string, end: string) => Promise<any[]>;
-  fetchAllVideoRecordsPaged: (pageSize?: number) => Promise<VideoRecord[] | any[]>;
-  aggregateMonthly?: typeof defaultAggregateMonthly | ((days: any[], options?: any) => any);
-  aggregateCompareFromRecords?: typeof defaultAggregateCompareFromRecords | ((records: any[], startMs: number, endMs: number, options?: any) => any);
-  statusScopeFallback?: 'viewed' | 'viewed_browsed' | 'viewed_browsed_want';
-  onFallback?: (message: string) => void;
-  addTrace?: (level: 'info' | 'warn' | 'error', tag: string, message?: string, data?: any) => void;
+type InsightsAggregationSource = 'views' | 'compare' | 'auto';
+type InsightsStatusScope = NonNullable<CompareAggregateOptions['statusScope']>;
+
+interface InsightsSettingsInput {
+  topN?: unknown;
+  changeThresholdRatio?: unknown;
+  minTagCount?: unknown;
+  risingLimit?: unknown;
+  fallingLimit?: unknown;
+  source?: unknown;
+  statusScope?: unknown;
+  minMonthlySamples?: unknown;
 }
 
-function buildAggregateOptions(insightsSettings: any, previousDays?: any[], statusScope?: string): any {
+interface NormalizedInsightsSettings {
+  topN: number;
+  changeThresholdRatio?: number;
+  minTagCount?: number;
+  risingLimit?: number;
+  fallingLimit?: number;
+  source: InsightsAggregationSource;
+  statusScope: InsightsStatusScope;
+  minMonthlySamples: number;
+}
+
+interface CompareAggregationResult {
+  stats: ReportStats;
+  baselineCount: number;
+  newCount: number;
+}
+
+interface BuildInsightsStatsInput {
+  period: MonthRangePeriod;
+  insightsSettings?: InsightsSettingsInput | null;
+  dbInsViewsRange: (start: string, end: string) => Promise<ViewsDaily[]>;
+  fetchAllVideoRecordsPaged: (pageSize?: number) => Promise<VideoRecord[]>;
+  aggregateMonthly?: (days: ViewsDaily[], options?: AggregateOptions) => ReportStats;
+  aggregateCompareFromRecords?: (
+    records: VideoRecord[],
+    startMs: number,
+    endMs: number,
+    options?: CompareAggregateOptions,
+  ) => CompareAggregationResult;
+  statusScopeFallback?: 'viewed' | 'viewed_browsed' | 'viewed_browsed_want';
+  onFallback?: (message: string) => void;
+  addTrace?: (level: 'info' | 'warn' | 'error', tag: string, message?: string, data?: unknown) => void;
+}
+
+function readFiniteNumber(value: unknown): number | undefined {
+  const parsed = typeof value === 'number'
+    ? value
+    : (typeof value === 'string' && value.trim() !== '' ? Number(value) : undefined);
+  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readNumberInRange(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = readFiniteNumber(value);
+  if (parsed === undefined || parsed < min || parsed > max) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function readOptionalNumberInRange(value: unknown, min: number, max: number): number | undefined {
+  const parsed = readFiniteNumber(value);
+  if (parsed === undefined || parsed < min || parsed > max) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function resolveSource(value: unknown): InsightsAggregationSource {
+  return value === 'views' || value === 'compare' || value === 'auto' ? value : 'auto';
+}
+
+function isStatusScope(value: unknown): value is InsightsStatusScope {
+  return value === 'viewed' || value === 'viewed_browsed' || value === 'viewed_browsed_want';
+}
+
+function normalizeInsightsSettings(
+  input: InsightsSettingsInput | null | undefined,
+  statusScopeFallback?: InsightsStatusScope,
+): NormalizedInsightsSettings {
   return {
-    topN: insightsSettings.topN ?? 10,
+    topN: readNumberInRange(input?.topN, 10, 1, 50),
+    changeThresholdRatio: readOptionalNumberInRange(input?.changeThresholdRatio, 0, 1),
+    minTagCount: readOptionalNumberInRange(input?.minTagCount, 0, 999),
+    risingLimit: readOptionalNumberInRange(input?.risingLimit, 0, 50),
+    fallingLimit: readOptionalNumberInRange(input?.fallingLimit, 0, 50),
+    source: resolveSource(input?.source),
+    statusScope: isStatusScope(input?.statusScope)
+      ? input.statusScope
+      : (statusScopeFallback ?? 'viewed'),
+    minMonthlySamples: readNumberInRange(input?.minMonthlySamples, 10, 0, 999),
+  };
+}
+
+function buildAggregateOptions(insightsSettings: NormalizedInsightsSettings, previousDays?: ViewsDaily[], statusScope?: InsightsStatusScope): AggregateOptions & { statusScope?: InsightsStatusScope } {
+  return {
+    topN: insightsSettings.topN,
     previousDays,
     changeThresholdRatio: insightsSettings.changeThresholdRatio,
     minTagCount: insightsSettings.minTagCount,
@@ -42,14 +133,12 @@ function buildAggregateOptions(insightsSettings: any, previousDays?: any[], stat
 }
 
 export async function buildInsightsStatsForPeriod(input: BuildInsightsStatsInput): Promise<InsightsStatsAggregationResult> {
-  const insightsSettings = input.insightsSettings || {};
+  const insightsSettings = normalizeInsightsSettings(input.insightsSettings, input.statusScopeFallback);
   const aggregateMonthly = input.aggregateMonthly ?? defaultAggregateMonthly;
   const aggregateCompareFromRecords = input.aggregateCompareFromRecords ?? defaultAggregateCompareFromRecords;
   const previousPeriod = buildPreviousPeriod(input.period.startDate, input.period.endDate);
   const days = await input.dbInsViewsRange(input.period.periodStart, input.period.periodEnd);
   const previousDays = await input.dbInsViewsRange(previousPeriod.previousStart, previousPeriod.previousEnd);
-  const source: 'views' | 'compare' | 'auto' = (insightsSettings.source as any) || 'auto';
-  const statusScope = String((insightsSettings.statusScope as any) || input.statusScopeFallback || 'viewed');
   const startMs = input.period.startDate.getTime();
   const endMs = input.period.endDate.getTime();
   let stats: ReportStats;
@@ -57,7 +146,7 @@ export async function buildInsightsStatsForPeriod(input: BuildInsightsStatsInput
   let baselineCount = 0;
   let newCount = 0;
 
-  if (source === 'views') {
+  if (insightsSettings.source === 'views') {
     stats = aggregateMonthly(days, buildAggregateOptions(insightsSettings, previousDays));
     modeUsed = 'views';
   } else {
@@ -66,16 +155,15 @@ export async function buildInsightsStatsForPeriod(input: BuildInsightsStatsInput
       all,
       startMs,
       endMs,
-      buildAggregateOptions(insightsSettings, undefined, statusScope),
+      buildAggregateOptions(insightsSettings, undefined, insightsSettings.statusScope),
     );
     stats = ret.stats;
     baselineCount = ret.baselineCount;
     newCount = ret.newCount;
-    const minSamples = Number(insightsSettings.minMonthlySamples ?? 10);
-    if (source === 'auto' && newCount < minSamples) {
+    if (insightsSettings.source === 'auto' && newCount < insightsSettings.minMonthlySamples) {
       stats = aggregateMonthly(days, buildAggregateOptions(insightsSettings, previousDays));
       modeUsed = 'views-fallback';
-      input.onFallback?.(`compare 样本不足（${newCount} < 阈值 ${minSamples}），已回退到“观看日表”口径。`);
+      input.onFallback?.(`compare 样本不足（${newCount} < 阈值 ${insightsSettings.minMonthlySamples}），已回退到“观看日表”口径。`);
     } else {
       modeUsed = 'compare';
     }
@@ -84,7 +172,7 @@ export async function buildInsightsStatsForPeriod(input: BuildInsightsStatsInput
         modeUsed,
         baselineCount,
         newCount,
-        thresholds: { minMonthlySamples: insightsSettings.minMonthlySamples ?? 10 },
+        thresholds: { minMonthlySamples: insightsSettings.minMonthlySamples },
       });
     } catch {}
   }
