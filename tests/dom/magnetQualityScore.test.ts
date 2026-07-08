@@ -11,6 +11,10 @@ import {
   sortMagnetResultsByMode,
   normalizeMagnetSortMode,
 } from '../../src/features/magnets/application/resultSort';
+import {
+  buildMagnetQualityTagStyle,
+  createMagnetQualityTag,
+} from '../../src/features/magnets/ui/qualityTag';
 import type { MagnetResult } from '../../src/features/magnets/domain/types';
 
 function magnet(overrides: Partial<MagnetResult>): MagnetResult {
@@ -68,6 +72,47 @@ describe('magnet quality score', () => {
     expect(score.score).toBeGreaterThan(0);
     expect(score.reasons.join(' ')).toContain('做种未知');
     expect(score.reasons.join(' ')).toContain('大小未知');
+  });
+});
+
+describe('magnet quality tag color', () => {
+  function extractHue(background: string): number {
+    const match = background.match(/^hsl\((\d+),/);
+    return match ? Number(match[1]) : Number.NaN;
+  }
+
+  it('maps representative scores to a stable cold-to-hot gradient', () => {
+    const scores = [0, 30, 60, 100];
+    const styles = scores.map(score => buildMagnetQualityTagStyle(score));
+    const hues = styles.map(style => extractHue(style.background));
+
+    expect(new Set(styles.map(style => style.background)).size).toBe(scores.length);
+    expect(new Set(styles.map(style => style.border)).size).toBe(scores.length);
+    expect(hues).toEqual([...hues].sort((a, b) => b - a));
+    expect(hues[0]).toBeGreaterThan(180);
+    expect(hues[hues.length - 1]).toBeLessThan(40);
+    expect(buildMagnetQualityTagStyle(60)).toEqual(buildMagnetQualityTagStyle(60));
+  });
+
+  it('clamps out-of-range scores before building color tokens', () => {
+    expect(buildMagnetQualityTagStyle(-20)).toEqual(buildMagnetQualityTagStyle(0));
+    expect(buildMagnetQualityTagStyle(150)).toEqual(buildMagnetQualityTagStyle(100));
+  });
+
+  it('applies gradient tokens to the rendered quality tag without Bulma color classes', () => {
+    const tag = createMagnetQualityTag(magnet({
+      name: 'SSIS-795 中文字幕 1080p',
+      size: '4.20 GB',
+      sizeBytes: 4.2 * 1024 * 1024 * 1024,
+      seeders: 128,
+      quality: '1080p',
+      hasSubtitle: true,
+    }));
+
+    expect(tag.className).toBe('tag is-small jdb-magnet-quality-tag');
+    expect(tag.style.getPropertyValue('--jdb-magnet-quality-bg')).toMatch(/^hsl\(/);
+    expect(tag.style.getPropertyValue('--jdb-magnet-quality-border')).toMatch(/^hsl\(/);
+    expect(tag.style.getPropertyValue('--jdb-magnet-quality-text')).toMatch(/^hsl\(/);
   });
 });
 

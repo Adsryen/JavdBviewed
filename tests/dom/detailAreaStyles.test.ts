@@ -42,6 +42,8 @@ describe('detail area visual polish', () => {
 
     expect(styleText).toContain('--jdb-magnet-card-bg');
     expect(styleText).toContain('.jdb-magnet-manual-search');
+    expect(styleText).toContain('#magnets-content .jdb-magnet-quality-tag');
+    expect(styleText).toContain('--jdb-magnet-quality-bg');
     expect(styleText).not.toContain('border-left');
     expect(item.classList.contains('jdb-magnet-row')).toBe(true);
     expect(item.querySelector('.jdb-magnet-meta')).toBeTruthy();

@@ -2009,6 +2009,8 @@ export class MagnetSearchManager {
         line-height: 20px;
       }
 
+      #magnets-content .jdb-magnet-quality-tag { border: 1px solid var(--jdb-magnet-quality-border); color: var(--jdb-magnet-quality-text); background: var(--jdb-magnet-quality-bg); font-weight: 800; }
+
       #magnets-content .item .buttons {
         display: flex;
         align-items: center;
