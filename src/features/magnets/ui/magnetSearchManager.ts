@@ -38,13 +38,11 @@ import {
   detectMagnetQuality,
   detectMagnetSubtitle,
   extractHashFromMagnet,
-  isCrackedVersion,
   isValidMagnetResultName,
   normalizeMagnetDate,
   parseSizeToBytes,
 } from '../application/resultMetadata';
 import { normalizeMagnetSortMode, sortMagnetResultsByMode } from '../application/resultSort';
-import { buildNativeMagnetResult, createMagnetQualityTag } from './qualityTag';
 import {
   buildJavbusAjaxUrl,
   extractJavbusAjaxParams,
@@ -61,6 +59,15 @@ import type {
   MagnetExternalSearchResult,
 } from '../domain/types';
 import { fetchJavbusAjaxViaRuntime } from '../../../platform/browser/javbusRuntimeClient';
+import { injectMagnetSourceTagStyles, injectUnifiedMagnetListStyles } from './magnetStyles';
+import { renderMagnetPaginationControls } from './magnetPaginationControls';
+import {
+  filterMagnetResultsBySource,
+  getMagnetSourceFilterOptions,
+  renderMagnetSourceFilterBar,
+} from './magnetSourceFilterControls';
+import { decorateNativeMagnetRow } from './nativeMagnetRows';
+import { createUnifiedMagnetItem } from './unifiedMagnetItem';
 
 // 磁链缓存 TTL（默认 7 天）
 const MAGNET_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -194,7 +201,7 @@ export class MagnetSearchManager {
       } catch {}
 
       // 注入统一样式，确保磁力列表布局不会溢出
-      this.addUnifiedMagnetStyles();
+      injectUnifiedMagnetListStyles();
 
       // 添加搜索源标签
       this.addSearchSourceTags();
@@ -905,7 +912,7 @@ export class MagnetSearchManager {
       // 重新显示所有磁力数据
       this.currentMagnetResults = limitedResults;
       this.currentMagnetSourceFilter = 'all';
-      this.currentMagnetDisplayResults = this.getFilteredMagnetResults(limitedResults);
+      this.currentMagnetDisplayResults = filterMagnetResultsBySource(limitedResults, this.currentMagnetSourceFilter);
       this.currentMagnetPage = 1;
       this.displayAllMagnets(this.currentMagnetDisplayResults);
 
@@ -952,7 +959,10 @@ export class MagnetSearchManager {
     const fragment = document.createDocumentFragment();
     pageResults.forEach((result, index) => {
       try {
-        const magnetItem = this.createUnifiedMagnetItem(result, pagination.startIndex + index);
+        const magnetItem = createUnifiedMagnetItem(result, pagination.startIndex + index, {
+          copyMagnet: (magnet) => this.copyMagnet(magnet),
+          push115: (button, magnet, name) => this.push115(button, magnet, name),
+        });
         fragment.appendChild(magnetItem);
         log(`Added unified magnet item ${index + 1}: ${result.name.substring(0, 50)}...`);
       } catch (error) {
@@ -969,44 +979,30 @@ export class MagnetSearchManager {
       }
       magnetContent.innerHTML = '';
       log('Cleared existing magnet list');
-      this.renderMagnetSourceFilterBar(magnetContent);
+      if (this.currentMagnetResults.length > 0) {
+        const filterOptions = getMagnetSourceFilterOptions(this.currentMagnetResults);
+        const activeExists = filterOptions.some(option => option.key === this.currentMagnetSourceFilter);
+        if (!activeExists) this.currentMagnetSourceFilter = 'all';
+        renderMagnetSourceFilterBar(
+          magnetContent,
+          filterOptions,
+          this.currentMagnetSourceFilter,
+          (filter) => {
+            this.currentMagnetSourceFilter = filter;
+            this.currentMagnetPage = 1;
+            const filtered = filterMagnetResultsBySource(this.currentMagnetResults, this.currentMagnetSourceFilter);
+            this.displayAllMagnets(filtered, true);
+            this.updateTotalCount(filtered.length);
+          },
+        );
+      }
       magnetContent.appendChild(fragment);
-      this.renderMagnetPaginationControls(magnetContent, pagination, results.length);
+      renderMagnetPaginationControls(magnetContent, pagination, results.length, page => this.goToMagnetPage(page));
       if (scrollToTop && magnetContent instanceof HTMLElement) {
         magnetContent.scrollTo({ top: 0, behavior: 'smooth' });
       }
       log(`Successfully displayed ${pageResults.length} unified magnet items`);
     });
-  }
-
-  private renderMagnetPaginationControls(container: Element, pagination: ReturnType<typeof buildMagnetPaginationState>, total: number): void {
-    if (!pagination.enabled) return;
-
-    const controls = document.createElement('div');
-    controls.className = 'jdb-magnet-pagination';
-
-    const prev = document.createElement('button');
-    prev.className = 'button is-small';
-    prev.dataset.jdbMagnetPrev = '1';
-    prev.textContent = '上一页';
-    prev.disabled = pagination.currentPage <= 1;
-    prev.addEventListener('click', () => this.goToMagnetPage(pagination.currentPage - 1));
-
-    const pageInfo = document.createElement('span');
-    pageInfo.className = 'jdb-magnet-page-info';
-    pageInfo.textContent = `${pagination.currentPage}/${pagination.totalPages} · 共 ${total} 条`;
-
-    const next = document.createElement('button');
-    next.className = 'button is-small';
-    next.dataset.jdbMagnetNext = '1';
-    next.textContent = '下一页';
-    next.disabled = pagination.currentPage >= pagination.totalPages;
-    next.addEventListener('click', () => this.goToMagnetPage(pagination.currentPage + 1));
-
-    controls.appendChild(prev);
-    controls.appendChild(pageInfo);
-    controls.appendChild(next);
-    container.appendChild(controls);
   }
 
   private goToMagnetPage(page: number): void {
@@ -1016,64 +1012,19 @@ export class MagnetSearchManager {
     this.updateTotalCount(this.currentMagnetDisplayResults.length);
   }
 
-  private normalizeMagnetSourceFilter(source: string): string {
-    return source.toLowerCase().replace(/[^a-z0-9]/g, '');
+  private addUnifiedMagnetStyles(): void {
+    injectUnifiedMagnetListStyles();
   }
 
-  private getFilteredMagnetResults(results = this.currentMagnetResults): MagnetResult[] {
-    if (this.currentMagnetSourceFilter === 'all') return results;
-    return results.filter((result) => getResultSources(result)
-      .some(source => this.normalizeMagnetSourceFilter(source) === this.currentMagnetSourceFilter));
+  private addSearchTagStyles(): void {
+    injectMagnetSourceTagStyles();
   }
 
-  private getMagnetSourceFilterOptions(results = this.currentMagnetResults): Array<{ key: string; label: string; count: number }> {
-    const counts = new Map<string, { label: string; count: number }>();
-    results.forEach((result) => {
-      getResultSources(result).forEach((source) => {
-        const key = this.normalizeMagnetSourceFilter(source);
-        const current = counts.get(key);
-        counts.set(key, { label: source, count: (current?.count || 0) + 1 });
-      });
+  private createUnifiedMagnetItem(result: MagnetResult, index: number): HTMLElement {
+    return createUnifiedMagnetItem(result, index, {
+      copyMagnet: (magnet) => this.copyMagnet(magnet),
+      push115: (button, magnet, name) => this.push115(button, magnet, name),
     });
-
-    return [
-      { key: 'all', label: '全部', count: results.length },
-      ...Array.from(counts.entries())
-        .map(([key, value]) => ({ key, ...value }))
-        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
-    ];
-  }
-
-  private renderMagnetSourceFilterBar(container: Element): void {
-    if (this.currentMagnetResults.length === 0) return;
-
-    const options = this.getMagnetSourceFilterOptions();
-    if (options.length <= 2) return;
-
-    const activeExists = options.some(option => option.key === this.currentMagnetSourceFilter);
-    if (!activeExists) this.currentMagnetSourceFilter = 'all';
-
-    const bar = document.createElement('div');
-    bar.className = 'jdb-magnet-source-filter-bar';
-
-    options.forEach((option) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `jdb-magnet-source-filter${option.key === this.currentMagnetSourceFilter ? ' is-active' : ''}`;
-      button.dataset.jdbMagnetSourceFilter = option.key;
-      button.textContent = `${option.label} ${option.count}`;
-      button.addEventListener('click', () => {
-        if (this.currentMagnetSourceFilter === option.key) return;
-        this.currentMagnetSourceFilter = option.key;
-        this.currentMagnetPage = 1;
-        const filtered = this.getFilteredMagnetResults();
-        this.displayAllMagnets(filtered, true);
-        this.updateTotalCount(filtered.length);
-      });
-      bar.appendChild(button);
-    });
-
-    container.appendChild(bar);
   }
 
   private applyNativeMagnetPresentation(page = this.nativeMagnetPage): void {
@@ -1083,233 +1034,28 @@ export class MagnetSearchManager {
     const rows = Array.from(container.querySelectorAll<HTMLElement>(':scope > .item.columns.is-desktop'));
     if (rows.length === 0) return;
 
-    this.addUnifiedMagnetStyles();
+    injectUnifiedMagnetListStyles();
     container.querySelector('.jdb-native-magnet-pagination')?.remove();
 
     const pagination = buildMagnetPaginationState(rows.length, page);
     this.nativeMagnetPage = pagination.currentPage;
 
     rows.forEach((row, index) => {
-      this.decorateNativeMagnetRow(row);
+      decorateNativeMagnetRow(row);
       const isVisible = index >= pagination.startIndex && index < pagination.endIndex;
       row.classList.toggle('jdb-magnet-page-hidden', !isVisible);
       row.style.display = '';
     });
 
-    if (!pagination.enabled) return;
-
-    const controls = document.createElement('div');
-    controls.className = 'jdb-magnet-pagination jdb-native-magnet-pagination';
-
-    const prev = document.createElement('button');
-    prev.className = 'button is-small';
-    prev.dataset.jdbMagnetPrev = '1';
-    prev.textContent = '上一页';
-    prev.disabled = pagination.currentPage <= 1;
-    prev.addEventListener('click', () => this.applyNativeMagnetPresentation(pagination.currentPage - 1));
-
-    const pageInfo = document.createElement('span');
-    pageInfo.className = 'jdb-magnet-page-info';
-    pageInfo.textContent = `${pagination.currentPage}/${pagination.totalPages} · 共 ${rows.length} 条`;
-
-    const next = document.createElement('button');
-    next.className = 'button is-small';
-    next.dataset.jdbMagnetNext = '1';
-    next.textContent = '下一页';
-    next.disabled = pagination.currentPage >= pagination.totalPages;
-    next.addEventListener('click', () => this.applyNativeMagnetPresentation(pagination.currentPage + 1));
-
-    controls.appendChild(prev);
-    controls.appendChild(pageInfo);
-    controls.appendChild(next);
-    container.appendChild(controls);
+    renderMagnetPaginationControls(
+      container,
+      pagination,
+      rows.length,
+      pageNumber => this.applyNativeMagnetPresentation(pageNumber),
+      'jdb-magnet-pagination jdb-native-magnet-pagination',
+    );
   }
 
-  private decorateNativeMagnetRow(row: HTMLElement): void {
-    row.classList.add('jdb-magnet-row', 'jdb-native-magnet-row', 'privacy-protected');
-    row.setAttribute('data-privacy-protected', 'true');
-    row.setAttribute('data-source', row.getAttribute('data-source') || 'JavDB');
-
-    const nameColumn = row.querySelector<HTMLElement>('.magnet-name');
-    nameColumn?.classList.add('jdb-magnet-main');
-
-    const link = row.querySelector<HTMLAnchorElement>('.magnet-name a');
-    link?.classList.add('jdb-magnet-link');
-
-    const name = row.querySelector<HTMLElement>('.magnet-name .name');
-    name?.classList.add('jdb-magnet-title', 'privacy-protected');
-    name?.setAttribute('data-privacy-protected', 'true');
-
-    const meta = row.querySelector<HTMLElement>('.magnet-name .meta');
-    meta?.classList.add('jdb-magnet-meta');
-
-    let tags = row.querySelector<HTMLElement>('.magnet-name .tags');
-    if (!tags && link) {
-      tags = document.createElement('div');
-      tags.className = 'tags';
-      link.appendChild(tags);
-    }
-    tags?.classList.add('jdb-magnet-tags');
-    if (tags && !tags.querySelector('.jdb-native-source-tag')) {
-      const sourceTag = document.createElement('span');
-      sourceTag.className = 'tag is-info is-small jdb-native-source-tag';
-      sourceTag.textContent = 'JavDB';
-      tags.prepend(sourceTag);
-    }
-    if (tags && !tags.querySelector('.jdb-magnet-quality-tag')) {
-      const qualityTag = createMagnetQualityTag(buildNativeMagnetResult(row));
-      tags.appendChild(qualityTag);
-    }
-  }
-
-  /**
-   * 创建统一样式的磁力项目元素
-   */
-  private createUnifiedMagnetItem(result: MagnetResult, index: number): HTMLElement {
-    // 创建主容器
-    const item = document.createElement('div');
-    item.className = `item is-desktop jdb-magnet-row ${index % 2 === 0 ? '' : 'odd'} privacy-protected`;
-    if (result.source !== 'JavDB') {
-      item.classList.add('is-external-source');
-    }
-    item.setAttribute('data-privacy-protected', 'true');
-    item.setAttribute('data-source', result.source);
-    // 统一使用弹性布局，避免 Bulma columns 的列宽不一致导致溢出
-    item.style.display = 'flex';
-    item.style.alignItems = 'center';
-    item.style.flexWrap = 'nowrap';
-
-    // 创建磁力名称列 - 使用固定宽度以对齐按钮
-    const nameColumn = document.createElement('div');
-    nameColumn.className = 'magnet-name jdb-magnet-main';
-    // 自适应宽度，并允许内容被省略号正确截断
-    nameColumn.style.flex = '1 1 auto';
-    nameColumn.style.minWidth = '0';
-
-    const magnetLink = document.createElement('a');
-    magnetLink.className = 'jdb-magnet-link';
-    magnetLink.href = result.magnet;
-    magnetLink.title = '右键点击并选择「复制链接地址」';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'name jdb-magnet-title privacy-protected';
-    nameSpan.setAttribute('data-privacy-protected', 'true');
-    nameSpan.textContent = result.name;
-    nameSpan.style.display = 'block';
-    nameSpan.style.overflow = 'hidden';
-    nameSpan.style.textOverflow = 'ellipsis';
-    nameSpan.style.whiteSpace = 'nowrap';
-    nameSpan.title = result.name; // 悬停显示完整名称
-
-    const metaSpan = document.createElement('span');
-    metaSpan.className = 'meta jdb-magnet-meta';
-    const sourceLabels = getResultSources(result);
-    const sourceText = sourceLabels.join(' / ');
-    metaSpan.textContent = result.size
-      ? `${result.size}${sourceText !== 'JavDB' ? ` · 来源 ${sourceText}` : ''}`
-      : `${sourceText !== 'JavDB' ? `来源 ${sourceText}` : 'JavDB'}`;
-
-    // 创建标签容器
-    const tagsDiv = document.createElement('div');
-    tagsDiv.className = 'tags jdb-magnet-tags';
-
-    // 添加来源标签
-    sourceLabels.forEach((source) => {
-      const sourceTag = document.createElement('span');
-      sourceTag.className = `tag is-${source === 'JavDB' ? 'info' : 'danger'} is-small jdb-magnet-source-tag`;
-      sourceTag.textContent = source;
-      tagsDiv.appendChild(sourceTag);
-    });
-
-    tagsDiv.appendChild(createMagnetQualityTag(result));
-
-    // 添加质量标签
-    if (result.quality) {
-      const qualityTag = document.createElement('span');
-      qualityTag.className = 'tag is-primary is-small is-light';
-      qualityTag.textContent = result.quality;
-      qualityTag.style.marginLeft = '4px';
-      tagsDiv.appendChild(qualityTag);
-    }
-
-    // 添加字幕标签
-    if (result.hasSubtitle) {
-      const subtitleTag = document.createElement('span');
-      subtitleTag.className = 'tag is-warning is-small is-light';
-      subtitleTag.textContent = '字幕';
-      subtitleTag.style.marginLeft = '4px';
-      tagsDiv.appendChild(subtitleTag);
-    }
-
-    // 添加破解标签
-    if (isCrackedVersion(result.name)) {
-      const crackedTag = document.createElement('span');
-      crackedTag.className = 'tag is-success is-small is-light';
-      crackedTag.textContent = '破解';
-      crackedTag.style.marginLeft = '4px';
-      tagsDiv.appendChild(crackedTag);
-    }
-
-    magnetLink.appendChild(nameSpan);
-    magnetLink.appendChild(metaSpan);
-    magnetLink.appendChild(tagsDiv);
-    nameColumn.appendChild(magnetLink);
-
-    // 创建按钮列 - 固定宽度
-    const buttonsColumn = document.createElement('div');
-    buttonsColumn.className = 'buttons';
-    // 使用自然宽度，避免固定宽度导致整体溢出
-    buttonsColumn.style.flex = '0 0 auto';
-    buttonsColumn.style.display = 'flex';
-    buttonsColumn.style.alignItems = 'center';
-    buttonsColumn.style.gap = '6px';
-
-    // 复制按钮
-    const copyButton = document.createElement('button');
-    copyButton.className = 'button is-info is-small';
-    copyButton.textContent = '复制';
-    copyButton.addEventListener('click', () => this.copyMagnet(result.magnet));
-
-    // 下载按钮（保持JavDB原有样式）
-    const downloadButton = document.createElement('a');
-    downloadButton.className = 'button is-info is-small';
-    downloadButton.href = `https://keepshare.org/aa36p03v/magnet%3A%3Fxt%3Durn%3Abtih%3A${extractHashFromMagnet(result.magnet)}`;
-    downloadButton.target = '_blank';
-    downloadButton.innerHTML = '&nbsp;下载&nbsp;';
-
-    // 115推送按钮
-    const push115Button = document.createElement('button');
-    push115Button.className = 'button is-success is-small drive115-push-btn';
-    push115Button.title = '推送到115网盘离线下载';
-    push115Button.innerHTML = '&nbsp;推送115&nbsp;';
-    push115Button.addEventListener('click', () => this.push115(push115Button, result.magnet, result.name));
-
-    buttonsColumn.appendChild(copyButton);
-    buttonsColumn.appendChild(downloadButton);
-    buttonsColumn.appendChild(push115Button);
-
-    // 创建日期列 - 固定宽度
-    const dateColumn = document.createElement('div');
-    dateColumn.className = 'date';
-    dateColumn.style.width = '80px'; // 固定日期列宽度
-    dateColumn.style.flexShrink = '0'; // 防止收缩
-    dateColumn.style.textAlign = 'center'; // 居中对齐
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 'time';
-    timeSpan.textContent = result.date || 'Unknown';
-    dateColumn.appendChild(timeSpan);
-
-    // 组装完整项目
-    item.appendChild(nameColumn);
-    item.appendChild(buttonsColumn);
-    item.appendChild(dateColumn);
-
-    return item;
-  }
-
-  /**
-   * 检查影片是否已看
-   */
   private async checkIfVideoViewed(): Promise<boolean> {
     try {
       const { STATE } = await import('../../contentState');
@@ -1339,7 +1085,7 @@ export class MagnetSearchManager {
 
       // 创建按钮容器
       const buttonContainer = document.createElement('div');
-      this.addUnifiedMagnetStyles();
+      injectUnifiedMagnetListStyles();
       buttonContainer.className = 'jdb-magnet-manual-search';
 
       // 创建搜索按钮
@@ -1394,7 +1140,7 @@ export class MagnetSearchManager {
     topMeta.classList.add('jdb-magnet-meta-bar');
 
     // 添加动画样式
-    this.addSearchTagStyles();
+    injectMagnetSourceTagStyles();
 
     // 确保有tags容器
     let tagsContainer = topMeta.querySelector('.tags');
@@ -1481,820 +1227,6 @@ export class MagnetSearchManager {
 
   /**
    * 添加搜索标签样式
-   */
-  private addSearchTagStyles(): void {
-    // 检查是否已经添加过样式
-    if (document.getElementById('magnet-search-tag-styles')) return;
-
-    const style = document.createElement('style');
-    style.id = 'magnet-search-tag-styles';
-    style.textContent = `
-      @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.6; }
-        100% { opacity: 1; }
-      }
-
-      .magnet-search-tag {
-        transition: all 0.3s ease;
-      }
-
-      .magnet-search-tag.is-warning {
-        animation: pulse 1.5s infinite;
-      }
-
-      /* 避免顶部 meta 区域的 source 标签把页面横向撑宽 */
-      .top-meta.jdb-magnet-meta-bar {
-        --jdb-magnet-meta-bg: #ffffff;
-        --jdb-magnet-meta-border: rgba(15, 23, 42, 0.10);
-        --jdb-magnet-meta-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
-        --jdb-magnet-meta-muted: #64748b;
-        --jdb-magnet-meta-success-bg: #dcfce7;
-        --jdb-magnet-meta-success-text: #166534;
-        --jdb-magnet-meta-danger-bg: #fee2e2;
-        --jdb-magnet-meta-danger-text: #991b1b;
-        --jdb-magnet-meta-warning-bg: #fef3c7;
-        --jdb-magnet-meta-warning-text: #92400e;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px 8px;
-        min-height: 0 !important;
-        margin-bottom: 6px !important;
-        padding: 7px 9px !important;
-        border: 1px solid var(--jdb-magnet-meta-border);
-        border-radius: 10px;
-        background: var(--jdb-magnet-meta-bg);
-        box-shadow: var(--jdb-magnet-meta-shadow);
-      }
-
-      html[data-theme="dark"] .top-meta.jdb-magnet-meta-bar {
-        --jdb-magnet-meta-bg: #1f2937;
-        --jdb-magnet-meta-border: rgba(148, 163, 184, 0.22);
-        --jdb-magnet-meta-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
-        --jdb-magnet-meta-muted: #9ca3af;
-        --jdb-magnet-meta-success-bg: rgba(34, 197, 94, 0.18);
-        --jdb-magnet-meta-success-text: #bbf7d0;
-        --jdb-magnet-meta-danger-bg: rgba(239, 68, 68, 0.18);
-        --jdb-magnet-meta-danger-text: #fecaca;
-        --jdb-magnet-meta-warning-bg: rgba(245, 158, 11, 0.18);
-        --jdb-magnet-meta-warning-text: #fde68a;
-      }
-
-      .top-meta.jdb-magnet-meta-bar .tags,
-      .top-meta.jdb-magnet-meta-bar .jdb-magnet-source-tags {
-        display: flex;
-        flex-wrap: wrap !important;
-        align-items: center;
-        gap: 6px;
-        max-width: 100% !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag {
-        height: 24px;
-        margin: 0 !important;
-        padding: 0 9px;
-        border-radius: 999px;
-        border: 0;
-        color: var(--jdb-magnet-meta-muted);
-        background: rgba(148, 163, 184, 0.14);
-        font-size: 11px;
-        font-weight: 800;
-        line-height: 24px;
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-success {
-        color: var(--jdb-magnet-meta-success-text);
-        background: var(--jdb-magnet-meta-success-bg);
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-danger {
-        color: var(--jdb-magnet-meta-danger-text);
-        background: var(--jdb-magnet-meta-danger-bg);
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-warning,
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-loading {
-        color: var(--jdb-magnet-meta-warning-text);
-        background: var(--jdb-magnet-meta-warning-bg);
-      }
-
-      .top-meta {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px 8px;
-        min-height: 0 !important;
-        margin-bottom: 6px !important;
-        padding-bottom: 0 !important;
-      }
-
-      .top-meta .tags {
-        display: flex;
-        flex-wrap: wrap !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
-        margin-bottom: 0 !important;
-      }
-
-      .top-meta .moj-content.jdb-hidden-moj-content,
-      .top-meta .moj-content[style*="display: none"],
-      .top-meta .moj-content[style*="display:none"] {
-        width: 0 !important;
-        height: 0 !important;
-        min-width: 0 !important;
-        min-height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        line-height: 0 !important;
-        overflow: hidden !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  /**
-   * 注入统一的磁力列表样式，解决宽度溢出及换行不当问题
-   */
-  private addUnifiedMagnetStyles(): void {
-    if (document.getElementById('unified-magnet-list-styles')) return;
-
-    const style = document.createElement('style');
-    style.id = 'unified-magnet-list-styles';
-    style.textContent = `
-      #magnets-content,
-      .jdb-magnet-manual-search {
-        --jdb-magnet-panel-bg: #f7fafc;
-        --jdb-magnet-card-bg: #ffffff;
-        --jdb-magnet-card-border: rgba(15, 23, 42, 0.10);
-        --jdb-magnet-card-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-        --jdb-magnet-text: #1f2937;
-        --jdb-magnet-muted: #64748b;
-        --jdb-magnet-title: #0f73a8;
-        --jdb-magnet-accent: #0ea5e9;
-        --jdb-magnet-surface: #eef2f7;
-        --jdb-magnet-button-bg: #e1f5fe;
-        --jdb-magnet-button-hover: #c8ecfb;
-        --jdb-magnet-button-text: #0277bd;
-        --jdb-magnet-success-bg: #dcfce7;
-        --jdb-magnet-success-text: #166534;
-        --jdb-magnet-disabled-bg: #e5e7eb;
-        --jdb-magnet-disabled-text: #94a3b8;
-      }
-
-      html[data-theme="dark"] #magnets-content,
-      html[data-theme="dark"] .jdb-magnet-manual-search {
-        --jdb-magnet-panel-bg: #111827;
-        --jdb-magnet-card-bg: #1f2937;
-        --jdb-magnet-card-border: rgba(148, 163, 184, 0.22);
-        --jdb-magnet-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
-        --jdb-magnet-text: #e5e7eb;
-        --jdb-magnet-muted: #9ca3af;
-        --jdb-magnet-title: #7dd3fc;
-        --jdb-magnet-accent: #38bdf8;
-        --jdb-magnet-surface: rgba(148, 163, 184, 0.12);
-        --jdb-magnet-button-bg: rgba(14, 165, 233, 0.18);
-        --jdb-magnet-button-hover: rgba(14, 165, 233, 0.28);
-        --jdb-magnet-button-text: #bae6fd;
-        --jdb-magnet-success-bg: rgba(34, 197, 94, 0.18);
-        --jdb-magnet-success-text: #bbf7d0;
-        --jdb-magnet-disabled-bg: rgba(148, 163, 184, 0.12);
-        --jdb-magnet-disabled-text: #64748b;
-      }
-
-      /* 容器级别约束，避免出现横向滚动和超宽 */
-      #magnets-content {
-        max-width: 100% !important;
-        max-height: 720px !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        box-sizing: border-box !important;
-        padding: 12px !important;
-        border-radius: 12px;
-        background: var(--jdb-magnet-panel-bg);
-        scroll-behavior: smooth;
-      }
-
-      .jdb-magnet-manual-search {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px 10px;
-        margin: 10px 0;
-        padding: 10px 12px;
-        border: 1px solid var(--jdb-magnet-card-border);
-        border-radius: 10px;
-        color: var(--jdb-magnet-text);
-        background: var(--jdb-magnet-card-bg);
-        box-shadow: var(--jdb-magnet-card-shadow);
-      }
-
-      .jdb-magnet-manual-search .jdb-magnet-manual-button {
-        height: 28px;
-        border-color: transparent;
-        border-radius: 8px;
-        color: var(--jdb-magnet-button-text);
-        background: var(--jdb-magnet-button-bg);
-        font-weight: 700;
-      }
-
-      .jdb-magnet-manual-search .jdb-magnet-manual-hint {
-        color: var(--jdb-magnet-muted) !important;
-        font-size: 12px;
-        line-height: 1.4;
-      }
-
-      .top-meta.jdb-magnet-meta-bar {
-        --jdb-magnet-meta-bg: #ffffff;
-        --jdb-magnet-meta-border: rgba(15, 23, 42, 0.10);
-        --jdb-magnet-meta-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
-        --jdb-magnet-meta-muted: #64748b;
-        --jdb-magnet-meta-success-bg: #dcfce7;
-        --jdb-magnet-meta-success-text: #166534;
-        --jdb-magnet-meta-danger-bg: #fee2e2;
-        --jdb-magnet-meta-danger-text: #991b1b;
-        --jdb-magnet-meta-warning-bg: #fef3c7;
-        --jdb-magnet-meta-warning-text: #92400e;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px 8px;
-        min-height: 0 !important;
-        margin-bottom: 6px !important;
-        padding: 7px 9px !important;
-        border: 1px solid var(--jdb-magnet-meta-border);
-        border-radius: 10px;
-        background: var(--jdb-magnet-meta-bg);
-        box-shadow: var(--jdb-magnet-meta-shadow);
-      }
-
-      html[data-theme="dark"] .top-meta.jdb-magnet-meta-bar {
-        --jdb-magnet-meta-bg: #1f2937;
-        --jdb-magnet-meta-border: rgba(148, 163, 184, 0.22);
-        --jdb-magnet-meta-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
-        --jdb-magnet-meta-muted: #9ca3af;
-        --jdb-magnet-meta-success-bg: rgba(34, 197, 94, 0.18);
-        --jdb-magnet-meta-success-text: #bbf7d0;
-        --jdb-magnet-meta-danger-bg: rgba(239, 68, 68, 0.18);
-        --jdb-magnet-meta-danger-text: #fecaca;
-        --jdb-magnet-meta-warning-bg: rgba(245, 158, 11, 0.18);
-        --jdb-magnet-meta-warning-text: #fde68a;
-      }
-
-      .top-meta.jdb-magnet-meta-bar .tags,
-      .top-meta.jdb-magnet-meta-bar .jdb-magnet-source-tags {
-        display: flex;
-        flex-wrap: wrap !important;
-        align-items: center;
-        gap: 6px;
-        max-width: 100% !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag {
-        height: 24px;
-        margin: 0 !important;
-        padding: 0 9px;
-        border-radius: 999px;
-        border: 0;
-        color: var(--jdb-magnet-meta-muted);
-        background: rgba(148, 163, 184, 0.14);
-        font-size: 11px;
-        font-weight: 800;
-        line-height: 24px;
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-success {
-        color: var(--jdb-magnet-meta-success-text);
-        background: var(--jdb-magnet-meta-success-bg);
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-danger {
-        color: var(--jdb-magnet-meta-danger-text);
-        background: var(--jdb-magnet-meta-danger-bg);
-      }
-
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-warning,
-      .top-meta.jdb-magnet-meta-bar .magnet-search-tag.is-loading {
-        color: var(--jdb-magnet-meta-warning-text);
-        background: var(--jdb-magnet-meta-warning-bg);
-      }
-
-      .top-meta {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px 8px;
-        min-height: 0 !important;
-        margin-bottom: 6px !important;
-        padding-bottom: 0 !important;
-      }
-
-      .top-meta > .tags {
-        margin-bottom: 0 !important;
-      }
-
-      .top-meta .moj-content.jdb-hidden-moj-content,
-      .top-meta .moj-content[style*="display: none"],
-      .top-meta .moj-content[style*="display:none"] {
-        width: 0 !important;
-        height: 0 !important;
-        min-width: 0 !important;
-        min-height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        line-height: 0 !important;
-        overflow: hidden !important;
-      }
-
-      /* 恢复 Bulma 在该区域的负边距行为，避免列 padding 叠加导致超宽 */
-      #magnets-content .columns {
-        margin-left: -0.75rem !important;
-        margin-right: -0.75rem !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-
-      /* 统一磁力列表的 flex 布局与溢出处理 */
-      #magnets-content .item {
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow: hidden !important; /* 防止内部偶发性溢出 */
-        padding-left: 8px !important;   /* 兼容原生磁力节点 */
-        padding-right: 8px !important;
-      }
-
-      #magnets-content .item, #magnets-content .item * {
-        min-width: 0 !important;
-      }
-
-      #magnets-content .jdb-magnet-row {
-        gap: 12px;
-        margin-bottom: 8px;
-        padding: 9px 12px !important;
-        border: 1px solid var(--jdb-magnet-card-border);
-        border-radius: 10px;
-        color: var(--jdb-magnet-text);
-        background: var(--jdb-magnet-card-bg);
-        box-shadow: var(--jdb-magnet-card-shadow);
-      }
-
-      #magnets-content .jdb-magnet-row.odd {
-        background: var(--jdb-magnet-card-bg);
-      }
-
-      #magnets-content .jdb-native-magnet-row,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row {
-        gap: 10px;
-        padding: 7px 10px !important;
-      }
-
-      #magnets-content .jdb-native-magnet-row br,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row br {
-        display: none !important;
-      }
-
-      #magnets-content .jdb-native-magnet-row .jdb-magnet-title,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-title {
-        line-height: 1.22;
-      }
-
-      #magnets-content .jdb-native-magnet-row .jdb-magnet-meta,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-meta {
-        margin-top: 2px;
-        line-height: 1.18;
-      }
-
-      #magnets-content .jdb-native-magnet-row .jdb-magnet-tags,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-tags {
-        gap: 4px;
-        margin-top: 3px !important;
-      }
-
-      #magnets-content .jdb-native-magnet-row .jdb-magnet-tags .tag,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .jdb-magnet-tags .tag {
-        height: 18px;
-        font-size: 10.5px;
-        line-height: 18px;
-      }
-
-      #magnets-content .jdb-native-magnet-row .buttons .button,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .buttons .button {
-        height: 24px;
-        line-height: 1;
-      }
-
-      #magnets-content .jdb-native-magnet-row .date .time,
-      #magnets-content > .item.columns.is-desktop.jdb-native-magnet-row .date .time {
-        min-height: 20px;
-        padding: 1px 6px;
-      }
-
-      #magnets-content > .item.columns.is-desktop {
-        display: flex !important;
-        align-items: center;
-        gap: 12px;
-        margin: 0 0 8px !important;
-        padding: 9px 12px !important;
-        border: 1px solid var(--jdb-magnet-card-border);
-        border-radius: 10px;
-        color: var(--jdb-magnet-text);
-        background: var(--jdb-magnet-card-bg);
-        box-shadow: var(--jdb-magnet-card-shadow);
-      }
-
-      #magnets-content > .item.columns.is-desktop.odd {
-        background: var(--jdb-magnet-card-bg);
-      }
-
-      #magnets-content > .item.columns.is-desktop.jdb-magnet-page-hidden {
-        display: none !important;
-      }
-
-      #magnets-content > .item.columns.is-desktop .column {
-        padding: 0 !important;
-      }
-
-      #magnets-content > .item.columns.is-desktop .magnet-name {
-        flex: 1 1 auto !important;
-      }
-
-      /* 名称链接与文本本身的宽度约束与省略号 */
-      #magnets-content .item .magnet-name a {
-        display: block !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-
-      #magnets-content .jdb-magnet-link {
-        color: inherit;
-        text-decoration: none;
-      }
-
-      #magnets-content .item .magnet-name .name {
-        display: block !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        max-width: 100% !important;
-      }
-
-      #magnets-content .jdb-magnet-title {
-        color: var(--jdb-magnet-title);
-        font-size: 13px;
-        font-weight: 750;
-        line-height: 1.3;
-      }
-
-      #magnets-content > .item.columns.is-desktop .magnet-name .name {
-        color: var(--jdb-magnet-title);
-        font-size: 13px;
-        font-weight: 750;
-        line-height: 1.3;
-      }
-
-      #magnets-content .jdb-magnet-link:hover .jdb-magnet-title {
-        text-decoration: underline;
-      }
-
-      #magnets-content .jdb-magnet-meta {
-        display: block;
-        margin-top: 3px;
-        color: var(--jdb-magnet-muted);
-        font-size: 12px;
-        line-height: 1.25;
-      }
-
-      #magnets-content > .item.columns.is-desktop .meta {
-        display: block;
-        margin-top: 3px;
-        color: var(--jdb-magnet-muted);
-        font-size: 12px;
-        line-height: 1.25;
-      }
-
-      #magnets-content .jdb-magnet-tags {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 5px;
-        margin: 5px 0 0 !important;
-      }
-
-      #magnets-content .jdb-magnet-tags .tag {
-        height: 20px;
-        margin: 0 !important;
-        border-radius: 999px;
-        font-size: 11px;
-        line-height: 20px;
-      }
-
-      #magnets-content > .item.columns.is-desktop .tags {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 5px;
-        margin: 5px 0 0 !important;
-      }
-
-      #magnets-content > .item.columns.is-desktop .tags .tag {
-        height: 20px;
-        margin: 0 !important;
-        border-radius: 999px;
-        font-size: 11px;
-        line-height: 20px;
-      }
-
-      #magnets-content .jdb-magnet-quality-tag { border: 1px solid var(--jdb-magnet-quality-border); color: var(--jdb-magnet-quality-text); background: var(--jdb-magnet-quality-bg); font-weight: 800; }
-
-      #magnets-content .item .buttons {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex: 0 0 auto !important;
-        white-space: nowrap !important;
-        max-width: 100% !important;
-      }
-
-      #magnets-content .jdb-magnet-row .buttons {
-        margin-bottom: 0;
-      }
-
-      #magnets-content .jdb-magnet-row .buttons .button {
-        height: 26px;
-        margin: 0;
-        border-radius: 8px;
-        font-weight: 700;
-      }
-
-      #magnets-content > .item.columns.is-desktop .buttons {
-        margin: 0 !important;
-        flex: 0 0 auto !important;
-      }
-
-      #magnets-content > .item.columns.is-desktop .buttons .button {
-        height: 26px;
-        margin: 0 !important;
-        border-radius: 8px;
-        font-weight: 700;
-      }
-
-      #magnets-content > .item.columns.is-desktop .buttons .button.is-info {
-        border-color: transparent;
-        color: var(--jdb-magnet-button-text);
-        background: var(--jdb-magnet-button-bg);
-      }
-
-      #magnets-content > .item.columns.is-desktop .buttons .button.is-info:hover {
-        background: var(--jdb-magnet-button-hover);
-      }
-
-      #magnets-content > .item.columns.is-desktop .buttons .button.is-success {
-        border-color: transparent;
-        color: var(--jdb-magnet-success-text);
-        background: var(--jdb-magnet-success-bg);
-      }
-
-      #magnets-content .jdb-magnet-row .buttons .button.is-info {
-        border-color: transparent;
-        color: var(--jdb-magnet-button-text);
-        background: var(--jdb-magnet-button-bg);
-      }
-
-      #magnets-content .jdb-magnet-row .buttons .button.is-info:hover {
-        background: var(--jdb-magnet-button-hover);
-      }
-
-      #magnets-content .jdb-magnet-row .buttons .button.is-success {
-        border-color: transparent;
-        color: var(--jdb-magnet-success-text);
-        background: var(--jdb-magnet-success-bg);
-      }
-
-      #magnets-content .item .date {
-        flex: 0 0 80px !important;
-        text-align: center !important;
-      }
-
-      #magnets-content .jdb-magnet-row .date {
-        flex-basis: 96px !important;
-      }
-
-      #magnets-content .jdb-magnet-row .date .time {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 22px;
-        padding: 2px 7px;
-        border-radius: 999px;
-        color: var(--jdb-magnet-muted);
-        background: var(--jdb-magnet-surface);
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1.2;
-        white-space: nowrap;
-      }
-
-      #magnets-content > .item.columns.is-desktop .date {
-        flex: 0 0 96px !important;
-      }
-
-      #magnets-content > .item.columns.is-desktop .date .time {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 22px;
-        padding: 2px 7px;
-        border-radius: 999px;
-        color: var(--jdb-magnet-muted);
-        background: var(--jdb-magnet-surface);
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1.2;
-        white-space: nowrap;
-      }
-
-      #magnets-content .jdb-magnet-pagination {
-        position: sticky;
-        bottom: 0;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        padding: 10px 8px;
-        background: color-mix(in srgb, var(--jdb-magnet-panel-bg) 94%, transparent);
-        border-top: 1px solid var(--jdb-magnet-card-border);
-        box-sizing: border-box;
-      }
-
-      #magnets-content .jdb-magnet-page-info {
-        min-width: 110px;
-        text-align: center;
-        font-size: 12px;
-        color: var(--jdb-magnet-muted);
-        font-weight: 700;
-        white-space: nowrap;
-      }
-
-      #magnets-content .jdb-magnet-pagination .button {
-        flex: 0 0 auto;
-        border-radius: 8px;
-        color: var(--jdb-magnet-button-text);
-        background: var(--jdb-magnet-button-bg);
-      }
-
-      #magnets-content .jdb-magnet-source-filter-bar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        margin: 0 0 10px;
-        padding: 0 0 10px;
-        border-bottom: 1px solid var(--jdb-magnet-card-border);
-      }
-
-      #magnets-content .jdb-magnet-source-filter {
-        height: 24px;
-        padding: 0 9px;
-        border: 1px solid transparent;
-        border-radius: 999px;
-        color: var(--jdb-magnet-muted);
-        background: var(--jdb-magnet-surface);
-        font-size: 11px;
-        font-weight: 800;
-        line-height: 22px;
-        cursor: pointer;
-      }
-
-      #magnets-content .jdb-magnet-source-filter:hover,
-      #magnets-content .jdb-magnet-source-filter.is-active {
-        color: var(--jdb-magnet-button-text);
-        background: var(--jdb-magnet-button-bg);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        html:not([data-theme="light"]) #magnets-content,
-        html:not([data-theme="light"]) .jdb-magnet-manual-search {
-          --jdb-magnet-panel-bg: #111827;
-          --jdb-magnet-card-bg: #1f2937;
-          --jdb-magnet-card-border: rgba(148, 163, 184, 0.22);
-          --jdb-magnet-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
-          --jdb-magnet-text: #e5e7eb;
-          --jdb-magnet-muted: #9ca3af;
-          --jdb-magnet-title: #7dd3fc;
-          --jdb-magnet-accent: #38bdf8;
-          --jdb-magnet-surface: rgba(148, 163, 184, 0.12);
-          --jdb-magnet-button-bg: rgba(14, 165, 233, 0.18);
-          --jdb-magnet-button-hover: rgba(14, 165, 233, 0.28);
-          --jdb-magnet-button-text: #bae6fd;
-          --jdb-magnet-success-bg: rgba(34, 197, 94, 0.18);
-          --jdb-magnet-success-text: #bbf7d0;
-          --jdb-magnet-disabled-bg: rgba(148, 163, 184, 0.12);
-          --jdb-magnet-disabled-text: #64748b;
-        }
-        #magnets-content .jdb-magnet-pagination {
-          background: color-mix(in srgb, var(--jdb-magnet-panel-bg) 94%, transparent);
-          border-top-color: var(--jdb-magnet-card-border);
-        }
-        #magnets-content .jdb-magnet-page-info {
-          color: var(--jdb-magnet-muted);
-        }
-      }
-      /* 小屏优化：当空间不足时允许在按钮前换行，避免横向溢出 */
-      @media (max-width: 768px) {
-        #magnets-content .item.is-desktop {
-          flex-wrap: wrap;
-          align-items: flex-start;
-        }
-        #magnets-content .item .date {
-          order: 3;
-        }
-        #magnets-content .jdb-magnet-row {
-          gap: 10px;
-        }
-        #magnets-content .jdb-magnet-row .buttons {
-          order: 4;
-          flex: 1 1 100% !important;
-          justify-content: flex-start;
-          flex-wrap: wrap;
-        }
-        #magnets-content .jdb-magnet-row .date {
-          flex: 0 0 auto !important;
-          text-align: left !important;
-        }
-        #magnets-content > .item.columns.is-desktop {
-          flex-wrap: wrap;
-          align-items: flex-start;
-          gap: 10px;
-        }
-        #magnets-content > .item.columns.is-desktop .buttons {
-          order: 4;
-          flex: 1 1 100% !important;
-          justify-content: flex-start;
-          flex-wrap: wrap;
-        }
-        #magnets-content > .item.columns.is-desktop .date {
-          flex: 0 0 auto !important;
-          text-align: left !important;
-        }
-      }
-
-      /* 页面级溢出约束（仅限影片详情区块）*/
-      article.message.video-panel,
-      article.message.video-panel .message-body {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow-x: hidden !important;
-      }
-
-      /* 统一限制影片详情主要内容宽度，保持与站点容器一致的上限（约 1344px） */
-      article.message.video-panel .message-body,
-      article.message.video-panel .moj-content,
-      article.message.video-panel .magnet-links,
-      article.message.video-panel #magnets-content {
-        width: 100% !important;
-        max-width: 1344px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        box-sizing: border-box !important;
-      }
-
-      /* 约束顶部切页 tabs，避免白屏撑宽 body */
-      article.message.video-panel .tabs,
-      article.message.video-panel .tabs ul {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow-x: auto !important; /* 局部滚动，而非撑宽整个页面 */
-        white-space: normal !important; /* 允许换行 */
-        flex-wrap: wrap !important;
-      }
-
-      /* 针对站点上的 .tabs.no-bottom（你的诊断里出现了 nowrap）做兜底，限定在详情区 */
-      article.message.video-panel .tabs.no-bottom,
-      article.message.video-panel .tabs.no-bottom ul {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow-x: auto !important;
-        white-space: normal !important;
-        display: flex !important;
-        flex-wrap: wrap !important;
-      }
-
-      /* Bulma columns 在详情区的列允许收缩 */
-      article.message.video-panel .columns > .column {
-        min-width: 0 !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  /**
-   * 更新总数显示
    */
   private updateTotalCount(totalOverride?: number): void {
     const totalElement = document.querySelector('#x-total');

@@ -1863,9 +1863,20 @@ describe('source architecture cleanup', () => {
     const targetPath = 'src/features/magnets/application/resultMetadata.ts';
     expect(fs.existsSync(path.resolve(root, targetPath)), `${targetPath} should exist`).toBe(true);
 
+    const uiHelperPaths = [
+      'src/features/magnets/ui/magnetStyles.ts',
+      'src/features/magnets/ui/magnetPaginationControls.ts',
+      'src/features/magnets/ui/magnetSourceFilterControls.ts',
+      'src/features/magnets/ui/nativeMagnetRows.ts',
+      'src/features/magnets/ui/unifiedMagnetItem.ts',
+    ];
+    for (const helperPath of uiHelperPaths) {
+      expect(fs.existsSync(path.resolve(root, helperPath)), `${helperPath} should exist`).toBe(true);
+    }
+
     const managerSource = fs.readFileSync(path.resolve(root, 'src/features/magnets/ui/magnetSearchManager.ts'), 'utf8');
     const managerLineCount = managerSource.split(/\r?\n/).length;
-    expect(managerLineCount, 'magnetSearchManager.ts should keep shrinking as pure result helpers move out').toBeLessThanOrEqual(2450);
+    expect(managerLineCount, 'magnetSearchManager.ts should keep shrinking as pure UI helpers move out').toBeLessThanOrEqual(1900);
     expect(managerSource).toMatch(/application\/resultMetadata/);
 
     const helperSource = fs.readFileSync(path.resolve(root, targetPath), 'utf8');
@@ -1873,6 +1884,10 @@ describe('source architecture cleanup', () => {
     expect(helperSource).toMatch(/detectMagnetQuality/);
     expect(helperSource).toMatch(/normalizeMagnetDate/);
     expect(helperSource).toMatch(/isValidMagnetResultName/);
+
+    const stylesSource = fs.readFileSync(path.resolve(root, 'src/features/magnets/ui/magnetStyles.ts'), 'utf8');
+    expect(stylesSource).toMatch(/injectUnifiedMagnetListStyles/);
+    expect(stylesSource).toMatch(/injectMagnetSourceTagStyles/);
   });
 
   it('keeps content-side toast UI under platform browser with content path as compatibility export', () => {
