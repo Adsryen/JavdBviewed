@@ -226,13 +226,13 @@ export function createListScrollPagingController(options: ListScrollPagingContro
           if (superRankingResult.url) {
             pushState(superRankingResult.url);
           }
+          options.processVisibleItems();
           options.onItemsAppended?.({
             source: 'super-ranking',
             page: superRankingResult.page,
             appended: superRankingResult.appended,
             items: [],
           });
-          options.processVisibleItems();
         }
         return;
       }
@@ -246,14 +246,14 @@ export function createListScrollPagingController(options: ListScrollPagingContro
         currentPage = nextPage;
         logger(`[ScrollPaging] page ${nextPage} appended ${appended} items to DOM at ${new Date().toISOString()}`);
         pushState(buildScrollPagingNextPageUrl(options.window.location.href, nextPage));
+        logger('[ScrollPaging] triggering processVisibleItems for new items');
+        options.processVisibleItems();
         options.onItemsAppended?.({
           source: 'fetched',
           page: nextPage,
           appended,
           items: appendResult.items,
         });
-        logger('[ScrollPaging] triggering processVisibleItems for new items');
-        options.processVisibleItems();
       }
     } catch (error) {
       logger('Failed to load next page:', error);

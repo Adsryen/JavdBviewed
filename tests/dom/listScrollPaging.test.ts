@@ -105,9 +105,17 @@ describe('list scroll paging helpers', () => {
       <a class="pagination-link" href="https://javdb.com/search?q=abc&page=2">2</a>
     `;
     const pushState = vi.fn();
-    const processVisibleItems = vi.fn();
+    const processVisibleItems = vi.fn(() => {
+      const item = document.querySelector<HTMLElement>('.movie-list .item');
+      if (item) {
+        item.hidden = true;
+      }
+    });
     const clearActorCaches = vi.fn();
-    const onItemsAppended = vi.fn();
+    let appendedItemHiddenWhenNotified: boolean | null = null;
+    const onItemsAppended = vi.fn((event) => {
+      appendedItemHiddenWhenNotified = event.items[0]?.hidden ?? null;
+    });
 
     const controller = createListScrollPagingController({
       document,
@@ -129,6 +137,7 @@ describe('list scroll paging helpers', () => {
     expect(document.querySelectorAll('.movie-list .item')).toHaveLength(1);
     expect(pushState).toHaveBeenCalledWith('http://localhost:3000/?page=2');
     expect(processVisibleItems).toHaveBeenCalledTimes(1);
+    expect(appendedItemHiddenWhenNotified).toBe(true);
     expect(clearActorCaches).toHaveBeenCalledTimes(1);
     expect(onItemsAppended).toHaveBeenCalledWith(expect.objectContaining({
       source: 'fetched',

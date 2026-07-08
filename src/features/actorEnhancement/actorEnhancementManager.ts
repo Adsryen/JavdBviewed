@@ -32,6 +32,15 @@ interface ActorEnhancementConfig {
   enableScanNewWorks?: boolean;
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isExtensionContextInvalidatedError(error: unknown): boolean {
+  const message = getErrorMessage(error);
+  return /Extension context invalidated|context invalidated|message channel closed|message port closed/i.test(message);
+}
+
 class ActorEnhancementManager {
   private config: ActorEnhancementConfig = {
     enabled: true,
@@ -1133,6 +1142,12 @@ class ActorEnhancementManager {
 
       console.log(`[ActorEnhancement] 已保存演员 ${this.currentActorId} 的标签过滤器:`, { tags: currentTags, sort: currentSort });
     } catch (error) {
+      if (isExtensionContextInvalidatedError(error)) {
+        console.debug('[ActorEnhancement] 保存标签过滤器已跳过：扩展上下文已失效', {
+          error: getErrorMessage(error),
+        });
+        return;
+      }
       console.error('[ActorEnhancement] 保存标签过滤器失败:', error);
     }
   }

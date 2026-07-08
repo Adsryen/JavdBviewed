@@ -4,6 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { STATE } from '../../src/dashboard/state';
 import { bindEvents } from '../../src/dashboard/tabs/settings/enhancement/binding/enhancementBindEvents';
 import { doLoadSettings } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementLoad';
@@ -69,6 +71,34 @@ function createHost(): Record<string, unknown> {
 }
 
 describe('list sorting settings', () => {
+  it('renders the sorting card under other enhancements with stacked subsettings', () => {
+    const partialPath = path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html');
+    document.body.innerHTML = fs.readFileSync(partialPath, 'utf8');
+
+    const sortingToggle = document.querySelector<HTMLElement>('[data-target="enableListSorting"]');
+    const sortingCard = sortingToggle?.closest<HTMLElement>('.form-group');
+    const sortingStatus = sortingCard?.querySelector<HTMLElement>('.enhancement-feature-status.beta');
+    const sortingOptionsRow = document.querySelector<HTMLElement>('#listSortingConfig .list-sorting-options-stack');
+
+    expect(sortingCard?.getAttribute('data-subtab')).toBe('other');
+    expect(sortingCard?.textContent).toContain('排序增强');
+    expect(sortingStatus?.textContent?.trim()).toBe('beta');
+    expect(sortingOptionsRow).not.toBeNull();
+    expect(sortingOptionsRow?.querySelectorAll('.list-sorting-option-row')).toHaveLength(2);
+  });
+
+  it('keeps list sorting subsetting selects compact inside each row', () => {
+    const cssPath = path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/enhancement.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    expect(css).toContain('#enhancement-settings .list-sorting-option-row');
+    expect(css).toContain('flex-wrap: wrap');
+    expect(css).toContain('#enhancement-settings .list-sorting-option-row .select-input');
+    expect(css).toContain('width: auto');
+    expect(css).toContain('max-width: 100%');
+    expect(css).not.toContain('#enhancement-settings .list-sorting-options-stack .form-group-inline {\n    width: 100%;\n}');
+  });
+
   it('loads and reads list sorting config through enhancement settings', async () => {
     const host = createHost();
     STATE.settings = {

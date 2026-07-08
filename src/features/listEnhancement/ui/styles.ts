@@ -341,7 +341,7 @@ export const LIST_ENHANCEMENT_BASE_STYLES = `
     }
 
     /* 列表排序增强 */
-    .x-list-sort-toolbar {
+    .x-list-sort-toolbar:not([data-x-list-sort-merged="1"]) {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
@@ -349,12 +349,132 @@ export const LIST_ENHANCEMENT_BASE_STYLES = `
       margin: 10px 0 12px;
     }
 
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-primary-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-row {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      max-width: 100%;
+      margin-bottom: 0;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-segments {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      max-width: 100%;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-segment {
+      display: inline-flex;
+      max-width: 100%;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-row .x-list-sort-buttons {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 2px;
+      max-width: 100%;
+      margin-bottom: 0;
+      padding: 3px;
+      border: 1px solid rgba(50, 115, 220, 0.24);
+      border-radius: 999px;
+      background: rgba(50, 115, 220, 0.06);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+    }
+
+    .x-list-sort-scope-label {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      margin: 0 2px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: rgba(74, 74, 74, 0.08);
+      color: #6b7280;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: nowrap;
+      cursor: help;
+    }
+
+    .x-list-sort-scope-label.plugin {
+      background: rgba(50, 115, 220, 0.1);
+      color: #3273dc;
+    }
+
+    .x-list-sort-scope-hint {
+      max-width: 720px;
+      color: #7a7a7a;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-row .buttons.has-addons .button,
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-row .button {
+      height: 28px;
+      margin-bottom: 0;
+      border-color: transparent;
+      border-radius: 999px;
+      background: transparent;
+      color: #4a4a4a;
+      box-shadow: none;
+      transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-row .button:hover {
+      background: rgba(50, 115, 220, 0.1);
+      color: #3273dc;
+    }
+
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-row .button.is-info.is-selected,
+    .x-list-sort-toolbar[data-x-list-sort-merged="1"] .x-list-sort-row .x-list-sort-button.is-info.is-selected {
+      border-color: transparent;
+      background: #3273dc;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(50, 115, 220, 0.24);
+    }
+
     .x-list-sort-toolbar .x-list-sort-buttons {
       margin-bottom: 0;
     }
 
-    .x-list-sort-toolbar .button {
+    .x-list-sort-toolbar .x-list-sort-button {
       cursor: pointer;
+      border-color: #dbdbdb;
+      background: #fff;
+      color: #4a4a4a;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .x-list-sort-toolbar .x-list-sort-button:hover {
+      border-color: #b5b5b5;
+      color: #3273dc;
+    }
+
+    .x-list-sort-toolbar .x-list-sort-button.is-info.is-selected {
+      border-color: #3273dc;
+      background: #3273dc;
+      color: #fff;
     }
 
     .x-list-sort-notice {

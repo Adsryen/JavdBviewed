@@ -391,6 +391,7 @@ class ListEnhancementManager {
     // 处理现有的影片项目
     this.processExistingItems();
 
+    this.listSortingController.updateConfig(normalizeListSortingConfig(this.config.sorting));
     this.listSortingController.init();
 
     // 监听新添加的项目

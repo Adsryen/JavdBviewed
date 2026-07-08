@@ -805,12 +805,12 @@
                                     <!-- 列表页收藏快捷按钮 结束 -->
 
                                     <!-- 列表页排序增强 -->
-                                    <div class="form-group" data-subtab="list">
+                                    <div class="form-group" data-subtab="other">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
                                                     <h6 class="enhancement-feature-name">↕️ 排序增强</h6>
-                                                    <span class="enhancement-feature-status beta">试用</span>
+                                                            <span class="enhancement-feature-status beta">beta</span>
                                                 </div>
                                             </div>
                                             <div class="enhancement-toggle-wrapper">
@@ -830,8 +830,8 @@
                                                 <i class="fas fa-info-circle"></i>
                                                 <span>这项能力整理的是已加载内容，不会抓取全部分页。</span>
                                             </div>
-                                            <div class="form-row">
-                                                <div class="form-group-inline">
+                                            <div class="form-row list-sorting-options-stack">
+                                                    <div class="form-group-inline list-sorting-option-row">
                                                     <label for="listSortingAppendStrategy">加载下一页后</label>
                                                     <select id="listSortingAppendStrategy" class="select-input">
                                                         <option value="prompt">提示后手动重新排序</option>
@@ -839,7 +839,7 @@
                                                     </select>
                                                     <p class="input-description">默认先提示，不打断当前浏览位置。</p>
                                                 </div>
-                                                <div class="form-group-inline">
+                                                    <div class="form-group-inline list-sorting-option-row">
                                                     <label for="listSortingAutoResortPosition">自动重排后</label>
                                                     <select id="listSortingAutoResortPosition" class="select-input">
                                                         <option value="preserve">保持当前位置</option>

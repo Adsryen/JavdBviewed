@@ -448,6 +448,41 @@
     color: var(--status-beta-text);
 }
 
+#enhancement-settings .list-sorting-options-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#enhancement-settings .list-sorting-option-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    margin-bottom: 0;
+}
+
+#enhancement-settings .list-sorting-option-row label {
+    flex: 0 0 auto;
+    margin: 0;
+    white-space: nowrap;
+}
+
+#enhancement-settings .list-sorting-option-row .select-input {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 178px;
+    max-width: 100%;
+    padding: 8px 10px;
+}
+
+#enhancement-settings .list-sorting-option-row .input-description {
+    flex: 1 1 240px;
+    min-width: 220px;
+    margin: 0;
+    line-height: 1.5;
+}
+
 #enhancement-settings .form-group {
     margin-bottom: 1rem;
 }
