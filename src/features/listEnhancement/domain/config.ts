@@ -18,7 +18,20 @@ export interface PopularityEffectsConfig {
   minRatingCount: number;
 }
 
-export type ListSortMode = 'original' | 'rating-desc' | 'rating-count-desc';
+export type ListSortMode =
+  | 'original'
+  | 'rating-desc'
+  | 'rating-asc'
+  | 'rating-count-desc'
+  | 'rating-count-asc'
+  | 'rating-desc-count-desc'
+  | 'rating-desc-count-asc'
+  | 'rating-asc-count-desc'
+  | 'rating-asc-count-asc'
+  | 'rating-count-desc-score-desc'
+  | 'rating-count-desc-score-asc'
+  | 'rating-count-asc-score-desc'
+  | 'rating-count-asc-score-asc';
 export type ListSortingAppendStrategy = 'prompt' | 'auto-resort';
 export type ListSortingPositionStrategy = 'preserve' | 'top';
 

@@ -459,11 +459,29 @@ export const LIST_ENHANCEMENT_BASE_STYLES = `
     }
 
     .x-list-sort-toolbar .x-list-sort-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       cursor: pointer;
       border-color: #dbdbdb;
       background: #fff;
       color: #4a4a4a;
+      white-space: nowrap;
       transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .x-list-sort-button-main,
+    .x-list-sort-button-meta {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .x-list-sort-button-meta {
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.78;
     }
 
     .x-list-sort-toolbar .x-list-sort-button:hover {
