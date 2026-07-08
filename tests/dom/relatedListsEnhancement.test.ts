@@ -94,4 +94,43 @@ describe('VideoDetailEnhancer related lists enhancement', () => {
     expect(Array.from(panel.querySelectorAll('.jdb-related-list-index')).at(-1)?.textContent).toBe('#20');
     expect(panel.textContent).not.toContain('清单 11');
   });
+
+  it('intercepts plans related-list tab immediately after core init without preloading data', async () => {
+    window.history.pushState({}, '', '/v/NQ6pPb');
+    document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-001</strong></h2>
+      <div class="movie-panel-info">
+        <div class="tabs">
+          <ul>
+            <li><a href="/plans/ypay">Related lists</a></li>
+          </ul>
+        </div>
+      </div>
+      <div id="tabs-container">
+        <div id="reviews"></div>
+      </div>
+    `;
+    const enhancer = new VideoDetailEnhancer({ enableRelatedLists: true }) as any;
+    const getRelatedLists = vi.spyOn(relatedListsService, 'getRelatedLists').mockResolvedValue({
+      success: true,
+      data: [],
+      page: 1,
+      totalPages: 0,
+      hasMore: false,
+    });
+
+    await enhancer.initCore();
+
+    expect(getRelatedLists).not.toHaveBeenCalled();
+
+    const relatedTab = document.querySelector<HTMLAnchorElement>('a[data-jdb-related-lists-original-href="/plans/ypay"]');
+    expect(relatedTab).not.toBeNull();
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    relatedTab?.dispatchEvent(clickEvent);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(getRelatedLists).toHaveBeenCalledWith('NQ6pPb', 1, 10);
+    expect(document.getElementById('jdb-related-lists-panel')?.getAttribute('aria-hidden')).toBe('false');
+  });
 });

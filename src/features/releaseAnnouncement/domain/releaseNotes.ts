@@ -17,6 +17,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '1.21.2',
     highlights: [
+      '相关清单解锁入口提前接管，减少点击后跳到会员页的情况。',
       '媒体库入口已开放，Dashboard 分类导航重新整理。',
       '任务与备份页上线，115 任务和备份入口更集中。',
       'WebDAV 支持默认备份端、单端备份和全部备份端上传。',

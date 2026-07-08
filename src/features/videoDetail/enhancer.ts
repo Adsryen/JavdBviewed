@@ -323,6 +323,7 @@ export class VideoDetailEnhancer {
     log(`Enhancing video detail page (core) for: ${this.videoId}`);
 
     this.enhanceRelatedVideoClicks();
+    this.prepareRelatedListsInterception();
     try {
       chrome.runtime.sendMessage({
         type: 'orchestrator:event',
@@ -513,6 +514,30 @@ export class VideoDetailEnhancer {
     } catch (error) {
       log('[RelatedLists] Error enhancing related lists:', error);
     }
+  }
+
+  private prepareRelatedListsInterception(): void {
+    if (!this.videoId || !this.options.enableRelatedLists) return;
+
+    const movieId = window.location.pathname.split('/').pop()?.split(/[?#]/)[0];
+    if (!movieId) {
+      log('[RelatedLists] prepare interception skipped: movieId not found', {
+        pathname: window.location.pathname,
+      });
+      return;
+    }
+
+    const listTab = this.findRelatedListsTab();
+    log('[RelatedLists] prepare interception', {
+      movieId,
+      pathname: window.location.pathname,
+      tabFound: !!listTab,
+      panelFound: !!document.getElementById('jdb-related-lists-panel'),
+    });
+    if (listTab) {
+      this.neutralizeRelatedListsTab(listTab);
+    }
+    this.bindRelatedListsTabInterception(null, movieId);
   }
 
   /**
@@ -846,7 +871,7 @@ export class VideoDetailEnhancer {
     return panel;
   }
 
-  private bindRelatedListsTabInterception(panel: HTMLElement, movieId: string): void {
+  private bindRelatedListsTabInterception(panel: HTMLElement | null, movieId: string): void {
     const key = '__jdb_related_lists_click_handler__';
     const oldHandler = (window as any)[key] as ((event: MouseEvent) => void) | undefined;
     if (oldHandler) {
@@ -863,18 +888,42 @@ export class VideoDetailEnhancer {
         event.stopPropagation();
         event.stopImmediatePropagation();
         this.neutralizeRelatedListsTab(relatedTab);
-        this.activateRelatedListsPanel(panel, relatedTab);
-        void this.loadRelatedLists(panel, movieId, 1);
+        log('[RelatedLists] click intercepted', {
+          movieId,
+          href: (relatedTab.matches('a') ? relatedTab : relatedTab.querySelector('a'))?.getAttribute('href'),
+        });
+        void this.openRelatedListsPanel(panel, relatedTab, movieId);
         return;
       }
 
       if (this.isMovieTabClickTarget(target)) {
-        this.deactivateRelatedListsPanel(panel);
+        const activePanel = panel || document.getElementById('jdb-related-lists-panel');
+        if (activePanel) {
+          this.deactivateRelatedListsPanel(activePanel);
+        }
       }
     };
 
     document.addEventListener('click', handler, true);
     (window as any)[key] = handler;
+    log('[RelatedLists] click interception installed', {
+      movieId,
+      eagerPanel: !!panel,
+    });
+  }
+
+  private async openRelatedListsPanel(panel: HTMLElement | null, tab: HTMLElement, movieId: string): Promise<void> {
+    const relatedPanel = panel || await this.ensureRelatedListsPanel();
+    if (!relatedPanel) {
+      log('[RelatedLists] panel missing after click', {
+        movieId,
+        tabsContainerFound: !!document.getElementById('tabs-container'),
+      });
+      return;
+    }
+
+    this.activateRelatedListsPanel(relatedPanel, tab);
+    await this.loadRelatedLists(relatedPanel, movieId, 1);
   }
 
   private neutralizeRelatedListsTab(tab: HTMLElement): void {
@@ -897,6 +946,10 @@ export class VideoDetailEnhancer {
       anchor.setAttribute('href', '#jdb-related-lists-panel');
       anchor.setAttribute('data-turbo', 'false');
       anchor.setAttribute('data-turbolinks', 'false');
+    });
+    log('[RelatedLists] tab neutralized', {
+      text: tab.textContent?.trim(),
+      href: anchors[0]?.dataset.jdbRelatedListsOriginalHref || anchors[0]?.getAttribute('href') || '',
     });
   }
 
@@ -996,6 +1049,8 @@ export class VideoDetailEnhancer {
       'a[data-movie-tab-target="lists"]',
       '.tabs a[href="#lists"]',
       '.tab a[href="#lists"]',
+      '.movie-panel-info a[href*="/plans/"]',
+      '.tabs a[href*="/plans/"]',
       '[data-tab="lists"]',
       '[data-movie-tab-target="lists"]',
     ];
@@ -1033,9 +1088,22 @@ export class VideoDetailEnhancer {
       </div>
     `;
 
+    const startedAt = performance.now();
+    log('[RelatedLists] request start', {
+      movieId,
+      page: safePage,
+      pageSize: RELATED_LISTS_PAGE_SIZE,
+    });
+
     try {
       const response = await relatedListsService.getRelatedLists(movieId, safePage, RELATED_LISTS_PAGE_SIZE);
       if (!response.success || !response.data) {
+        log('[RelatedLists] request failed', {
+          movieId,
+          page: safePage,
+          durationMs: Math.round(performance.now() - startedAt),
+          error: response.error || 'unknown',
+        });
         this.renderRelatedListsError(panel, movieId, safePage, response.error || '获取相关清单失败');
         return;
       }
@@ -1056,14 +1124,37 @@ export class VideoDetailEnhancer {
       const listContainer = panel.querySelector<HTMLElement>('.jdb-related-lists') || panel;
       if (pageItems.length === 0) {
         listContainer.innerHTML = '<div class="jdb-related-lists-empty">本页暂无相关清单</div>';
+        log('[RelatedLists] request done', {
+          movieId,
+          page: responsePage,
+          durationMs: Math.round(performance.now() - startedAt),
+          itemCount: 0,
+          totalPages,
+        });
         panel.dataset.jdbRelatedListsLoaded = '1';
         this.renderRelatedListsFooter(panel, movieId, responsePage, false, 0, totalPages);
         return;
       }
 
       this.renderRelatedListItems(listContainer, pageItems, responsePage);
+      log('[RelatedLists] request done', {
+        movieId,
+        page: responsePage,
+        durationMs: Math.round(performance.now() - startedAt),
+        itemCount: pageItems.length,
+        totalPages,
+        hasMore: response.hasMore === true,
+      });
       panel.dataset.jdbRelatedListsLoaded = '1';
       this.renderRelatedListsFooter(panel, movieId, responsePage, response.hasMore === true, pageItems.length, totalPages);
+    } catch (error) {
+      log('[RelatedLists] request error', {
+        movieId,
+        page: safePage,
+        durationMs: Math.round(performance.now() - startedAt),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this.renderRelatedListsError(panel, movieId, safePage, error instanceof Error ? error.message : String(error));
     } finally {
       panel.dataset.jdbRelatedListsLoading = '0';
     }
