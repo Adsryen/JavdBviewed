@@ -22,15 +22,7 @@ const NATIVE_SORT_CONTAINER_ATTR = 'data-x-list-sort-native-container';
 const NATIVE_SORT_BUTTONS_ATTR = 'data-x-list-sort-native-buttons';
 const NATIVE_SORT_SELECTED_ATTR = 'data-x-list-sort-native-selected';
 const SORT_SCOPE_HINT_TEXT = '全站排序会按站点结果重新加载；已加载排序只整理当前已显示的影片，自动翻页会扩大整理范围。';
-const PLUGIN_SORT_METRICS: PluginSortMetric[] = ['rating', 'rating-count'];
-
-type PluginSortMetric = 'rating' | 'rating-count';
-type PluginSortDirection = 'desc' | 'asc';
-
-interface PluginSortCriterion {
-  metric: PluginSortMetric;
-  direction: PluginSortDirection;
-}
+const PLUGIN_SORT_MODES: Exclude<ListSortMode, 'original'>[] = ['rating-desc', 'rating-count-desc'];
 
 export interface ListSortingControllerOptions {
   document: Document;
@@ -48,121 +40,8 @@ export interface ListSortingController {
   getActiveMode: () => ListSortMode;
 }
 
-function getMetricLabel(metric: PluginSortMetric): string {
-  return metric === 'rating' ? '评分' : '评价人数';
-}
-
-function getDirectionLabel(direction: PluginSortDirection): string {
-  return direction === 'desc' ? '高到低' : '低到高';
-}
-
-function modeToCriteria(mode: ListSortMode): PluginSortCriterion[] {
-  if (mode === 'rating-desc') return [{ metric: 'rating', direction: 'desc' }];
-  if (mode === 'rating-asc') return [{ metric: 'rating', direction: 'asc' }];
-  if (mode === 'rating-count-desc') return [{ metric: 'rating-count', direction: 'desc' }];
-  if (mode === 'rating-count-asc') return [{ metric: 'rating-count', direction: 'asc' }];
-  if (mode === 'rating-desc-count-desc') {
-    return [
-      { metric: 'rating', direction: 'desc' },
-      { metric: 'rating-count', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-desc-count-asc') {
-    return [
-      { metric: 'rating', direction: 'desc' },
-      { metric: 'rating-count', direction: 'asc' },
-    ];
-  }
-  if (mode === 'rating-asc-count-desc') {
-    return [
-      { metric: 'rating', direction: 'asc' },
-      { metric: 'rating-count', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-asc-count-asc') {
-    return [
-      { metric: 'rating', direction: 'asc' },
-      { metric: 'rating-count', direction: 'asc' },
-    ];
-  }
-  if (mode === 'rating-count-desc-score-desc') {
-    return [
-      { metric: 'rating-count', direction: 'desc' },
-      { metric: 'rating', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-count-desc-score-asc') {
-    return [
-      { metric: 'rating-count', direction: 'desc' },
-      { metric: 'rating', direction: 'asc' },
-    ];
-  }
-  if (mode === 'rating-count-asc-score-desc') {
-    return [
-      { metric: 'rating-count', direction: 'asc' },
-      { metric: 'rating', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-count-asc-score-asc') {
-    return [
-      { metric: 'rating-count', direction: 'asc' },
-      { metric: 'rating', direction: 'asc' },
-    ];
-  }
-  return [];
-}
-
-function criteriaToMode(criteria: PluginSortCriterion[]): ListSortMode {
-  const [primary, secondary] = criteria;
-  if (!primary) return 'original';
-  if (!secondary) {
-    if (primary.metric === 'rating') {
-      return primary.direction === 'desc' ? 'rating-desc' : 'rating-asc';
-    }
-    return primary.direction === 'desc' ? 'rating-count-desc' : 'rating-count-asc';
-  }
-
-  if (primary.metric === 'rating') {
-    if (primary.direction === 'desc' && secondary.direction === 'desc') return 'rating-desc-count-desc';
-    if (primary.direction === 'desc' && secondary.direction === 'asc') return 'rating-desc-count-asc';
-    if (primary.direction === 'asc' && secondary.direction === 'desc') return 'rating-asc-count-desc';
-    return 'rating-asc-count-asc';
-  }
-
-  if (primary.direction === 'desc' && secondary.direction === 'desc') return 'rating-count-desc-score-desc';
-  if (primary.direction === 'desc' && secondary.direction === 'asc') return 'rating-count-desc-score-asc';
-  if (primary.direction === 'asc' && secondary.direction === 'desc') return 'rating-count-asc-score-desc';
-  return 'rating-count-asc-score-asc';
-}
-
-function parsePluginSortMetric(value: string | undefined): PluginSortMetric | null {
-  if (value === 'rating' || value === 'rating-count') return value;
-  return null;
-}
-
-function toggleSortDirection(direction: PluginSortDirection): PluginSortDirection {
-  return direction === 'desc' ? 'asc' : 'desc';
-}
-
-function getNextCriteriaForMetric(
-  currentCriteria: PluginSortCriterion[],
-  metric: PluginSortMetric,
-): PluginSortCriterion[] {
-  const criterionIndex = currentCriteria.findIndex(criterion => criterion.metric === metric);
-  if (criterionIndex >= 0) {
-    return currentCriteria.map((criterion, index) => {
-      if (index !== criterionIndex) return criterion;
-      return {
-        ...criterion,
-        direction: toggleSortDirection(criterion.direction),
-      };
-    });
-  }
-
-  return [
-    ...currentCriteria,
-    { metric, direction: 'desc' },
-  ];
+function getPluginSortLabel(mode: Exclude<ListSortMode, 'original'>): string {
+  return mode === 'rating-desc' ? '评分高优先' : '评价人数多优先';
 }
 
 function findNativeToolbar(documentRef: Document): HTMLElement | null {
@@ -234,30 +113,6 @@ export function createListSortingController(options: ListSortingControllerOption
     options.logger?.(...args);
   };
 
-  const updateMetricButtonContent = (
-    button: HTMLButtonElement,
-    metric: PluginSortMetric,
-    criteria: PluginSortCriterion[],
-  ): void => {
-    const criterionIndex = criteria.findIndex(criterion => criterion.metric === metric);
-    const criterion = criterionIndex >= 0 ? criteria[criterionIndex] : null;
-    const metricLabel = options.document.createElement('span');
-    metricLabel.className = 'x-list-sort-button-main';
-    metricLabel.textContent = getMetricLabel(metric);
-
-    if (!criterion) {
-      button.replaceChildren(metricLabel);
-      button.title = `按${getMetricLabel(metric)}整理已加载影片`;
-      return;
-    }
-
-    const metaLabel = options.document.createElement('span');
-    metaLabel.className = 'x-list-sort-button-meta';
-    metaLabel.textContent = `${criterionIndex === 0 ? '主' : '次'} · ${getDirectionLabel(criterion.direction)}`;
-    button.replaceChildren(metricLabel, metaLabel);
-    button.title = `${getMetricLabel(metric)}${criterionIndex === 0 ? '主排序' : '次排序'}，${getDirectionLabel(criterion.direction)}；再次点击切换方向`;
-  };
-
   const updateActiveButtons = (): void => {
     const shouldShowNativeSelection = activeMode === 'original';
     toolbarElement?.querySelectorAll<HTMLElement>(`[${NATIVE_SORT_SELECTED_ATTR}="1"]`).forEach((button) => {
@@ -265,14 +120,10 @@ export function createListSortingController(options: ListSortingControllerOption
       button.classList.toggle('is-selected', shouldShowNativeSelection);
     });
 
-    const criteria = modeToCriteria(activeMode);
-    toolbarElement?.querySelectorAll<HTMLButtonElement>('[data-list-sort-metric]').forEach((button) => {
-      const metric = parsePluginSortMetric(button.dataset.listSortMetric);
-      if (!metric) return;
-      const isActive = criteria.some(criterion => criterion.metric === metric);
+    toolbarElement?.querySelectorAll<HTMLButtonElement>('[data-list-sort-mode]').forEach((button) => {
+      const isActive = button.dataset.listSortMode === activeMode;
       button.classList.toggle('is-info', isActive);
       button.classList.toggle('is-selected', isActive);
-      updateMetricButtonContent(button, metric, criteria);
     });
   };
 
@@ -355,15 +206,15 @@ export function createListSortingController(options: ListSortingControllerOption
 
     const appendPluginSortButtons = (wrapper: HTMLElement): void => {
       appendScopeLabel(wrapper, '已加载', '整理当前已显示的影片，自动翻页会扩大整理范围', 'plugin');
-      PLUGIN_SORT_METRICS.forEach((metric) => {
+      PLUGIN_SORT_MODES.forEach((mode) => {
         const button = options.document.createElement('button');
         button.type = 'button';
         button.className = 'button is-small x-list-sort-button';
-        button.dataset.listSortMetric = metric;
-        updateMetricButtonContent(button, metric, modeToCriteria(activeMode));
+        button.dataset.listSortMode = mode;
+        button.textContent = getPluginSortLabel(mode);
+        button.title = `按${getPluginSortLabel(mode)}整理已加载影片`;
         button.addEventListener('click', () => {
-          const nextCriteria = getNextCriteriaForMetric(modeToCriteria(activeMode), metric);
-          applySort(criteriaToMode(nextCriteria));
+          applySort(mode);
         });
         wrapper.appendChild(button);
       });

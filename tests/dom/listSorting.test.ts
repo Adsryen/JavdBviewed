@@ -83,42 +83,6 @@ describe('list sorting helpers', () => {
     ]);
   });
 
-  it('sorts loaded items in reverse directions and keeps missing values at the end', () => {
-    mountMovieList();
-    const items = readSortableItems(document);
-
-    expect(itemCases(sortSortableItems(items, 'rating-asc'))).toEqual([
-      'high-count',
-      'low-count',
-      'same-score',
-      'missing-score',
-    ]);
-    expect(itemCases(sortSortableItems(items, 'rating-count-asc'))).toEqual([
-      'low-count',
-      'same-score',
-      'high-count',
-      'missing-score',
-    ]);
-  });
-
-  it('sorts loaded items by composite rating and rating-count priorities', () => {
-    mountMovieList();
-    const items = readSortableItems(document);
-
-    expect(itemCases(sortSortableItems(items, 'rating-desc-count-desc'))).toEqual([
-      'same-score',
-      'low-count',
-      'high-count',
-      'missing-score',
-    ]);
-    expect(itemCases(sortSortableItems(items, 'rating-count-desc-score-desc'))).toEqual([
-      'high-count',
-      'same-score',
-      'low-count',
-      'missing-score',
-    ]);
-  });
-
   it('restores the native loaded order by original index', () => {
     mountMovieList();
     const items = readSortableItems(document);
@@ -197,16 +161,19 @@ describe('list sorting controller', () => {
     expect(nativeSegment).not.toBeNull();
     expect(pluginSegment).not.toBeNull();
     expect(nativeSegment?.querySelector<HTMLAnchorElement>('a[href="/actors/8VJya"]')?.textContent).toContain('发布日期倒序');
-    expect(pluginSegment?.textContent).toContain('评分');
-    expect(pluginSegment?.textContent).toContain('评价人数');
-    expect(pluginSegment?.textContent).not.toContain('评分优先');
-    expect(pluginSegment?.textContent).not.toContain('评价人数优先');
-    expect(pluginSegment?.textContent).not.toContain('评分高优先');
+    expect(pluginSegment?.textContent).toContain('评分高优先');
+    expect(pluginSegment?.textContent).toContain('评价人数多优先');
+    expect(pluginSegment?.textContent).not.toContain('评分低优先');
+    expect(pluginSegment?.textContent).not.toContain('评价人数少优先');
+    expect(pluginSegment?.textContent).not.toContain('主');
+    expect(pluginSegment?.textContent).not.toContain('次');
+    expect(pluginSegment?.textContent).not.toContain('高到低');
+    expect(pluginSegment?.textContent).not.toContain('低到高');
     expect(sortRow?.textContent).not.toContain('原站顺序');
     expect(sortRow?.textContent).not.toContain('增强排序');
     expect(pluginSegment?.querySelectorAll('.x-list-sort-button')).toHaveLength(2);
-    expect(pluginSegment?.querySelector<HTMLButtonElement>('[data-list-sort-metric="rating"]')).not.toBeNull();
-    expect(pluginSegment?.querySelector<HTMLButtonElement>('[data-list-sort-metric="rating-count"]')).not.toBeNull();
+    expect(pluginSegment?.querySelector<HTMLButtonElement>('[data-list-sort-mode="rating-desc"]')).not.toBeNull();
+    expect(pluginSegment?.querySelector<HTMLButtonElement>('[data-list-sort-mode="rating-count-desc"]')).not.toBeNull();
     expect(pluginSegment?.querySelector<HTMLButtonElement>('[data-list-sort-mode="original"]')).toBeNull();
     expect(nativeSegment?.querySelector('[data-list-sort-mode]')).toBeNull();
     expect(pluginSegment?.querySelector('a[href]')).toBeNull();
@@ -269,10 +236,14 @@ describe('list sorting controller', () => {
     expect(pluginSegment?.querySelector('a[href]')).toBeNull();
     expect(nativeSegment?.textContent).toContain('磁鏈更新排序');
     expect(nativeSegment?.textContent).toContain('发布日期排序');
-    expect(pluginSegment?.textContent).toContain('评分');
-    expect(pluginSegment?.textContent).toContain('评价人数');
-    expect(pluginSegment?.textContent).not.toContain('评分高优先');
-    expect(pluginSegment?.textContent).not.toContain('评分优先');
+    expect(pluginSegment?.textContent).toContain('评分高优先');
+    expect(pluginSegment?.textContent).toContain('评价人数多优先');
+    expect(pluginSegment?.textContent).not.toContain('评分低优先');
+    expect(pluginSegment?.textContent).not.toContain('评价人数少优先');
+    expect(pluginSegment?.textContent).not.toContain('主');
+    expect(pluginSegment?.textContent).not.toContain('次');
+    expect(pluginSegment?.textContent).not.toContain('高到低');
+    expect(pluginSegment?.textContent).not.toContain('低到高');
     expect(sortRow?.textContent).not.toContain('原站顺序');
     expect(sortRow?.textContent).not.toContain('增强排序');
     expect(sortRow?.querySelector('.x-list-sort-scope-hint')?.textContent)
@@ -281,7 +252,7 @@ describe('list sorting controller', () => {
     controller.applySort('rating-desc');
     const selectedLabels = Array.from(sortRow?.querySelectorAll<HTMLElement>('.button.is-info.is-selected') || [])
       .map(button => button.textContent?.trim());
-    expect(selectedLabels).toEqual(['评分主 · 高到低']);
+    expect(selectedLabels).toEqual(['评分高优先']);
   });
 
   it('sorts DOM items from the plugin toolbar and explains the loaded-scope result', () => {
@@ -302,7 +273,7 @@ describe('list sorting controller', () => {
     });
     controller.init();
 
-    document.querySelector<HTMLButtonElement>('[data-list-sort-metric="rating-count"]')?.click();
+    document.querySelector<HTMLButtonElement>('[data-list-sort-mode="rating-count-desc"]')?.click();
 
     const orderedCases = Array.from(document.querySelectorAll<HTMLElement>('.movie-list .item'))
       .map(item => item.dataset.case || '');
@@ -316,7 +287,7 @@ describe('list sorting controller', () => {
     expect(document.querySelector('.x-list-sort-notice')?.textContent).toContain('原站');
   });
 
-  it('toggles sort direction and combines loaded sorting metrics without extra mode buttons', () => {
+  it('switches between the two basic loaded sort modes without reverse or composite states', () => {
     document.body.innerHTML = `
       <div class="toolbar">
         <div class="buttons has-addons">
@@ -334,33 +305,34 @@ describe('list sorting controller', () => {
     });
     controller.init();
 
-    const ratingButton = document.querySelector<HTMLButtonElement>('[data-list-sort-metric="rating"]');
-    const ratingCountButton = document.querySelector<HTMLButtonElement>('[data-list-sort-metric="rating-count"]');
+    const ratingButton = document.querySelector<HTMLButtonElement>('[data-list-sort-mode="rating-desc"]');
+    const ratingCountButton = document.querySelector<HTMLButtonElement>('[data-list-sort-mode="rating-count-desc"]');
 
     expect(ratingButton).not.toBeNull();
     expect(ratingCountButton).not.toBeNull();
 
     ratingButton?.click();
     expect(controller.getActiveMode()).toBe('rating-desc');
-    expect(ratingButton?.textContent?.trim()).toBe('评分主 · 高到低');
+    expect(ratingButton?.textContent?.trim()).toBe('评分高优先');
+    expect(ratingButton?.classList.contains('is-selected')).toBe(true);
 
     ratingButton?.click();
-    expect(controller.getActiveMode()).toBe('rating-asc');
-    expect(ratingButton?.textContent?.trim()).toBe('评分主 · 低到高');
+    expect(controller.getActiveMode()).toBe('rating-desc');
     expect(Array.from(document.querySelectorAll<HTMLElement>('.movie-list .item')).map(item => item.dataset.case || ''))
-      .toEqual(['high-count', 'low-count', 'same-score', 'missing-score']);
+      .toEqual(['low-count', 'same-score', 'high-count', 'missing-score']);
 
     ratingCountButton?.click();
-    expect(controller.getActiveMode()).toBe('rating-asc-count-desc');
+    expect(controller.getActiveMode()).toBe('rating-count-desc');
     expect(Array.from(document.querySelectorAll<HTMLElement>('.movie-list .item')).map(item => item.dataset.case || ''))
       .toEqual(['high-count', 'same-score', 'low-count', 'missing-score']);
-    expect(ratingCountButton?.textContent?.trim()).toBe('评价人数次 · 高到低');
+    expect(ratingButton?.classList.contains('is-selected')).toBe(false);
+    expect(ratingCountButton?.classList.contains('is-selected')).toBe(true);
+    expect(ratingCountButton?.textContent?.trim()).toBe('评价人数多优先');
 
     ratingCountButton?.click();
-    expect(controller.getActiveMode()).toBe('rating-asc-count-asc');
+    expect(controller.getActiveMode()).toBe('rating-count-desc');
     expect(Array.from(document.querySelectorAll<HTMLElement>('.movie-list .item')).map(item => item.dataset.case || ''))
-      .toEqual(['high-count', 'low-count', 'same-score', 'missing-score']);
-    expect(ratingCountButton?.textContent?.trim()).toBe('评价人数次 · 低到高');
+      .toEqual(['high-count', 'same-score', 'low-count', 'missing-score']);
   });
 
   it('keeps one page prompt and accumulates appended items while plugin sorting is active', () => {
@@ -510,9 +482,11 @@ describe('list sorting controller', () => {
     expect(toolbar).not.toBeNull();
     expect(toolbar).toBe(document.getElementById('native-toolbar'));
     expect(sortRow?.textContent).toContain('磁鏈更新排序');
-    expect(sortRow?.querySelectorAll('[data-list-sort-metric]')).toHaveLength(2);
-    expect(sortRow?.textContent).toContain('评分');
-    expect(sortRow?.textContent).toContain('评价人数');
+    expect(sortRow?.querySelectorAll('[data-list-sort-mode]')).toHaveLength(2);
+    expect(sortRow?.textContent).toContain('评分高优先');
+    expect(sortRow?.textContent).toContain('评价人数多优先');
+    expect(sortRow?.textContent).not.toContain('评分低优先');
+    expect(sortRow?.textContent).not.toContain('主');
     expect(sortRow?.textContent).not.toContain('增强排序');
   });
 
@@ -523,7 +497,7 @@ describe('list sorting controller', () => {
     expect(LIST_ENHANCEMENT_BASE_STYLES).toContain('.x-list-sort-segment');
     expect(LIST_ENHANCEMENT_BASE_STYLES).toContain('.x-list-sort-scope-label');
     expect(LIST_ENHANCEMENT_BASE_STYLES).toContain('.x-list-sort-scope-hint');
-    expect(LIST_ENHANCEMENT_BASE_STYLES).toContain('.x-list-sort-button-meta');
+    expect(LIST_ENHANCEMENT_BASE_STYLES).not.toContain('.x-list-sort-button-meta');
     expect(LIST_ENHANCEMENT_BASE_STYLES).toContain('border-radius: 999px');
     expect(LIST_ENHANCEMENT_BASE_STYLES).not.toContain('.x-list-sort-toolbar {\n      display: flex;');
   });

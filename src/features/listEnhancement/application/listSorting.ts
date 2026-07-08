@@ -34,14 +34,6 @@ export interface NativeSortCapabilities {
   hasRatingCountSort: boolean;
 }
 
-type SortField = 'score' | 'ratingCount';
-type SortDirection = 'desc' | 'asc';
-
-interface SortCriterion {
-  field: SortField;
-  direction: SortDirection;
-}
-
 function parseOriginalIndex(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
@@ -84,83 +76,16 @@ function compareNullableNumberDesc(a: number | null, b: number | null): number {
   return b - a;
 }
 
-function compareNullableNumberAsc(a: number | null, b: number | null): number {
-  if (a === null && b === null) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return a - b;
-}
-
-function getSortCriteria(mode: ListSortMode): SortCriterion[] {
-  if (mode === 'rating-desc') return [{ field: 'score', direction: 'desc' }];
-  if (mode === 'rating-asc') return [{ field: 'score', direction: 'asc' }];
-  if (mode === 'rating-count-desc') return [{ field: 'ratingCount', direction: 'desc' }];
-  if (mode === 'rating-count-asc') return [{ field: 'ratingCount', direction: 'asc' }];
-  if (mode === 'rating-desc-count-desc') {
-    return [
-      { field: 'score', direction: 'desc' },
-      { field: 'ratingCount', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-desc-count-asc') {
-    return [
-      { field: 'score', direction: 'desc' },
-      { field: 'ratingCount', direction: 'asc' },
-    ];
-  }
-  if (mode === 'rating-asc-count-desc') {
-    return [
-      { field: 'score', direction: 'asc' },
-      { field: 'ratingCount', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-asc-count-asc') {
-    return [
-      { field: 'score', direction: 'asc' },
-      { field: 'ratingCount', direction: 'asc' },
-    ];
-  }
-  if (mode === 'rating-count-desc-score-desc') {
-    return [
-      { field: 'ratingCount', direction: 'desc' },
-      { field: 'score', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-count-desc-score-asc') {
-    return [
-      { field: 'ratingCount', direction: 'desc' },
-      { field: 'score', direction: 'asc' },
-    ];
-  }
-  if (mode === 'rating-count-asc-score-desc') {
-    return [
-      { field: 'ratingCount', direction: 'asc' },
-      { field: 'score', direction: 'desc' },
-    ];
-  }
-  if (mode === 'rating-count-asc-score-asc') {
-    return [
-      { field: 'ratingCount', direction: 'asc' },
-      { field: 'score', direction: 'asc' },
-    ];
-  }
-  return [];
-}
-
-function compareByCriterion(a: ListSortableItem, b: ListSortableItem, criterion: SortCriterion): number {
-  const aValue = criterion.field === 'score' ? a.score : a.ratingCount;
-  const bValue = criterion.field === 'score' ? b.score : b.ratingCount;
-  return criterion.direction === 'desc'
-    ? compareNullableNumberDesc(aValue, bValue)
-    : compareNullableNumberAsc(aValue, bValue);
-}
-
 export function sortSortableItems(items: ListSortableItem[], mode: ListSortMode): ListSortableItem[] {
   const sorted = [...items];
-  const criteria = getSortCriteria(mode);
   sorted.sort((a, b) => {
-    for (const criterion of criteria) {
-      const compared = compareByCriterion(a, b, criterion);
+    if (mode === 'rating-desc') {
+      const compared = compareNullableNumberDesc(a.score, b.score);
+      if (compared !== 0) return compared;
+    }
+
+    if (mode === 'rating-count-desc') {
+      const compared = compareNullableNumberDesc(a.ratingCount, b.ratingCount);
       if (compared !== 0) return compared;
     }
 
