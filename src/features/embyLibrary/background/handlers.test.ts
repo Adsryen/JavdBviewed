@@ -72,7 +72,19 @@ describe('emby library background handlers', () => {
       coverImageUrl: 'http://media.local:8096/Items/item-1/Images/Primary?tag=cover-tag',
     });
     expect(JSON.stringify(savedState)).not.toContain('api-secret');
-    expect(sendResponse).toHaveBeenCalledWith({ success: true, synced: 1, failed: 0 });
+    expect(sendResponse).toHaveBeenCalledWith({
+      success: true,
+      synced: 1,
+      failed: 0,
+      serverResults: [
+        expect.objectContaining({
+          serverId: 'main',
+          success: true,
+          itemCount: 1,
+          indexedCount: 1,
+        }),
+      ],
+    });
   });
 
   it('keeps previous successful entries when a server returns 401', async () => {
@@ -101,7 +113,37 @@ describe('emby library background handlers', () => {
         expect.objectContaining({ serverId: 'main', success: false, error: 'API Key 错误' }),
       ],
     }));
-    expect(sendResponse).toHaveBeenCalledWith({ success: false, synced: 0, failed: 1 });
+    expect(sendResponse).toHaveBeenCalledWith({
+      success: false,
+      synced: 0,
+      failed: 1,
+      serverResults: [
+        expect.objectContaining({ serverId: 'main', success: false, error: 'API Key 错误' }),
+      ],
+    });
+  });
+
+  it('returns per-server diagnostics for manual sync failures', async () => {
+    const sendResponse = vi.fn();
+    const fetchImpl = createFetchMock(async () => new Response('unauthorized', { status: 401 }));
+    const deps = createDeps(fetchImpl);
+
+    await handleEmbyLibrarySync({ manual: true }, sendResponse, deps);
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      success: false,
+      synced: 0,
+      failed: 1,
+      serverResults: [
+        expect.objectContaining({
+          serverId: 'main',
+          serverName: 'Main',
+          serverType: 'emby',
+          success: false,
+          error: 'API Key 错误',
+        }),
+      ],
+    });
   });
 
   it('preserves the last successful index timestamp when every server fails', async () => {
@@ -131,7 +173,14 @@ describe('emby library background handlers', () => {
         expect.objectContaining({ serverId: 'main', success: false, error: '连接失败 (500)' }),
       ],
     }));
-    expect(sendResponse).toHaveBeenCalledWith({ success: false, synced: 0, failed: 1 });
+    expect(sendResponse).toHaveBeenCalledWith({
+      success: false,
+      synced: 0,
+      failed: 1,
+      serverResults: [
+        expect.objectContaining({ serverId: 'main', success: false, error: '连接失败 (500)' }),
+      ],
+    });
   });
 
   it('times out stalled media server requests and keeps the previous index', async () => {
@@ -169,7 +218,14 @@ describe('emby library background handlers', () => {
           expect.objectContaining({ success: false, error: '连接超时' }),
         ],
       }));
-      expect(sendResponse).toHaveBeenCalledWith({ success: false, synced: 0, failed: 1 });
+      expect(sendResponse).toHaveBeenCalledWith({
+        success: false,
+        synced: 0,
+        failed: 1,
+        serverResults: [
+          expect.objectContaining({ serverId: 'main', success: false, error: '连接超时' }),
+        ],
+      });
     } finally {
       vi.useRealTimers();
     }

@@ -182,7 +182,7 @@ export async function handleEmbyLibrarySync(
 
     const servers = getEnabledServers(settings);
     if (servers.length === 0) {
-      sendResponse({ success: true, synced: 0, failed: 0 });
+      sendResponse({ success: true, synced: 0, failed: 0, serverResults: [] });
       return;
     }
 
@@ -246,7 +246,7 @@ export async function handleEmbyLibrarySync(
 
     const synced = serverResults.filter((result) => result.success).length;
     const failed = serverResults.filter((result) => !result.success).length;
-    sendResponse({ success: synced > 0, synced, failed });
+    sendResponse({ success: synced > 0, synced, failed, serverResults });
   } catch (error) {
     sendResponse({ success: false, error: sanitizeError(error) });
   }

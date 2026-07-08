@@ -587,6 +587,103 @@ div.url-item input.url-input:disabled {
     font-size: 13px;
 }
 
+.emby-library-sync-status.is-loading {
+    color: var(--text-secondary);
+}
+
+.emby-library-sync-status.is-success,
+.emby-library-sync-status.is-warning,
+.emby-library-sync-status.is-error {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-primary);
+}
+
+.emby-library-sync-status.is-success {
+    border-color: var(--success);
+}
+
+.emby-library-sync-status.is-warning {
+    border-color: var(--warning);
+}
+
+.emby-library-sync-status.is-error {
+    border-color: var(--error);
+}
+
+.emby-library-sync-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.emby-library-sync-status.is-success .emby-library-sync-summary i {
+    color: var(--success);
+}
+
+.emby-library-sync-status.is-warning .emby-library-sync-summary i {
+    color: var(--warning);
+}
+
+.emby-library-sync-status.is-error .emby-library-sync-summary i {
+    color: var(--error);
+}
+
+.emby-library-sync-hint {
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.emby-library-sync-servers {
+    display: grid;
+    gap: 8px;
+}
+
+.emby-library-sync-server {
+    display: grid;
+    gap: 5px;
+    padding: 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+.emby-library-sync-server.is-success {
+    border-color: var(--success);
+}
+
+.emby-library-sync-server.is-error {
+    border-color: var(--error);
+}
+
+.emby-library-sync-server-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.emby-library-sync-server-title span:last-child {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.emby-library-sync-server-problem {
+    color: var(--error);
+    font-weight: 600;
+}
+
+.emby-library-sync-server-detail {
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
 .emby-library-check-tool {
     margin-top: 16px;
     padding-top: 14px;

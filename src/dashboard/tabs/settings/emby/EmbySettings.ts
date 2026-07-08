@@ -12,6 +12,36 @@ import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import type { ExtensionSettings } from '../../../../types';
 import type { EmbyLibraryIndexEntry, EmbyMediaServer } from '../../../../features/embyLibrary/types';
 
+interface LibrarySyncServerResult {
+    serverId?: string;
+    serverType?: string;
+    serverName?: string;
+    success?: boolean;
+    itemCount?: number;
+    indexedCount?: number;
+    error?: string;
+}
+
+interface LibrarySyncResponse {
+    success?: boolean;
+    synced?: number;
+    failed?: number;
+    skipped?: boolean;
+    error?: string;
+    serverResults?: LibrarySyncServerResult[];
+}
+
+interface LibrarySyncDiagnosis {
+    title: string;
+    description: string;
+}
+
+interface LibraryCheckResponse {
+    success?: boolean;
+    error?: string;
+    matches?: Record<string, EmbyLibraryIndexEntry[]>;
+}
+
 /**
  * Emby/Jellyfin 设置面板类
  */
@@ -545,26 +575,141 @@ export class EmbySettings extends BaseSettingsPanel {
         if (!this.validateSettings()) return;
         await this.saveSettings();
         this.syncLibraryBtn.disabled = true;
-        this.syncStatusEl.textContent = '正在同步媒体库...';
+        this.renderLibrarySyncLoading();
         try {
-            const response = await this.sendRuntimeMessage({ type: 'EMBY_LIBRARY_SYNC', manual: true });
+            const response = await this.sendRuntimeMessage<LibrarySyncResponse>({ type: 'EMBY_LIBRARY_SYNC', manual: true });
             const synced = Number(response?.synced || 0);
             const failed = Number(response?.failed || 0);
+            const serverResults = this.normalizeLibrarySyncServerResults(response?.serverResults);
+            if (synced === 0 && failed === 0 && serverResults.length === 0) {
+                this.renderLibrarySyncSetupHint();
+                showMessage('还没有可同步的媒体服务器', 'warning');
+                return;
+            }
+
             if (response?.success) {
-                this.syncStatusEl.textContent = `同步完成：成功 ${synced} 个服务器，失败 ${failed} 个服务器`;
+                this.renderLibrarySyncResult('success', `同步完成：成功 ${synced} 个服务器，失败 ${failed} 个服务器`, serverResults);
                 showMessage('媒体库同步完成', 'success');
             } else {
                 const error = response?.error || (failed > 0 ? `失败 ${failed} 个服务器` : '同步失败');
-                this.syncStatusEl.textContent = `同步失败：${error}`;
-                showMessage(`媒体库同步失败：${error}`, 'error');
+                this.renderLibrarySyncResult('error', `同步失败：${error}`, serverResults);
+                showMessage('媒体库同步失败，请查看页面诊断信息', 'error');
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this.syncStatusEl.textContent = `同步失败：${message}`;
+            this.renderLibrarySyncResult('error', `同步失败：${message}`, []);
             showMessage(`媒体库同步失败：${message}`, 'error');
         } finally {
             this.syncLibraryBtn.disabled = false;
         }
+    }
+
+    private renderLibrarySyncLoading(): void {
+        this.syncStatusEl.className = 'emby-library-sync-status is-loading';
+        this.syncStatusEl.textContent = '正在同步媒体库...';
+    }
+
+    private renderLibrarySyncSetupHint(): void {
+        this.syncStatusEl.className = 'emby-library-sync-status is-warning';
+        this.syncStatusEl.innerHTML = `
+            <div class="emby-library-sync-summary">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>还没有可同步的媒体服务器</span>
+            </div>
+            <div class="emby-library-sync-hint">请先添加服务器并填写 API Key，确认启用后再同步媒体库。</div>
+        `;
+    }
+
+    private renderLibrarySyncResult(kind: 'success' | 'error', summary: string, serverResults: LibrarySyncServerResult[]): void {
+        this.syncStatusEl.className = `emby-library-sync-status is-${kind}`;
+        const icon = kind === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        const rows = serverResults.length > 0
+            ? `<div class="emby-library-sync-servers">${serverResults.map((result) => this.renderLibrarySyncServerResult(result)).join('')}</div>`
+            : '';
+        this.syncStatusEl.innerHTML = `
+            <div class="emby-library-sync-summary">
+                <i class="fas ${icon}"></i>
+                <span>${this.escapeHtml(summary)}</span>
+            </div>
+            ${rows}
+        `;
+    }
+
+    private renderLibrarySyncServerResult(result: LibrarySyncServerResult): string {
+        const success = result.success === true;
+        const serverName = String(result.serverName || result.serverId || '未命名服务器');
+        const serverType = String(result.serverType || 'media').toUpperCase();
+        if (success) {
+            return `
+                <div class="emby-library-sync-server is-success">
+                    <div class="emby-library-sync-server-title">
+                        <span>${this.escapeHtml(serverName)}</span>
+                        <span>${this.escapeHtml(serverType)}</span>
+                    </div>
+                    <div class="emby-library-sync-server-detail">读取 ${Number(result.itemCount || 0)} 个媒体条目，索引 ${Number(result.indexedCount || 0)} 个番号。</div>
+                </div>
+            `;
+        }
+
+        const diagnosis = this.getLibrarySyncDiagnosis(String(result.error || '同步失败'));
+        return `
+            <div class="emby-library-sync-server is-error">
+                <div class="emby-library-sync-server-title">
+                    <span>${this.escapeHtml(serverName)}</span>
+                    <span>${this.escapeHtml(serverType)}</span>
+                </div>
+                <div class="emby-library-sync-server-problem">${this.escapeHtml(diagnosis.title)}</div>
+                <div class="emby-library-sync-server-detail">${this.escapeHtml(diagnosis.description)}</div>
+            </div>
+        `;
+    }
+
+    private getLibrarySyncDiagnosis(error: string): LibrarySyncDiagnosis {
+        const normalized = error.trim() || '同步失败';
+        if (/API Key|401/i.test(normalized)) {
+            return {
+                title: 'API Key 可能无效',
+                description: '请在媒体服务器后台重新生成 API Key，并确认当前服务器配置已填写最新密钥。',
+            };
+        }
+        if (/超时|timeout|AbortError/i.test(normalized)) {
+            return {
+                title: '服务器连接超时',
+                description: '请确认服务器地址可以从当前浏览器访问，反向代理或内网地址需要保持在线。',
+            };
+        }
+        const httpStatus = normalized.match(/\((\d{3})\)/);
+        if (httpStatus) {
+            return {
+                title: `服务器返回 HTTP ${httpStatus[1]}`,
+                description: '请确认媒体服务器地址、端口、反向代理路径和账号权限是否正常。',
+            };
+        }
+        if (/解析/i.test(normalized)) {
+            return {
+                title: '媒体服务器返回内容无法解析',
+                description: '请确认配置的是 Emby/Jellyfin API 地址，不是网页登录页或反向代理错误页。',
+            };
+        }
+        return {
+            title: normalized,
+            description: '请检查服务器地址、API Key、网络连通性和媒体服务器运行状态。',
+        };
+    }
+
+    private normalizeLibrarySyncServerResults(value: unknown): LibrarySyncServerResult[] {
+        if (!Array.isArray(value)) return [];
+        return value
+            .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+            .map((item) => ({
+                serverId: typeof item.serverId === 'string' ? item.serverId : undefined,
+                serverType: typeof item.serverType === 'string' ? item.serverType : undefined,
+                serverName: typeof item.serverName === 'string' ? item.serverName : undefined,
+                success: item.success === true,
+                itemCount: typeof item.itemCount === 'number' ? item.itemCount : Number(item.itemCount || 0),
+                indexedCount: typeof item.indexedCount === 'number' ? item.indexedCount : Number(item.indexedCount || 0),
+                error: typeof item.error === 'string' ? item.error : undefined,
+            }));
     }
 
     private handleLibraryCheckKeydown(event: KeyboardEvent): void {
@@ -589,7 +734,7 @@ export class EmbySettings extends BaseSettingsPanel {
         this.libraryCheckResultEl.textContent = '正在检测入库状态...';
 
         try {
-            const response = await this.sendRuntimeMessage({
+            const response = await this.sendRuntimeMessage<LibraryCheckResponse>({
                 type: 'EMBY_LIBRARY_CHECK_CODES',
                 codes: [code],
             });
@@ -738,7 +883,7 @@ export class EmbySettings extends BaseSettingsPanel {
         }
     }
 
-    private sendRuntimeMessage(message: any): Promise<any> {
+    private sendRuntimeMessage<TResponse = unknown>(message: unknown): Promise<TResponse> {
         return new Promise((resolve, reject) => {
             try {
                 chrome.runtime.sendMessage(message, (response) => {
@@ -746,7 +891,7 @@ export class EmbySettings extends BaseSettingsPanel {
                         reject(new Error(chrome.runtime.lastError.message));
                         return;
                     }
-                    resolve(response);
+                    resolve(response as TResponse);
                 });
             } catch (error) {
                 reject(error);

@@ -169,4 +169,72 @@ describe('Emby settings', () => {
     expect(cover?.getAttribute('src')).toBe('http://192.168.1.10:8096/Items/item-124/Images/Primary?tag=cover-tag');
     expect(cover?.getAttribute('alt')).toBe('');
   });
+
+  it('renders actionable diagnostics when manual media library sync fails', async () => {
+    STATE.settings.emby.mediaServers = [
+      {
+        id: 'home',
+        type: 'emby',
+        name: '家庭 Emby',
+        url: 'http://192.168.1.10:8096',
+        apiKey: 'secret-key',
+        enabled: true,
+      },
+    ];
+    setEmbySettingsHtml();
+    createSettings();
+    vi.mocked(chrome.runtime.sendMessage).mockImplementationOnce((message: unknown, callback?: (response: unknown) => void) => {
+      expect(message).toEqual({ type: 'EMBY_LIBRARY_SYNC', manual: true });
+      callback?.({
+        success: false,
+        synced: 0,
+        failed: 1,
+        serverResults: [
+          {
+            serverId: 'home',
+            serverType: 'emby',
+            serverName: '家庭 Emby',
+            success: false,
+            itemCount: 0,
+            indexedCount: 0,
+            error: 'API Key 错误',
+            checkedAt: 1000,
+          },
+        ],
+      });
+    });
+
+    (document.getElementById('sync-emby-library') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const status = document.getElementById('emby-library-sync-status') as HTMLDivElement;
+
+    expect(status.classList.contains('is-error')).toBe(true);
+    expect(status.textContent).toContain('家庭 Emby');
+    expect(status.textContent).toContain('API Key 可能无效');
+    expect(status.textContent).toContain('请在媒体服务器后台重新生成 API Key');
+  });
+
+  it('shows a setup hint instead of success when no media server can sync', async () => {
+    setEmbySettingsHtml();
+    createSettings();
+    vi.mocked(chrome.runtime.sendMessage).mockImplementationOnce((message: unknown, callback?: (response: unknown) => void) => {
+      expect(message).toEqual({ type: 'EMBY_LIBRARY_SYNC', manual: true });
+      callback?.({
+        success: true,
+        synced: 0,
+        failed: 0,
+        serverResults: [],
+      });
+    });
+
+    (document.getElementById('sync-emby-library') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const status = document.getElementById('emby-library-sync-status') as HTMLDivElement;
+
+    expect(status.classList.contains('is-warning')).toBe(true);
+    expect(status.textContent).toContain('还没有可同步的媒体服务器');
+    expect(status.textContent).toContain('添加服务器并填写 API Key');
+  });
 });
