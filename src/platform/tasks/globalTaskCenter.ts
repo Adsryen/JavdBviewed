@@ -258,22 +258,53 @@ export class GlobalTaskCenter {
     }
   }
 
-  registerTask(descriptor: GlobalTaskDescriptor, sender?: chrome.runtime.MessageSender): { ok: true; taskId: string; tabId: number } {
+  registerTask(descriptor: GlobalTaskDescriptor, sender?: chrome.runtime.MessageSender): {
+    ok: true;
+    taskId: string;
+    tabId: number;
+    reused?: boolean;
+    status?: string;
+  } {
     this.cleanupStaleTasks();
     const existing = this.store.getTask(descriptor.taskId);
-    if (existing) return { ok: true, taskId: descriptor.taskId, tabId: existing.descriptor.tabId };
+    if (existing) {
+      return {
+        ok: true,
+        taskId: descriptor.taskId,
+        tabId: existing.descriptor.tabId,
+        reused: true,
+        status: existing.runtime.status,
+      };
+    }
     const dedupeKey = descriptor.dedupeKey || `${descriptor.label}:${descriptor.pageUrl}`;
     const dedupedTaskId = this.dedupeIndex.get(dedupeKey);
     if (dedupedTaskId) {
       const dedupedTask = this.store.getTask(dedupedTaskId);
       if (dedupedTask) {
-        if (['canceled', 'done', 'error'].includes(dedupedTask.runtime.status)) {
+        const status = dedupedTask.runtime.status;
+        // 共享动作（如 115 推送）复用终态结果，避免多页重复真实执行
+        if (['done', 'error'].includes(status) && dedupedTask.descriptor.shareScope === 'dedupe-by-action') {
+          return {
+            ok: true,
+            taskId: dedupedTaskId,
+            tabId: dedupedTask.descriptor.tabId,
+            reused: true,
+            status,
+          };
+        }
+        if (['canceled', 'done', 'error'].includes(status)) {
           this.store.deleteTask(dedupedTaskId);
           if (this.dedupeIndex.get(dedupeKey) === dedupedTaskId) {
             this.dedupeIndex.delete(dedupeKey);
           }
         } else {
-        return { ok: true, taskId: dedupedTaskId, tabId: dedupedTask.descriptor.tabId };
+          return {
+            ok: true,
+            taskId: dedupedTaskId,
+            tabId: dedupedTask.descriptor.tabId,
+            reused: true,
+            status,
+          };
         }
       }
     }
@@ -286,7 +317,7 @@ export class GlobalTaskCenter {
     };
     this.store.setTask(descriptor.taskId, { descriptor: { ...descriptor, tabId, dedupeKey }, runtime });
     this.dedupeIndex.set(dedupeKey, descriptor.taskId);
-    return { ok: true, taskId: descriptor.taskId, tabId };
+    return { ok: true, taskId: descriptor.taskId, tabId, reused: false, status: 'registered' };
   }
 
   requestLease(taskId: string): LeaseResponse {
