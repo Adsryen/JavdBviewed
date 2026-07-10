@@ -14,6 +14,7 @@ import type {
 } from '../../types';
 import { actorManager } from './actorManager';
 import { getSettings } from '../../utils/storage';
+import { isCloudflareChallenge } from '../../dashboard/dataSync/cloudflareVerification';
 
 export class ActorSyncService {
     private abortController: AbortController | null = null;
@@ -347,10 +348,38 @@ export class ActorSyncService {
                     });
 
                     if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        const errorMsg = `HTTP ${response.status}，${category.displayName} 同步中断`;
+                        result.errors.push(errorMsg);
+                        onProgress?.({
+                            stage: 'error',
+                            current: totalProcessed,
+                            total: 0,
+                            percentage: 0,
+                            message: errorMsg,
+                            errors: [errorMsg],
+                        });
+                        categoryHasMore = false;
+                        break;
                     }
 
                     const html = await response.text();
+
+                    // Cloudflare 拦截检测：遇到验证页面立即终止当前分类，不写入脏数据
+                    if (isCloudflareChallenge(html)) {
+                        const errorMsg = `检测到 Cloudflare 人机验证，${category.displayName} 同步中断`;
+                        result.errors.push(errorMsg);
+                        onProgress?.({
+                            stage: 'error',
+                            current: totalProcessed,
+                            total: 0,
+                            percentage: 0,
+                            message: errorMsg,
+                            errors: [errorMsg],
+                        });
+                        categoryHasMore = false;
+                        break;
+                    }
+
                     const pageActors = await this.parseActorsFromCollectionHtml(html);
 
                     console.log(`${category.displayName} 第 ${categoryPage} 页解析到 ${pageActors.length} 个演员`);
