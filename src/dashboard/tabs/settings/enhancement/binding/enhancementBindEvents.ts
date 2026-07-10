@@ -49,6 +49,7 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.veEnableActorRemarks?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableActorNameMarks?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableRelatedLists?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.veEnableLocalListInSourceModal?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableExternalEntryPanel?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableExternalSearch?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableOnlineAvailability?.addEventListener('change', host.handleSettingChange.bind(host));

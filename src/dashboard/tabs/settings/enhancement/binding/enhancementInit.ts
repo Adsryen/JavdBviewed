@@ -53,6 +53,7 @@ export function initializeElements(host: EnhancementInitHost): void {
     ['veEnableActorRemarks', 'veEnableActorRemarks'],
     ['veEnableActorNameMarks', 'veEnableActorNameMarks'],
     ['veEnableRelatedLists', 'veEnableRelatedLists'],
+    ['veEnableLocalListInSourceModal', 'veEnableLocalListInSourceModal'],
     ['veEnableExternalEntryPanel', 'veEnableExternalEntryPanel'],
     ['veEnableExternalSearch', 'veEnableExternalSearch'],
     ['veEnableOnlineAvailability', 'veEnableOnlineAvailability'],

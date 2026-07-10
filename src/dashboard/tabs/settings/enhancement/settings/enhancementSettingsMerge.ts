@@ -29,6 +29,7 @@ type EnhancementSaveHost = {
   listSortingAppendStrategy?: HTMLSelectElement;
   listSortingAutoResortPosition?: HTMLSelectElement;
   veEnableRelatedLists?: HTMLInputElement;
+  veEnableLocalListInSourceModal?: HTMLInputElement;
   veEnableExternalEntryPanel?: HTMLInputElement;
   veEnableExternalSearch?: HTMLInputElement;
   veEnableOnlineAvailability?: HTMLInputElement;
@@ -76,6 +77,7 @@ export function mergeEnhancementSettingsForSave(
     videoEnhancement: {
       ...existingVideoEnhancement,
       enableRelatedLists: host.veEnableRelatedLists?.checked ?? existingVideoEnhancement.enableRelatedLists ?? true,
+      enableLocalListInSourceModal: host.veEnableLocalListInSourceModal?.checked ?? existingVideoEnhancement.enableLocalListInSourceModal ?? true,
       enableExternalEntryPanel: host.veEnableExternalEntryPanel?.checked ?? existingVideoEnhancement.enableExternalEntryPanel ?? true,
       enableExternalSearch: host.veEnableExternalSearch?.checked ?? existingVideoEnhancement.enableExternalSearch ?? true,
       enableOnlineAvailability: host.veEnableOnlineAvailability?.checked ?? existingVideoEnhancement.enableOnlineAvailability ?? true,

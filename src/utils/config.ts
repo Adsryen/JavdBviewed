@@ -541,6 +541,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         // 新增：影片页收藏与评分
         enableVideoFavoriteRating: true, // 默认启用
         enableRelatedLists: true,
+        enableLocalListInSourceModal: true, // 源站存入清单 modal 内展示拓展本地清单
         enableExternalEntryPanel: true,
         enableExternalSearch: true,
         enableOnlineAvailability: true,

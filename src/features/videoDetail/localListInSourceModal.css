@@ -1,0 +1,108 @@
+/* 源站「存入清單」modal 中的拓展本地清单 —— 贴合 Bulma checkbox 列表 */
+
+.jdb-ext-local-lists {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(10, 10, 10, 0.1);
+}
+
+.jdb-ext-local-lists__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #7a7a7a;
+  margin: 0 0 0.55rem;
+  line-height: 1.2;
+}
+
+/* 复用源站 .control.is-grouped 纵向节奏 */
+.jdb-ext-local-lists__body.control.is-grouped {
+  display: block;
+  margin: 0;
+}
+
+.jdb-ext-local-lists__body > .control {
+  margin-bottom: 0.35rem;
+}
+
+.jdb-ext-local-lists__body > .control:last-child {
+  margin-bottom: 0;
+}
+
+/* 继承源站 label.checkbox 外观，只做轻量对齐 */
+.jdb-ext-local-lists__item.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+  color: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+}
+
+.jdb-ext-local-lists__item.checkbox input[type="checkbox"] {
+  margin-right: 0.35em;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.jdb-ext-local-lists__item.checkbox input[type="checkbox"]:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.jdb-ext-local-lists__empty,
+.jdb-ext-local-lists__loading,
+.jdb-ext-local-lists__error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #7a7a7a;
+  line-height: 1.5;
+}
+
+.jdb-ext-local-lists__error {
+  color: #f14668;
+}
+
+.jdb-ext-local-lists__link {
+  color: #3273dc;
+  text-decoration: none;
+  margin-left: 0.25em;
+}
+
+.jdb-ext-local-lists__link:hover {
+  color: #2366d1;
+  text-decoration: underline;
+}
+
+/* 源站暗色主题（html.theme-dark / body） */
+html.theme-dark .jdb-ext-local-lists,
+body.theme-dark .jdb-ext-local-lists,
+html[data-theme="dark"] .jdb-ext-local-lists,
+body[data-theme="dark"] .jdb-ext-local-lists {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+html.theme-dark .jdb-ext-local-lists__title,
+body.theme-dark .jdb-ext-local-lists__title,
+html[data-theme="dark"] .jdb-ext-local-lists__title,
+body[data-theme="dark"] .jdb-ext-local-lists__title,
+html.theme-dark .jdb-ext-local-lists__empty,
+body.theme-dark .jdb-ext-local-lists__empty,
+html[data-theme="dark"] .jdb-ext-local-lists__empty,
+body[data-theme="dark"] .jdb-ext-local-lists__empty,
+html.theme-dark .jdb-ext-local-lists__loading,
+body.theme-dark .jdb-ext-local-lists__loading,
+html[data-theme="dark"] .jdb-ext-local-lists__loading,
+body[data-theme="dark"] .jdb-ext-local-lists__loading {
+  color: #a0a0a0;
+}
+
+html.theme-dark .jdb-ext-local-lists__link,
+body.theme-dark .jdb-ext-local-lists__link,
+html[data-theme="dark"] .jdb-ext-local-lists__link,
+body[data-theme="dark"] .jdb-ext-local-lists__link {
+  color: #79b8ff;
+}

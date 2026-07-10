@@ -25,6 +25,7 @@ import { newWorksManager } from '../newWorks';
 import { actorExtraInfoService } from '../actorRemarks';
 import { videoDetailEnhancer } from './enhancer';
 import { videoFavoriteRatingEnhancer } from './favoriteRating';
+import { localListInSourceModalEnhancer } from './localListInSourceModal';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
@@ -406,6 +407,7 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     const enableCurrentTitleTranslation = enableTranslation && (settings?.translation?.targets ? settings.translation.targets.currentTitle !== false : true);
     const enableActorNameMarks = (settings as any)?.videoEnhancement?.enableActorNameMarks !== false;
     const enableRelatedLists = enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableRelatedLists !== false;
+    const enableLocalListInSourceModal = enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableLocalListInSourceModal !== false;
     const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(settings as any);
 
     log('[VideoDetailBlueprints] gates', {
@@ -417,6 +419,7 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
         enableActorNameMarks,
         enableActorRemarks: (settings as any)?.videoEnhancement?.enableActorRemarks === true,
         enableRelatedLists,
+        enableLocalListInSourceModal,
     });
 
     blueprints.push({ phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' });
@@ -451,6 +454,10 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
         blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 4, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] });
+    }
+
+    if (enableLocalListInSourceModal) {
+        blueprints.push({ phase: 'idle', label: 'localListInSourceModal:init', dependsOn: ['videoStatus:initialSync'] });
     }
 
     if (enableActorNameMarks) {
@@ -687,6 +694,8 @@ export async function handleVideoDetailPage(): Promise<void> {
                 enableRelatedLists: (STATE.settings as any)?.videoEnhancement?.enabled === true
                     && (STATE.settings as any)?.videoEnhancement?.enableRelatedLists !== false,
                 enableVideoFavoriteRating: (STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true,
+                enableLocalListInSourceModal: (STATE.settings as any)?.videoEnhancement?.enabled === true
+                    && (STATE.settings as any)?.videoEnhancement?.enableLocalListInSourceModal !== false,
             });
 
             initOrchestrator.add('high', async () => {
@@ -798,6 +807,18 @@ export async function handleVideoDetailPage(): Promise<void> {
                     priority: 4,
                     visibilityPolicy: 'background_allowed',
                     delayMs: 80,
+                });
+            }
+
+            if ((STATE.settings as any)?.videoEnhancement?.enabled === true
+                && (STATE.settings as any)?.videoEnhancement?.enableLocalListInSourceModal !== false) {
+                initOrchestrator.add('idle', async () => {
+                    await localListInSourceModalEnhancer.init();
+                }, {
+                    label: 'localListInSourceModal:init',
+                    idle: true,
+                    idleTimeout: 5000,
+                    dependsOn: ['videoStatus:initialSync'],
                 });
             }
         } catch (e) {

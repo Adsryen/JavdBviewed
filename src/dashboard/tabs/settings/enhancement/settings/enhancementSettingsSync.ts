@@ -61,6 +61,7 @@ export function doGetSettings(host: EnhancementSettingsSyncHost): Partial<Extens
     } as any,
     videoEnhancement: {
       enableRelatedLists: host.veEnableRelatedLists?.checked !== false,
+      enableLocalListInSourceModal: host.veEnableLocalListInSourceModal?.checked !== false,
       enableExternalEntryPanel: host.veEnableExternalEntryPanel?.checked !== false,
       enableExternalSearch: host.veEnableExternalSearch?.checked !== false,
       enableOnlineAvailability: host.veEnableOnlineAvailability?.checked !== false,
@@ -153,6 +154,7 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       if (host.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') host.veEnableActorRemarks.checked = ve.enableActorRemarks;
       if (host.veEnableActorNameMarks && typeof ve.enableActorNameMarks === 'boolean') host.veEnableActorNameMarks.checked = ve.enableActorNameMarks;
       if (host.veEnableRelatedLists && typeof ve.enableRelatedLists === 'boolean') host.veEnableRelatedLists.checked = ve.enableRelatedLists;
+      if (host.veEnableLocalListInSourceModal && typeof ve.enableLocalListInSourceModal === 'boolean') host.veEnableLocalListInSourceModal.checked = ve.enableLocalListInSourceModal;
       if (host.veEnableExternalEntryPanel && typeof ve.enableExternalEntryPanel === 'boolean') host.veEnableExternalEntryPanel.checked = ve.enableExternalEntryPanel;
       if (host.veEnableExternalSearch && typeof ve.enableExternalSearch === 'boolean') host.veEnableExternalSearch.checked = ve.enableExternalSearch;
       if (host.veEnableOnlineAvailability && typeof ve.enableOnlineAvailability === 'boolean') host.veEnableOnlineAvailability.checked = ve.enableOnlineAvailability;
