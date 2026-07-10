@@ -7,6 +7,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import type { GlobalTaskDescriptor } from '../src/shared/taskCenterTypes.ts';
 import { GlobalTaskCenter } from '../src/platform/tasks/globalTaskCenter.ts';
+import { TASK_CENTER_MESSAGE } from '../src/shared/taskCenterProtocol.ts';
 
 const originalWindow = (globalThis as any).window;
 const originalDocument = (globalThis as any).document;
@@ -30,6 +31,16 @@ const originalChrome = (globalThis as any).chrome;
   runtime: {
     sendMessage: async () => ({ ok: true }),
     onMessage: { addListener: () => undefined },
+  },
+  storage: {
+    local: {
+      get: (_keys: any, callback?: (result: any) => void) => {
+        if (typeof callback === 'function') callback({});
+        return Promise.resolve({});
+      },
+      set: async () => undefined,
+      remove: async () => undefined,
+    },
   },
 };
 
@@ -59,8 +70,18 @@ function createDescriptor(overrides: Partial<GlobalTaskDescriptor> & Pick<Global
     retryLimit: overrides.retryLimit ?? 2,
     dedupeKey: overrides.dedupeKey,
     resumePolicy: overrides.resumePolicy ?? 'restart',
+    executionClass: overrides.executionClass,
+    shareScope: overrides.shareScope,
     createdAt: overrides.createdAt ?? now,
   };
+}
+
+function handle(center: GlobalTaskCenter, message: any, sender: chrome.runtime.MessageSender = {} as chrome.runtime.MessageSender) {
+  let response: any;
+  center.handleMessage(message, sender, (value) => {
+    response = value;
+  });
+  return response;
 }
 
 describe('GlobalTaskCenter scheduling', () => {
@@ -133,6 +154,16 @@ describe('GlobalTaskCenter scheduling', () => {
         },
         onMessage: { addListener: () => undefined },
       },
+      storage: {
+        local: {
+          get: (_keys: any, callback?: (result: any) => void) => {
+            if (typeof callback === 'function') callback({});
+            return Promise.resolve({});
+          },
+          set: async () => undefined,
+          remove: async () => undefined,
+        },
+      },
     };
 
     try {
@@ -164,4 +195,456 @@ describe('GlobalTaskCenter scheduling', () => {
       (globalThis as any).chrome = previousChrome;
     }
   }, 20_000);
+});
+
+describe('GlobalTaskCenter page-lifecycle (P0-1)', () => {
+  it('handleMessage page-lifecycle cancels only matching pageInstance tasks', () => {
+    const center = new GlobalTaskCenter();
+    center.registerTask(createDescriptor({
+      taskId: 'page-a-task',
+      label: 'videoEnhancement:runTitle',
+      pageInstanceId: 'page-a',
+      dedupeKey: 'runTitle:page-a',
+    }));
+    center.registerTask(createDescriptor({
+      taskId: 'page-b-task',
+      label: 'videoEnhancement:runTitle',
+      pageInstanceId: 'page-b',
+      dedupeKey: 'runTitle:page-b',
+    }));
+
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.PAGE_LIFECYCLE,
+      payload: { pageInstanceId: 'page-a', reason: 'page-refresh-replaced' },
+    });
+
+    expect(response).toEqual({ ok: true, canceled: 1 });
+    const state = center.queryState();
+    const pageA = state.tasks.find((task: any) => task.taskId === 'page-a-task');
+    const pageB = state.tasks.find((task: any) => task.taskId === 'page-b-task');
+    expect(pageA?.status).toBe('canceled');
+    expect(pageA?.waitReason).toBe('page-refresh-replaced');
+    expect(pageB?.status).toBe('registered');
+  });
+
+  it('cancels all non-terminal tasks under the same pageInstance', () => {
+    const center = new GlobalTaskCenter();
+    center.registerTask(createDescriptor({
+      taskId: 'a1',
+      label: 'videoEnhancement:runTitle',
+      pageInstanceId: 'page-a',
+      dedupeKey: 'a1',
+    }));
+    center.registerTask(createDescriptor({
+      taskId: 'a2',
+      label: 'videoEnhancement:runCover',
+      pageInstanceId: 'page-a',
+      dedupeKey: 'a2',
+    }));
+    center.registerTask(createDescriptor({
+      taskId: 'a3-done',
+      label: 'videoEnhancement:finish',
+      pageInstanceId: 'page-a',
+      dedupeKey: 'a3',
+    }));
+    center.completeTask('a3-done');
+
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.PAGE_LIFECYCLE,
+      payload: { pageInstanceId: 'page-a', reason: 'page-refresh-replaced' },
+    });
+
+    expect(response).toEqual({ ok: true, canceled: 2 });
+    const state = center.queryState();
+    expect(state.tasks.find((t: any) => t.taskId === 'a1')?.status).toBe('canceled');
+    expect(state.tasks.find((t: any) => t.taskId === 'a2')?.status).toBe('canceled');
+    expect(state.tasks.find((t: any) => t.taskId === 'a3-done')?.status).toBe('done');
+  });
+
+  it('does not cancel shared dedupe-by-action tasks owned by other page instances', () => {
+    const center = new GlobalTaskCenter();
+    const sharedKey = 'drive115:push:ABC-123:magnet:xyz';
+
+    center.registerTask(createDescriptor({
+      taskId: 'push-owner',
+      label: 'drive115:push',
+      pageInstanceId: 'page-owner',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+      executionClass: 'on-demand',
+    }));
+    center.updateVisibility(1, true);
+    center.requestLease('push-owner');
+
+    center.registerTask(createDescriptor({
+      taskId: 'local-task',
+      label: 'videoEnhancement:runTitle',
+      pageInstanceId: 'page-other',
+      dedupeKey: 'runTitle:page-other',
+    }));
+
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.PAGE_LIFECYCLE,
+      payload: { pageInstanceId: 'page-other', reason: 'page-refresh-replaced' },
+    });
+
+    expect(response).toEqual({ ok: true, canceled: 1 });
+    const state = center.queryState();
+    expect(state.tasks.find((t: any) => t.taskId === 'local-task')?.status).toBe('canceled');
+    expect(['registered', 'queued', 'leased', 'running']).toContain(
+      state.tasks.find((t: any) => t.taskId === 'push-owner')?.status,
+    );
+  });
+
+  it('cancels shared tasks when the owning pageInstance itself is closed', () => {
+    const center = new GlobalTaskCenter();
+    const sharedKey = 'drive115:push:ABC-123:magnet:owner-close';
+
+    center.registerTask(createDescriptor({
+      taskId: 'push-owner',
+      label: 'drive115:push',
+      pageInstanceId: 'page-owner',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+    }));
+    center.updateVisibility(1, true);
+    center.requestLease('push-owner');
+
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.PAGE_LIFECYCLE,
+      payload: { pageInstanceId: 'page-owner', reason: 'page-refresh-replaced' },
+    });
+
+    expect(response).toEqual({ ok: true, canceled: 1 });
+    expect(center.queryState().tasks.find((t: any) => t.taskId === 'push-owner')?.status).toBe('canceled');
+  });
+
+  it('cancel-page-instance is an alias of page-lifecycle', () => {
+    const center = new GlobalTaskCenter();
+    center.registerTask(createDescriptor({
+      taskId: 'alias-task',
+      label: 'listEnhancement:init',
+      pageInstanceId: 'page-x',
+      dedupeKey: 'list:page-x',
+    }));
+
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.CANCEL_PAGE_INSTANCE,
+      payload: { pageInstanceId: 'page-x', reason: 'page-closed-by-user' },
+    });
+
+    expect(response).toEqual({ ok: true, canceled: 1 });
+    expect(center.queryState().tasks.find((t: any) => t.taskId === 'alias-task')?.waitReason).toBe('page-closed-by-user');
+  });
+
+  it('rejects page-lifecycle without pageInstanceId', () => {
+    const center = new GlobalTaskCenter();
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.PAGE_LIFECYCLE,
+      payload: { reason: 'page-refresh-replaced' },
+    });
+    expect(response).toEqual({ ok: false, error: 'missing-page-instance-id' });
+  });
+
+  it('is a no-op when pageInstance has no active tasks', () => {
+    const center = new GlobalTaskCenter();
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.PAGE_LIFECYCLE,
+      payload: { pageInstanceId: 'ghost', reason: 'page-refresh-replaced' },
+    });
+    expect(response).toEqual({ ok: true, canceled: 0 });
+  });
+
+  it('leaves already terminal tasks untouched', () => {
+    const center = new GlobalTaskCenter();
+    center.registerTask(createDescriptor({
+      taskId: 'done-task',
+      label: 'videoEnhancement:runTitle',
+      pageInstanceId: 'page-term',
+      dedupeKey: 'done-key',
+    }));
+    center.completeTask('done-task');
+    center.registerTask(createDescriptor({
+      taskId: 'error-task',
+      label: 'videoEnhancement:runCover',
+      pageInstanceId: 'page-term',
+      dedupeKey: 'error-key',
+    }));
+    center.failTask('error-task', 'boom');
+    center.registerTask(createDescriptor({
+      taskId: 'canceled-task',
+      label: 'videoEnhancement:runFC2Breaker',
+      pageInstanceId: 'page-term',
+      dedupeKey: 'canceled-key',
+    }));
+    center.cancelTask('canceled-task', 'manual');
+
+    const response = handle(center, {
+      type: TASK_CENTER_MESSAGE.PAGE_LIFECYCLE,
+      payload: { pageInstanceId: 'page-term', reason: 'page-refresh-replaced' },
+    });
+
+    expect(response).toEqual({ ok: true, canceled: 0 });
+    const state = center.queryState();
+    expect(state.tasks.find((t: any) => t.taskId === 'done-task')?.status).toBe('done');
+    expect(state.tasks.find((t: any) => t.taskId === 'error-task')?.status).toBe('error');
+    expect(state.tasks.find((t: any) => t.taskId === 'canceled-task')?.status).toBe('canceled');
+  });
+});
+
+describe('GlobalTaskCenter shareScope / dedupe (P0-3/4/5)', () => {
+  it('reuses terminal done for dedupe-by-action and force key creates a new execution', () => {
+    const center = new GlobalTaskCenter();
+    const sharedKey = 'drive115:push:ABC-123:magnet:xyz';
+
+    const first = center.registerTask(createDescriptor({
+      taskId: 'push-1',
+      label: 'drive115:push',
+      pageInstanceId: 'page-1',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+      executionClass: 'on-demand',
+    }));
+    expect(first.reused).toBe(false);
+    center.completeTask('push-1');
+
+    const second = center.registerTask(createDescriptor({
+      taskId: 'push-2',
+      label: 'drive115:push',
+      pageInstanceId: 'page-2',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+      executionClass: 'on-demand',
+    }));
+    expect(second.reused).toBe(true);
+    expect(second.taskId).toBe('push-1');
+    expect(second.status).toBe('done');
+
+    const force = center.registerTask(createDescriptor({
+      taskId: 'push-3',
+      label: 'drive115:push',
+      pageInstanceId: 'page-2',
+      dedupeKey: `${sharedKey}:force:1`,
+      shareScope: 'dedupe-by-action',
+      executionClass: 'on-demand',
+    }));
+    expect(force.reused).toBe(false);
+    expect(force.taskId).toBe('push-3');
+
+    const state = center.queryState();
+    expect(state.tasks.find((task: any) => task.taskId === 'push-1')?.executionClass).toBe('on-demand');
+    expect(state.tasks.find((task: any) => task.taskId === 'push-1')?.shareScope).toBe('dedupe-by-action');
+  });
+
+  it('reuses terminal error for dedupe-by-action without re-registering', () => {
+    const center = new GlobalTaskCenter();
+    const sharedKey = 'drive115:push:ABC-123:magnet:err';
+
+    center.registerTask(createDescriptor({
+      taskId: 'push-err-1',
+      label: 'drive115:push',
+      pageInstanceId: 'page-1',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+    }));
+    center.failTask('push-err-1', 'api-failed');
+
+    const second = center.registerTask(createDescriptor({
+      taskId: 'push-err-2',
+      label: 'drive115:push',
+      pageInstanceId: 'page-2',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+    }));
+
+    expect(second.reused).toBe(true);
+    expect(second.taskId).toBe('push-err-1');
+    expect(second.status).toBe('error');
+  });
+
+  it('reuses in-flight dedupe-by-action tasks across pages', () => {
+    const center = new GlobalTaskCenter();
+    const sharedKey = 'drive115:push:ABC-123:magnet:run';
+
+    center.registerTask(createDescriptor({
+      taskId: 'push-run-1',
+      label: 'drive115:push',
+      pageInstanceId: 'page-1',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+    }));
+    center.updateVisibility(1, true);
+    const lease = center.requestLease('push-run-1');
+    expect(lease.granted).toBe(true);
+
+    const second = center.registerTask(createDescriptor({
+      taskId: 'push-run-2',
+      label: 'drive115:push',
+      pageInstanceId: 'page-2',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+    }));
+
+    expect(second.reused).toBe(true);
+    expect(second.taskId).toBe('push-run-1');
+    expect(['leased', 'running', 'queued', 'registered']).toContain(second.status);
+  });
+
+  it('allows re-register after canceled even for dedupe-by-action', () => {
+    const center = new GlobalTaskCenter();
+    const sharedKey = 'drive115:push:ABC-123:magnet:cancel';
+
+    center.registerTask(createDescriptor({
+      taskId: 'push-c1',
+      label: 'drive115:push',
+      pageInstanceId: 'page-1',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+    }));
+    center.cancelTask('push-c1', 'page-refresh-replaced');
+
+    const next = center.registerTask(createDescriptor({
+      taskId: 'push-c2',
+      label: 'drive115:push',
+      pageInstanceId: 'page-2',
+      dedupeKey: sharedKey,
+      shareScope: 'dedupe-by-action',
+    }));
+
+    expect(next.reused).toBe(false);
+    expect(next.taskId).toBe('push-c2');
+    expect(next.status).toBe('registered');
+  });
+
+  it('does not merge different magnets under the same video', () => {
+    const center = new GlobalTaskCenter();
+    const first = center.registerTask(createDescriptor({
+      taskId: 'push-m1',
+      label: 'drive115:push',
+      dedupeKey: 'drive115:push:ABC:magnet-a',
+      shareScope: 'dedupe-by-action',
+    }));
+    const second = center.registerTask(createDescriptor({
+      taskId: 'push-m2',
+      label: 'drive115:push',
+      dedupeKey: 'drive115:push:ABC:magnet-b',
+      shareScope: 'dedupe-by-action',
+    }));
+    expect(first.reused).toBe(false);
+    expect(second.reused).toBe(false);
+    expect(second.taskId).toBe('push-m2');
+  });
+
+  it('keeps default terminal dedupe behavior when shareScope is absent (done/error/canceled)', () => {
+    const center = new GlobalTaskCenter();
+    const key = 'videoEnhancement:runTitle:page-1';
+
+    center.registerTask(createDescriptor({
+      taskId: 'title-1',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: key,
+    }));
+    center.completeTask('title-1');
+    const afterDone = center.registerTask(createDescriptor({
+      taskId: 'title-2',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: key,
+    }));
+    expect(afterDone.reused).toBe(false);
+    expect(afterDone.taskId).toBe('title-2');
+
+    center.failTask('title-2', 'boom');
+    const afterError = center.registerTask(createDescriptor({
+      taskId: 'title-3',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: key,
+    }));
+    expect(afterError.reused).toBe(false);
+    expect(afterError.taskId).toBe('title-3');
+
+    center.cancelTask('title-3', 'manual');
+    const afterCancel = center.registerTask(createDescriptor({
+      taskId: 'title-4',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: key,
+    }));
+    expect(afterCancel.reused).toBe(false);
+    expect(afterCancel.taskId).toBe('title-4');
+  });
+
+  it('still reuses in-flight non-shareScope tasks with same dedupeKey', () => {
+    const center = new GlobalTaskCenter();
+    const key = 'videoEnhancement:runTitle:page-1';
+    center.registerTask(createDescriptor({
+      taskId: 'title-live-1',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: key,
+    }));
+    const second = center.registerTask(createDescriptor({
+      taskId: 'title-live-2',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: key,
+    }));
+    expect(second.reused).toBe(true);
+    expect(second.taskId).toBe('title-live-1');
+  });
+
+  it('reuses exact same taskId without creating a second record', () => {
+    const center = new GlobalTaskCenter();
+    const first = center.registerTask(createDescriptor({
+      taskId: 'same-id',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: 'same-id-key',
+    }));
+    const second = center.registerTask(createDescriptor({
+      taskId: 'same-id',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: 'same-id-key',
+    }));
+    expect(first.reused).toBe(false);
+    expect(second.reused).toBe(true);
+    expect(second.taskId).toBe('same-id');
+    expect(center.queryState().tasks.filter((t: any) => t.taskId === 'same-id')).toHaveLength(1);
+  });
+
+  it('queryState exposes optional executionClass and shareScope only when set', () => {
+    const center = new GlobalTaskCenter();
+    center.registerTask(createDescriptor({
+      taskId: 'meta-1',
+      label: 'privacy:init',
+      dedupeKey: 'privacy:page-1',
+      executionClass: 'system-only',
+      shareScope: 'per-page',
+    }));
+    center.registerTask(createDescriptor({
+      taskId: 'meta-2',
+      label: 'videoEnhancement:runTitle',
+      dedupeKey: 'title:page-1',
+    }));
+
+    const state = center.queryState();
+    const withMeta = state.tasks.find((t: any) => t.taskId === 'meta-1');
+    const withoutMeta = state.tasks.find((t: any) => t.taskId === 'meta-2');
+    expect(withMeta?.executionClass).toBe('system-only');
+    expect(withMeta?.shareScope).toBe('per-page');
+    expect(withoutMeta?.executionClass).toBeUndefined();
+    expect(withoutMeta?.shareScope).toBeUndefined();
+  });
+
+  it('falls back to label:pageUrl dedupeKey when omitted', () => {
+    const center = new GlobalTaskCenter();
+    const first = center.registerTask(createDescriptor({
+      taskId: 'fallback-1',
+      label: 'videoEnhancement:runTitle',
+      pageUrl: '/v/same',
+    }));
+    const second = center.registerTask(createDescriptor({
+      taskId: 'fallback-2',
+      label: 'videoEnhancement:runTitle',
+      pageUrl: '/v/same',
+    }));
+    expect(first.reused).toBe(false);
+    expect(second.reused).toBe(true);
+    expect(second.taskId).toBe('fallback-1');
+  });
 });

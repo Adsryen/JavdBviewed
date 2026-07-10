@@ -59,7 +59,7 @@ export function getTaskDescription(label: string): string {
     'ux:shortcuts:init': '快捷键系统初始化',
     'superRankingNav:init': '超级排行榜导航初始化',
     'keyboardShortcuts:init': '快捷键系统初始化',
-    'privacy:init': '隐私保护系统初始化',
+    // privacy:init 主 content 未接线，不在设计视图展示为可执行任务
     'ui:remove-unwanted': '移除官方按钮',
     'drive115:init:video': '115网盘功能初始化（影片页）',
     'drive115:init:list': '115网盘功能初始化（列表页）',

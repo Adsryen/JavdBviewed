@@ -133,7 +133,9 @@ async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
             btn.innerHTML = '&nbsp;推送115&nbsp;';
             btn.addEventListener('click', () => {
                 log(`[Drive115] Push button clicked: ${videoId} | ${magnetName}`);
-                void handlePushToDrive115(btn, videoId, magnetLink.href, magnetName).catch((error) => {
+                const force = btn.dataset.drive115Force === '1';
+                if (force) delete btn.dataset.drive115Force;
+                void handlePushToDrive115(btn, videoId, magnetLink.href, magnetName, { force }).catch((error) => {
                     log('[Drive115] Push click handler failed:', error);
                 });
             });
@@ -264,7 +266,8 @@ export async function handlePushToDrive115(
     button: HTMLButtonElement,
     videoId: string,
     magnetUrl: string,
-    magnetName: string
+    magnetName: string,
+    options: { force?: boolean } = {},
 ): Promise<void> {
     const pageContext = getPageContext();
     const correlationId = `drive115-push:${videoId}:${Date.now()}`;
@@ -316,6 +319,10 @@ export async function handlePushToDrive115(
             showToast('115网盘功能未启用，请先在设置中启用', 'error');
             return;
         }
+        // 跨页同磁链同动作合并；force 时追加唯一后缀绕过 dedupe
+        const actionDedupeKey = options.force
+            ? `drive115:push:${videoId}:${magnetUrl}:force:${Date.now()}`
+            : `drive115:push:${videoId}:${magnetUrl}`;
         rootTask = await ensureManagedTaskRegistered(createManagedTaskDescriptor({
             label: 'drive115:push',
             phase: 'critical',
@@ -325,10 +332,58 @@ export async function handlePushToDrive115(
             timeoutMs: 30000,
             retryLimit: 1,
             resumePolicy: 'resume',
-            dedupeKey: `drive115:push:${pageContext.pageInstanceId}:${videoId}:${magnetUrl}`,
+            dedupeKey: actionDedupeKey,
+            shareScope: 'dedupe-by-action',
+            executionClass: 'on-demand',
             correlationId,
         }));
         log(`[Drive115] task registered: ${rootTask.taskId}`);
+
+        // 命中已完成/失败的共享任务：直接复用结果，避免重复真实推送
+        if (rootTask.reused && (rootTask.status === 'done' || rootTask.status === 'error')) {
+            const reusedStatus = rootTask.status;
+            if (reusedStatus === 'done') {
+                button.innerHTML = '已推送';
+                button.className = 'button is-success is-small drive115-push-btn';
+                showToast(`${magnetName} 已在其他页面推送成功`, 'success');
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                    button.className = 'button is-success is-small drive115-push-btn';
+                    // 成功复用后允许用户主动 force 重推
+                    button.dataset.drive115Force = '1';
+                }, 3000);
+            } else {
+                button.innerHTML = '推送失败';
+                button.className = 'button is-danger is-small drive115-push-btn';
+                // 失败复用：立即标记 force，避免再次点击仍命中 error 终态
+                button.dataset.drive115Force = '1';
+                showToast(`${magnetName} 此前推送失败，可强制重推`, 'error');
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                    button.className = 'button is-success is-small drive115-push-btn';
+                    button.dataset.drive115Force = '1';
+                }, 3000);
+            }
+            return;
+        }
+
+        // 命中进行中的共享任务：本页只展示状态，不重复发起 API
+        if (rootTask.reused && ['registered', 'queued', 'leased', 'running', 'paused'].includes(String(rootTask.status || ''))) {
+            button.disabled = true;
+            button.innerHTML = '&nbsp;推送中...&nbsp;';
+            button.className = 'button is-warning is-small drive115-push-btn is-loading';
+            showToast(`${magnetName} 已在其他页面推送中`, 'info');
+            // 进行中复用不阻塞永久：稍后恢复按钮，再次点击仍会命中共享 in-flight 任务
+            setTimeout(() => {
+                button.innerHTML = originalText || '&nbsp;推送115&nbsp;';
+                button.disabled = false;
+                button.className = 'button is-success is-small drive115-push-btn';
+            }, 5000);
+            return;
+        }
+
         button.disabled = true;
         button.innerHTML = '&nbsp;推送中...&nbsp;';
         button.className = 'button is-warning is-small drive115-push-btn is-loading';
@@ -442,11 +497,19 @@ export async function handlePushToDrive115(
                     button.innerHTML = originalText;
                     button.disabled = false;
                     button.className = 'button is-success is-small drive115-push-btn';
+                    button.dataset.drive115Force = '1';
                 }, 3000);
             }
             const task = getRootTask();
             await progressManagedTask(task.taskId, { stage: 'done', detail: 'push complete', progressPct: 100 });
             await completeManagedTask(task.taskId);
+            // 成功后恢复按钮并允许 force 重推（绕过 done 终态复用）
+            setTimeout(() => {
+                button.innerHTML = originalText || '&nbsp;推送115&nbsp;';
+                button.disabled = false;
+                button.className = 'button is-success is-small drive115-push-btn';
+                button.dataset.drive115Force = '1';
+            }, 3000);
         } else {
             throw new Error(result.error || '推送失败');
         }
@@ -463,11 +526,12 @@ export async function handlePushToDrive115(
 
         showToast(`推送失败: ${errorMessage}`, 'error');
 
-        // 3秒后恢复原状态
+        // 3秒后恢复原状态；再次点击可 force 重推
         setTimeout(() => {
             button.innerHTML = originalText || '&nbsp;推送115&nbsp;';
             button.disabled = false;
             button.className = 'button is-success is-small drive115-push-btn';
+            button.dataset.drive115Force = '1';
         }, 3000);
     }
 }

@@ -69,6 +69,26 @@ describe('task runtime messaging', () => {
     });
   });
 
+  it('forwards optional executionClass and shareScope from createManagedTaskDescriptor', () => {
+    const descriptor = createManagedTaskDescriptor({
+      label: 'drive115:push',
+      phase: 'critical',
+      priority: 20,
+      cost: 'medium',
+      visibilityPolicy: 'foreground_first',
+      timeoutMs: 15000,
+      retryLimit: 1,
+      resumePolicy: 'restart',
+      dedupeKey: 'drive115:push:vid:magnet',
+      executionClass: 'on-demand',
+      shareScope: 'dedupe-by-action',
+    });
+
+    expect(descriptor.executionClass).toBe('on-demand');
+    expect(descriptor.shareScope).toBe('dedupe-by-action');
+    expect(descriptor.dedupeKey).toBe('drive115:push:vid:magnet');
+  });
+
   it('registers a managed task and applies background task id and tab id', async () => {
     setRuntimeMessageHandler((message) => {
       expect(message.type).toBe(TASK_CENTER_MESSAGE.REGISTER);
@@ -83,6 +103,46 @@ describe('task runtime messaging', () => {
       type: TASK_CENTER_MESSAGE.REGISTER,
       payload: { taskId: 'task-1' },
     });
+  });
+
+  it('propagates reused and status from register response for shared actions', async () => {
+    setRuntimeMessageHandler((message) => {
+      expect(message.type).toBe(TASK_CENTER_MESSAGE.REGISTER);
+      return { taskId: 'shared-push', tabId: 12, reused: true, status: 'done' };
+    });
+
+    await expect(registerManagedTask(makeDescriptor({
+      label: 'drive115:push',
+      taskId: 'local-push',
+      shareScope: 'dedupe-by-action',
+      executionClass: 'on-demand',
+      dedupeKey: 'drive115:push:vid:magnet',
+    }))).resolves.toMatchObject({
+      taskId: 'shared-push',
+      tabId: 12,
+      reused: true,
+      status: 'done',
+      shareScope: 'dedupe-by-action',
+      executionClass: 'on-demand',
+    });
+  });
+
+  it('defaults reused to false when background omits it', async () => {
+    setRuntimeMessageHandler(() => ({ taskId: 'new-task', tabId: 3 }));
+
+    await expect(registerManagedTask(makeDescriptor())).resolves.toMatchObject({
+      taskId: 'new-task',
+      tabId: 3,
+      reused: false,
+      status: undefined,
+    });
+  });
+
+  it('returns the original descriptor when background response lacks tabId', async () => {
+    setRuntimeMessageHandler(() => ({ ok: false }));
+
+    const descriptor = makeDescriptor({ taskId: 'fallback-task' });
+    await expect(registerManagedTask(descriptor)).resolves.toEqual(descriptor);
   });
 
   it('sends lease, progress, completion, and failure messages with the protocol constants', async () => {

@@ -161,7 +161,7 @@ export function renderTaskDetailsTable(controller: TaskDetailsController): void 
                 'videoStatus:observer': '页面影片状态监听 (videoStatus:observer)',
                 'ux:shortcuts:init': '快捷键初始化 (ux:shortcuts:init)',
                 'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
-                'privacy:init': '隐私保护初始化 (privacy:init)',
+                // privacy:init 主 content 未接线，不展示为正常可执行任务
                 'ui:remove-unwanted': '移除不需要的按钮 (ui:remove-unwanted)',
                 'superRankingNav:init': '超级排行榜导航初始化 (superRankingNav:init)',
                 'magnetSearch:init': '磁力搜索初始化 (magnetSearch:init)',

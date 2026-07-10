@@ -32,6 +32,7 @@ export {
   untrackActiveManagedTask,
   waitForTaskLease,
   type ManagedTaskRunResult,
+  type RegisteredManagedTask,
 } from './runtimeMessaging';
 
 export function createManagedTaskDescriptor(

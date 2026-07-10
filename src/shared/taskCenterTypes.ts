@@ -15,6 +15,14 @@ export type GlobalTaskCost = 'light' | 'medium' | 'heavy';
 export type GlobalTaskVisibilityPolicy = 'foreground_first' | 'background_allowed' | 'foreground_only';
 /** 任务恢复策略 —— 页面刷新后如何处理未完成任务 */
 export type GlobalTaskResumePolicy = 'restart' | 'resume' | 'cache_then_skip';
+/** 执行保证语义：用于可观察性与后续调度策略，不单独改变默认并发算法 */
+export type GlobalTaskExecutionClass = 'must-run' | 'best-effort' | 'on-demand' | 'system-only';
+/**
+ * 跨页共享范围：
+ * - per-page: 每页独立（默认 dedupeKey 含 pageInstanceId）
+ * - dedupe-by-video / dedupe-by-action / global: 由 feature 在 dedupeKey 中编码业务身份
+ */
+export type GlobalTaskShareScope = 'per-page' | 'dedupe-by-video' | 'dedupe-by-action' | 'global';
 
 /** 任务描述符 —— 创建时的静态配置，运行期间不变 */
 export interface GlobalTaskDescriptor {
@@ -37,6 +45,8 @@ export interface GlobalTaskDescriptor {
   dedupeKey?: string;                                 // 去重键，相同 key 的任务不会重复创建
   registrationSource?: 'blueprint' | 'runtime';       // blueprint=预定义, runtime=运行时动态创建
   resumePolicy: GlobalTaskResumePolicy;
+  executionClass?: GlobalTaskExecutionClass;
+  shareScope?: GlobalTaskShareScope;
   dependsOn?: string[];                               // 前置依赖任务 ID 列表
   metadata?: Record<string, unknown>;                 // 业务自定义元数据
   createdAt: number;

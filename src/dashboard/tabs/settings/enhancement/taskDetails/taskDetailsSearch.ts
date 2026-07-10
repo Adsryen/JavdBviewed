@@ -54,7 +54,7 @@ export function taskDetailsSearchHandler(controller: TaskDetailsController): voi
         'videoEnhancement:clickEnhancement': '视频增强-点击增强',
         'ux:shortcuts:init': '快捷键初始化',
         'ux:magnet:autoSearch': '磁力搜索自动检索',
-        'privacy:init': '隐私保护初始化',
+        // privacy:init 主 content 未接线，不展示为正常可执行任务
         'ui:remove-unwanted': '移除不需要的按钮',
         'superRankingNav:init': '超级排行榜导航初始化',
         'magnetSearch:init': '磁力搜索初始化',

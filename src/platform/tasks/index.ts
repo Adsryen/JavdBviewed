@@ -33,6 +33,7 @@ export {
   untrackActiveManagedTask,
   waitForTaskLease,
   type ManagedTaskRunResult,
+  type RegisteredManagedTask,
 } from './contentRuntime';
 
 export {

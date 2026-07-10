@@ -1,5 +1,10 @@
 /**
  * 内容脚本隐私功能入口
+ *
+ * 注意：主 content 路径当前未调用 initializeContentPrivacy。
+ * 普通 JavDB/JavBus 隐私覆盖归独立任务
+ * `07-09-content-privacy-coverage-governance`；本文件仅保留可调用入口，
+ * 避免在任务中心/设计视图被误认为已调度的 must-run 能力。
  */
 
 import { getElementProtector } from './elementProtector';
@@ -8,7 +13,7 @@ import { initializePrivacySystem } from '..';
 import { createManagedTaskDescriptor, runManagedTask } from '../../../platform/tasks';
 
 /**
- * 初始化内容脚本隐私功能
+ * 初始化内容脚本隐私功能（当前主 content 未接线；保留供未来 content-privacy 任务接入）
  */
 export async function initializeContentPrivacy(): Promise<void> {
     const descriptor = createManagedTaskDescriptor({
@@ -20,6 +25,8 @@ export async function initializeContentPrivacy(): Promise<void> {
         timeoutMs: 10000,
         retryLimit: 2,
         resumePolicy: 'restart',
+        executionClass: 'system-only',
+        shareScope: 'per-page',
     });
     await runManagedTask(descriptor, async () => {
     try {

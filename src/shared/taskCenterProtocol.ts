@@ -12,7 +12,9 @@ export const TASK_CENTER_MESSAGE = {
   CANCEL: 'task-center:cancel',
   VISIBILITY: 'task-center:visibility',
   QUERY: 'task-center:query',
-  CLEAR: 'task-center:clear'
+  CLEAR: 'task-center:clear',
+  PAGE_LIFECYCLE: 'task-center:page-lifecycle',
+  CANCEL_PAGE_INSTANCE: 'task-center:cancel-page-instance',
 } as const;
 
 export interface RegisterTaskMessage {

@@ -64,21 +64,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     globalTaskCenter.handleMessage(message, sender, sendResponse);
     return globalTaskCenter.isAsyncMessage(message.type) || undefined;
   }
-  if (message?.type === 'task-center:page-lifecycle') {
-    try {
-      const pageInstanceId = String(message.payload?.pageInstanceId || '');
-      const reason = String(message.payload?.reason || 'page-refresh-replaced');
-      console.log('[Background] Page lifecycle cancellation received', { pageInstanceId, reason, tabId: sender.tab?.id });
-      if (!pageInstanceId) {
-        sendResponse({ ok: false, error: 'missing-page-instance-id' });
-      } else {
-        sendResponse(globalTaskCenter.cancelTasksByPageInstance(pageInstanceId, reason));
-      }
-    } catch (err) {
-      sendResponse({ ok: false, error: String(err) });
-    }
-    return false;
-  }
   if (message?.type === 'CANCEL_STALE_LEASE') {
     try {
       const { taskId, reason } = message.payload || {};

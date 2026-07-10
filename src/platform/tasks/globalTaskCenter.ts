@@ -571,6 +571,8 @@ export class GlobalTaskCenter {
       retryLimit: record.descriptor.retryLimit,
       dedupeKey: record.descriptor.dedupeKey,
       resumePolicy: record.descriptor.resumePolicy,
+      executionClass: record.descriptor.executionClass,
+      shareScope: record.descriptor.shareScope,
       createdAt: record.descriptor.createdAt,
       status: record.runtime.status,
       waitReason: record.runtime.waitReason,
@@ -661,9 +663,17 @@ export class GlobalTaskCenter {
         case 'task-center:restore':
           this.restoreFromStorage().then(() => { sendResponse({ ok: true }); }).catch((e) => { sendResponse({ ok: false, error: String(e) }); });
           return; // async response via sendResponse
-        case 'task-center:cancel-page-instance':
-          sendResponse(this.cancelTasksByPageInstance(String(message.payload?.pageInstanceId || ''), String(message.payload?.reason || 'page-closed-by-user')));
+        case TASK_CENTER_MESSAGE.PAGE_LIFECYCLE:
+        case TASK_CENTER_MESSAGE.CANCEL_PAGE_INSTANCE: {
+          const pageInstanceId = String(message.payload?.pageInstanceId || '');
+          const reason = String(message.payload?.reason || 'page-closed-by-user');
+          if (!pageInstanceId) {
+            sendResponse({ ok: false, error: 'missing-page-instance-id' });
+            return;
+          }
+          sendResponse(this.cancelTasksByPageInstance(pageInstanceId, reason));
           return;
+        }
         default:
           sendResponse({ ok: false, error: 'unknown-task-center-message' });
           return;

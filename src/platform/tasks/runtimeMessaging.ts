@@ -7,15 +7,26 @@ import { TASK_CENTER_MESSAGE } from '../../shared/taskCenterProtocol';
 import type { GlobalTaskDescriptor } from '../../shared/taskCenterTypes';
 
 /** 向 background 注册任务并获取分配的 taskId 和 tabId */
-export async function registerManagedTask(descriptor: GlobalTaskDescriptor): Promise<GlobalTaskDescriptor> {
+export type RegisteredManagedTask = GlobalTaskDescriptor & {
+  reused?: boolean;
+  status?: string;
+};
+
+export async function registerManagedTask(descriptor: GlobalTaskDescriptor): Promise<RegisteredManagedTask> {
   const response = await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.REGISTER, payload: descriptor });
   if (response && typeof response.tabId === 'number') {
-    return { ...descriptor, tabId: response.tabId, taskId: response.taskId || descriptor.taskId };
+    return {
+      ...descriptor,
+      tabId: response.tabId,
+      taskId: response.taskId || descriptor.taskId,
+      reused: response.reused === true,
+      status: typeof response.status === 'string' ? response.status : undefined,
+    };
   }
   return descriptor;
 }
 
-export async function ensureManagedTaskRegistered(descriptor: GlobalTaskDescriptor): Promise<GlobalTaskDescriptor> {
+export async function ensureManagedTaskRegistered(descriptor: GlobalTaskDescriptor): Promise<RegisteredManagedTask> {
   return await registerManagedTask(descriptor);
 }
 

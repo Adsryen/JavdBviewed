@@ -1270,11 +1270,15 @@ export class MagnetSearchManager {
       // - 完整的日志记录
       // - 推送成功后自动标记已看
       // - 标记已看后自动刷新页面
+      // - 跨页 dedupe-by-action；失败/成功后 dataset.drive115Force 可强制重推
+      const force = button.dataset.drive115Force === '1';
+      if (force) delete button.dataset.drive115Force;
       await handlePushToDrive115(
         button,
         this.currentVideoId || 'unknown',
         magnet,
-        name
+        name,
+        { force },
       );
 
     } catch (error) {
