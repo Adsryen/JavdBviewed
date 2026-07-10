@@ -134,3 +134,103 @@ describe('VideoDetailEnhancer related lists enhancement', () => {
     expect(document.getElementById('jdb-related-lists-panel')?.getAttribute('aria-hidden')).toBe('false');
   });
 });
+describe('isBulmaModalTrigger excludes modal buttons from interception', () => {
+  /**
+   * Helper: sets up the enhancer with the interception active,
+   * returns a function that fires a click on the given element
+   * and returns whether the event was defaultPrevented (= intercepted).
+   */
+  async function setupInterception() {
+    window.history.pushState({}, '', '/v/NQ6pPb');
+    document.body.innerHTML = `
+      <h2 class="title is-4"><strong>SSIS-001</strong></h2>
+      <div class="movie-panel-info">
+        <div class="tabs">
+          <ul id="tab-list">
+            <li><a href="/plans/ypay">Related lists</a></li>
+          </ul>
+        </div>
+      </div>
+      <div id="tabs-container"><div id="reviews"></div></div>
+    `;
+    const enhancer = new VideoDetailEnhancer({ enableRelatedLists: true }) as any;
+    vi.spyOn(relatedListsService, 'getRelatedLists').mockResolvedValue({
+      success: true,
+      data: [],
+      page: 1,
+      totalPages: 0,
+      hasMore: false,
+    });
+    await enhancer.initCore();
+    return enhancer;
+  }
+
+  function fireClick(el: HTMLElement): MouseEvent {
+    const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
+    el.dispatchEvent(evt);
+    return evt;
+  }
+
+  it('does NOT intercept a button with data-target^="modal-" (存入清單 modal trigger)', async () => {
+    await setupInterception();
+
+    const modalBtn = document.createElement('button');
+    modalBtn.className = 'button is-info';
+    modalBtn.setAttribute('data-target', 'modal-save-list');
+    modalBtn.textContent = '存入清單';
+    document.querySelector('.movie-panel-info')!.appendChild(modalBtn);
+
+    const evt = fireClick(modalBtn);
+    expect(evt.defaultPrevented).toBe(false);
+  });
+
+  it('does NOT intercept a button with data-haspopup="true"', async () => {
+    await setupInterception();
+
+    const btn = document.createElement('button');
+    btn.setAttribute('data-haspopup', 'true');
+    btn.textContent = '清單選項';
+    document.querySelector('.movie-panel-info')!.appendChild(btn);
+
+    const evt = fireClick(btn);
+    expect(evt.defaultPrevented).toBe(false);
+  });
+
+  it('does NOT intercept a button with data-auth="true"', async () => {
+    await setupInterception();
+
+    const btn = document.createElement('button');
+    btn.setAttribute('data-auth', 'true');
+    btn.textContent = '需要登入';
+    document.querySelector('.movie-panel-info')!.appendChild(btn);
+
+    const evt = fireClick(btn);
+    expect(evt.defaultPrevented).toBe(false);
+  });
+
+  it('does NOT intercept a li whose child has data-target^="modal-"', async () => {
+    await setupInterception();
+
+    const li = document.createElement('li');
+    const childBtn = document.createElement('button');
+    childBtn.setAttribute('data-target', 'modal-auth');
+    childBtn.textContent = '看清單';
+    li.appendChild(childBtn);
+    document.querySelector('#tab-list')!.appendChild(li);
+
+    const evt = fireClick(childBtn);
+    expect(evt.defaultPrevented).toBe(false);
+  });
+
+  it('still intercepts the Related lists tab (no modal attributes)', async () => {
+    await setupInterception();
+
+    const relatedTab = document.querySelector<HTMLAnchorElement>(
+      'a[data-jdb-related-lists-original-href="/plans/ypay"]',
+    );
+    expect(relatedTab).not.toBeNull();
+
+    const evt = fireClick(relatedTab!);
+    expect(evt.defaultPrevented).toBe(true);
+  });
+});

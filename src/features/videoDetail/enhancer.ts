@@ -957,6 +957,12 @@ export class VideoDetailEnhancer {
     const candidate = target.closest<HTMLElement>('li, a, button, [role="tab"], [data-movie-tab-target]');
     if (!candidate || candidate.closest('#jdb-related-lists-panel')) return null;
 
+    // 排除 Bulma modal 触发器按钮（如「存入清單」「看過」「想看」等），
+    // 这些按钮虽然包含「清單」字样，但不应被当作 tab 拦截。
+    if (this.isBulmaModalTrigger(candidate)) {
+      return null;
+    }
+
     const anchor = (candidate.matches('a') ? candidate : candidate.querySelector('a')) as HTMLAnchorElement | null;
     const href = anchor?.getAttribute('href') || '';
     const dataTarget = candidate.getAttribute('data-movie-tab-target')
@@ -967,9 +973,16 @@ export class VideoDetailEnhancer {
     const isRelated = dataTarget === 'lists'
       || href.includes('#lists')
       || href.includes('/plans/')
-      || /相关清单|相關清單|清单|清單|lists/i.test(text);
+      || /相关清单|相关清單|lists/i.test(text);
 
     return inMovieTabBar && isRelated ? candidate : null;
+  }
+
+  private isBulmaModalTrigger(el: HTMLElement): boolean {
+    if (el.matches('[data-target^="modal-"], [data-haspopup="true"], [data-auth="true"]')) {
+      return true;
+    }
+    return !!el.querySelector('[data-target^="modal-"], [data-haspopup="true"]');
   }
 
   private isMovieTabClickTarget(target: HTMLElement): boolean {
