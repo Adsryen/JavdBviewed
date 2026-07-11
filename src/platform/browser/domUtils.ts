@@ -15,29 +15,71 @@ function contentLog(...args: any[]): void {
 }
 
 export function setFavicon(url: string): void {
-    // 移除所有现有的favicon链接
-    document.querySelectorAll('link[rel*="icon"]').forEach(link => link.remove());
+    if (!url) return;
 
-    // 创建新的favicon链接
-    const link = document.createElement('link');
-    link.rel = 'icon';
-    link.type = url.endsWith('.png') ? 'image/png' : 'image/x-icon';
-    link.href = url + '?t=' + Date.now(); // 添加时间戳防止缓存
+    const isExtensionResourceUrl = (value: string): boolean =>
+        /^(chrome|moz|safari)-extension:\/\//i.test(value) || value.startsWith('chrome-extension://');
 
-    // 添加到head
-    document.head.appendChild(link);
+    const applyFaviconHref = (href: string, sourceUrl: string): void => {
+        document.querySelectorAll('link[rel*="icon"]').forEach((link) => link.remove());
 
-    // 强制刷新favicon（Chrome特定的hack）
-    const oldLink = document.createElement('link');
-    oldLink.rel = 'icon';
-    oldLink.href = 'data:image/x-icon;base64,';
-    document.head.appendChild(oldLink);
+        const makeLink = (rel: string) => {
+            const link = document.createElement('link');
+            link.rel = rel;
+            link.type = href.startsWith('data:image/png') || sourceUrl.endsWith('.png')
+                ? 'image/png'
+                : href.startsWith('data:')
+                  ? (href.match(/^data:([^;]+)/)?.[1] || 'image/x-icon')
+                  : 'image/x-icon';
+            link.href = href;
+            document.head.appendChild(link);
+            return link;
+        };
 
-    setTimeout(() => {
-        oldLink.remove();
-    }, 100);
+        // Firefox 对单一 rel=icon + extension URL 支持差；多写 shortcut icon
+        makeLink('icon');
+        makeLink('shortcut icon');
 
-    contentLog(`Favicon set to: ${url}`);
+        // 强制刷新（Chrome 历史 hack；对 Firefox 无害）
+        const oldLink = document.createElement('link');
+        oldLink.rel = 'icon';
+        oldLink.href = 'data:image/x-icon;base64,';
+        document.head.appendChild(oldLink);
+        setTimeout(() => {
+            oldLink.remove();
+        }, 100);
+
+        contentLog(`Favicon set to: ${sourceUrl}`);
+    };
+
+    // 非扩展资源（站点原始 favicon）直接写
+    if (!isExtensionResourceUrl(url)) {
+        const cacheBusted = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`;
+        applyFaviconHref(cacheBusted, url);
+        return;
+    }
+
+    // 先同步写入 extension URL，再异步升级为 data URL（提升 Firefox 可见性）
+    applyFaviconHref(url, url);
+
+    void (async () => {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) return;
+            const blob = await response.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+                reader.readAsDataURL(blob);
+            });
+            if (dataUrl.startsWith('data:')) {
+                applyFaviconHref(dataUrl, url);
+            }
+        } catch (error) {
+            contentLog('Favicon data-url upgrade failed, keeping extension URL:', error);
+        }
+    })();
 }
 
 export function getRandomDelay(min: number, max: number): number {

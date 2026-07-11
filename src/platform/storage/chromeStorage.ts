@@ -9,6 +9,8 @@
  * - 读写锁保证并发安全
  */
 
+import { chromeCallbackToPromise, ensureChromeNamespace, getExtensionApi } from '../browser/extensionApi';
+
 /** 响应映射器：将 background 返回的响应转换为存储对象 */
 export type StorageValueMapper = (response: any) => Record<string, any> | null | undefined;
 
@@ -56,32 +58,34 @@ function encodeSize(value: any): number {
 
 function storageAreaFrom(options: ChromeStorageOptions): chrome.storage.StorageArea | null {
   if (options.area) return options.area;
-  if (typeof chrome === 'undefined') return null;
-  return chrome.storage?.local ?? null;
+  ensureChromeNamespace();
+  const api = getExtensionApi();
+  return api?.storage?.local ?? null;
 }
 
 function runtimeFrom(options: ChromeStorageOptions): Pick<typeof chrome.runtime, 'id' | 'lastError' | 'sendMessage'> | null {
   if (options.runtime) return options.runtime;
-  if (typeof chrome === 'undefined') return null;
-  return chrome.runtime ?? null;
+  ensureChromeNamespace();
+  const api = getExtensionApi();
+  return api?.runtime ?? null;
 }
 
 function chromeGet(area: chrome.storage.StorageArea, keys: string | string[] | null): Promise<Record<string, any>> {
-  return new Promise((resolve) => {
-    area.get(keys as any, (items) => resolve(items || {}));
-  });
+  return chromeCallbackToPromise<Record<string, any>>((callback) => {
+    return (area.get as any)(keys as any, (items: Record<string, any>) => callback(items || {}));
+  }).catch(() => ({}));
 }
 
 function chromeSet(area: chrome.storage.StorageArea, payload: Record<string, any>): Promise<void> {
-  return new Promise((resolve) => {
-    area.set(payload, () => resolve());
-  });
+  return chromeCallbackToPromise<void>((callback) => {
+    return (area.set as any)(payload, () => callback(undefined as unknown as void));
+  }).catch(() => undefined);
 }
 
 function chromeRemove(area: chrome.storage.StorageArea, keys: string[]): Promise<void> {
-  return new Promise((resolve) => {
-    area.remove(keys, () => resolve());
-  });
+  return chromeCallbackToPromise<void>((callback) => {
+    return (area.remove as any)(keys, () => callback(undefined as unknown as void));
+  }).catch(() => undefined);
 }
 
 function sendRuntimeMessage(
@@ -90,39 +94,30 @@ function sendRuntimeMessage(
   payload: any,
   timeoutMs: number,
 ): Promise<any> {
-  return new Promise((resolve, reject) => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      timer = setTimeout(() => reject(new Error(`message timeout: ${type}`)), timeoutMs);
-    } catch {}
+  const runtime = runtimeFrom(options);
+  if (!runtime?.id || !runtime.sendMessage) {
+    return Promise.reject(new Error('Extension context invalidated'));
+  }
 
-    const runtime = runtimeFrom(options);
-    if (!runtime?.id) {
-      if (timer) clearTimeout(timer);
-      reject(new Error('Extension context invalidated'));
-      return;
+  const message = payload === undefined ? { type } : { type, payload };
+  const request = chromeCallbackToPromise<any>((callback) => {
+    return runtime.sendMessage(message, callback);
+  }).then((response) => {
+    if (!response || response.success !== true) {
+      throw new Error(response?.error || 'db error');
     }
+    return response;
+  });
 
+  const timeout = new Promise<never>((_, reject) => {
     try {
-      const message = payload === undefined ? { type } : { type, payload };
-      runtime.sendMessage(message, (response?: any) => {
-        if (timer) clearTimeout(timer);
-        const lastError = runtime.lastError;
-        if (lastError) {
-          reject(new Error(lastError.message || 'runtime error'));
-          return;
-        }
-        if (!response || response.success !== true) {
-          reject(new Error(response?.error || 'db error'));
-          return;
-        }
-        resolve(response);
-      });
-    } catch (error) {
-      if (timer) clearTimeout(timer);
-      reject(error);
+      setTimeout(() => reject(new Error(`message timeout: ${type}`)), timeoutMs);
+    } catch {
+      // ignore
     }
   });
+
+  return Promise.race([request, timeout]);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, any> {

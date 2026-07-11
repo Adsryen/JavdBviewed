@@ -41,6 +41,22 @@ describe('sendRuntimeMessage', () => {
     expect((globalThis as any).chrome?.runtime?.id).toBe('jav-assistant@self-hosted.local');
   });
 
+  it('resolves Promise-style sendMessage without relying on callback only', async () => {
+    const sendMessage = vi.fn((_msg: unknown, _cb?: (r: unknown) => void) => {
+      return Promise.resolve({ ok: true, via: 'promise' });
+    });
+    (globalThis as any).chrome = {
+      runtime: {
+        id: 'ff',
+        sendMessage,
+        lastError: undefined,
+      },
+    };
+
+    const response = await sendRuntimeMessage<{ ok: boolean; via: string }>({ type: 'PING' });
+    expect(response).toEqual({ ok: true, via: 'promise' });
+  });
+
   it('rejects chrome.runtime.lastError', async () => {
     (globalThis as any).chrome = {
       runtime: {

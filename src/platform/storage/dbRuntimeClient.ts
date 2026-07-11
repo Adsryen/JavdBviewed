@@ -1,12 +1,13 @@
 /**
  * @file dbRuntimeClient.ts
- * @description DB 运行时客户端 —— content script 通过 chrome.runtime.sendMessage 操作 background 端的 IndexedDB
+ * @description DB 运行时客户端 —— content script 通过 runtime 消息操作 background IndexedDB
  * @module platform/storage
  *
  * 所有数据库操作都通过消息代理在 background 执行，content 端只发消息不直接操作 IDB。
  */
 
 import type { VideoRecord } from '../../types';
+import { sendRuntimeMessage } from '../browser/runtimeMessages';
 
 function log(...args: any[]): void {
   try {
@@ -15,47 +16,36 @@ function log(...args: any[]): void {
 }
 
 function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const requestId = `${type}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-    let timer: number | undefined;
+  const requestId = `${type}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+  log('[DBClient] send:start', { type, requestId, timeoutMs, payload });
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
     try {
-      log('[DBClient] send:start', { type, requestId, timeoutMs, payload });
-      timer = window.setTimeout(() => {
+      window.setTimeout(() => {
         log('[DBClient] send:timeout', { type, requestId, timeoutMs });
         reject(new Error(`DB message timeout: ${type}`));
       }, timeoutMs);
-    } catch {}
-
-    if (!chrome?.runtime?.id) {
-      if (timer) window.clearTimeout(timer);
-      log('[DBClient] send:invalid-runtime', { type, requestId });
-      reject(new Error('Extension context invalidated'));
-      return;
-    }
-
-    try {
-      chrome.runtime.sendMessage({ type, payload }, (resp) => {
-        if (timer) window.clearTimeout(timer);
-        const lastErr = chrome.runtime.lastError;
-        if (lastErr) {
-          log('[DBClient] send:lastError', { type, requestId, error: lastErr.message });
-          reject(new Error(lastErr.message || 'runtime error'));
-          return;
-        }
-        if (!resp || resp.success !== true) {
-          log('[DBClient] send:failure', { type, requestId, response: resp });
-          reject(new Error(resp?.error || 'unknown db error'));
-          return;
-        }
-        log('[DBClient] send:done', { type, requestId });
-        resolve(resp as T);
-      });
-    } catch (e: any) {
-      if (timer) window.clearTimeout(timer);
-      log('[DBClient] send:exception', { type, requestId, error: e?.message || String(e) });
-      reject(e);
+    } catch {
+      // ignore timer failures
     }
   });
+
+  const message = payload === undefined ? { type } : { type, payload };
+  const requestPromise = sendRuntimeMessage<T>(message)
+    .then((resp) => {
+      if (!resp || (resp as any).success !== true) {
+        log('[DBClient] send:failure', { type, requestId, response: resp });
+        throw new Error((resp as any)?.error || 'unknown db error');
+      }
+      log('[DBClient] send:done', { type, requestId });
+      return resp;
+    })
+    .catch((error: any) => {
+      log('[DBClient] send:exception', { type, requestId, error: error?.message || String(error) });
+      throw error;
+    });
+
+  return Promise.race([requestPromise, timeoutPromise]);
 }
 
 export interface ViewedPutResult {

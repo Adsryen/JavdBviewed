@@ -8,6 +8,7 @@
 import { VIDEO_STATUS } from '../../utils/config';
 import { STATE, log, currentFaviconState, currentTitleStatus, setCurrentFaviconState, setCurrentTitleStatus, suspendEarlyFaviconSync } from '../contentState';
 import { extractVideoIdFromPage } from '../../platform/browser';
+import { ensureChromeNamespace, getExtensionApi } from '../../platform/browser/extensionApi';
 import { setFavicon } from '../../platform/browser/domUtils';
 
 // 缓存视频ID，避免重复提取
@@ -104,7 +105,14 @@ export function updateFaviconForStatus(status: string | null): void {
         browsed: 'assets/switch-browsed.png'// 黄色 - 已浏览
     };
 
-    const url = chrome.runtime.getURL(iconMap[targetState]);
+    ensureChromeNamespace();
+    const api = getExtensionApi();
+    const getURL = api?.runtime?.getURL?.bind(api.runtime);
+    if (!getURL) {
+        log('runtime.getURL unavailable; cannot set status favicon');
+        return;
+    }
+    const url = getURL(iconMap[targetState]);
     log(`Setting favicon for status '${targetState}': ${url}`);
     setFavicon(url);
     setCurrentFaviconState(targetState);
