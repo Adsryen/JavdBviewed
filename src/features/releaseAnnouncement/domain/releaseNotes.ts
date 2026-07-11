@@ -13,7 +13,18 @@ import type { ReleaseNote } from './types';
 // 1.21.0: v1.20.2..v1.21.0
 // 1.21.1: v1.21.0..v1.21.1
 // 1.21.2: v1.21.1..v1.21.2
+// 1.21.3: v1.21.2..v1.21.3
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '1.21.3',
+    highlights: [
+      '源站存入清单可直接勾选 Jav助手本地清单。',
+      '磁力质量评分改为清晰度与体积优先。',
+      '演员同步会拦截 Cloudflare 与错误响应。',
+      '全局任务编排更稳，支持跨页动作去重。',
+      '存入清单误触拦截已修正，避免跳错页。',
+    ],
+  },
   {
     version: '1.21.2',
     highlights: [
