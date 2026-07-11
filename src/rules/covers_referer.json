@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "referer",
+          "operation": "set",
+          "value": "https://javdb.com/"
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||jdbstatic.com/covers/",
+      "resourceTypes": ["image"]
+    }
+  }
+]

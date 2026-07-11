@@ -38,6 +38,15 @@
     "https://*/*",
     "http://*/*"
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "covers_referer",
+        "enabled": true,
+        "path": "rules/covers_referer.json"
+      }
+    ]
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https: http:;"
   },

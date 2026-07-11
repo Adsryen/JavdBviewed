@@ -34,8 +34,21 @@ describe('extension manifest contract', () => {
         'scripting',
         'notifications',
         'unlimitedStorage',
+        'declarativeNetRequest',
       ]),
     );
+  });
+
+  it('declares static covers_referer DNR ruleset', () => {
+    expect(manifest.declarative_net_request).toMatchObject({
+      rule_resources: [
+        {
+          id: 'covers_referer',
+          enabled: true,
+          path: 'rules/covers_referer.json',
+        },
+      ],
+    });
   });
 
   it('loads the expected content scripts on JavDB, JavBus, 115, and all-frame helpers', () => {
@@ -83,5 +96,17 @@ describe('extension manifest contract', () => {
       strict_min_version: FIREFOX_STRICT_MIN_VERSION,
     });
     expect(FIREFOX_STRICT_MIN_VERSION).toBe('121.0');
+    expect(firefox.declarative_net_request?.rule_resources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'covers_referer',
+          enabled: true,
+          path: 'rules/covers_referer.json',
+        }),
+      ]),
+    );
+    expect(firefox.permissions).toEqual(
+      expect.arrayContaining(['declarativeNetRequest']),
+    );
   });
 });
