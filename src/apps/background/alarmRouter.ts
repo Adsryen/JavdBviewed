@@ -23,6 +23,10 @@ import { viewedPurgeExpired, actorsPurgeExpired } from '../../platform/storage/i
 const RECYCLE_BIN_CLEANUP_ALARM = 'RECYCLE_BIN_CLEANUP';
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * 同步安装 alarms / storage 变更路由，并触发一次基于 settings 的 alarm 再同步。
+ * 注：newWorks 冷启动 initialize 见 backgroundLifecycle（不仅依赖 onStartup）。
+ */
 export function initializeBackgroundAlarmWiring(): void {
   syncInsightsMonthlyAlarmFromSettings();
   syncEmbyLibrarySyncAlarmFromCurrentSettings().catch(() => {});
@@ -63,6 +67,10 @@ export function syncInsightsMonthlyAlarmFromSettings(): void {
   } catch {}
 }
 
+/**
+ * 浏览器进程级启动时额外初始化 newWorks。
+ * 扩展后台被回收后的冷启动由 backgroundLifecycle.runBackgroundColdStartWiring 覆盖。
+ */
 export function registerNewWorksStartupInitializer(): void {
   try {
     chrome.runtime.onStartup.addListener(async () => {

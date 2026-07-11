@@ -5,6 +5,11 @@
  */
 // 背景入口：装配与注册各模块
 // chrome 命名空间已由 manifest 入口 compatBootstrap 归一化
+//
+// 生命周期约定（Chromium service_worker 与 Firefox event page 共用）：
+// 1. 同步阶段：立刻挂 listener（onMessage / onAlarm / onRemoved），避免首条消息丢失
+// 2. 冷启动接线：restore 任务中心 + 幂等 DNR/动态脚本/alarms/newWorks（见 backgroundLifecycle）
+// 3. onSuspend：event page 挂起前刷任务快照（SW 通常无此事件，静默跳过）
 
 import {
   detectBackgroundRuntimeKind,
@@ -24,13 +29,11 @@ import {
 } from '../../features/telemetry';
 import { getSettings, saveSettings } from '../../utils/storage';
 import { initializeBackgroundAlarmWiring } from './alarmRouter';
-import { registerDbMessageRouter } from './dbMessageRouter';
 import {
-  registerDynamicContentScripts,
-  registerEmbyDynamicContentScriptsOnStartup,
-} from './dynamicContentScripts';
-import { syncDrive115DailyAlarmFromSettings } from './drive115UserRefresh';
-import { installCoversRefererDNR } from './dnrRules';
+  registerBackgroundSuspendFlush,
+  runBackgroundColdStartWiring,
+} from './backgroundLifecycle';
+import { registerDbMessageRouter } from './dbMessageRouter';
 import { registerBackgroundErrorHandlers } from './errorHandlers';
 import { registerReleaseAnnouncementEvents } from './releaseAnnouncementEvents';
 import { initializeRouteAutoUpdate } from './routeAutoUpdate';
@@ -46,8 +49,7 @@ initializeTelemetryAfterClientIdentity({
   logWarning: (message, context) => console.warn(message, context),
 }).catch(() => {});
 
-globalTaskCenter.restoreFromStorage().catch(console.warn);
-
+// —— 同步 listener：必须在任何 await 之前安装 ——
 chrome.tabs.onRemoved.addListener((tabId) => {
   try {
     console.log('[Background] Tab removed, canceling tasks', { tabId });
@@ -82,19 +84,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-registerDynamicContentScripts();
-registerEmbyDynamicContentScriptsOnStartup();
-initializeRouteAutoUpdate();
-
+// 消息路由 / alarm 路由：同步注册（幂等由各 router 自身保证）
 registerWebDAVRouter();
 registerDbMessageRouter();
 registerMiscRouter();
 registerNetProxyRouter();
-
-installCoversRefererDNR();
-syncDrive115DailyAlarmFromSettings().catch(() => {});
 initializeBackgroundAlarmWiring();
 registerBackgroundErrorHandlers();
+registerBackgroundSuspendFlush();
+
+// 冷启动接线：任务恢复 + DNR + 动态 content scripts + alarms 再同步 + newWorks
+// 与旧 bootstrap 顶层 fire-and-forget 等价，但集中到 lifecycle 模块并带汇总日志
+void runBackgroundColdStartWiring().catch((err) => {
+  try {
+    console.warn('[Background] cold-start wiring failed:', err);
+  } catch {
+    // ignore
+  }
+});
+
+// 线路自动更新（内部会 await 网络；与冷启动并行）
+initializeRouteAutoUpdate();
 
 try {
   ensureChromeNamespace();

@@ -3,7 +3,8 @@
  * @description 任务状态存储 —— 纯内存 Map 存储，管理任务记录和标签页可见性
  * @module platform/tasks
  *
- * 注意：数据仅在 Service Worker 生命周期内有效，重启后通过 restoreFromStorage 恢复
+ * 注意：数据仅在 Service Worker / event page 生命周期内有效；
+ * 进程回收后通过 GlobalTaskCenter.restoreFromStorage 从 chrome.storage 恢复。
  */
 import type { GlobalTaskRecord } from '../../shared/taskCenterTypes';
 

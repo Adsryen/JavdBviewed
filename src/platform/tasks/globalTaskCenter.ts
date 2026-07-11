@@ -9,6 +9,7 @@
  * - 租约（lease）：前台页面先获得执行权，后台排队等待
  * - 去重：通过 dedupeKey 防止重复创建同类任务
  * - 超时守卫：running 超过 timeoutMs 自动标记 error
+ * - 持久化：chrome.storage 快照 + 关键路径即时刷盘 + onSuspend 刷盘（event page）
  */
 import { TASK_BUCKET_LIMITS, resolveTaskBucket } from './taskPolicy';
 import { TaskStateStore } from './taskStateStore';
@@ -37,6 +38,10 @@ export class GlobalTaskCenter {
   private readonly storageKey = 'taskCenter:snapshot';
   private readonly dedupeStorageKey = 'taskCenter:dedupeIndex'; // P2 FIX: dedupe 持久化
   private isRestored = false;
+  /** 并发 restore 合并为单次 Promise，避免冷启动 race 双写 */
+  private restorePromise: Promise<void> | null = null;
+  // P1 FIX: 定期快照定时器（每 30s 持久化一次状态，防止 service worker / event page 重启丢失）
+  private persistTimer: ReturnType<typeof setInterval> | null = null;
 
   private getPhaseWeight(phase: string): number {
     if (phase === 'critical') return 4000;
@@ -46,14 +51,31 @@ export class GlobalTaskCenter {
     return 0;
   }
 
-  // P1 FIX: Service Worker 重启后，从 chrome.storage 恢复任务状态
+  /**
+   * Service Worker / event page 冷启动后，从 chrome.storage 恢复任务状态。
+   * 幂等：并发调用共享同一 Promise；完成后后续调用立即返回。
+   */
   async restoreFromStorage(): Promise<void> {
     if (this.isRestored) return;
+    if (this.restorePromise) return this.restorePromise;
+
+    this.restorePromise = this.doRestoreFromStorage();
+    try {
+      await this.restorePromise;
+    } finally {
+      this.restorePromise = null;
+    }
+  }
+
+  private async doRestoreFromStorage(): Promise<void> {
     try {
       // P2 FIX: 一次性读取两个 key，避免多次 chrome.storage 调用
       const item = await new Promise<any>((resolve, reject) => {
         chrome.storage.local.get([this.storageKey, this.dedupeStorageKey], (result) => {
-          if (chrome.runtime.lastError) { reject(new Error(chrome.runtime.lastError.message)); return; }
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
           resolve(result);
         });
       });
@@ -62,48 +84,99 @@ export class GlobalTaskCenter {
         if (data.tasks && Array.isArray(data.tasks)) {
           for (const record of data.tasks) {
             if (record?.descriptor?.taskId && record?.runtime?.status) {
+              // 冷启动期间若消息路径已写入内存任务，优先保留内存（不覆盖）
+              if (this.store.getTask(record.descriptor.taskId)) continue;
               this.store.setTask(record.descriptor.taskId, record);
-              if (record.descriptor.dedupeKey) {
+              if (record.descriptor.dedupeKey && !this.dedupeIndex.has(record.descriptor.dedupeKey)) {
                 this.dedupeIndex.set(record.descriptor.dedupeKey, record.descriptor.taskId);
               }
             }
           }
         }
         if (data.completedLabels && Array.isArray(data.completedLabels)) {
-          this.completedTaskLabels = new Set(data.completedLabels);
+          // 与 restore 期间 mark-completed 取并集
+          for (const label of data.completedLabels) {
+            if (typeof label === 'string' && label) this.completedTaskLabels.add(label);
+          }
         }
-        console.log('[TaskCenter] Restored', this.store.listTasks().length, 'tasks and', this.completedTaskLabels.size, 'completed labels from storage');
+        console.log(
+          '[TaskCenter] Restored',
+          this.store.listTasks().length,
+          'tasks and',
+          this.completedTaskLabels.size,
+          'completed labels from storage',
+        );
       }
-      // P2 FIX: 同时恢复 dedupe index
+      // P2 FIX: 恢复 dedupe index；内存已有 key 优先（register 可能已更新）
       const dedupeData = item[this.dedupeStorageKey];
       if (dedupeData && typeof dedupeData === 'object') {
-        this.dedupeIndex = new Map(Object.entries(dedupeData));
+        for (const [key, taskId] of Object.entries(dedupeData)) {
+          if (typeof taskId !== 'string' || !taskId) continue;
+          if (!this.dedupeIndex.has(key)) {
+            this.dedupeIndex.set(key, taskId);
+          }
+        }
         console.log('[TaskCenter] Restored dedupe index:', this.dedupeIndex.size, 'entries');
       }
       this.isRestored = true;
-      // P1 FIX: 恢复后启动定期快照
+      // 恢复后清理可能已过期的 leased/running（后台被回收期间前台已死）
+      this.cleanupStaleTasks();
+      this.persistToStorage();
       this.startPeriodicSnapshot();
     } catch (err) {
       console.warn('[TaskCenter] Failed to restore from storage:', err);
       this.isRestored = true;
+      this.startPeriodicSnapshot();
     }
   }
 
-  // P1 FIX: 定期快照到 chrome.storage，防止 Service Worker 重启丢失状态
+  /** 是否已完成至少一次 restore 尝试（成功或失败） */
+  hasRestoredFromStorage(): boolean {
+    return this.isRestored;
+  }
+
+  /**
+   * 强制刷盘（onSuspend / 测试 / 关键取消路径）。
+   * 不依赖 isRestored，避免挂起时漏写。
+   */
+  flushPersist(): void {
+    try {
+      this.cleanupStaleTasks();
+      this.persistToStorage();
+    } catch (err) {
+      console.warn('[TaskCenter] flushPersist failed:', err);
+    }
+  }
+
+  // P1 FIX: 定期快照到 chrome.storage，防止 Service Worker / event page 重启丢失状态
   private persistToStorage(): void {
-    const snapshot = {
-      tasks: this.store.listTasks().map(record => ({
-        descriptor: record.descriptor,
-        runtime: record.runtime,
-      })),
-      completedLabels: Array.from(this.completedTaskLabels),
-      savedAt: Date.now(),
-    };
-    chrome.storage.local.set({ [this.storageKey]: snapshot }).catch(() => {});
-    // P2 FIX: 同时持久化 dedupe index，防止 SW 重启后 dedupe 失效导致重复任务
-    if (this.dedupeIndex.size > 0) {
+    try {
+      const storage = (globalThis as typeof globalThis & {
+        chrome?: typeof chrome;
+      }).chrome?.storage?.local;
+      if (!storage?.set) return;
+
+      const snapshot = {
+        tasks: this.store.listTasks().map(record => ({
+          descriptor: record.descriptor,
+          runtime: record.runtime,
+        })),
+        completedLabels: Array.from(this.completedTaskLabels),
+        savedAt: Date.now(),
+      };
+      const maybePromise = storage.set({ [this.storageKey]: snapshot }) as unknown;
+      if (maybePromise != null && typeof (maybePromise as Promise<void>).then === 'function') {
+        (maybePromise as Promise<void>).catch(() => {});
+      }
+      // P2 FIX: 同时持久化 dedupe index，防止 SW 重启后 dedupe 失效导致重复任务
+      // 空 index 也要写回，避免 storage 残留陈旧映射
       const dedupeSnapshot = Object.fromEntries(this.dedupeIndex.entries());
-      chrome.storage.local.set({ [this.dedupeStorageKey]: dedupeSnapshot }).catch(() => {});
+      const dedupePromise = storage.set({ [this.dedupeStorageKey]: dedupeSnapshot }) as unknown;
+      if (dedupePromise != null && typeof (dedupePromise as Promise<void>).then === 'function') {
+        (dedupePromise as Promise<void>).catch(() => {});
+      }
+    } catch {
+      // 测试环境或 chrome 不可用时静默跳过
     }
   }
 
@@ -317,6 +390,8 @@ export class GlobalTaskCenter {
     };
     this.store.setTask(descriptor.taskId, { descriptor: { ...descriptor, tabId, dedupeKey }, runtime });
     this.dedupeIndex.set(dedupeKey, descriptor.taskId);
+    // 关键路径即时刷盘：缩小 SW/event page 回收窗口丢任务
+    this.persistToStorage();
     return { ok: true, taskId: descriptor.taskId, tabId, reused: false, status: 'registered' };
   }
 
@@ -388,6 +463,7 @@ export class GlobalTaskCenter {
     task.runtime.startedAt = task.runtime.startedAt || Date.now();
     task.runtime.heartbeatTs = Date.now();
     this.store.setTask(taskId, task);
+    this.persistToStorage();
     return { granted: true };
   }
 
@@ -399,6 +475,7 @@ export class GlobalTaskCenter {
       task.runtime.waitReason = reason;
       task.runtime.pauseCount += 1;
       this.store.setTask(taskId, task);
+      this.persistToStorage();
     }
     return { ok: true };
   }
@@ -411,6 +488,7 @@ export class GlobalTaskCenter {
       task.runtime.waitReason = undefined;
       task.runtime.resumeCount += 1;
       this.store.setTask(taskId, task);
+      this.persistToStorage();
     }
     return { ok: true };
   }
@@ -449,6 +527,7 @@ export class GlobalTaskCenter {
       task.runtime.endedAt = Date.now();
       task.runtime.retryCount += 1;
       this.store.setTask(taskId, task);
+      this.persistToStorage();
     }
     return { ok: true };
   }
@@ -461,6 +540,7 @@ export class GlobalTaskCenter {
       task.runtime.waitReason = reason || 'manual-cancel';
       task.runtime.endedAt = Date.now();
       this.store.setTask(taskId, task);
+      this.persistToStorage();
     }
     return { ok: true };
   }
@@ -477,6 +557,7 @@ export class GlobalTaskCenter {
       this.store.setTask(record.descriptor.taskId, record);
       canceled += 1;
     }
+    if (canceled > 0) this.persistToStorage();
     return { ok: true, canceled };
   }
 
@@ -492,6 +573,7 @@ export class GlobalTaskCenter {
       this.store.setTask(record.descriptor.taskId, record);
       canceled += 1;
     }
+    if (canceled > 0) this.persistToStorage();
     return { ok: true, canceled };
   }
 
@@ -505,7 +587,17 @@ export class GlobalTaskCenter {
     this.store.clear();
     this.dedupeIndex.clear();
     this.completedTaskLabels.clear();
-    chrome.storage.local.remove([this.storageKey, this.dedupeStorageKey]).catch(() => {});
+    try {
+      const storage = (globalThis as typeof globalThis & {
+        chrome?: typeof chrome;
+      }).chrome?.storage?.local;
+      const maybePromise = storage?.remove?.([this.storageKey, this.dedupeStorageKey]) as unknown;
+      if (maybePromise != null && typeof (maybePromise as Promise<void>).then === 'function') {
+        (maybePromise as Promise<void>).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
     return { ok: true };
   }
 
@@ -540,8 +632,6 @@ export class GlobalTaskCenter {
     return { ok: true, canceled };
   }
 
-  // P1 FIX: 定期快照定时器（每 30s 持久化一次状态，防止 service worker 重启丢失）
-  private persistTimer: ReturnType<typeof setInterval> | null = null;
   private startPeriodicSnapshot(): void {
     if (this.persistTimer) return;
     this.persistTimer = setInterval(() => {
