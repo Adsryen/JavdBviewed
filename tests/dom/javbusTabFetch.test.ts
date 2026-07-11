@@ -72,7 +72,7 @@ describe('JAVBUS tab ajax fetch fallback', () => {
       configurable: true,
     });
 
-    await expect(sendRuntimeMessage({ type: 'demo' })).rejects.toThrow('Chrome runtime is not available');
+    await expect(sendRuntimeMessage({ type: 'demo' })).rejects.toThrow('Extension runtime is not available');
 
     Object.defineProperty(globalThis, 'chrome', {
       value: originalChrome,

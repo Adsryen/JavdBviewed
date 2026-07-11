@@ -4,11 +4,12 @@
  * @module apps/background
  */
 // 背景入口：装配与注册各模块
+// chrome 命名空间已由 manifest 入口 compatBootstrap 归一化
 
-if (typeof self === 'undefined' || !(self as any).registration) {
-  console.warn('[Background] Service Worker context not ready, waiting...');
-}
-
+import {
+  detectBackgroundRuntimeKind,
+  ensureChromeNamespace,
+} from '../../platform/browser/extensionApi';
 import { installDrive115V2Proxy } from '../../features/drive115/v2/backgroundProxy';
 import { ensureMigrationsStart } from '../../platform/storage/migrations';
 import { registerMiscRouter } from './miscMessageRouter';
@@ -96,5 +97,10 @@ initializeBackgroundAlarmWiring();
 registerBackgroundErrorHandlers();
 
 try {
-  console.info('[Background] Service Worker ready', { ts: new Date().toISOString() });
+  ensureChromeNamespace();
+  const runtimeKind = detectBackgroundRuntimeKind();
+  console.info('[Background] ready', {
+    ts: new Date().toISOString(),
+    runtimeKind,
+  });
 } catch {}

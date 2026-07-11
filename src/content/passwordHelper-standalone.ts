@@ -3,6 +3,8 @@
  * 在所有网站上运行，提供密码显示功能
  */
 
+import '../platform/browser/compatBootstrap';
+
 // 简单的日志函数（不依赖 state.ts）
 const log = (...args: any[]) => {
     console.log('[PasswordHelper]', ...args);

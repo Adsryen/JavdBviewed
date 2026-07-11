@@ -4,6 +4,18 @@
  */
 export { sendRuntimeMessage, type RuntimeMessage } from './runtimeMessages';
 export {
+  chromeCallbackToPromise,
+  detectBackgroundRuntimeKind,
+  detectBrowserEngine,
+  ensureChromeNamespace,
+  getExtensionApi,
+  isExtensionRuntimeAvailable,
+  isGeckoEngine,
+  type BackgroundRuntimeKind,
+  type BrowserEngine,
+} from './extensionApi';
+// side-effect 兼容引导由各入口显式 import compatBootstrap，避免无意全局副作用
+export {
   fetchJavbusAjaxViaTab,
   javbusPageAjaxFetchScript,
   type JavbusPageAjaxFetchResult,
