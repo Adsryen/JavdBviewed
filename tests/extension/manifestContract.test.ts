@@ -5,6 +5,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import manifest from '../../src/manifest.json';
+import {
+  FIREFOX_GECKO_ID,
+  FIREFOX_STRICT_MIN_VERSION,
+  toFirefoxManifest,
+} from '../../scripts/firefoxManifest';
 
 describe('extension manifest contract', () => {
   it('declares the expected Manifest V3 extension entry points', () => {
@@ -58,5 +63,25 @@ describe('extension manifest contract', () => {
         }),
       ]),
     );
+  });
+
+  it('transforms Chromium dist-shaped manifest into Firefox installable form', () => {
+    const firefox = toFirefoxManifest({
+      ...manifest,
+      background: {
+        service_worker: 'service-worker-loader.js',
+        type: 'module',
+      },
+    });
+
+    expect(firefox.background).toEqual({
+      scripts: ['service-worker-loader.js'],
+      type: 'module',
+    });
+    expect(firefox.browser_specific_settings?.gecko).toEqual({
+      id: FIREFOX_GECKO_ID,
+      strict_min_version: FIREFOX_STRICT_MIN_VERSION,
+    });
+    expect(FIREFOX_STRICT_MIN_VERSION).toBe('121.0');
   });
 });

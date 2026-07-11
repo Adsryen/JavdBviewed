@@ -13,17 +13,35 @@
 
 ## 安装扩展
 
-### 方式一：下载预编译版本
+本扩展**不通过** Chrome Web Store / Firefox AMO 等官方商店分发，请从 GitHub Releases 下载 zip 后自行安装。
+
+### 下载哪个包
+
+| 浏览器 | Release 文件 | 最低版本 |
+|--------|--------------|----------|
+| Chrome / Edge（Chromium） | `javdb-extension-v*-chrome.zip`（兼容：无后缀的 `javdb-extension-v*.zip`） | 建议最新两个稳定大版 |
+| Firefox | `javdb-extension-v*-firefox.zip` | **Firefox 121+**（推荐当前稳定版或 ESR≥121） |
+
+本地开发：`pnpm run build` 同时产出 chrome / firefox zip；也可用 `pnpm run build:chrome` / `pnpm run build:firefox`。
+
+### Chrome / Edge
 
 1. 打开 [GitHub Releases](https://github.com/Adsryen/JavdBviewed/releases)
-2. 下载最新的 `javdb-extension-v*.zip`
+2. 下载 `*-chrome.zip`（或旧名无后缀 zip）
 3. 解压到本地固定目录
-4. 打开浏览器扩展管理页
-   - Chrome：`chrome://extensions/`
-   - Edge：`edge://extensions/`
+4. 打开扩展管理页：Chrome `chrome://extensions/`，Edge `edge://extensions/`
 5. 开启“开发者模式”
-6. 点击“加载已解压的扩展程序”
-7. 选择刚才解压后的目录
+6. 点击“加载已解压的扩展程序”，选择解压后的目录
+
+### Firefox
+
+1. 打开 [GitHub Releases](https://github.com/Adsryen/JavdBviewed/releases)
+2. 下载 `*-firefox.zip` 并解压到本地固定目录
+3. 地址栏打开 `about:debugging#/runtime/this-firefox`
+4. 点击「临时载入附加组件」
+5. 选择解压目录中的 `manifest.json`
+
+说明：临时载入在浏览器重启后可能需重新加载（未上架 AMO / 未商店签名时的预期路径）。若提示与 `service_worker` 相关，请确认使用的是 **firefox** 包。低于 121 的 Firefox 不在支持范围。
 
 ## 安装后先做这两件事
 
