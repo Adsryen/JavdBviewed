@@ -4,7 +4,7 @@
  * @module apps/background
  */
 import { handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM, registerMonthlyAlarm } from './scheduler';
-import { newWorksScheduler } from '../../features/newWorks';
+import { handleNewWorksAlarm, newWorksScheduler } from '../../features/newWorks';
 import { handleTelemetryAlarm, syncTelemetryHeartbeatAlarm } from '../../features/telemetry';
 import { getSettings } from '../../utils/storage';
 import { registerDynamicContentScripts } from './dynamicContentScripts';
@@ -95,6 +95,7 @@ export function registerBackgroundAlarmRouter(): void {
   try {
     chrome.alarms.onAlarm.addListener((alarm) => {
       if (handleDrive115Alarm(alarm?.name || '')) return;
+      if (handleNewWorksAlarm(alarm?.name || '')) return;
 
       // 回收站清理
       if (alarm?.name === RECYCLE_BIN_CLEANUP_ALARM) {

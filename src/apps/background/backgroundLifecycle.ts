@@ -91,8 +91,8 @@ export async function runBackgroundColdStartWiring(): Promise<BackgroundColdStar
     errors.push(`drive115Alarm:${formatError(error)}`);
   }
 
-  // newWorks 使用内存 setInterval，SW/event page 休眠后必须在冷启动重新 initialize
-  // （仅 onStartup 不够：浏览器不重启、仅扩展后台被回收时不会触发 onStartup）
+  // newWorks 使用 chrome.alarms 做周期检查；冷启动仍 initialize 以恢复 isRunning 状态、
+  // 并在 autoCheckEnabled 时幂等 ensureAlarm（浏览器可能已保留 alarm，create 前会 clear 再写）
   try {
     await newWorksScheduler.initialize();
   } catch (error) {

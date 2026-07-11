@@ -24,6 +24,15 @@ newWorksScheduler.setDependencies(newWorksManager, newWorksCollector);
 
 // 导出类定义（用于类型检查和扩展）
 export { NewWorksManager, NewWorksCollector, NewWorksScheduler };
+export {
+  NEW_WORKS_CHECK_ALARM,
+  checkIntervalHoursToPeriodMinutes,
+} from './scheduler';
+
+/** alarmRouter 入口：使用已 setDependencies 的单例 */
+export function handleNewWorksAlarm(alarmName: string): boolean {
+  return newWorksScheduler.handleAlarm(alarmName);
+}
 
 // 为了保持向后兼容性，也导出原有的命名
 export { newWorksManager as newWorksManagerInstance };

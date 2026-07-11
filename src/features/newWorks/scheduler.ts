@@ -1,21 +1,32 @@
 /**
  * @file scheduler.ts
- * @description scheduler
+ * @description 新作品定时采集调度器（chrome.alarms，跨 SW / event page 休眠可恢复）
  * @module features/newWorks
  */
-// src/features/newWorks/scheduler.ts
-// 新作品定时采集调度器
 
 import type { NewWorksManager } from './manager';
 import type { NewWorksCollector } from './collector';
 import { log } from '../../utils/logController';
+import { ensureChromeNamespace, getExtensionApi } from '../../platform/browser/extensionApi';
+
+/** 周期检查 alarm 名称（浏览器持久化，不依赖内存 setInterval） */
+export const NEW_WORKS_CHECK_ALARM = 'newWorks.periodic_check';
+
+/** 将配置中的检查间隔（小时）转为 chrome.alarms 的 periodInMinutes（下限 1） */
+export function checkIntervalHoursToPeriodMinutes(checkIntervalHours: number): number {
+    const hours = Number(checkIntervalHours);
+    if (!Number.isFinite(hours) || hours <= 0) {
+        return 60; // 非法值回退 1 小时
+    }
+    return Math.max(1, Math.round(hours * 60));
+}
 
 export class NewWorksScheduler {
-    private intervalId?: number;
     private isRunning: boolean = false;
     private isInitialized: boolean = false;
     private manager?: NewWorksManager;
     private collector?: NewWorksCollector;
+    private firstRunTimeoutId?: ReturnType<typeof setTimeout>;
 
     /**
      * 设置依赖
@@ -25,23 +36,49 @@ export class NewWorksScheduler {
         this.collector = collector;
     }
 
+    private requireManager(): NewWorksManager {
+        if (!this.manager) {
+            throw new Error('NewWorksScheduler: 必须先调用 setDependencies 设置依赖');
+        }
+        return this.manager;
+    }
+
+    private requireCollector(): NewWorksCollector {
+        if (!this.collector) {
+            throw new Error('NewWorksScheduler: 必须先调用 setDependencies 设置依赖');
+        }
+        return this.collector;
+    }
+
+    private requireDependencies(): { manager: NewWorksManager; collector: NewWorksCollector } {
+        return {
+            manager: this.requireManager(),
+            collector: this.requireCollector(),
+        };
+    }
+
     /**
      * 初始化调度器
      */
     async initialize(): Promise<void> {
         if (this.isInitialized) return;
-        if (!this.manager || !this.collector) {
-            throw new Error('NewWorksScheduler: 必须先调用 setDependencies 设置依赖');
-        }
+        const manager = this.requireManager();
+        this.requireCollector();
 
         try {
             // 初始化新作品管理器
-            await this.manager.initialize();
+            await manager.initialize();
 
             // 检查是否需要启动定时任务（仅在自动检查开启时）
-            const config = await this.manager.getGlobalConfig();
+            // alarms 会跨 SW/event page 休眠保留：关闭自动检查时必须主动 clear，
+            // 否则冷启动只读配置为 false 时会留下陈旧周期任务。
+            const config = await manager.getGlobalConfig();
             if (config.autoCheckEnabled) {
                 await this.start();
+            } else {
+                this.clearFirstRunTimeout();
+                this.clearAlarm();
+                this.isRunning = false;
             }
 
             this.isInitialized = true;
@@ -52,7 +89,7 @@ export class NewWorksScheduler {
     }
 
     /**
-     * 启动定时任务
+     * 启动定时任务（chrome.alarms 周期触发，可跨后台休眠）
      */
     async start(): Promise<void> {
         if (this.isRunning) {
@@ -61,28 +98,29 @@ export class NewWorksScheduler {
         }
 
         try {
-            const config = await this.manager!.getGlobalConfig();
+            const config = await this.requireManager().getGlobalConfig();
 
             if (!config.autoCheckEnabled) {
                 log.verbose('NewWorksScheduler: 自动检查未开启');
+                this.clearAlarm();
                 return;
             }
 
-            // 设置定时器
-            const intervalMs = config.checkInterval * 60 * 60 * 1000; // 转换为毫秒
-            this.intervalId = setInterval(() => {
-                this.runCollectionTask();
-            }, intervalMs) as unknown as number;
+            const periodInMinutes = checkIntervalHoursToPeriodMinutes(config.checkInterval);
+            this.ensureAlarm(periodInMinutes);
 
             this.isRunning = true;
-            log.info(`NewWorksScheduler: 定时任务已启动，间隔 ${config.checkInterval} 小时`);
+            log.info(`NewWorksScheduler: 定时任务已启动，间隔 ${config.checkInterval} 小时（alarm ${periodInMinutes} 分钟）`);
 
-            // 如果从未检查过，立即执行一次
+            // 如果从未检查过，延迟执行一次（不依赖 setInterval 周期路径）
             if (!config.lastGlobalCheck) {
                 log.verbose('NewWorksScheduler: 首次运行，立即执行检查');
-                setTimeout(() => this.runCollectionTask(), 5000); // 延迟5秒执行
+                this.clearFirstRunTimeout();
+                this.firstRunTimeoutId = setTimeout(() => {
+                    this.firstRunTimeoutId = undefined;
+                    void this.runCollectionTask();
+                }, 5000);
             }
-
         } catch (error) {
             log.error('NewWorksScheduler: 启动定时任务失败:', error);
         }
@@ -92,11 +130,8 @@ export class NewWorksScheduler {
      * 停止定时任务
      */
     stop(): void {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-            this.intervalId = undefined;
-        }
-        
+        this.clearFirstRunTimeout();
+        this.clearAlarm();
         this.isRunning = false;
         log.verbose('NewWorksScheduler: 定时任务已停止');
     }
@@ -110,15 +145,36 @@ export class NewWorksScheduler {
     }
 
     /**
+     * alarmRouter 入口：匹配本调度器 alarm 时执行采集。
+     * @returns 是否已处理（供路由 early-return）
+     */
+    handleAlarm(alarmName: string): boolean {
+        if (alarmName !== NEW_WORKS_CHECK_ALARM) {
+            return false;
+        }
+        void this.runCollectionTask();
+        return true;
+    }
+
+    /**
      * 执行采集任务
      */
     private async runCollectionTask(): Promise<void> {
         try {
             log.verbose('NewWorksScheduler: 开始执行定时采集任务');
 
-            // 获取配置和订阅
-            const config = await this.manager!.getGlobalConfig();
-            const subscriptions = await this.manager!.getSubscriptions();
+            const { manager, collector } = this.requireDependencies();
+            const config = await manager.getGlobalConfig();
+            // 防御：配置已关闭自动检查但浏览器仍残留 alarm（如 WebDAV 恢复配置未 restart）
+            if (!config.autoCheckEnabled) {
+                log.verbose('NewWorksScheduler: 自动检查已关闭，清除残留 alarm 并跳过');
+                this.clearFirstRunTimeout();
+                this.clearAlarm();
+                this.isRunning = false;
+                return;
+            }
+
+            const subscriptions = await manager.getSubscriptions();
             const activeSubscriptions = subscriptions.filter(sub => sub.enabled);
 
             if (activeSubscriptions.length === 0) {
@@ -127,18 +183,17 @@ export class NewWorksScheduler {
             }
 
             // 执行采集
-            const result = await this.collector!.checkMultipleActors(activeSubscriptions, config);
+            const result = await collector.checkMultipleActors(activeSubscriptions, config);
 
             // 处理结果
             await this.processResults(result);
 
             // 更新最后检查时间
-            await this.manager!.updateGlobalConfig({
+            await manager.updateGlobalConfig({
                 lastGlobalCheck: Date.now()
             });
 
             log.info(`NewWorksScheduler: 定时采集完成，发现 ${result.discovered} 个新作品`);
-
         } catch (error) {
             log.error('NewWorksScheduler: 定时采集任务失败:', error);
         }
@@ -155,7 +210,7 @@ export class NewWorksScheduler {
         try {
             // 保存新作品
             if (results.newWorks.length > 0) {
-                await this.manager!.addNewWorks(results.newWorks);
+                await this.requireManager().addNewWorks(results.newWorks);
             }
 
             // 发送通知
@@ -167,7 +222,6 @@ export class NewWorksScheduler {
             if (results.errors.length > 0) {
                 console.warn('NewWorksScheduler: 采集过程中遇到错误:', results.errors);
             }
-
         } catch (error) {
             console.error('NewWorksScheduler: 处理采集结果失败:', error);
         }
@@ -178,44 +232,82 @@ export class NewWorksScheduler {
      */
     private async sendNotification(count: number): Promise<void> {
         try {
-            // 使用 Chrome 扩展通知 API
-            const notificationId = `new-works-${Date.now()}`;
+            ensureChromeNamespace();
+            const api = getExtensionApi();
+            if (!api?.notifications?.create) {
+                return;
+            }
 
-            await chrome.notifications.create(notificationId, {
-                type: 'basic',
-                iconUrl: chrome.runtime.getURL('assets/favicons/light/favicon-48x48.png'),
-                title: 'Jav 助手 - 新作品提醒',
-                message: `发现 ${count} 个新作品，点击查看详情`,
-                priority: 1,
-                requireInteraction: false
+            // 使用扩展通知 API
+            const notificationId = `new-works-${Date.now()}`;
+            const iconUrl = api.runtime?.getURL
+                ? api.runtime.getURL('assets/favicons/light/favicon-48x48.png')
+                : 'assets/favicons/light/favicon-48x48.png';
+
+            await new Promise<void>((resolve) => {
+                try {
+                    api.notifications.create(
+                        notificationId,
+                        {
+                            type: 'basic',
+                            iconUrl,
+                            title: 'Jav 助手 - 新作品提醒',
+                            message: `发现 ${count} 个新作品，点击查看详情`,
+                            priority: 1,
+                            requireInteraction: false,
+                        },
+                        () => resolve(),
+                    );
+                } catch {
+                    resolve();
+                }
             });
 
             // 监听通知点击事件
             const onClicked = (clickedNotificationId: string) => {
                 if (clickedNotificationId === notificationId) {
                     // 打开新作品页面
-                    chrome.tabs.create({
-                        url: chrome.runtime.getURL('dashboard/dashboard.html#tab-new-works')
-                    });
+                    try {
+                        api.tabs?.create?.({
+                            url: api.runtime?.getURL
+                                ? api.runtime.getURL('dashboard/dashboard.html#tab-new-works')
+                                : 'dashboard/dashboard.html#tab-new-works',
+                        });
+                    } catch {
+                        // ignore
+                    }
 
-                    // 清除通知
-                    chrome.notifications.clear(notificationId);
+                    try {
+                        api.notifications.clear(notificationId);
+                    } catch {
+                        // ignore
+                    }
 
-                    // 移除监听器
-                    chrome.notifications.onClicked.removeListener(onClicked);
+                    try {
+                        api.notifications.onClicked.removeListener(onClicked);
+                    } catch {
+                        // ignore
+                    }
                 }
             };
 
-            chrome.notifications.onClicked.addListener(onClicked);
+            try {
+                api.notifications.onClicked.addListener(onClicked);
+            } catch {
+                // ignore
+            }
 
             // 自动清除通知
             setTimeout(() => {
-                chrome.notifications.clear(notificationId);
-                chrome.notifications.onClicked.removeListener(onClicked);
+                try {
+                    api.notifications.clear(notificationId);
+                    api.notifications.onClicked.removeListener(onClicked);
+                } catch {
+                    // ignore
+                }
             }, 10000);
 
             log.verbose(`NewWorksScheduler: 通知已发送，发现 ${count} 个新作品`);
-
         } catch (error) {
             log.error('NewWorksScheduler: 发送通知失败:', error);
         }
@@ -231,8 +323,9 @@ export class NewWorksScheduler {
         try {
             log.verbose('NewWorksScheduler: 手动触发检查');
 
-            const config = await this.manager!.getGlobalConfig();
-            const subscriptions = await this.manager!.getSubscriptions();
+            const { manager, collector } = this.requireDependencies();
+            const config = await manager.getGlobalConfig();
+            const subscriptions = await manager.getSubscriptions();
             log.verbose('NewWorksScheduler: 获取到订阅数据:', subscriptions.length, '个订阅');
             log.verbose('NewWorksScheduler: 订阅详情:', subscriptions.map(sub => ({
                 id: sub.actorId,
@@ -251,11 +344,11 @@ export class NewWorksScheduler {
                 return { discovered: 0, errors: [errorMsg] };
             }
 
-            const result = await this.collector!.checkMultipleActors(activeSubscriptions, config);
+            const result = await collector.checkMultipleActors(activeSubscriptions, config);
             await this.processResults(result);
 
             // 更新最后检查时间
-            await this.manager!.updateGlobalConfig({
+            await manager.updateGlobalConfig({
                 lastGlobalCheck: Date.now()
             });
 
@@ -263,7 +356,6 @@ export class NewWorksScheduler {
                 discovered: result.discovered,
                 errors: result.errors
             };
-
         } catch (error) {
             console.error('NewWorksScheduler: 手动检查失败:', error);
             return {
@@ -275,6 +367,7 @@ export class NewWorksScheduler {
 
     /**
      * 获取调度器状态
+     * intervalId 已弃用（改用 alarms），保留可选字段兼容旧消费者
      */
     getStatus(): {
         isRunning: boolean;
@@ -284,7 +377,6 @@ export class NewWorksScheduler {
         return {
             isRunning: this.isRunning,
             isInitialized: this.isInitialized,
-            intervalId: this.intervalId
         };
     }
 
@@ -296,7 +388,51 @@ export class NewWorksScheduler {
         this.isInitialized = false;
         log.verbose('NewWorksScheduler: 资源已清理');
     }
+
+    private ensureAlarm(periodInMinutes: number): void {
+        ensureChromeNamespace();
+        const api = getExtensionApi();
+        const alarms = api?.alarms;
+        if (!alarms?.create) {
+            log.warn('NewWorksScheduler: chrome.alarms 不可用，无法注册周期检查');
+            return;
+        }
+
+        try {
+            // 先清再建，保证 period 与配置一致（restart / 冷启动幂等）
+            if (typeof alarms.clear === 'function') {
+                try {
+                    alarms.clear(NEW_WORKS_CHECK_ALARM);
+                } catch {
+                    // ignore
+                }
+            }
+            alarms.create(NEW_WORKS_CHECK_ALARM, {
+                delayInMinutes: periodInMinutes,
+                periodInMinutes,
+            });
+        } catch (error) {
+            log.error('NewWorksScheduler: 注册 alarm 失败:', error);
+        }
+    }
+
+    private clearAlarm(): void {
+        try {
+            ensureChromeNamespace();
+            const api = getExtensionApi();
+            api?.alarms?.clear?.(NEW_WORKS_CHECK_ALARM);
+        } catch {
+            // ignore
+        }
+    }
+
+    private clearFirstRunTimeout(): void {
+        if (this.firstRunTimeoutId !== undefined) {
+            clearTimeout(this.firstRunTimeoutId);
+            this.firstRunTimeoutId = undefined;
+        }
+    }
 }
 
-// 单例实例
+// 模块级实例（测试可 new；生产路径请使用 features/newWorks/index 已接线依赖的单例）
 export const newWorksScheduler = new NewWorksScheduler();
