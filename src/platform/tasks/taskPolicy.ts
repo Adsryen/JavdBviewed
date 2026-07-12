@@ -23,18 +23,39 @@ export const TASK_BUCKET_LIMITS: Record<string, number> = {
   auxiliary: 20,                                      // 辅助任务（宽限）
 };
 
-/** 根据任务 label 前缀解析所属桶 */
+/**
+ * 根据任务 label 解析所属桶。
+ *
+ * 翻译桶校准（P2）：
+ * - 真正打翻译 API / 父级 translate 任务 → translate（串行）
+ * - 仅 UI 的 prepare/render、titleTranslateBtn → 不进 translate，避免占串行槽
+ */
 export function resolveTaskBucket(label: string): string {
-  if (label.startsWith('videoStatus:')) return 'videoStatus';
-  if (label.includes('translate')) return 'translate';
-  if (label.startsWith('actorMarks')) return 'actorMarks';
-  if (label.startsWith('actorRemarks')) return 'actorRemarks';
-  if (label === 'drive115:push') return 'drive115-push';
-  if (label.startsWith('drive115')) return 'drive115';
-  if (label.startsWith('insights')) return 'insights';
-  if (label.startsWith('videoFavoriteRating')) return 'videoFavoriteRating';
-  if (label.startsWith('contentFilter')) return 'contentFilter';
-  if (label.startsWith('ui:remove-unwanted') || label.includes(':panel')) return 'ui-light';
-  if (label.startsWith('videoEnhancement:') || label.startsWith('ux:magnet:')) return 'video-light';
+  const raw = String(label || '');
+  const lower = raw.toLowerCase();
+
+  if (raw.startsWith('videoStatus:')) return 'videoStatus';
+
+  if (lower.includes('translate')) {
+    // UI-only：按钮挂载、准备 DOM、渲染结果 — 不占 translate 串行桶
+    if (
+      lower.endsWith(':prepare')
+      || lower.endsWith(':render')
+      || lower.includes('titletranslate')
+    ) {
+      return 'video-light';
+    }
+    return 'translate';
+  }
+
+  if (raw.startsWith('actorMarks')) return 'actorMarks';
+  if (raw.startsWith('actorRemarks')) return 'actorRemarks';
+  if (raw === 'drive115:push') return 'drive115-push';
+  if (raw.startsWith('drive115')) return 'drive115';
+  if (raw.startsWith('insights')) return 'insights';
+  if (raw.startsWith('videoFavoriteRating')) return 'videoFavoriteRating';
+  if (raw.startsWith('contentFilter')) return 'contentFilter';
+  if (raw.startsWith('ui:remove-unwanted') || raw.includes(':panel')) return 'ui-light';
+  if (raw.startsWith('videoEnhancement:') || raw.startsWith('ux:magnet:')) return 'video-light';
   return 'auxiliary';
 }
