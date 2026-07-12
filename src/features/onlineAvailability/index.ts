@@ -5,6 +5,7 @@
  */
 import { extractVideoIdFromPage } from '../../platform/browser';
 import { defaultHttpClient } from '../../platform/network/httpClient';
+import { getOrFetchSessionResult } from '../../platform/storage/sessionResultCache';
 import { log } from '../contentState';
 
 export type OnlineAvailabilityFetchType = 'get' | 'parser';
@@ -244,15 +245,27 @@ export class OnlineAvailabilityManager {
   }
 
   private async checkSiteUrl(site: OnlineAvailabilitySite, videoId: string, url: string): Promise<OnlineAvailabilityResult> {
+    const cacheId = `${String(videoId || '').trim()}|${site.key}|${url}`;
     try {
-      const doc = await withOnlineAvailabilityTimeout(defaultHttpClient.getDocument(url, {
-        timeout: this.config.timeoutMs,
-        retries: 0,
-        headers: {
-          Referer: 'https://javdb.com/',
+      const { data, fromCache } = await getOrFetchSessionResult(
+        'onlineAvailability',
+        cacheId,
+        async () => {
+          const doc = await withOnlineAvailabilityTimeout(defaultHttpClient.getDocument(url, {
+            timeout: this.config.timeoutMs,
+            retries: 0,
+            headers: {
+              Referer: 'https://javdb.com/',
+            },
+          }), this.config.timeoutMs, `${site.name} availability check`);
+          return parseOnlineAvailabilityDocument(site, doc, videoId, url, 200);
         },
-      }), this.config.timeoutMs, `${site.name} availability check`);
-      return parseOnlineAvailabilityDocument(site, doc, videoId, url, 200);
+      );
+      if (fromCache) {
+        // 跨页复用探测结果，避免重复外网请求
+        return data;
+      }
+      return data;
     } catch (error) {
       return {
         siteKey: site.key,

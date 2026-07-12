@@ -11,6 +11,7 @@ import { getJavdbTheme, type JavdbTheme } from '../../platform/browser/domUtils'
 import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { ReviewBreakerService } from '../reviewUnlock';
 import { dbViewedPut } from '../../platform/storage/dbRuntimeClient';
+import { getSessionResult, setSessionResult } from '../../platform/storage/sessionResultCache';
 import type { VideoRecord } from '../../types';
 import {
   appendMagnetResults,
@@ -212,15 +213,39 @@ export class FC2BreakerService {
    * 获取FC2视频完整信息（使用JavDB API）
    */
   static async getFC2VideoInfo(movieId: string): Promise<FC2Response> {
+    const identity = String(movieId || '').trim();
+    try {
+      const cached = await getSessionResult<FC2Response>('fc2', identity);
+      if (cached?.success) {
+        log(`[FC2Breaker] cache-hit movieId=${identity}`);
+        return cached;
+      }
+
+      const result = await this.fetchFC2VideoInfoNetwork(identity);
+      if (result.success) {
+        await setSessionResult('fc2', identity, result);
+      }
+      return result;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '未知错误';
+      log(`[FC2Breaker] Error getting FC2 video info:`, error);
+      return {
+        success: false,
+        error: `获取FC2视频信息失败: ${errorMsg}`,
+      };
+    }
+  }
+
+  private static async fetchFC2VideoInfoNetwork(movieId: string): Promise<FC2Response> {
     try {
       log(`[FC2Breaker] Getting FC2 video info for movieId: ${movieId}`);
 
       const videoInfo = await this.getMovieDetailFromJavDB(movieId);
-      
+
       // 获取磁链信息
       const magnets = await this.getMagnetsFromJavDB(movieId);
       videoInfo.magnets = magnets;
-      
+
       // 获取评论信息
       const reviews = await this.getReviewsFromJavDB(movieId);
       videoInfo.reviews = reviews;
@@ -234,7 +259,7 @@ export class FC2BreakerService {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '未知错误';
       log(`[FC2Breaker] Error getting FC2 video info:`, error);
-      
+
       return {
         success: false,
         error: `获取FC2视频信息失败: ${errorMsg}`,

@@ -13,6 +13,7 @@ import { defaultHttpClient } from '../../../platform/network/httpClient';
 import { handlePushToDrive115 } from '../../drive115/content';
 import { performanceOptimizer } from '../../../platform/tasks';
 import { dbMagnetsQuery, dbMagnetsUpsert } from '../../../platform/storage/dbRuntimeClient';
+import { getOrFetchSessionResult } from '../../../platform/storage/sessionResultCache';
 import {
   appendMagnetResults,
   getResultSources,
@@ -359,6 +360,30 @@ export class MagnetSearchManager {
    * 搜索外部磁力源，只返回结果，不读取或写入详情页 DOM。
    */
   async searchExternalSources(videoId: string, options: MagnetSearchRunOptions = {}): Promise<MagnetExternalSearchResult> {
+    const force = options.manual === true;
+    const sourcesKey = Object.entries(this.config.sources || {})
+      .filter(([, enabled]) => !!enabled)
+      .map(([k]) => k)
+      .sort()
+      .join(',');
+    const cacheIdentity = `${String(videoId || '').trim()}|${sourcesKey || 'none'}`;
+
+    const { data, fromCache } = await getOrFetchSessionResult(
+      'magnetsExternal',
+      cacheIdentity,
+      () => this.searchExternalSourcesNetwork(videoId, options),
+      { force },
+    );
+    if (fromCache) {
+      log(`[Magnets] external cache-hit videoId=${videoId}`);
+    }
+    return data;
+  }
+
+  private async searchExternalSourcesNetwork(
+    videoId: string,
+    options: MagnetSearchRunOptions = {},
+  ): Promise<MagnetExternalSearchResult> {
     const allResults: MagnetResult[] = [];
     const sourceStates: Partial<Record<MagnetSourceKey, MagnetSourceRunState>> = {};
     const allSearchSources = this.buildExternalSearchSources(videoId);

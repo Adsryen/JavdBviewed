@@ -8,6 +8,7 @@
 import { log } from '../contentState';
 import { bgFetchJSON } from '../../platform/network/clientFetch';
 import { ReviewBreakerService } from '../reviewUnlock';
+import { getSessionResult, setSessionResult } from '../../platform/storage/sessionResultCache';
 
 export interface RelatedListItem {
   relatedId: string;
@@ -32,9 +33,38 @@ export class RelatedListsService {
   private static readonly API_BASE = 'https://jdforrepam.com/api';
 
   static async getRelatedLists(movieId: string, page: number = 1, limit: number = 20): Promise<RelatedListsResponse> {
+    const safePage = Math.max(1, Math.round(Number(page) || 1));
+    const safeLimit = Math.max(1, Math.min(100, Math.round(Number(limit) || 20)));
+    const cacheIdentity = `${String(movieId || '').trim()}|p${safePage}|l${safeLimit}`;
+
     try {
-      const safePage = Math.max(1, Math.round(Number(page) || 1));
-      const safeLimit = Math.max(1, Math.min(100, Math.round(Number(limit) || 20)));
+      const cached = await getSessionResult<RelatedListsResponse>('relatedLists', cacheIdentity);
+      if (cached?.success) {
+        log(`[RelatedLists] cache-hit movie=${movieId} page=${safePage}`);
+        return cached;
+      }
+
+      const data = await this.fetchRelatedListsNetwork(movieId, safePage, safeLimit);
+      if (data.success) {
+        await setSessionResult('relatedLists', cacheIdentity, data);
+      }
+      return data;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      log('[RelatedLists] Error fetching related lists:', error);
+      return {
+        success: false,
+        error: `获取相关清单失败: ${errorMsg}`,
+      };
+    }
+  }
+
+  private static async fetchRelatedListsNetwork(
+    movieId: string,
+    safePage: number,
+    safeLimit: number,
+  ): Promise<RelatedListsResponse> {
+    try {
       const signature = await ReviewBreakerService.generateSignature();
       const params = new URLSearchParams({
         movie_id: movieId,
