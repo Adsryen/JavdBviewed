@@ -71,32 +71,8 @@ export function buildTimelineExportText(mode: string, list: OrchestratorTimeline
 }
 
 
+import { getTaskLabelDisplay } from '../taskLabelCatalog';
+
 export function getTaskDisplayNameForExport(label: string): string {
-  const taskNameMap: Record<string, string> = {
-    'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
-    'drive115:init:list': '115功能初始化-列表页 (drive115:init:list)',
-    'drive115:push': '115推送任务 (drive115:push)',
-    'insights:collector': '观影标签采集器 (insights:collector)',
-    'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
-    'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
-    'actorMarks:page': '演员标识-页面标记 (actorMarks:page)',
-    'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
-    'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
-    'superRankingNav:init': '超级排行榜导航初始化 (superRankingNav:init)',
-    'emby:badge': 'Emby/Jellyfin 徽标增强 (emby:badge)',
-    'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
-    'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
-    'videoEnhancement:clickEnhancement': '视频增强-点击增强 (videoEnhancement:clickEnhancement)',
-    'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
-    'videoEnhancement:loadData': '视频增强-加载聚合数据 (videoEnhancement:loadData)',
-    'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译 (videoEnhancement:translateCurrentTitle)',
-    'videoEnhancement:runCover': '视频增强-封面处理 (videoEnhancement:runCover)',
-    'videoEnhancement:runTitle': '视频增强-标题处理 (videoEnhancement:runTitle)',
-    'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
-    'videoEnhancement:runRelatedLists': '视频增强-相关清单解锁 (videoEnhancement:runRelatedLists)',
-    'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
-    'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
-    'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
-  };
-  return taskNameMap[label] || label;
+  return getTaskLabelDisplay(label);
 }

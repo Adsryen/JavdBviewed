@@ -534,8 +534,8 @@ async function initialize(): Promise<void> {
             hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
             hideUnrecognizedActorsInList: (settings.listEnhancement as any)?.hideUnrecognizedActorsInList !== false, // 默认true
             treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
-            // 高质量封面
-            enableHighQualityCover: settings.listEnhancement?.enableHighQualityCover !== false,
+            // 高质量封面：列表路径已弃用（JavDB 默认高清）；固定 false，配置字段仅兼容存储
+            enableHighQualityCover: false,
             // 🆕 列表显示控制
             listDisplayControl: {
                 enabled: (settings.listEnhancement as any)?.listDisplayControl?.enabled !== false,

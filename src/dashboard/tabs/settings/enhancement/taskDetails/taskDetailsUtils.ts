@@ -249,7 +249,7 @@ export function buildTaskDetailPageSummaries(tasks: any[], deps: {
   const pageScopedBlueprintLabels = new Set([
     'videoStatus:initialSync',
     'videoEnhancement:initCore',
-    'videoEnhancement:clickEnhancement',
+    // clickEnhancement 已并入 initCore，不再作为独立 blueprint
     'videoEnhancement:loadData',
     'videoEnhancement:translateCurrentTitle',
     'videoEnhancement:runCover',
