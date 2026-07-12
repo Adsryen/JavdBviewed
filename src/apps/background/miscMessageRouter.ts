@@ -46,6 +46,7 @@ import {
   setupWebDAVSyncAlarm,
 } from './utilityMessageHandlers';
 import { handleClearAllRecords } from './clearRecordsHandler';
+import { getBackgroundAlarmDiagnosticsSnapshot } from './alarmRouter';
 
 export { registerEmbyDynamicScripts };
 
@@ -76,6 +77,13 @@ export function registerMiscRouter(): void {
         case 'ping-background':
           sendResponse({ success: true, message: 'pong' });
           return false;
+        case 'ALARM_DIAGNOSTICS_GET':
+        case 'alarm-diagnostics:get': {
+          getBackgroundAlarmDiagnosticsSnapshot()
+            .then((data) => sendResponse({ success: true, ...data }))
+            .catch((e: any) => sendResponse({ success: false, error: e?.message || 'alarm diagnostics failed' }));
+          return true;
+        }
         case 'fetch-user-profile': {
           // 从 JavDB 抓取用户资料与服务器统计，并写入本地缓存
           // 注意：异步处理需 return true 保持消息通道

@@ -425,9 +425,9 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     blueprints.push({ phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' });
 
     if (enableVideoEnhancement || enableMultiSource || enableCurrentTitleTranslation) {
+        // clickEnhancement 无独立 managed 执行路径，不预注册虚假 label
         blueprints.push(
             { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] },
-            { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000, dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:runCover', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:runTitle', dependsOn: ['videoStatus:initialSync'] },

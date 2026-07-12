@@ -5,20 +5,32 @@
  */
 import { handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM, registerMonthlyAlarm } from './scheduler';
 import { newWorksScheduler } from '../../features/newWorks';
-import { handleTelemetryAlarm, syncTelemetryHeartbeatAlarm } from '../../features/telemetry';
+import { handleTelemetryAlarm, syncTelemetryHeartbeatAlarm, TELEMETRY_HEARTBEAT_ALARM } from '../../features/telemetry';
 import { getSettings } from '../../utils/storage';
 import { registerDynamicContentScripts } from './dynamicContentScripts';
 import {
+  EMBY_LIBRARY_SYNC_ALARM,
   handleEmbyLibraryAlarm,
   handleEmbyLibraryStateStorageChange,
   syncEmbyLibrarySyncAlarmFromCurrentSettings,
   syncEmbyLibrarySyncAlarmFromSettings,
 } from '../../features/embyLibrary/background/scheduler';
 import {
+  DRIVE115_USER_REFRESH_ALARM,
   handleDrive115Alarm,
   handleDrive115SettingsChange,
 } from './drive115UserRefresh';
 import { viewedPurgeExpired, actorsPurgeExpired } from '../../platform/storage/indexedDb';
+import {
+  ALARM_DIAGNOSTICS_STORAGE_KEY,
+  getAlarmNextScheduledAt,
+  readAlarmDiagnostics,
+  recordAlarmFire,
+  withAlarmDiagnostics,
+} from './alarmDiagnostics';
+
+// re-export for message handlers / tests
+export { ALARM_DIAGNOSTICS_STORAGE_KEY, readAlarmDiagnostics, recordAlarmFire };
 
 const RECYCLE_BIN_CLEANUP_ALARM = 'RECYCLE_BIN_CLEANUP';
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -30,6 +42,10 @@ export function initializeBackgroundAlarmWiring(): void {
   registerRecycleBinCleanupAlarm();
   registerBackgroundAlarmRouter();
   registerBackgroundSettingsChangeRouter();
+  // 冷启动也 ensure 新作品 alarm（onStartup 之外）
+  newWorksScheduler.initialize().catch((e: any) => {
+    console.warn('[Background] Failed to initialize new works scheduler on boot:', e?.message || e);
+  });
 }
 
 function registerRecycleBinCleanupAlarm(): void {
@@ -83,14 +99,24 @@ export function registerNewWorksStartupInitializer(): void {
   } catch {}
 }
 
+
 export function registerBackgroundAlarmRouter(): void {
   try {
     chrome.alarms.onAlarm.addListener((alarm) => {
-      if (handleDrive115Alarm(alarm?.name || '')) return;
+      const name = alarm?.name || '';
+
+      // 115 用户刷新：同步返回，但仍记录诊断
+      if (name === DRIVE115_USER_REFRESH_ALARM) {
+        void withAlarmDiagnostics(name, async () => {
+          handleDrive115Alarm(name);
+          return true;
+        }, () => 'drive115-user-refresh').catch(() => {});
+        return;
+      }
 
       // 回收站清理
-      if (alarm?.name === RECYCLE_BIN_CLEANUP_ALARM) {
-        handleRecycleBinCleanup().catch(() => {});
+      if (name === RECYCLE_BIN_CLEANUP_ALARM) {
+        void withAlarmDiagnostics(name, () => handleRecycleBinCleanup(), () => 'recycle-bin-cleanup').catch(() => {});
         return;
       }
 
@@ -100,11 +126,45 @@ export function registerBackgroundAlarmRouter(): void {
       const done = () => clearInterval(keepAlive);
       try {
         const p = (async () => {
-          if (await handleTelemetryAlarm(alarm?.name || '')) return;
-          if (await handleEmbyLibraryAlarm(alarm?.name || '')) return;
-          await handleAlarmAsync(alarm?.name || '');
+          // 新作品周期检查（与 drive115 同层 early-return）
+          const handledNewWorks = await newWorksScheduler.handleAlarm(name);
+          if (handledNewWorks) {
+            const nextScheduledAt = await getAlarmNextScheduledAt(name);
+            await recordAlarmFire(name, 'success', {
+              summary: 'new-works-check',
+              nextScheduledAt,
+            });
+            return;
+          }
+
+          if (await handleTelemetryAlarm(name)) {
+            const nextScheduledAt = await getAlarmNextScheduledAt(name);
+            await recordAlarmFire(name, 'success', {
+              summary: name === TELEMETRY_HEARTBEAT_ALARM ? 'telemetry-heartbeat' : 'telemetry',
+              nextScheduledAt,
+            });
+            return;
+          }
+
+          if (await handleEmbyLibraryAlarm(name)) {
+            const nextScheduledAt = await getAlarmNextScheduledAt(name);
+            await recordAlarmFire(name, 'success', {
+              summary: name === EMBY_LIBRARY_SYNC_ALARM ? 'emby-library-sync' : 'emby',
+              nextScheduledAt,
+            });
+            return;
+          }
+
+          await withAlarmDiagnostics(name, () => handleAlarmAsync(name), () => 'scheduler-async');
         })();
-        p.then(done).catch(done);
+        p.then(done).catch(async (error) => {
+          try {
+            await recordAlarmFire(name, 'error', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          } catch {}
+          done();
+        });
       } catch { done(); }
     });
   } catch {}
@@ -140,6 +200,23 @@ export function registerBackgroundSettingsChangeRouter(): void {
           handleDrive115SettingsChange(oldSettings, newSettings);
         } catch {}
       }
+
+      // 新作品配置变更时同步 alarm
+      if (area === 'local' && changes['new_works_config']) {
+        try {
+          await newWorksScheduler.initialize();
+        } catch {}
+      }
     });
   } catch {}
+}
+
+export async function getBackgroundAlarmDiagnosticsSnapshot(): Promise<{
+  diagnostics: Awaited<ReturnType<typeof readAlarmDiagnostics>>;
+  storageKey: string;
+}> {
+  return {
+    diagnostics: await readAlarmDiagnostics(),
+    storageKey: ALARM_DIAGNOSTICS_STORAGE_KEY,
+  };
 }

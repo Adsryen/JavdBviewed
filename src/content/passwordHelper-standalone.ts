@@ -204,47 +204,76 @@ async function getSettings() {
     }
 }
 
+/** 主 content bootstrap 已覆盖的站点：避免与 passwordHelper:init 双份注入 */
+function isCoveredByMainContentScript(hostname: string): boolean {
+    const host = String(hostname || '').toLowerCase();
+    return (
+        host === 'javdb.com' ||
+        host.endsWith('.javdb.com') ||
+        host === 'javdb36.com' ||
+        host.endsWith('.javdb36.com') ||
+        host.includes('javdb')
+    );
+}
+
 // 初始化密码助手
 async function initialize() {
     try {
-        const settings = await getSettings() as any;
-
-        // 检查是否启用密码助手
-        if (!settings.userExperience?.enablePasswordHelper) {
-            log('Password helper is disabled');
+        // 全站独立脚本：JavDB 主站由 apps/content/bootstrap 的 passwordHelper:init 负责
+        if (isCoveredByMainContentScript(window.location.hostname)) {
+            log('Skip standalone on main content host', window.location.hostname);
             return;
         }
 
-        const passwordHelperConfig = settings.passwordHelper || { showMethod: 0, waitTime: 300 };
+        const settings = await getSettings() as any;
+        let passwordHelper: PasswordHelper | null = null;
 
-        const passwordHelper = new PasswordHelper(
-            passwordHelperConfig.showMethod || 0,
-            passwordHelperConfig.waitTime || 300
-        );
+        const ensureStarted = (cfg: { showMethod?: number; waitTime?: number }) => {
+            if (!passwordHelper) {
+                passwordHelper = new PasswordHelper(cfg.showMethod || 0, cfg.waitTime || 300);
+                setTimeout(() => {
+                    passwordHelper?.init();
+                    log('Password helper initialized on', window.location.hostname);
+                }, 1000);
+            } else {
+                passwordHelper.updateConfig(cfg.showMethod || 0, cfg.waitTime || 300);
+            }
+        };
 
-        // 延迟初始化，避免影响页面加载
-        setTimeout(() => {
-            passwordHelper.init();
-            log('Password helper initialized on', window.location.hostname);
-        }, 1000);
+        const applySettings = (newSettings: any) => {
+            if (newSettings?.userExperience?.enablePasswordHelper) {
+                const newConfig = newSettings.passwordHelper || { showMethod: 0, waitTime: 300 };
+                ensureStarted(newConfig);
+                log('Password helper config updated');
+            } else if (passwordHelper) {
+                passwordHelper.destroy();
+                passwordHelper = null;
+                log('Password helper disabled');
+            }
+        };
 
-        // 监听设置更新
+        // 与 bootstrap 同一 settings key：关闭时不修改输入框
+        if (settings.userExperience?.enablePasswordHelper) {
+            const passwordHelperConfig = settings.passwordHelper || { showMethod: 0, waitTime: 300 };
+            ensureStarted(passwordHelperConfig);
+        } else {
+            log('Password helper is disabled');
+        }
+
         chrome.runtime.onMessage.addListener((message) => {
             if (message.type === 'settings-updated' || message.type === 'SETTINGS_UPDATED') {
-                const newSettings = message.settings;
-                if (newSettings.userExperience?.enablePasswordHelper) {
-                    const newConfig = newSettings.passwordHelper || { showMethod: 0, waitTime: 300 };
-                    passwordHelper.updateConfig(
-                        newConfig.showMethod || 0,
-                        newConfig.waitTime || 300
-                    );
-                    log('Password helper config updated');
-                } else {
-                    passwordHelper.destroy();
-                    log('Password helper disabled');
-                }
+                applySettings(message.settings);
             }
         });
+
+        try {
+            chrome.storage.onChanged.addListener((changes, area) => {
+                if (area !== 'local' || !changes['settings']) return;
+                applySettings(changes['settings'].newValue || {});
+            });
+        } catch (e) {
+            log('storage.onChanged bind failed', e);
+        }
     } catch (error) {
         log('Initialization failed:', error);
     }

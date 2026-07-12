@@ -1,6 +1,7 @@
 import { STATE } from '../../../../state';
 import type { ExtensionSettings } from '../../../../../types';
 import { getVideoDetailTaskBlueprints } from '../../../../../features/videoDetail';
+import { getEffectiveEmbyMatchUrls } from '../../../../../features/embyEnhancement/domain/matchUrls';
 
 export type OrchestratorDesignTask = {
   phase: 'critical' | 'high' | 'deferred' | 'idle';
@@ -141,7 +142,9 @@ export function computeDagLayers(tasks: OrchestratorDesignTask[]): Map<string, n
   return layers;
 }
 
+/** 设计视图 emby:badge 条件：与 content 注入一致（enabled + mediaServers/matchUrls） */
 export function isDesignEmbyEnabled(settings: ExtensionSettings & Record<string, any>): boolean {
-  const rawPatterns = (settings as any)?.emby?.urlPatterns;
-  return Array.isArray(rawPatterns) && rawPatterns.some((pattern: any) => typeof pattern === 'string' && pattern.trim().length > 0);
+  const emby = (settings as any)?.emby;
+  if (!emby || emby.enabled !== true) return false;
+  return getEffectiveEmbyMatchUrls(emby).length > 0;
 }

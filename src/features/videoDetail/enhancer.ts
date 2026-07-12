@@ -322,22 +322,9 @@ export class VideoDetailEnhancer {
 
     log(`Enhancing video detail page (core) for: ${this.videoId}`);
 
+    // 相关点击增强是 initCore 内联副作用，不再伪造独立 managed 任务 label
     this.enhanceRelatedVideoClicks();
     this.prepareRelatedListsInterception();
-    try {
-      chrome.runtime.sendMessage({
-        type: 'orchestrator:event',
-        event: 'task:done',
-        payload: {
-          phase: 'high',
-          label: 'videoEnhancement:clickEnhancement',
-          ts: performance.now(),
-          relativeTs: 0,
-          durationMs: 1,
-        },
-        pageUrl: window.location.href,
-      });
-    } catch {}
 
     this.coreInitialized = true;
     this.coreInitializedForVideoId = currentVideoId;
