@@ -112,21 +112,6 @@ export function bindOrchestratorControls(host: EnhancementBindHost): void {
       host.orchestratorTimeline?.scrollTo({ top: host.orchestratorTimeline.scrollHeight });
     });
   }
-
-  if (host.orchestratorOpenJavdbBtn && host.orchestratorOpenJavdbBtn.dataset.orchestratorBound !== '1') {
-    host.orchestratorOpenJavdbBtn.dataset.orchestratorBound = '1';
-    host.orchestratorOpenJavdbBtn.addEventListener('click', async () => {
-      try {
-        if (!chrome?.tabs?.create) return;
-        await new Promise<void>((resolve) => {
-          chrome.tabs.create({ url: 'https://javdb.com/' }, () => resolve());
-        });
-        setTimeout(() => host.refreshOrchestratorState(), 1500);
-      } catch (e) {
-        console.warn('[Enhancement] 打开 JavDB 失败:', e);
-      }
-    });
-  }
 }
 
 export function mountTranslationConfigIntoVideoBlock(host: EnhancementBindHost): void {

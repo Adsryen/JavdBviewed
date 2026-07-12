@@ -142,8 +142,7 @@ export function initializeElements(host: EnhancementInitHost): void {
   host.orchestratorRefreshBtn = document.getElementById('orchestratorRefreshBtn') as HTMLButtonElement | null;
   host.orchestratorStopAllBtn = document.getElementById('orchestratorStopAllBtn') as HTMLButtonElement | null;
   host.orchestratorClearGlobalBtn = document.getElementById('orchestratorClearGlobalBtn') as HTMLButtonElement | null;
-  host.orchestratorOpenJavdbBtn = document.getElementById('orchestratorOpenJavdbBtn') as HTMLButtonElement | null;
-  host.orchestratorFullscreenBtn = document.getElementById('orchestratorFullscreenBtn') as HTMLButtonElement | null;
+    host.orchestratorFullscreenBtn = document.getElementById('orchestratorFullscreenBtn') as HTMLButtonElement | null;
   host.orchestratorCopyPhasesBtn = document.getElementById('orchestratorCopyPhasesBtn') as HTMLButtonElement | null;
   host.orchestratorCopyTimelineBtn = document.getElementById('orchestratorCopyTimelineBtn') as HTMLButtonElement | null;
   host.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;

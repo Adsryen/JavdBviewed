@@ -200,8 +200,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchestratorRefreshBtn!: HTMLButtonElement | null;
     private orchestratorStopAllBtn!: HTMLButtonElement | null;
     private orchestratorClearGlobalBtn!: HTMLButtonElement | null;
-    private orchestratorOpenJavdbBtn!: HTMLButtonElement | null;
-    private orchestratorFullscreenBtn!: HTMLButtonElement | null;
+        private orchestratorFullscreenBtn!: HTMLButtonElement | null;
     private orchestratorCopyPhasesBtn!: HTMLButtonElement | null;
     private orchestratorCopyTimelineBtn!: HTMLButtonElement | null;
     private orchestratorPhases!: HTMLElement | null;
