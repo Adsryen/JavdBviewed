@@ -648,3 +648,59 @@ describe('GlobalTaskCenter shareScope / dedupe (P0-3/4/5)', () => {
     expect(second.taskId).toBe('fallback-1');
   });
 });
+
+
+describe('GlobalTaskCenter multi pageInstance pressure (P2 R3)', () => {
+  it('registers many pageInstances without exceeding translate bucket concurrency', () => {
+    const center = new GlobalTaskCenter();
+    const pageCount = 25;
+    for (let i = 0; i < pageCount; i += 1) {
+      center.registerTask(createDescriptor({
+        taskId: `tr-${i}`,
+        label: 'videoEnhancement:translateCurrentTitle:request',
+        tabId: 100 + i,
+        pageInstanceId: `page-${i}`,
+        pageUrl: `/v/code-${i}`,
+        dedupeKey: `translate:page-${i}`,
+        phase: 'deferred',
+        priority: 3,
+      }));
+      center.registerTask(createDescriptor({
+        taskId: `list-${i}`,
+        label: 'listEnhancement:init',
+        tabId: 100 + i,
+        pageInstanceId: `page-${i}`,
+        pageUrl: `/lists/${i}`,
+        dedupeKey: `list:page-${i}`,
+        phase: 'high',
+        priority: 8,
+      }));
+    }
+
+    const state = center.queryState();
+    expect(state.tasks.length).toBeGreaterThanOrEqual(pageCount * 2);
+
+    // 申请 lease：translate 桶 limit=1，不应同时 grant 多个 translate request
+    let translateGranted = 0;
+    for (let i = 0; i < pageCount; i += 1) {
+      const lease = center.requestLease(`tr-${i}`);
+      if (lease?.granted) translateGranted += 1;
+    }
+    expect(translateGranted).toBeLessThanOrEqual(1);
+
+    // 高优先级列表任务仍可在各自 bucket 下获得进展（不要求全部 grant，但不为零）
+    let listGranted = 0;
+    for (let i = 0; i < pageCount; i += 1) {
+      const lease = center.requestLease(`list-${i}`);
+      if (lease?.granted) listGranted += 1;
+    }
+    expect(listGranted).toBeGreaterThan(0);
+  });
+
+  it('mark/check completed labels support cross-page dependency signals', () => {
+    const center = new GlobalTaskCenter();
+    expect(center.isTaskLabelCompleted('videoEnhancement:loadData')).toBe(false);
+    center.markTaskLabelCompleted('videoEnhancement:loadData');
+    expect(center.isTaskLabelCompleted('videoEnhancement:loadData')).toBe(true);
+  });
+});

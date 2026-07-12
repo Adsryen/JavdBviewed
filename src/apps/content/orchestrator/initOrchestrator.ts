@@ -6,7 +6,7 @@
 // src/apps/content/orchestrator/initOrchestrator.ts
 
 // removed unused import: performanceOptimizer
-import { createManagedTaskDescriptor, runManagedTask, ensureManagedTaskRegistered, runRegisteredManagedTask, clearTaskRetryBudget, isRetryBudgetExhausted, incrementTaskRetryCount } from '../../../platform/tasks';
+import { createManagedTaskDescriptor, runManagedTask, ensureManagedTaskRegistered, runRegisteredManagedTask, clearTaskRetryBudget, isRetryBudgetExhausted, incrementTaskRetryCount, isGlobalTaskLabelCompleted, notifyGlobalTaskCompleted } from '../../../platform/tasks';
 import type { GlobalTaskDescriptor, GlobalTaskVisibilityPolicy } from '../../../shared/taskCenterTypes';
 import { getPageContext } from '../../../platform/browser';
 import { installOrchestratorDashboardMetricsMessages } from './dashboardMetricsMessages';
@@ -69,6 +69,56 @@ class InitOrchestrator {
   private completedTasks = new Set<string>(); // 已完成的任务标签
   private taskDependencies = new Map<string, string[]>(); // 任务依赖关系
   private retryTimers = new OrchestratorRetryTimers();
+
+  /**
+   * 允许用「其它页已完成」满足 dependsOn 的 label 白名单（仅网络/数据类，禁止 DOM per-page）。
+   * @see P2 R6
+   */
+  private static readonly GLOBAL_DEPENDENCY_LABELS = new Set([
+    'videoEnhancement:loadData',
+    'videoEnhancement:runRelatedLists',
+    'videoEnhancement:runFC2Breaker',
+    'videoEnhancement:runReviewBreaker',
+    'onlineAvailability:check',
+    'ux:magnet:autoSearch',
+  ]);
+
+  private isGlobalDependencyLabel(label: string): boolean {
+    return InitOrchestrator.GLOBAL_DEPENDENCY_LABELS.has(label);
+  }
+
+  /** 本地未满足的依赖中，过滤掉 global 已完成的项 */
+  private async filterUnmetDependencies(dependsOn: string[] | undefined): Promise<string[]> {
+    const deps = dependsOn || [];
+    const localUnmet = deps.filter((dep) => !this.completedTasks.has(dep));
+    if (localUnmet.length === 0) return [];
+
+    const stillUnmet: string[] = [];
+    for (const dep of localUnmet) {
+      if (!this.isGlobalDependencyLabel(dep)) {
+        stillUnmet.push(dep);
+        continue;
+      }
+      try {
+        const done = await isGlobalTaskLabelCompleted(dep);
+        if (done) {
+          this.completedTasks.add(dep);
+          this.log('dependency satisfied via global', { dep });
+          continue;
+        }
+      } catch {}
+      stillUnmet.push(dep);
+    }
+    return stillUnmet;
+  }
+
+  private markLocalAndMaybeGlobalComplete(label: string): void {
+    if (!label || label === 'anonymous') return;
+    this.completedTasks.add(label);
+    if (this.isGlobalDependencyLabel(label)) {
+      void notifyGlobalTaskCompleted(label);
+    }
+  }
 
   constructor() {
     // 根据设备性能动态调整并发数
@@ -466,15 +516,16 @@ class InitOrchestrator {
     st.running = true;
     this.markTaskStarted(label);
 
-    // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks
-    const localUnmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
-    if (localUnmetDeps.length > 0) {
-      const dependencyError = new Error(`Task waiting for dependencies: ${localUnmetDeps.join(',')}`) as TaskDependencyDeferredError;
-      dependencyError.unmetDeps = localUnmetDeps;
-      return Promise.reject(dependencyError);
-    }
+    // P2 R6: 本地 completedTasks + 白名单 label 的 global completed 双查询
+    return this.filterUnmetDependencies(st.options.dependsOn).then((localUnmetDeps) => {
+      if (localUnmetDeps.length > 0) {
+        st.running = false;
+        const dependencyError = new Error(`Task waiting for dependencies: ${localUnmetDeps.join(',')}`) as TaskDependencyDeferredError;
+        dependencyError.unmetDeps = localUnmetDeps;
+        return Promise.reject(dependencyError);
+      }
 
-    const startMark = `orchestrator:${phase}:${label}:start`;
+      const startMark = `orchestrator:${phase}:${label}:start`;
     const endMark = `orchestrator:${phase}:${label}:end`;
     try { performance.mark(startMark); } catch {}
     const startAbs = performance.now();
@@ -562,10 +613,8 @@ class InitOrchestrator {
         if (st.managedDescriptor?.taskId) {
           clearTaskRetryBudget(st.managedDescriptor.taskId);
         }
-        // 标记任务为已完成
-        if (label !== 'anonymous') {
-          this.completedTasks.add(label);
-        }
+        // 标记任务为已完成（白名单 label 同步 global，供跨页 dependsOn）
+        this.markLocalAndMaybeGlobalComplete(label);
         // 保存任务详细信息
         this.saveTaskDetail(phase, label, 'done', durationMs);
       })
@@ -638,6 +687,7 @@ class InitOrchestrator {
     }
 
     return taskPromise;
+    });
   }
 
   private scheduleTask(phase: InitPhase, st: ScheduledTask): void {
@@ -671,28 +721,32 @@ class InitOrchestrator {
         return;
       }
 
-      // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks，
-      // 其他标签页完成的任务标签不会在这里体现。需要改成本地+全局双查询。
-      const unmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
-      if (unmetDeps.length > 0) {
-        const elapsed = performance.now() - scheduledAt;
-        this.log(elapsed < dependencyWaitLimit ? 'schedule retry due to unmet dependencies' : 'dependency wait limit reached, keep waiting', {
-          phase,
-          label,
-          unmetDeps,
-          elapsed: Math.round(elapsed),
-        });
-        st.queued = false;
-        setTimeout(exec, dependencyRetryDelay);
-        return;
-      }
+      // P2 R6: 本地 + 白名单 global 双查询
+      void this.filterUnmetDependencies(st.options.dependsOn).then((unmetDeps) => {
+        if (st.completed || st.running) {
+          st.queued = false;
+          return;
+        }
+        if (unmetDeps.length > 0) {
+          const elapsed = performance.now() - scheduledAt;
+          this.log(elapsed < dependencyWaitLimit ? 'schedule retry due to unmet dependencies' : 'dependency wait limit reached, keep waiting', {
+            phase,
+            label,
+            unmetDeps,
+            elapsed: Math.round(elapsed),
+          });
+          st.queued = false;
+          setTimeout(exec, dependencyRetryDelay);
+          return;
+        }
 
-      // 任务真正进入 runTask 前再占用本地并发槽，依赖等待期间不占槽
-      if (taskKey) this.pendingRegistrationTimes.delete(taskKey);
-      if (phase === 'deferred') this.runningDeferred++;
-      if (phase === 'idle') this.runningIdle++;
+        // 任务真正进入 runTask 前再占用本地并发槽，依赖等待期间不占槽
+        if (taskKey) this.pendingRegistrationTimes.delete(taskKey);
+        if (phase === 'deferred') this.runningDeferred++;
+        if (phase === 'idle') this.runningIdle++;
 
-      this.runTask(phase, st);
+        this.runTask(phase, st);
+      });
     };
     if (idle) {
       const scheduleIdle = () => {
