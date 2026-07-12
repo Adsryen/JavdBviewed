@@ -202,12 +202,30 @@ export async function handleSaveTaskDetail(taskDetail: any, sender?: chrome.runt
         savedAt: Date.now(),
       };
 
+      // 可观测性：补齐 bucket / queueAgeMs（旧记录或 content 未写时）
+      try {
+        const { resolveTaskBucket } = await import('../../platform/tasks/taskPolicy');
+        if (!normalizedDetail.bucket && normalizedDetail.label) {
+          normalizedDetail.bucket = resolveTaskBucket(String(normalizedDetail.label));
+        }
+        if (
+          typeof normalizedDetail.queueAgeMs !== 'number'
+          && typeof normalizedDetail.registeredAt === 'number'
+          && typeof normalizedDetail.startedAt === 'number'
+          && normalizedDetail.registeredAt > 0
+          && normalizedDetail.startedAt > 0
+        ) {
+          normalizedDetail.queueAgeMs = Math.max(0, normalizedDetail.startedAt - normalizedDetail.registeredAt);
+        }
+      } catch {}
+
       console.log('[Background] saveTaskDetail:start', {
         label: normalizedDetail.label,
         parentLabel: normalizedDetail.parentLabel,
         pageInstanceId: normalizedDetail.pageInstanceId,
         mainId: normalizedDetail.mainId,
         tabId: normalizedDetail.tabId,
+        bucket: normalizedDetail.bucket,
       });
 
       const existingDetails = await getValue<any[]>('orchestratorTaskDetails', []);
@@ -220,6 +238,7 @@ export async function handleSaveTaskDetail(taskDetail: any, sender?: chrome.runt
         parentLabel: normalizedDetail.parentLabel,
         pageInstanceId: normalizedDetail.pageInstanceId,
         total: trimmedDetails.length,
+        bucket: normalizedDetail.bucket,
       });
     } catch (error) {
       console.error('[Background] Failed to save task detail:', error, {

@@ -35,6 +35,11 @@ import { getDesignTaskMeta, getTimelineFilters } from './orchestrator/orchestrat
 import { getStatusLabel, getGlobalTaskStatus, getWaitReasonLabel, buildGlobalTaskDetail, getTaskDescription } from './orchestrator/orchestratorData';
 import { getTaskDisplayNameForExport } from './orchestrator/orchestratorExport';
 import { normalizeMagnetSortMode } from '../../../../features/magnets';
+import { fetchGlobalTaskState } from '../../../services/globalTaskMonitor';
+import {
+    buildOrchestrationDiagnosticsBundle,
+    stringifyDiagnosticsBundle,
+} from './diagnostics/orchestrationDiagnosticsBundle';
 
 /**
  * 功能增强设置面板类
@@ -220,6 +225,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsStopAllBtn!: HTMLButtonElement | null;
     private taskDetailsClearBtn!: HTMLButtonElement | null;
     private taskDetailsCopyCurrentPageBtn!: HTMLButtonElement | null;
+    private taskDetailsCopyDiagnosticsBtn!: HTMLButtonElement | null;
     private taskDetailsPrevPage!: HTMLButtonElement | null;
     private taskDetailsNextPage!: HTMLButtonElement | null;
     private taskDetailsSearch!: HTMLInputElement | null;
@@ -697,6 +703,89 @@ export class EnhancementSettings extends BaseSettingsPanel {
         } catch (e) {
             console.error('[Enhancement] copyCurrentPageTaskDiagnostics failed:', e);
             showMessage(this.taskDetailsView === 'pages' ? '复制页面实例汇总失败' : '复制当前任务明细失败', 'error');
+        }
+    }
+
+    /**
+     * 复制完整 JSON 诊断包（任务明细 + 任务中心快照 + alarm 诊断 + 版本）
+     * 供用户粘贴给开发者远程排障，避免双方互测浏览器。
+     */
+    public async copyOrchestrationDiagnosticsBundle(): Promise<void> {
+        const errors: string[] = [];
+        try {
+            const send = <T = any>(message: any): Promise<T | null> =>
+                new Promise((resolve) => {
+                    try {
+                        chrome.runtime.sendMessage(message, (resp) => {
+                            if (chrome.runtime.lastError) {
+                                errors.push(String(chrome.runtime.lastError.message || 'runtime error'));
+                                resolve(null);
+                                return;
+                            }
+                            resolve(resp as T);
+                        });
+                    } catch (e) {
+                        errors.push(String(e));
+                        resolve(null);
+                    }
+                });
+
+            const [detailsResp, centerState, alarmResp] = await Promise.all([
+                send<any>({ type: 'orchestrator:getTaskDetails', options: { page: 1, pageSize: 5000 } }),
+                fetchGlobalTaskState().catch((e) => {
+                    errors.push(`task-center: ${e}`);
+                    return { tasks: [] };
+                }),
+                send<any>({ type: 'ALARM_DIAGNOSTICS_GET' }),
+            ]);
+
+            let extensionVersion = 'unknown';
+            try {
+                extensionVersion = chrome.runtime.getManifest?.()?.version || extensionVersion;
+            } catch {}
+
+            const details = Array.isArray(detailsResp?.details)
+                ? detailsResp.details
+                : Array.isArray(this.taskDetailsData)
+                    ? this.taskDetailsData
+                    : [];
+            if (!detailsResp?.details) {
+                errors.push('orchestrator:getTaskDetails unavailable; used in-memory taskDetailsData fallback if any');
+            }
+
+            const centerTasks = Array.isArray(centerState?.tasks) ? centerState.tasks : [];
+            const alarmDiagnostics =
+                alarmResp?.success && alarmResp?.diagnostics && typeof alarmResp.diagnostics === 'object'
+                    ? alarmResp.diagnostics
+                    : alarmResp?.diagnostics || undefined;
+            if (alarmResp && alarmResp.success === false) {
+                errors.push(`alarm diagnostics: ${alarmResp.error || 'failed'}`);
+            }
+
+            const timeline = Array.isArray(this.orchestratorTimelineData)
+                ? (this.orchestratorTimelineData as any[])
+                : [];
+
+            const bundle = buildOrchestrationDiagnosticsBundle({
+                extensionVersion,
+                exportedAt: Date.now(),
+                alarmDiagnostics,
+                taskCenterTasks: centerTasks,
+                taskDetails: details,
+                orchestratorTimeline: timeline,
+                meta: {
+                    note: 'Paste this JSON to the developer for orchestration troubleshooting',
+                    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+                    branchHint: 'feat/orchestration-p1',
+                },
+                errors: errors.length ? errors : undefined,
+            });
+
+            await this.writeClipboard(stringifyDiagnosticsBundle(bundle));
+            showMessage('诊断包已复制（JSON）。发给开发者即可远程排查', 'success');
+        } catch (e) {
+            console.error('[Enhancement] copyOrchestrationDiagnosticsBundle failed:', e);
+            showMessage('复制诊断包失败', 'error');
         }
     }
 

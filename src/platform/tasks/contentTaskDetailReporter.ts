@@ -1,4 +1,5 @@
 import { getPageContext } from '../browser/pageContext';
+import { resolveTaskBucket } from './taskPolicy';
 
 export interface SubtaskDetailPayload {
   label: string;
@@ -22,6 +23,13 @@ export interface SubtaskDetailPayload {
   itemCount?: number;
   detail?: string;
   registrationSource?: 'blueprint' | 'runtime';
+  bucket?: string;
+  registeredAt?: number;
+  startedAt?: number;
+  endedAt?: number;
+  queueAgeMs?: number;
+  waitReason?: string;
+  visibilityPolicy?: string;
 }
 
 export interface ContentTaskDetailReporterOptions {
@@ -55,6 +63,7 @@ export function saveSubtaskDetail(
         mainId: payload.mainId || pageContext.mainId,
         pageInstanceId: payload.pageInstanceId || pageContext.pageInstanceId,
         timestamp: payload.timestamp || Date.now(),
+        bucket: payload.bucket || (payload.label ? resolveTaskBucket(payload.label) : undefined),
       };
 
       if (!(typeof chrome !== 'undefined' && chrome.runtime?.sendMessage)) {

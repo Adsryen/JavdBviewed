@@ -153,6 +153,7 @@ export function initializeElements(host: EnhancementInitHost): void {
   host.orchGlobalGroupingSel = document.getElementById('orchGlobalGrouping') as HTMLSelectElement | null;
   host.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
   host.taskDetailsCopyCurrentPageBtn = document.getElementById('taskDetailsCopyCurrentPageBtn') as HTMLButtonElement | null;
+  host.taskDetailsCopyDiagnosticsBtn = document.getElementById('taskDetailsCopyDiagnosticsBtn') as HTMLButtonElement | null;
   host.orchestratorPhases = document.getElementById('orchestratorPhases') as HTMLElement | null;
   host.orchestratorTimeline = document.getElementById('orchestratorTimeline') as HTMLElement | null;
   host.orchestratorSummary = document.getElementById('orchestratorSummary') as HTMLElement | null;

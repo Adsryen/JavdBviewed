@@ -110,6 +110,10 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
     host.taskDetailsCopyCurrentPageBtn.dataset.taskDetailsBound = '1';
     host.taskDetailsCopyCurrentPageBtn.addEventListener('click', () => host.copyCurrentPageTaskDiagnostics());
   }
+  if (host.taskDetailsCopyDiagnosticsBtn && host.taskDetailsCopyDiagnosticsBtn.dataset.taskDetailsBound !== '1') {
+    host.taskDetailsCopyDiagnosticsBtn.dataset.taskDetailsBound = '1';
+    host.taskDetailsCopyDiagnosticsBtn.addEventListener('click', () => host.copyOrchestrationDiagnosticsBundle());
+  }
   if (host.taskDetailsPrevPage && host.taskDetailsPrevPage.dataset.taskDetailsBound !== '1') {
     host.taskDetailsPrevPage.dataset.taskDetailsBound = '1';
     host.taskDetailsPrevPage.addEventListener('click', () => host.taskDetailsPrevPageHandler());

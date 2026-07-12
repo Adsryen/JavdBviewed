@@ -6,7 +6,7 @@
 // src/apps/content/orchestrator/initOrchestrator.ts
 
 // removed unused import: performanceOptimizer
-import { createManagedTaskDescriptor, runManagedTask, ensureManagedTaskRegistered, runRegisteredManagedTask, clearTaskRetryBudget, isRetryBudgetExhausted, incrementTaskRetryCount, isGlobalTaskLabelCompleted, notifyGlobalTaskCompleted } from '../../../platform/tasks';
+import { createManagedTaskDescriptor, runManagedTask, ensureManagedTaskRegistered, runRegisteredManagedTask, clearTaskRetryBudget, isRetryBudgetExhausted, incrementTaskRetryCount, isGlobalTaskLabelCompleted, notifyGlobalTaskCompleted, resolveTaskBucket } from '../../../platform/tasks';
 import type { GlobalTaskDescriptor, GlobalTaskVisibilityPolicy } from '../../../shared/taskCenterTypes';
 import { getPageContext } from '../../../platform/browser';
 import { installOrchestratorDashboardMetricsMessages } from './dashboardMetricsMessages';
@@ -371,6 +371,13 @@ class InitOrchestrator {
         registeredAt,
         startedAt,
         endedAt,
+        queueAgeMs: registeredAt > 0 && startedAt > 0 ? Math.max(0, startedAt - registeredAt) : undefined,
+        bucket: resolveTaskBucket(label),
+        visibilityPolicy: trackedTask?.managedDescriptor?.visibilityPolicy,
+        cost: trackedTask?.managedDescriptor?.cost,
+        retryLimit: trackedTask?.managedDescriptor?.retryLimit,
+        shareScope: trackedTask?.managedDescriptor?.shareScope,
+        executionClass: trackedTask?.managedDescriptor?.executionClass,
         pageUrl: pageContext.pageUrl,
         pageType: pageContext.pageType,
         mainId: pageContext.mainId,
