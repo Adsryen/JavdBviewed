@@ -70,10 +70,13 @@ vitepress/.vitepress/cache/
 !reference/emby-api-4.9.5.0/*.md
 !reference/emby-api-4.9.5.0/*.cjs
 !reference/emby-api-4.9.5.0/*.json
-# 旧路径仅保留迁移说明（可选）
-!reference/emby-api/
-!reference/emby-api/README.md
-!reference/emby-api/MOVED.md
+# Jellyfin API 本地转存（目录名含 API 版本号）
+!reference/jellyfin-api-12.0.0/
+!reference/jellyfin-api-12.0.0/**
+!reference/jellyfin-api-12.0.0/**/*.md
+!reference/jellyfin-api-12.0.0/*.md
+!reference/jellyfin-api-12.0.0/*.cjs
+!reference/jellyfin-api-12.0.0/*.json
 !PRIVACY_POLICY.md
 !FEATURES.md
 !CONTRIBUTING.md
