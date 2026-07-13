@@ -80,6 +80,33 @@ function prefetchTab(tabId: string): void {
   prefetchTabResources(tabId).catch(() => {});
 }
 
+
+function playNavClickRipple(button: HTMLButtonElement, event: MouseEvent): void {
+  if (!document.body) {
+    return;
+  }
+
+  const rect = button.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  ripple.className = 'dashboard-nav-click-ripple';
+  if (button.classList.contains('dashboard-sub-tab')) {
+    ripple.classList.add('dashboard-nav-click-ripple--sub');
+  }
+
+  const size = Math.max(rect.width, rect.height) * 1.85;
+  const originX = event.clientX > 0 ? event.clientX - rect.left : rect.width / 2;
+  const originY = event.clientY > 0 ? event.clientY - rect.top : rect.height / 2;
+
+  ripple.style.width = `${size}px`;
+  ripple.style.height = `${size}px`;
+  ripple.style.left = `${rect.left + originX - size / 2}px`;
+  ripple.style.top = `${rect.top + originY - size / 2}px`;
+
+  document.body.appendChild(ripple);
+  ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+  window.setTimeout(() => ripple.remove(), 700);
+}
+
 function createMainButton(group: DashboardNavGroup, activeGroupId: string, onActivate: (group: DashboardNavGroup) => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -98,7 +125,10 @@ function createMainButton(group: DashboardNavGroup, activeGroupId: string, onAct
       prefetchTab(defaultItem.tabId);
     }
   });
-  button.addEventListener('click', () => onActivate(group));
+  button.addEventListener('click', event => {
+    playNavClickRipple(button, event);
+    onActivate(group);
+  });
 
   return button;
 }
@@ -124,7 +154,10 @@ function createSubButton(
   button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
 
   button.addEventListener('mouseenter', () => prefetchTab(item.tabId));
-  button.addEventListener('click', () => onActivate(createState(group, item)));
+  button.addEventListener('click', event => {
+    playNavClickRipple(button, event);
+    onActivate(createState(group, item));
+  });
 
   return button;
 }
