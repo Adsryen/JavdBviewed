@@ -81,6 +81,10 @@ describe('serverEndpointResolver', () => {
       '../../src/platform/network/serverEndpointResolver'
     );
 
+    expect(GITHUB_BOOTSTRAP_URL).toBe(
+      'https://raw.githubusercontent.com/lmixture/JavdBviewed/main/public/bootstrap.json',
+    );
+
     await expect(refreshServerEndpoint({ force: true })).resolves.toMatchObject({
       apiBaseUrl: 'https://api-from-bootstrap.example',
       source: GITHUB_BOOTSTRAP_URL,

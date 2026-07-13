@@ -4,9 +4,11 @@
  * @module platform/network
  */
 
+import { getRepoRawUrl } from '../../shared/repoIdentity';
+
 export const DEFAULT_SERVER_API_BASE_URL = 'https://jbd-server.we-together.club';
 export const PRIMARY_BOOTSTRAP_URL = `${DEFAULT_SERVER_API_BASE_URL}/v1/bootstrap`;
-export const GITHUB_BOOTSTRAP_URL = 'https://raw.githubusercontent.com/Adsryen/JavdBviewed/main/public/bootstrap.json';
+export const GITHUB_BOOTSTRAP_URL = getRepoRawUrl('public/bootstrap.json');
 export const SERVER_ENDPOINT_STATE_KEY = 'server_endpoint_state';
 
 type BootstrapEndpointStatus = 'active' | 'degraded' | 'disabled' | string;

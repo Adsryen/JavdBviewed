@@ -15,7 +15,7 @@
 
 ### 方式一：下载预编译版本
 
-1. 打开 [GitHub Releases](https://github.com/Adsryen/JavdBviewed/releases)
+1. 打开 [GitHub Releases](https://github.com/lmixture/JavdBviewed/releases)
 2. 下载最新的 `javdb-extension-v*.zip`
 3. 解压到本地固定目录
 4. 打开浏览器扩展管理页

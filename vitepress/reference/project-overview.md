@@ -24,7 +24,7 @@ Jav 助手是一个面向 JavDB 等站点的浏览器扩展，提供视频状态
 
 ### 下载预编译版本
 
-1. 打开 [GitHub Releases](https://github.com/Adsryen/JavdBviewed/releases)
+1. 打开 [GitHub Releases](https://github.com/lmixture/JavdBviewed/releases)
 2. 下载最新的 `javdb-extension-v*.zip`
 3. 解压到本地目录
 4. 打开扩展管理页：`chrome://extensions/` 或 `edge://extensions/`

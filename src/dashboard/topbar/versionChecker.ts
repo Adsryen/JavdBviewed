@@ -3,6 +3,7 @@
  * 自动检测当前版本与 GitHub 最新版本的对比
  */
 
+import { REPO_RELEASES_LATEST_URL } from '../../shared/repoIdentity';
 import {
   checkForUpdatesWithPolicy,
   getCurrentVersion,
@@ -172,7 +173,7 @@ export async function initVersionBadge(): Promise<void> {
     if (versionInfo.status === 'outdated') {
       badge.style.cursor = 'pointer';
       badge.addEventListener('click', () => {
-        window.open('https://github.com/Adsryen/JavdBviewed/releases/latest', '_blank');
+        window.open(REPO_RELEASES_LATEST_URL, '_blank');
       });
     }
   }).catch(error => {

@@ -29,7 +29,7 @@
 ### 克隆项目
 
 ```bash
-git clone https://github.com/Adsryen/JavdBviewed.git
+git clone https://github.com/lmixture/JavdBviewed.git
 cd JavdBviewed
 ```
 

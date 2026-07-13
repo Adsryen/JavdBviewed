@@ -3,6 +3,7 @@
  * 配置网络加速和测试网络连通性，帮助诊断连接问题
  */
 
+import { getRepoRawUrl } from '../../../../shared/repoIdentity';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { showMessage } from '../../../ui/toast';
 import type { ExtensionSettings } from '../../../../types';
@@ -426,7 +427,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             const customUrl = this.customProxyUrlInput.value;
 
             // 测试文件 URL（使用本仓库的 routes.json）
-            const testFileUrl = 'https://raw.githubusercontent.com/Adsryen/JavdBviewed/main/public/routes.json';
+            const testFileUrl = getRepoRawUrl('public/routes.json');
 
             // 获取代理 URL
             const proxyUrl = this.getProxyUrl(proxyService, customUrl);

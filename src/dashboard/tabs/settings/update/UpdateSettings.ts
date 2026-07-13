@@ -3,6 +3,7 @@
  * 基于BaseSettingsPanel实现更新检查相关的设置功能
  */
 
+import { REPO_RELEASES_LATEST_URL, REPO_RELEASES_URL } from '../../../../shared/repoIdentity';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { SettingsPanelConfig, SettingsSaveResult, SettingsValidationResult } from '../base/interfaces';
 import { getSettings, saveSettings } from '../../../../utils/storage';
@@ -18,7 +19,7 @@ import type { ExtensionSettings } from '../../../../types';
 export class UpdateSettings extends BaseSettingsPanel {
     private settings: any = {};
     private isCheckingUpdate = false;
-    private downloadUpdateUrl = 'https://github.com/Adsryen/JavdBviewed/releases/latest';
+    private downloadUpdateUrl = REPO_RELEASES_LATEST_URL;
     private readonly onAutoUpdateCheckChange = this.handleAutoUpdateCheckToggle.bind(this);
     private readonly onUpdateCheckIntervalChange = this.handleUpdateCheckIntervalChange.bind(this);
     private readonly onIncludePrereleaseChange = this.handleIncludePrereleaseToggle.bind(this);
@@ -515,7 +516,7 @@ export class UpdateSettings extends BaseSettingsPanel {
         log.verbose('[UpdateSettings] 打开更新日志...');
         
         // 打开GitHub Releases页面
-        const changelogUrl = 'https://github.com/Adsryen/JavdBviewed/releases';
+        const changelogUrl = REPO_RELEASES_URL;
         window.open(changelogUrl, '_blank');
     }
 

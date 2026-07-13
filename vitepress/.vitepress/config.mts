@@ -23,7 +23,7 @@ export default withMermaid(defineConfig({
       { text: '使用教程', link: '/guide/' },
       { text: '版本发布', link: '/reference/changelog' },
       { text: '开发文档', link: '/developer/' },
-      { text: 'GitHub', link: 'https://github.com/Adsryen/JavdBviewed' }
+      { text: 'GitHub', link: 'https://github.com/lmixture/JavdBviewed' }
     ],
     sidebar: {
       '/guide/': [
@@ -165,14 +165,14 @@ export default withMermaid(defineConfig({
       next: '下一篇'
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/Adsryen/JavdBviewed' }
+      { icon: 'github', link: 'https://github.com/lmixture/JavdBviewed' }
     ],
     lastUpdated: {
       text: '最后更新'
     },
     footer: {
       message: '使用 VitePress 构建',
-      copyright: 'Copyright © 2026 Adsryen'
+      copyright: 'Copyright © 2026 lmixture'
     }
   }
 }))

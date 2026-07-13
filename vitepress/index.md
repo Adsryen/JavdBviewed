@@ -93,6 +93,6 @@ features:
 
 ## 项目链接
 
-- [GitHub 仓库](https://github.com/Adsryen/JavdBviewed)
-- [GitHub Releases](https://github.com/Adsryen/JavdBviewed/releases)
-- [GitHub Issues](https://github.com/Adsryen/JavdBviewed/issues)
+- [GitHub 仓库](https://github.com/lmixture/JavdBviewed)
+- [GitHub Releases](https://github.com/lmixture/JavdBviewed/releases)
+- [GitHub Issues](https://github.com/lmixture/JavdBviewed/issues)

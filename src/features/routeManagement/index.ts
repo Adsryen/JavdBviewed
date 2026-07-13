@@ -4,6 +4,7 @@
  * 支持从远程 GitHub 仓库自动更新线路配置
  */
 
+import { getRepoRawUrl } from '../../shared/repoIdentity';
 import type { ExtensionSettings } from '../../types';
 import { buildServerApiUrl, verifyJsonChecksum } from '../../platform/network/serverEndpointResolver';
 import { DEFAULT_SETTINGS } from '../../utils/config';
@@ -236,7 +237,7 @@ export class RouteManager {
      */
     async checkAndUpdateRoutes(force: boolean = false): Promise<boolean> {
         try {
-            const REMOTE_URL = 'https://raw.githubusercontent.com/Adsryen/JavdBviewed/main/public/routes.json';
+            const REMOTE_URL = getRepoRawUrl('public/routes.json');
             const UPDATE_INTERVAL = 24 * 60 * 60 * 1000; // 24小时
 
             // 获取更新状态

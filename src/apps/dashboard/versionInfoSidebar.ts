@@ -4,10 +4,8 @@
  * @module apps/dashboard
  */
 import { STATE } from '../../dashboard/state';
+import { AUTHOR_NAME, AUTHOR_PROFILE_URL } from '../../shared/repoIdentity';
 import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';
-
-const AUTHOR_NAME = 'Adsryen';
-const AUTHOR_PROFILE_URL = 'https://github.com/Adsryen';
 
 export function renderDashboardVersionInfo(): void {
   const infoContainer = document.getElementById('versionInfoSidebar') || document.getElementById('infoContainer');

@@ -155,7 +155,7 @@ describe('Dashboard 9C navigation runtime', () => {
     );
 
     const feedbackPanel = host.querySelector('.media-feedback-panel');
-    const issueLink = feedbackPanel?.querySelector<HTMLAnchorElement>('a[href="https://github.com/Adsryen/JavdBviewed/issues"]');
+    const issueLink = feedbackPanel?.querySelector<HTMLAnchorElement>('a[href="https://github.com/lmixture/JavdBviewed/issues"]');
 
     expect(feedbackPanel).toBeTruthy();
     expect(feedbackPanel?.textContent ?? '').toContain('媒体库优先做哪一块');
