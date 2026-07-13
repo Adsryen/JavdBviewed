@@ -1,14 +1,14 @@
 /**
- * @file versionInfoSidebar.ts
- * @description versionInfoSidebar
+ * @file dashboardVersionInfo.ts
+ * @description dashboardVersionInfo
  * @module apps/dashboard
  */
 import { STATE } from '../../dashboard/state';
 import { AUTHOR_NAME, AUTHOR_PROFILE_URL } from '../../shared/repoIdentity';
 import { getDisplayVersionInfo } from '../../shared/utils/versionInfo';
 
-export function renderDashboardVersionInfo(): void {
-  const infoContainer = document.getElementById('versionInfoSidebar') || document.getElementById('infoContainer');
+export function renderDashboardVersionInfo(containerId: string = 'aboutVersionInfo'): void {
+  const infoContainer = document.getElementById(containerId) || document.getElementById('infoContainer');
   if (!infoContainer) return;
 
   let manifestVersion = '';

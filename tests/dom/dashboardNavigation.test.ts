@@ -80,24 +80,27 @@ describe('Dashboard 9C navigation runtime', () => {
     expect(showEvents).toContain('tab-records');
   });
 
-  it('keeps primary menu in the 9B head and leaves secondary menu for the page area', () => {
-    const host = document.createElement('div');
-    host.innerHTML = readFileSync(
+  it('keeps primary menu in the topbar and leaves secondary menu for the page area', () => {
+    const topbarHost = document.createElement('div');
+    topbarHost.innerHTML = readFileSync(
+      resolve(process.cwd(), 'src/dashboard/partials/layout/topbar.html'),
+      'utf8',
+    );
+    const navHost = document.createElement('div');
+    navHost.innerHTML = readFileSync(
       resolve(process.cwd(), 'src/dashboard/partials/layout/tabs-nav.html'),
       'utf8',
     );
 
-    const shell = host.querySelector('.dashboard-nav-shell');
-    const mainTabs = host.querySelector('#dashboard-main-tabs');
-    const sectionNav = host.querySelector('#dashboard-section-nav');
+    const mainTabs = topbarHost.querySelector('#dashboard-main-tabs');
+    const sectionNav = navHost.querySelector('#dashboard-section-nav');
 
-    expect(shell).toBeTruthy();
-    expect(shell?.classList.contains('tabs-nav')).toBe(true);
-    expect(shell?.getAttribute('data-area')).toBe('navigation');
-    expect(mainTabs?.closest('.dashboard-nav-shell')).toBe(shell);
-    expect(host.querySelector('.dashboard-nav-quick')).toBeNull();
-    expect(host.textContent).not.toContain('页面内二级目录');
+    expect(mainTabs?.closest('.topbar-center')).toBeTruthy();
+    expect(navHost.querySelector('#dashboard-main-tabs')).toBeNull();
+    expect(sectionNav).toBeTruthy();
     expect(sectionNav?.closest('.dashboard-nav-shell')).toBeNull();
+    expect(topbarHost.querySelector('#helpBtn')).toBeNull();
+    expect(topbarHost.querySelector('#dashboard-user-menu-root')).toBeTruthy();
   });
 
   it('keeps the production skeleton aligned with every dashboard tab container', () => {
@@ -109,6 +112,8 @@ describe('Dashboard 9C navigation runtime', () => {
     expect(skeletonHtml).toContain('id="tab-backup"');
     expect(skeletonHtml).toContain('id="tab-sync"');
     expect(skeletonHtml).toContain('id="tab-drive115-tasks"');
+    expect(skeletonHtml).not.toContain('layout-sidebar-root');
+    expect(skeletonHtml).not.toContain('sidebarToggleBtn');
   });
 
   it('uses the dashboard blue theme instead of the indigo 9C prototype colors', () => {
@@ -293,10 +298,10 @@ describe('Dashboard 9C navigation runtime', () => {
 
 function setupDashboardShell(): void {
   document.body.innerHTML = `
-    <div class="tabs-nav dashboard-nav-shell" data-area="navigation">
-      <div class="dashboard-nav-head">
+    <div class="topbar">
+      <nav class="topbar-center" aria-label="主导航">
         <div class="tabs dashboard-main-tabs" id="dashboard-main-tabs"></div>
-      </div>
+      </nav>
     </div>
     <div class="dashboard-section-nav" id="dashboard-section-nav" data-area="navigation"></div>
     <div id="tab-home" class="tab-content active"></div>

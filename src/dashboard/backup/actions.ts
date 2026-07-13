@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { STATE } from '../state';
 import { logAsync } from '../logger';
 import { showMessage } from '../ui/toast';
@@ -132,38 +132,6 @@ export function setSyncingStatus(isUploading: boolean = false): void {
   syncIndicator.className = 'sync-indicator syncing';
   const statusText = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
   if (statusText) statusText.textContent = isUploading ? '上传中...' : '同步中...';
-}
-
-export function initSidebarToggle(): void {
-  const SIDEBAR_STATE_KEY = 'sidebar-collapsed';
-  const sidebar = document.querySelector('.sidebar') as HTMLElement;
-  const toggleBtn = document.getElementById('sidebarToggleBtn') as HTMLButtonElement;
-  if (!sidebar || !toggleBtn) return;
-  const restoreSidebarState = async () => {
-    try {
-      const isCollapsed = await getValue(SIDEBAR_STATE_KEY, false);
-      if (isCollapsed) {
-        sidebar.classList.add('collapsed');
-        const icon = toggleBtn.querySelector('i');
-        if (icon) (icon as HTMLElement).style.transform = 'rotate(180deg)';
-      }
-    } catch {}
-  };
-  const saveSidebarState = async (isCollapsed: boolean) => { try { await setValue(SIDEBAR_STATE_KEY, isCollapsed); } catch {} };
-  const toggleSidebar = () => {
-    const isCollapsed = sidebar.classList.contains('collapsed');
-    if (isCollapsed) { sidebar.classList.remove('collapsed'); saveSidebarState(false); }
-    else { sidebar.classList.add('collapsed'); saveSidebarState(true); }
-    const icon = toggleBtn.querySelector('i');
-    if (icon) (icon as HTMLElement).style.transform = sidebar.classList.contains('collapsed') ? 'rotate(180deg)' : 'rotate(0deg)';
-  };
-  toggleBtn.addEventListener('click', toggleSidebar);
-  restoreSidebarState();
-}
-
-export function initSidebarActions(): void {
-  initSidebarToggle();
-  initBackupActions(document);
 }
 
 function queryBackupElement<T extends HTMLElement>(root: ParentNode, selector: string): T | null {

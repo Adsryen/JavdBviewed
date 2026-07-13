@@ -59,6 +59,7 @@ export async function initAllSettingsPanels(): Promise<void> {
         const { getDrive115SettingsV2 } = await import('./drive115');
         const { getEmbySettings } = await import('./emby');
         const { getUpdateSettings } = await import('./update');
+        const { getAboutSettings } = await import('./about');
 
         // 注册所有设置面板
         // 所有12个主要设置模块都已完成迁移！
@@ -78,6 +79,7 @@ export async function initAllSettingsPanels(): Promise<void> {
         settingsPanelManager.registerPanel(await getDrive115SettingsV2());
         settingsPanelManager.registerPanel(await getEmbySettings());
         settingsPanelManager.registerPanel(await getUpdateSettings());
+        settingsPanelManager.registerPanel(await getAboutSettings());
 
         // 初始化所有面板
         await settingsPanelManager.initAllPanels();
@@ -225,6 +227,11 @@ export async function initSettingsPage(): Promise<void> {
                 const panel = await getUpdateSettings();
                 panel.init();
             },
+            'about-settings': async () => {
+                const { getAboutSettings } = await import('./about');
+                const panel = await getAboutSettings();
+                panel.init();
+            },
         };
         
         const initFn = moduleMap[subSection];
@@ -339,6 +346,11 @@ export async function initSettingsTab(): Promise<void> {
             'update-settings': async () => {
                 const { getUpdateSettings } = await import('./update');
                 const panel = await getUpdateSettings();
+                panel.init();
+            },
+            'about-settings': async () => {
+                const { getAboutSettings } = await import('./about');
+                const panel = await getAboutSettings();
                 panel.init();
             },
         };

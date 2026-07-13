@@ -21,4 +21,14 @@ describe('Dashboard tab resources', () => {
       styles: ['./styles/05-pages/backup.css'],
     });
   });
+
+  it('registers the about settings partial with page-scoped styles', () => {
+    expect(TAB_PARTIALS['tab-settings-about']).toEqual({
+      name: 'tabs/settings-about.html',
+      styles: [
+        './styles/05-pages/settings/settings.css',
+        './styles/05-pages/settings/about.css',
+      ],
+    });
+  });
 });

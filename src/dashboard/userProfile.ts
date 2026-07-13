@@ -319,7 +319,6 @@ async function handleDrive115Refresh(): Promise<void> {
     // 由 loadDrive115UserInfo 内部负责根据结果展示成功/失败/提示，避免重复或误导性提示
     // 刷新完成后，触发侧栏配额的刷新以保持 UI 一致
     try {
-      window.dispatchEvent(new CustomEvent('drive115:refreshQuota' as any));
     } catch {}
   } catch (error: any) {
     const msg = describe115Error(error) || error?.message || '刷新 115 账号信息时发生错误';

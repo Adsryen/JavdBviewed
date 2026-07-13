@@ -20,7 +20,7 @@ import { initModal } from '../../dashboard/import';
 // import { showWebDAVRestoreModal } from './webdavRestore';
 // import { setValue, getValue } from '../utils/storage';
 // import { STORAGE_KEYS } from '../utils/config';
-import { initUserProfileSection } from '../../dashboard/userProfile';
+import { initDashboardUserMenu } from '../../dashboard/userMenu';
 // import { initDataSyncSection } from './dataSync';
 import '../../dashboard/ui/dataViewModal'; // 确保 dataViewModal 被初始化
 import { ensureMounted } from '../../dashboard/loaders/partialsLoader';
@@ -28,7 +28,7 @@ import { ensureStylesLoaded } from '../../dashboard/loaders/stylesLoader';
 import { bindInsightsListeners } from '../../dashboard/listeners/insights';
 import { initTopbarIcons } from '../../dashboard/topbar/icons';
 import { initVersionBadge } from '../../dashboard/topbar/versionChecker';
-import { initSidebarActions as initSidebarActionsModule, updateSyncStatus as updateSyncStatusModule } from '../../dashboard/sidebar/actions';
+import { initBackupActions, updateSyncStatus as updateSyncStatusModule } from '../../dashboard/backup/actions';
 import { runQASelfCheck as runQASelfCheckModule } from '../../dashboard/qa/selfCheck';
 import { bindUiListeners } from '../../dashboard/listeners/ui';
 import { refreshHomeOverview, bindHomeChartsRangeControls, bindHomeRefreshButton } from '../../dashboard/home/charts';
@@ -38,22 +38,15 @@ import { handleCloudflareVerification } from '../../dashboard/dataSync/cloudflar
 import { mountDashboardReleaseAnnouncement } from './releaseAnnouncementBootstrap';
 import { reportDashboardOpenTelemetry } from './telemetryDashboardOpen';
 import { installDashboardConsoleProxy } from './consoleBootstrap';
-import {
-    bindDrive115SidebarEvents,
-    initializeDrive115SidebarAfterState,
-    installDrive115SidebarGlobals,
-} from './drive115Sidebar';
 import { initializeDashboardPrivacy, registerDashboardPrivacyLockHandler } from './privacyBootstrap';
 import {
     initializeDashboardThemeEarly,
     initializeDashboardThemeForDom,
     mountDashboardThemeSwitcher,
 } from './themeBootstrap';
-import { renderDashboardVersionInfo } from './versionInfoSidebar';
 
 initializeDashboardThemeEarly();
 installDashboardConsoleProxy();
-installDrive115SidebarGlobals();
 
 // 首页聚合工具已迁移到 ./home/charts
 
@@ -112,7 +105,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 顶层 Topbar（品牌横跨整个容器）
         await ensureMounted('#layout-topbar-root', 'layout/topbar.html');
         // 左侧侧栏与顶部 tabs 导航
-        await ensureMounted('#layout-sidebar-root', 'layout/sidebar.html');
         await ensureMounted('#layout-tabs-nav-root', 'layout/tabs-nav.html');
         // 注入对应样式
         await ensureStylesLoaded([
@@ -182,17 +174,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // initAISettingsTab(); // 已迁移到模块化设置系统
     // initDrive115Tab(); // 已迁移到模块化设置系统
     // initLogsTab(); // 已迁移到模块化设置系统
-    initSidebarActionsModule();
-    initUserProfileSection();
+    initBackupActions(document);
+    initDashboardUserMenu();
     // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
-    renderDashboardVersionInfo();
     initModal();
-    initializeDrive115SidebarAfterState();
     updateSyncStatusModule();
     mountDashboardReleaseAnnouncement().catch(error => {
         console.warn('[Dashboard] 发布提示弹窗挂载失败:', error);
     });
-    bindDrive115SidebarEvents();
     try {
         if (!(window as any).__HOME_TAB_SHOW_BOUND__) {
             window.addEventListener('tab:show' as any, async (e: any) => {

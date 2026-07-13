@@ -64,7 +64,7 @@ describe('backup page actions', () => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectUrl });
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    const { initBackupActions } = await import('../../src/dashboard/sidebar/actions');
+    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
     const exportButton = document.getElementById('exportBtn') as HTMLButtonElement;
     const originalHtml = exportButton.innerHTML;
 
@@ -86,7 +86,7 @@ describe('backup page actions', () => {
 
   it('uploads through the WebDAV runtime message and restores the icon button markup', async () => {
     const sendMessage = installChromeRuntimeResponse({ success: true });
-    const { initBackupActions } = await import('../../src/dashboard/sidebar/actions');
+    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
     const uploadButton = document.getElementById('syncNow') as HTMLButtonElement;
     const originalHtml = uploadButton.innerHTML;
 
@@ -106,7 +106,7 @@ describe('backup page actions', () => {
 
   it('shows the runtime port error and still restores the upload button markup', async () => {
     installChromeRuntimeResponse(undefined, 'The message port closed before a response was received.');
-    const { initBackupActions } = await import('../../src/dashboard/sidebar/actions');
+    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
     const uploadButton = document.getElementById('syncNow') as HTMLButtonElement;
     const originalHtml = uploadButton.innerHTML;
 
@@ -123,7 +123,7 @@ describe('backup page actions', () => {
   });
 
   it('opens the existing WebDAV restore modal from the backup page button', async () => {
-    const { initBackupActions } = await import('../../src/dashboard/sidebar/actions');
+    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
 
     initBackupActions(document);
     document.getElementById('syncDown')?.click();

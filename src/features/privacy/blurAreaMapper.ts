@@ -10,7 +10,7 @@ import type { BlurArea } from '../../types/privacy';
  * 每个区域包含该区域内所有需要模糊的用户数据元素
  */
 const AREA_SELECTORS: Record<BlurArea, string[]> = {
-    'sidebar': [
+    'account-menu': [
         // === JavDB账号信息 ===
         '#user-email-badge',               // 用户邮箱徽章
         '#user-name-text',                 // 用户名
@@ -20,9 +20,6 @@ const AREA_SELECTORS: Record<BlurArea, string[]> = {
         '#stats-sync-time-text',           // 统计同步时间
         
         // === WebDAV同步信息 ===
-        '#lastSyncTime',                   // 上次同步时间
-        '.sync-status-text',               // 同步状态文字
-        '#webdavWarningMessage',           // WebDAV警告消息
         
         // === 115账号信息 ===
         '#drive115-user-status',           // 115用户状态
@@ -30,7 +27,7 @@ const AREA_SELECTORS: Record<BlurArea, string[]> = {
         '#drive115-quota-box [data-sensitive]',   // 115配额信息（总额、已用、剩余）
         
         // === 自定义标记 ===
-        '[data-area="sidebar-data"]'       // 自定义数据区域标记
+        '[data-area="account-menu-data"]'       // 自定义数据区域标记
     ],
     
     'navigation': [
@@ -169,14 +166,17 @@ const COMMON_SENSITIVE_SELECTORS = [
  * @param enabledAreas 启用的模糊区域
  * @returns CSS选择器数组
  */
-export function getSelectorsForAreas(enabledAreas: BlurArea[]): string[] {
+export function getSelectorsForAreas(enabledAreas: Array<BlurArea | string>): string[] {
     const selectors = new Set<string>();
     
     // 添加通用敏感内容选择器
     COMMON_SENSITIVE_SELECTORS.forEach(selector => selectors.add(selector));
     
     // 添加启用区域的选择器
-    enabledAreas.forEach(area => {
+    enabledAreas.forEach(rawArea => {
+        const area = normalizeBlurArea(rawArea);
+        if (!area) return;
+
         const areaSelectors = AREA_SELECTORS[area];
         if (areaSelectors) {
             areaSelectors.forEach(selector => selectors.add(selector));
@@ -190,6 +190,13 @@ export function getSelectorsForAreas(enabledAreas: BlurArea[]): string[] {
  * 获取所有可用的模糊区域
  * @returns 模糊区域数组
  */
+
+function normalizeBlurArea(area: string): BlurArea | null {
+    if (area === 'sidebar') return 'account-menu';
+    if (area in AREA_SELECTORS) return area as BlurArea;
+    return null;
+}
+
 export function getAllBlurAreas(): BlurArea[] {
     return Object.keys(AREA_SELECTORS) as BlurArea[];
 }
@@ -201,7 +208,7 @@ export function getAllBlurAreas(): BlurArea[] {
  */
 export function getAreaDisplayName(area: BlurArea): string {
     const displayNames: Record<BlurArea, string> = {
-        'sidebar': '侧边栏',
+        'account-menu': '账号菜单',
         'navigation': '导航栏',
         'video-library': '番号库',
         'actor-library': '演员库',

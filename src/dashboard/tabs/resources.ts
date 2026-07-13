@@ -200,6 +200,13 @@ export const TAB_PARTIALS: Partial<Record<string, TabPartialResource>> = {
       './styles/05-pages/settings/update.css',
     ],
   },
+  'tab-settings-about': {
+    name: 'tabs/settings-about.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/about.css',
+    ],
+  },
   // 日志
   'tab-logs': {
     name: 'tabs/logs.html',

@@ -1317,20 +1317,6 @@ font-size: 18px;
     font-weight: 600;
 }
 
-#drive115QuotaSidebar {
-    padding: 12px 14px;
-    border-radius: 16px;
-    border: 1px solid var(--border-primary);
-    background: var(--surface-primary);
-    box-shadow: var(--shadow-sm);
-}
-
-#drive115QuotaSidebar a {
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 600;
-}
-
 @media (max-width: 320px) {
     .user-profile-container {
         padding: 14px;

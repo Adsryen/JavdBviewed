@@ -34,9 +34,9 @@ export function mountDashboardThemeSwitcher(): void {
     const topbarRight = document.querySelector('.topbar-right');
     if (topbarRight) {
       const themeSwitcher = new ThemeSwitcher(themeManager);
-      const helpBtn = document.getElementById('helpBtn');
-      if (helpBtn) {
-        topbarRight.insertBefore(themeSwitcher.getElement(), helpBtn);
+      const menuRoot = document.getElementById('dashboard-user-menu-root');
+      if (menuRoot) {
+        topbarRight.insertBefore(themeSwitcher.getElement(), menuRoot);
       } else {
         themeSwitcher.mount(topbarRight as HTMLElement);
       }

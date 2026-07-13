@@ -644,8 +644,6 @@ describe('source architecture cleanup', () => {
       'src/apps/dashboard/themeBootstrap.ts',
       'src/apps/dashboard/consoleBootstrap.ts',
       'src/apps/dashboard/privacyBootstrap.ts',
-      'src/apps/dashboard/drive115Sidebar.ts',
-      'src/apps/dashboard/versionInfoSidebar.ts',
     ];
 
     for (const modulePath of delegatedModules) {
@@ -657,8 +655,6 @@ describe('source architecture cleanup', () => {
     expect(bootstrapSource, `${bootstrapPath} should delegate console proxy configuration`).not.toMatch(/\binstallConsoleProxy\(/);
     expect(bootstrapSource, `${bootstrapPath} should delegate theme switcher details`).not.toMatch(/\bThemeSwitcher\b/);
     expect(bootstrapSource, `${bootstrapPath} should delegate privacy initialization`).not.toMatch(/\binitializePrivacySystem\b/);
-    expect(bootstrapSource, `${bootstrapPath} should delegate 115 quota rendering`).not.toMatch(/\bgetDrive115V2Service\b|\brenderDrive115QuotaSidebar\b/);
-    expect(bootstrapSource, `${bootstrapPath} should delegate version info rendering`).not.toMatch(/\bgetDisplayVersionInfo\b|\binitInfoContainer\b/);
   });
 
   it('keeps the popup page entry thin and boots through apps/popup', () => {

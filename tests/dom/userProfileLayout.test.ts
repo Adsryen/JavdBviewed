@@ -1,6 +1,6 @@
 /**
  * @file userProfileLayout.test.ts
- * @description user profile sidebar layout 测试
+ * @description user profile menu layout 测试
  * @module tests/dom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -33,7 +33,7 @@ vi.mock('../../src/features/drive115/v2', () => ({
   })),
 }));
 
-describe('user profile sidebar layout', () => {
+describe('user profile menu layout', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     vi.clearAllMocks();
