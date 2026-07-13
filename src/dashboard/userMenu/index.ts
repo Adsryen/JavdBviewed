@@ -1,4 +1,6 @@
-﻿import { initUserProfileSection } from '../userProfile';
+﻿import type { UserProfile } from '../../types';
+import { initUserProfileSection } from '../userProfile';
+import { userService } from '../services/userService';
 
 const HELP_URL = 'https://jbd.we-together.club/';
 const GITHUB_URL = 'https://github.com/lmixture/JavdBviewed';
@@ -20,8 +22,9 @@ export function initDashboardUserMenu(): void {
 
   root.innerHTML = `
     <div class="dashboard-user-menu" data-open="false">
-      <button id="dashboard-user-menu-trigger" class="dashboard-user-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" title="账号与信息">
+      <button id="dashboard-user-menu-trigger" class="dashboard-user-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false" title="账号与信息：未登录">
         <span class="dashboard-user-menu-avatar" aria-hidden="true"><i class="fas fa-user-circle"></i></span>
+        <span id="dashboard-user-menu-name" class="dashboard-user-menu-name">未登录</span>
         <span class="dashboard-user-menu-caret" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
       </button>
       <div id="dashboard-user-menu-popover" class="dashboard-user-menu-popover" role="menu" aria-labelledby="dashboard-user-menu-trigger" hidden>
@@ -127,15 +130,64 @@ function bindMenuEvents(root: HTMLElement): () => void {
     }
   };
 
+  const userName = root.querySelector<HTMLElement>('#dashboard-user-menu-name');
+  const updateTriggerProfile = (profile: UserProfile | null) => {
+    applyTriggerProfileState(trigger, userName, profile);
+  };
+  const unsubscribeProfile = userService.subscribe(updateTriggerProfile);
+  updateTriggerProfile(userService.getCurrentUserProfile());
+  userService.getUserProfile()
+    .then(updateTriggerProfile)
+    .catch(() => updateTriggerProfile(null));
+
   trigger.addEventListener('click', handleTriggerClick);
   document.addEventListener('click', handleDocumentClick);
   document.addEventListener('keydown', handleDocumentKeydown);
   root.addEventListener('click', handleRootClick);
 
   return () => {
+    unsubscribeProfile();
     trigger.removeEventListener('click', handleTriggerClick);
     document.removeEventListener('click', handleDocumentClick);
     document.removeEventListener('keydown', handleDocumentKeydown);
     root.removeEventListener('click', handleRootClick);
   };
+}
+
+function applyTriggerProfileState(
+  trigger: HTMLButtonElement,
+  nameElement: HTMLElement | null,
+  profile: UserProfile | null
+): void {
+  const label = getTriggerProfileLabel(profile);
+  const isLoggedIn = profile?.isLoggedIn === true;
+
+  trigger.title = `账号与信息：${label}`;
+  trigger.dataset.loggedIn = isLoggedIn ? 'true' : 'false';
+
+  if (!nameElement) return;
+  nameElement.textContent = label;
+  if (isLoggedIn) {
+    nameElement.setAttribute('data-sensitive', '');
+  } else {
+    nameElement.removeAttribute('data-sensitive');
+  }
+}
+
+function getTriggerProfileLabel(profile: UserProfile | null): string {
+  if (profile?.isLoggedIn !== true) {
+    return '未登录';
+  }
+
+  const username = profile.username?.trim();
+  if (username) {
+    return username;
+  }
+
+  const email = profile.email?.trim();
+  if (email) {
+    return email;
+  }
+
+  return '已登录';
 }

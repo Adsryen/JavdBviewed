@@ -872,6 +872,7 @@
     align-items: center;
     gap: 6px;
     height: 36px;
+    max-width: 178px;
     padding: 0 10px 0 6px;
     border: 1px solid var(--border-primary);
     border-radius: 999px;
@@ -901,6 +902,18 @@
     font-size: 18px;
 }
 
+.dashboard-user-menu-name {
+    min-width: 0;
+    max-width: 92px;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .dashboard-user-menu-caret {
     font-size: 11px;
     color: var(--text-secondary);
@@ -923,15 +936,15 @@
 .dashboard-user-menu-scroll {
     max-height: calc(100vh - 118px);
     overflow: auto;
-    padding: 14px;
+    padding: 10px;
 }
 
 .dashboard-user-menu-actions,
 .dashboard-user-menu-links {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 12px;
+    gap: 6px;
+    margin-top: 8px;
 }
 
 .dashboard-user-menu-action,
@@ -939,9 +952,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 36px;
-    padding: 8px 10px;
+    gap: 6px;
+    min-height: 32px;
+    padding: 6px 8px;
     border: 1px solid var(--border-primary);
     border-radius: 9px;
     background: var(--surface-secondary);
@@ -959,6 +972,248 @@
 .dashboard-user-menu-action img {
     width: 16px;
     height: 16px;
+}
+
+.dashboard-user-menu-popover .user-profile-container {
+    margin-bottom: 8px;
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.dashboard-user-menu-popover .user-profile-card-title {
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.dashboard-user-menu-popover .user-profile-info {
+    gap: 8px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-basic-info {
+    display: block;
+    width: 100%;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-details {
+    display: grid;
+    grid-template-rows: auto auto;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-details > div {
+    font-size: 12px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-top-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    width: 100%;
+    min-height: 36px;
+    box-sizing: border-box;
+    padding: 7px 9px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(248, 250, 252, 0.92);
+    gap: 8px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-identity--primary {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-identity--primary span#user-name-text {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-actions {
+    justify-self: end;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-meta-row {
+    display: grid;
+    grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.4fr);
+    align-items: center;
+    width: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    gap: 8px;
+    overflow: visible;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-type-badge,
+.dashboard-user-menu-popover .user-profile-container .user-email-badge {
+    width: 100%;
+    height: 28px;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 0 9px;
+    justify-content: flex-start;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-type-badge span,
+.dashboard-user-menu-popover .user-profile-container .user-email-badge .badge-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .dashboard-user-menu-popover .user-profile-container .user-top-row {
+    border-color: rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.62);
+}
+
+[data-theme="dark"] .dashboard-user-menu-popover .user-profile-container .user-meta-row {
+    border: 0;
+    background: transparent;
+}
+
+.dashboard-user-menu-popover .refresh-btn,
+.dashboard-user-menu-popover .logout-btn {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 3px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-server-stats {
+    margin-top: 8px;
+    padding: 10px;
+    box-shadow: none;
+}
+
+.dashboard-user-menu-popover .user-profile-container .stats-title {
+    margin-bottom: 6px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .stats-grid {
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-item {
+    min-height: 58px;
+    padding: 9px 10px;
+    border-radius: 12px;
+    box-shadow: none;
+    justify-content: center;
+    gap: 3px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-item:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-item i {
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    background: transparent;
+    filter: none;
+    font-size: 11px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-content {
+    gap: 2px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-label {
+    font-size: 10px;
+}
+
+.dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-value {
+    font-size: clamp(20px, 4vw, 24px);
+    line-height: 1.05;
+    text-shadow: none;
+}
+
+[data-theme="dark"] .dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-item,
+[data-theme="dark"] .dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-item:hover {
+    box-shadow: none;
+}
+
+[data-theme="dark"] .dashboard-user-menu-popover .user-profile-container .user-server-stats .stat-item i {
+    background: transparent;
+}
+
+.dashboard-user-menu-popover .stats-sync-time {
+    margin-top: 6px;
+    padding: 6px 8px;
+}
+
+.dashboard-user-menu-popover .user-login-prompt {
+    gap: 8px;
+}
+
+.dashboard-user-menu-popover .login-icon {
+    width: 36px;
+    height: 36px;
+}
+
+.dashboard-user-menu-popover .login-icon i {
+    font-size: 18px;
+}
+
+.dashboard-user-menu-popover .login-text p {
+    margin-bottom: 4px;
+}
+
+.dashboard-user-menu-popover .login-btn {
+    margin-top: 6px;
+    min-height: 32px;
+    padding: 6px 10px;
+}
+
+.dashboard-user-menu-popover .drive115-profile-container {
+    margin-top: 8px !important;
+    padding: 10px;
+    border-radius: 14px;
+}
+
+.dashboard-user-menu-popover #drive115-empty-state {
+    min-height: 84px;
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.dashboard-user-menu-popover #drive115-user-info {
+    gap: 8px;
+}
+
+.dashboard-user-menu-popover #drive115-user-box {
+    padding: 10px !important;
+    border-radius: 12px !important;
+}
+
+.dashboard-user-menu-popover #drive115-quota-box {
+    padding-top: 8px;
+}
+
+.dashboard-user-menu-popover #drive115-quota-box > div {
+    gap: 6px;
+    padding: 10px !important;
+    border-radius: 12px;
 }
 
 
@@ -1014,7 +1269,7 @@
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 850;
     line-height: 1.35;
     white-space: nowrap;
@@ -1062,8 +1317,8 @@
     align-items: center;
     justify-content: center;
     min-height: 0;
-    margin: -2px 0 8px;
-    padding: 0 8px 6px;
+    margin: -4px 0 4px;
+    padding: 0 8px 2px;
     border-bottom: 1px solid var(--border-primary);
 }
 
@@ -1076,7 +1331,7 @@
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: center;
-    gap: 6px 14px;
+    gap: 3px 14px;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -1085,8 +1340,8 @@
 .dashboard-sub-tab {
     position: relative;
     isolation: isolate;
-    min-height: 20px;
-    padding: 1px 0;
+    min-height: 18px;
+    padding: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -1111,7 +1366,7 @@
     position: absolute;
     z-index: 1;
     right: 0;
-    bottom: -6px;
+    bottom: -3px;
     left: 0;
     height: 2px;
     border-radius: 999px;

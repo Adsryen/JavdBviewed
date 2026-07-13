@@ -61,14 +61,11 @@ export function initUserProfileSection(): void {
             <h4 class="user-profile-card-title">账号信息</h4>
             <div id="user-profile-info" class="user-profile-info" style="display: none;">
                 <div class="user-basic-info">
-                    <div class="user-avatar">
-                        <i class="fas fa-user-circle"></i>
-                    </div>
                     <div class="user-details">
                         <div class="user-top-row">
-                            <div class="user-type-badge">
-                                <i class="fas fa-crown"></i>
-                                <span id="user-type-text">-</span>
+                            <div class="user-identity user-identity--primary">
+                                <i class="fas fa-user"></i>
+                                <span id="user-name-text" data-sensitive>-</span>
                             </div>
                             <div class="user-actions">
                                 <button id="refresh-profile-btn" class="refresh-btn" title="刷新账号信息">
@@ -80,9 +77,9 @@ export function initUserProfileSection(): void {
                             </div>
                         </div>
                         <div class="user-meta-row">
-                            <div class="user-identity">
-                                <i class="fas fa-user"></i>
-                                <span id="user-name-text" data-sensitive>-</span>
+                            <div class="user-type-badge">
+                                <i class="fas fa-crown"></i>
+                                <span id="user-type-text">-</span>
                             </div>
                             <span id="user-email-badge" class="user-email-badge" data-sensitive title="邮箱：-">
                                 <i class="fas fa-envelope"></i>
@@ -389,6 +386,8 @@ function displayUserProfile(profile: UserProfile): void {
     if (emailBadge) {
         emailBadge.setAttribute('title', `邮箱：${emailText}`);
         emailBadge.setAttribute('aria-label', `邮箱：${emailText}`);
+        const emailTextElement = emailBadge.querySelector<HTMLElement>('.badge-text');
+        if (emailTextElement) emailTextElement.textContent = emailText;
     }
     if (nameElement) nameElement.textContent = usernameText;
     if (typeElement) typeElement.textContent = userTypeText;
