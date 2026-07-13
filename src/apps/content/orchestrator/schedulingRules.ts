@@ -27,6 +27,7 @@ export function getDeferredRetryDelayMs(waitReason?: string): number {
 export function isDeferredWaitReason(waitReason?: string): boolean {
   return waitReason === 'tab-hidden'
     || waitReason === 'higher-priority-wait'
+    || waitReason === 'retryable-error'
     || (typeof waitReason === 'string' && waitReason.startsWith('bucket:'));
 }
 

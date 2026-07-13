@@ -44,6 +44,7 @@ function handle(center: GlobalTaskCenter, message: any) {
 describe('global task center policy runtime', () => {
   it('computes bucket limits for visibility policies', () => {
     expect(getEffectiveBucketLimit({ baseLimit: 2, visible: true, policy: 'foreground_first' })).toBe(2);
+    expect(getEffectiveBucketLimit({ baseLimit: 2, visible: false, policy: 'foreground_first' })).toBe(0);
     expect(getEffectiveBucketLimit({ baseLimit: 2, visible: false, policy: 'background_allowed' })).toBe(2);
     expect(getEffectiveBucketLimit({ baseLimit: 2, visible: false, policy: 'foreground_only' })).toBe(0);
   });

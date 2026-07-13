@@ -38,8 +38,18 @@ export async function completeManagedTask(taskId: string): Promise<void> {
   await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.COMPLETE, payload: { taskId } });
 }
 
-export async function failManagedTask(taskId: string, error: string): Promise<void> {
-  await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.FAIL, payload: { taskId, error } });
+export type FailManagedTaskResponse = {
+  ok?: boolean;
+  retryable?: boolean;
+  retryCount?: number;
+  retryLimit?: number;
+  status?: string;
+  waitReason?: string;
+};
+
+export async function failManagedTask(taskId: string, error: string): Promise<FailManagedTaskResponse> {
+  const response = await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.FAIL, payload: { taskId, error } });
+  return response && typeof response === 'object' ? response : {};
 }
 
 export async function pauseManagedTask(taskId: string, reason: string = 'paused'): Promise<void> {
@@ -159,7 +169,10 @@ async function executeRegisteredManagedTask<T>(
     await completeManagedTask(registeredDescriptor.taskId);
     return { executed: true, result };
   } catch (error) {
-    await failManagedTask(registeredDescriptor.taskId, error instanceof Error ? error.message : String(error));
+    const failResponse = await failManagedTask(registeredDescriptor.taskId, error instanceof Error ? error.message : String(error));
+    if (failResponse.retryable === true) {
+      return { executed: false, waitReason: failResponse.waitReason || 'retryable-error' };
+    }
     throw error;
   } finally {
     untrackActiveManagedTask(registeredDescriptor.taskId);

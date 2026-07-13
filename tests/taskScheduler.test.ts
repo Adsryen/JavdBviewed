@@ -134,6 +134,156 @@ describe('GlobalTaskCenter scheduling', () => {
     expect(competing.waitReason).toBe('higher-priority-wait');
   });
 
+  it('does not cancel a hidden queued task that is still waiting for foreground visibility', () => {
+    const center = new GlobalTaskCenter();
+    const startedAt = Date.now();
+    vi.useFakeTimers();
+    vi.setSystemTime(startedAt);
+
+    try {
+      center.updateVisibility(1, false);
+      center.registerTask(createDescriptor({
+        taskId: 'hidden-pending-90s',
+        label: 'videoEnhancement:runTitle',
+        visibilityPolicy: 'foreground_only',
+      }));
+
+      const lease = center.requestLease('hidden-pending-90s');
+      expect(lease.granted).toBe(false);
+      expect(lease.waitReason).toBe('tab-hidden');
+
+      vi.setSystemTime(startedAt + 90_000);
+      const task = center.queryState().tasks.find((item: any) => item.taskId === 'hidden-pending-90s');
+
+      expect(task?.status).toBe('queued');
+      expect(task?.waitReason).toBe('tab-hidden');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not apply the hidden running timeout to background_allowed tasks', () => {
+    const center = new GlobalTaskCenter();
+    const startedAt = Date.now();
+    vi.useFakeTimers();
+    vi.setSystemTime(startedAt);
+
+    try {
+      center.updateVisibility(1, false);
+      center.registerTask(createDescriptor({
+        taskId: 'hidden-background-running',
+        label: 'videoEnhancement:runTitle',
+        visibilityPolicy: 'background_allowed',
+      }));
+
+      expect(center.requestLease('hidden-background-running').granted).toBe(true);
+      center.heartbeatTask('hidden-background-running');
+
+      vi.setSystemTime(startedAt + 46_000);
+      const task = center.queryState().tasks.find((item: any) => item.taskId === 'hidden-background-running');
+
+      expect(task?.status).toBe('running');
+      expect(task?.waitReason).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('requeues retryable failures and can complete on a later lease', () => {
+    const center = new GlobalTaskCenter();
+    center.updateVisibility(1, true);
+    center.registerTask(createDescriptor({
+      taskId: 'retry-then-success',
+      label: 'videoEnhancement:runTitle',
+      retryLimit: 2,
+    }));
+
+    expect(center.requestLease('retry-then-success').granted).toBe(true);
+    const firstFail = center.failTask('retry-then-success', 'network-1');
+    expect(firstFail).toMatchObject({
+      ok: true,
+      retryable: true,
+      retryCount: 1,
+      retryLimit: 2,
+      status: 'queued',
+      waitReason: 'retryable-error',
+    });
+
+    expect(center.requestLease('retry-then-success').granted).toBe(true);
+    const secondFail = center.failTask('retry-then-success', 'network-2');
+    expect(secondFail).toMatchObject({
+      retryable: true,
+      retryCount: 2,
+      retryLimit: 2,
+      status: 'queued',
+      waitReason: 'retryable-error',
+    });
+
+    expect(center.requestLease('retry-then-success').granted).toBe(true);
+    center.completeTask('retry-then-success');
+
+    const task = center.queryState().tasks.find((item: any) => item.taskId === 'retry-then-success');
+    expect(task?.status).toBe('done');
+    expect(task?.retryCount).toBe(2);
+  });
+
+  it('marks failed tasks as terminal error after retryLimit is exhausted', () => {
+    const center = new GlobalTaskCenter();
+    center.updateVisibility(1, true);
+    center.registerTask(createDescriptor({
+      taskId: 'retry-exhausted',
+      label: 'videoEnhancement:runTitle',
+      retryLimit: 2,
+    }));
+
+    expect(center.requestLease('retry-exhausted').granted).toBe(true);
+    expect(center.failTask('retry-exhausted', 'network-1').retryable).toBe(true);
+    expect(center.requestLease('retry-exhausted').granted).toBe(true);
+    expect(center.failTask('retry-exhausted', 'network-2').retryable).toBe(true);
+    expect(center.requestLease('retry-exhausted').granted).toBe(true);
+
+    const exhausted = center.failTask('retry-exhausted', 'network-3');
+    expect(exhausted).toMatchObject({
+      ok: true,
+      retryable: false,
+      retryCount: 3,
+      retryLimit: 2,
+      status: 'error',
+      waitReason: 'retry-limit-exhausted',
+    });
+
+    const task = center.queryState().tasks.find((item: any) => item.taskId === 'retry-exhausted');
+    expect(task?.status).toBe('error');
+    expect(task?.waitReason).toBe('retry-limit-exhausted');
+    expect(task?.detail).toBe('network-3');
+  });
+
+  it('does not orphan-clean a queued task waiting for retry', () => {
+    const center = new GlobalTaskCenter();
+    const startedAt = Date.now();
+    vi.useFakeTimers();
+    vi.setSystemTime(startedAt);
+
+    try {
+      center.registerTask(createDescriptor({
+        taskId: 'retry-pending-90s',
+        label: 'videoEnhancement:runTitle',
+        retryLimit: 2,
+      }));
+      const fail = center.failTask('retry-pending-90s', 'temporary-api-error');
+      expect(fail.retryable).toBe(true);
+
+      vi.setSystemTime(startedAt + 90_000);
+      const task = center.queryState().tasks.find((item: any) => item.taskId === 'retry-pending-90s');
+
+      expect(task?.status).toBe('queued');
+      expect(task?.waitReason).toBe('retryable-error');
+      expect(task?.retryCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('dependency retries do not leak deferred concurrency slots', async () => {
     const sentMessages: Array<{ type: string; payload?: any }> = [];
 
@@ -369,6 +519,7 @@ describe('GlobalTaskCenter page-lifecycle (P0-1)', () => {
       label: 'videoEnhancement:runCover',
       pageInstanceId: 'page-term',
       dedupeKey: 'error-key',
+      retryLimit: 0,
     }));
     center.failTask('error-task', 'boom');
     center.registerTask(createDescriptor({
@@ -446,6 +597,7 @@ describe('GlobalTaskCenter shareScope / dedupe (P0-3/4/5)', () => {
       pageInstanceId: 'page-1',
       dedupeKey: sharedKey,
       shareScope: 'dedupe-by-action',
+      retryLimit: 0,
     }));
     center.failTask('push-err-1', 'api-failed');
 
@@ -549,6 +701,7 @@ describe('GlobalTaskCenter shareScope / dedupe (P0-3/4/5)', () => {
       taskId: 'title-2',
       label: 'videoEnhancement:runTitle',
       dedupeKey: key,
+      retryLimit: 0,
     }));
     expect(afterDone.reused).toBe(false);
     expect(afterDone.taskId).toBe('title-2');

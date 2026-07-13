@@ -168,4 +168,25 @@ describe('task runtime messaging', () => {
       { type: TASK_CENTER_MESSAGE.FAIL, payload: { taskId: 'task-2', error: 'boom' } },
     ]);
   });
+
+  it('returns the background retry response when failing a managed task', async () => {
+    const retryResponse = {
+      ok: true,
+      retryable: true,
+      retryCount: 1,
+      retryLimit: 2,
+      status: 'queued',
+      waitReason: 'retryable-error',
+    };
+    setRuntimeMessageHandler((message) => {
+      expect(message).toEqual({
+        type: TASK_CENTER_MESSAGE.FAIL,
+        payload: { taskId: 'task-retry', error: 'temporary-network-error' },
+      });
+      return retryResponse;
+    });
+
+    await expect(failManagedTask('task-retry', 'temporary-network-error')).resolves.toEqual(retryResponse);
+  });
+
 });

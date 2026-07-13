@@ -54,7 +54,7 @@ describe('runHighPhaseTasks', () => {
     expect(runningLabels).toEqual(['base', 'dependent']);
   });
 
-  it('forces blocked tasks to avoid deadlock and logs diagnostics', async () => {
+  it('does not force blocked tasks with missing dependencies and logs diagnostics', async () => {
     const log = vi.fn();
     const runningLabels: string[] = [];
 
@@ -70,7 +70,7 @@ describe('runHighPhaseTasks', () => {
       log,
     });
 
-    expect(runningLabels).toEqual(['blocked']);
+    expect(runningLabels).toEqual([]);
     expect(log).toHaveBeenCalledWith('warning: circular dependency or missing dependency detected', {
       pendingTasks: [
         {

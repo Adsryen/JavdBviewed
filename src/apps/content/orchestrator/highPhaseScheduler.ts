@@ -42,8 +42,9 @@ export async function runHighPhaseTasks<T extends ScheduledTask>(input: RunHighP
     pendingTasks.push(...notReadyTasks);
 
     while (readyTasks.length > 0 && runningTasks.length < input.maxConcurrentTasks) {
-      const task = readyTasks.shift()!;
-      trackRunningTask(runningTasks, input.runTask(task));
+      const nextTask = readyTasks.shift();
+      if (!nextTask) break;
+      trackRunningTask(runningTasks, input.runTask(nextTask));
     }
     pendingTasks.unshift(...readyTasks);
 
@@ -54,10 +55,7 @@ export async function runHighPhaseTasks<T extends ScheduledTask>(input: RunHighP
           dependsOn: task.options.dependsOn,
         })),
       });
-      for (const task of pendingTasks) {
-        trackRunningTask(runningTasks, input.runTask(task));
-      }
-      pendingTasks.length = 0;
+      break;
     }
 
     if (runningTasks.length > 0) {

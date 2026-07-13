@@ -204,7 +204,13 @@ export class GlobalTaskCenter {
       const isHidden = !this.store.isTabVisible(descriptor.tabId);
       const isActiveRunningTask = runtime.status === 'leased' || runtime.status === 'running';
       const hiddenBaseTs = runtime.heartbeatTs || runtime.startedAt || descriptor.createdAt;
-      if (isHidden && isActiveRunningTask && now - hiddenBaseTs > this.hiddenRunningTaskMaxAgeMs) {
+      const shouldApplyHiddenRunningTimeout = descriptor.visibilityPolicy !== 'background_allowed';
+      if (
+        shouldApplyHiddenRunningTimeout
+        && isHidden
+        && isActiveRunningTask
+        && now - hiddenBaseTs > this.hiddenRunningTaskMaxAgeMs
+      ) {
         runtime.status = 'canceled';
         runtime.waitReason = 'hidden-background-timeout';
         runtime.endedAt = now;
@@ -220,7 +226,18 @@ export class GlobalTaskCenter {
 
       const isPendingTask = runtime.status === 'registered' || runtime.status === 'queued';
       const pendingBaseTs = runtime.lastProgressAt || runtime.heartbeatTs || descriptor.createdAt;
-      if (isPendingTask && now - pendingBaseTs > this.pendingTaskMaxAgeMs) {
+      const isKnownTabPendingTask = this.store.hasTabVisibility(descriptor.tabId);
+      const isLeaseWaitPendingTask = [
+        'tab-hidden',
+        'higher-priority-wait',
+        'retryable-error',
+      ].includes(runtime.waitReason || '') || String(runtime.waitReason || '').startsWith('bucket:');
+      if (
+        isPendingTask
+        && !isKnownTabPendingTask
+        && !isLeaseWaitPendingTask
+        && now - pendingBaseTs > this.pendingTaskMaxAgeMs
+      ) {
         runtime.status = 'canceled';
         runtime.waitReason = 'page-instance-orphaned';
         runtime.endedAt = now;
@@ -440,17 +457,54 @@ export class GlobalTaskCenter {
     return { ok: true };
   }
 
-  failTask(taskId: string, _error: string): { ok: true } {
+  failTask(taskId: string, error: string): {
+    ok: true;
+    retryable: boolean;
+    retryCount: number;
+    retryLimit: number;
+    status?: string;
+    waitReason?: string;
+  } {
     this.cleanupStaleTasks();
     const task = this.store.getTask(taskId);
-    if (task) {
-      task.runtime.status = 'error';
-      task.runtime.waitReason = undefined;
-      task.runtime.endedAt = Date.now();
-      task.runtime.retryCount += 1;
-      this.store.setTask(taskId, task);
+    if (!task) {
+      return { ok: true, retryable: false, retryCount: 0, retryLimit: 0, waitReason: 'task-not-found' };
     }
-    return { ok: true };
+
+    const retryLimit = Math.max(0, task.descriptor.retryLimit || 0);
+    task.runtime.retryCount += 1;
+    task.runtime.detail = error || undefined;
+
+    if (task.runtime.retryCount <= retryLimit) {
+      task.runtime.status = 'queued';
+      task.runtime.waitReason = 'retryable-error';
+      task.runtime.startedAt = undefined;
+      task.runtime.endedAt = undefined;
+      task.runtime.heartbeatTs = undefined;
+      task.runtime.lastProgressAt = Date.now();
+      this.store.setTask(taskId, task);
+      return {
+        ok: true,
+        retryable: true,
+        retryCount: task.runtime.retryCount,
+        retryLimit,
+        status: task.runtime.status,
+        waitReason: task.runtime.waitReason,
+      };
+    }
+
+    task.runtime.status = 'error';
+    task.runtime.waitReason = 'retry-limit-exhausted';
+    task.runtime.endedAt = Date.now();
+    this.store.setTask(taskId, task);
+    return {
+      ok: true,
+      retryable: false,
+      retryCount: task.runtime.retryCount,
+      retryLimit,
+      status: task.runtime.status,
+      waitReason: task.runtime.waitReason,
+    };
   }
 
   cancelTask(taskId: string, reason: string): { ok: true } {

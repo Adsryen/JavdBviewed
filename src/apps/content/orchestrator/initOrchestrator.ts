@@ -196,8 +196,9 @@ class InitOrchestrator {
     if (label === 'anonymous') return;
     const taskId = st.managedDescriptor?.taskId || '';
 
-    // P2 FIX: 检查全局重试预算，超过上限不再重试，标记为失败
-    if (taskId && isRetryBudgetExhausted(taskId)) {
+    const usesLocalRetryBudget = waitReason !== 'retryable-error';
+
+    if (usesLocalRetryBudget && taskId && isRetryBudgetExhausted(taskId)) {
       this.log('retry: budget exhausted, giving up', { phase, label, taskId });
       clearTaskRetryBudget(taskId);
       return;
@@ -205,8 +206,7 @@ class InitOrchestrator {
 
     const retryDelayMs = getDeferredRetryDelayMs(waitReason);
     const scheduled = this.retryTimers.schedule(phase, label, retryDelayMs, () => {
-      // P2 FIX: 重试前更新预算计数
-      if (taskId) {
+      if (usesLocalRetryBudget && taskId) {
         const newCount = incrementTaskRetryCount(taskId);
         this.log('retry: incrementing budget', { phase, label, taskId, retryCount: newCount });
         if (isRetryBudgetExhausted(taskId)) {
