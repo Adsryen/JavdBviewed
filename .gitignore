@@ -63,6 +63,17 @@ vitepress/.vitepress/cache/
 !reference/openai-115/
 !reference/openai-115/*/*.md
 !reference/openai-115/*.md
+# Emby API 本地转存（目录名含 Server 版本号）
+!reference/emby-api-4.9.5.0/
+!reference/emby-api-4.9.5.0/**
+!reference/emby-api-4.9.5.0/**/*.md
+!reference/emby-api-4.9.5.0/*.md
+!reference/emby-api-4.9.5.0/*.cjs
+!reference/emby-api-4.9.5.0/*.json
+# 旧路径仅保留迁移说明（可选）
+!reference/emby-api/
+!reference/emby-api/README.md
+!reference/emby-api/MOVED.md
 !PRIVACY_POLICY.md
 !FEATURES.md
 !CONTRIBUTING.md
