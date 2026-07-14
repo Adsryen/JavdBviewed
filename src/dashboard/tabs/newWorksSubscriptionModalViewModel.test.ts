@@ -29,6 +29,11 @@ describe('new works subscription modal view model', () => {
     expect(html).toContain('data-action="check-single"');
     expect(html).toContain('data-action="toggle"');
     expect(html).toContain('checked');
-    expect(html).toContain('共 2 个订阅演员');
+    expect(html).toContain('共 2 个订阅 · 1 位订阅中');
+    expect(html).toContain('订阅中');
+    expect(html).toContain('已关闭');
+    expect(html).toContain('data-status-filter="all"');
+    expect(html).toContain('data-status-filter="off"');
+    expect(html).toContain('data-enabled="0"');
   });
 });

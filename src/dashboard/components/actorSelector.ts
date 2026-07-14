@@ -11,6 +11,8 @@ export class ActorSelector {
     private onSelectCallback: ((actors: ActorRecord[]) => void) | null = null;
     private checkingActors: Map<string, { button: HTMLButtonElement; tooltip: HTMLElement | null }> = new Map();
     private progressListener: ((message: any) => void) | null = null;
+    private categoryFilter: string = 'all';
+    private allAvailableActors: ActorRecord[] = [];
 
     /**
      * 显示演员选择弹窗
@@ -24,6 +26,7 @@ export class ActorSelector {
 
         this.onSelectCallback = onSelect;
         this.selectedActors.clear();
+        this.categoryFilter = 'all';
 
         try {
             // 获取所有演员
@@ -35,7 +38,7 @@ export class ActorSelector {
             const blacklistedExcludedCount = allActors.filter(actor =>
                 !excludeIds.includes(actor.id) && actor.blacklisted
             ).length;
-            const availableActors = allActors.filter(actor => 
+            const availableActors = allActors.filter(actor =>
                 !excludeIds.includes(actor.id) && !actor.blacklisted
             );
             console.log('ActorSelector: 可选择演员数量:', availableActors.length);
@@ -46,6 +49,7 @@ export class ActorSelector {
                 return;
             }
 
+            this.allAvailableActors = availableActors;
             console.log('ActorSelector: 开始创建弹窗...');
             this.createModal(availableActors, blacklistedExcludedCount);
 
@@ -74,31 +78,55 @@ export class ActorSelector {
 
         this.modal.innerHTML = `
             <div class="modal-overlay">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>选择订阅演员</h3>
-                        <button class="modal-close-btn" type="button">
+                <div class="modal-content actor-selector-shell">
+                    <div class="modal-header actor-selector-header">
+                        <div class="modal-header-main">
+                            <div class="modal-kicker">Casting · 从演员库挑选</div>
+                            <h3>选择要订阅的演员</h3>
+                            <p class="modal-subtitle">从演员库勾选后加入订阅。已订阅与黑名单不会出现在此列表；右侧托盘汇总本次选择。</p>
+                        </div>
+                        <button class="modal-close-btn" type="button" aria-label="关闭">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <div class="modal-body">
-                        <div class="actor-selector-search">
-                            <input type="text" id="actorSelectorSearch" placeholder="搜索演员姓名..." />
-                        </div>
-                        ${this.renderBlacklistExclusionNote(blacklistedExcludedCount)}
-                        <div class="actor-selector-list" id="actorSelectorList">
-                            ${this.renderActorList(actors)}
-                        </div>
-                        <div class="actor-selector-selected" id="actorSelectorSelected">
-                            <h4>已选择的演员 (<span id="selectedCount">0</span>)</h4>
-                            <div class="selected-actors-list" id="selectedActorsList">
-                                <!-- 已选择的演员将显示在这里 -->
+                    <div class="modal-body actor-selector-body">
+                        <div class="actor-selector-layout">
+                            <aside class="actor-selector-spine" aria-label="筛选">
+                                <div class="actor-selector-spine-label">分类</div>
+                                <div class="actor-selector-spine-filters" id="actorSelectorCategoryFilters">
+                                    ${this.renderCategoryFilters(actors)}
+                                </div>
+                            </aside>
+                            <div class="actor-selector-roster">
+                                <div class="actor-selector-toolbar">
+                                    <div class="actor-selector-search">
+                                        <i class="fas fa-search" aria-hidden="true"></i>
+                                        <input type="search" id="actorSelectorSearch" placeholder="搜索姓名或别名…" autocomplete="off" />
+                                    </div>
+                                    ${this.renderBlacklistExclusionNote(blacklistedExcludedCount)}
+                                </div>
+                                <div class="actor-selector-list" id="actorSelectorList">
+                                    ${this.renderActorList(actors)}
+                                </div>
                             </div>
+                            <aside class="actor-selector-tray" id="actorSelectorSelected">
+                                <div class="actor-selector-tray-head">
+                                    <h4>本次选择</h4>
+                                    <div class="actor-selector-tray-count"><span id="selectedCount">0</span> 位演员待确认</div>
+                                </div>
+                                <div class="selected-actors-list" id="selectedActorsList">
+                                    <div class="no-selection">点选左侧名单<br/>演员会出现在这里</div>
+                                </div>
+                                <div class="actor-selector-tray-hint">确认后写入订阅名单，可在「管理订阅」里开关或移除。</div>
+                            </aside>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button class="btn-secondary" id="actorSelectorCancel">取消</button>
-                        <button class="btn-primary" id="actorSelectorConfirm" disabled>确认选择</button>
+                    <div class="modal-footer actor-selector-footer">
+                        <span class="actor-selector-foot-meta" id="actorSelectorFootMeta">可从演员库继续多选</span>
+                        <div class="actor-selector-foot-actions">
+                            <button class="btn-secondary" id="actorSelectorCancel" type="button">取消</button>
+                            <button class="btn-primary" id="actorSelectorConfirm" type="button" disabled>确认选择</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -136,26 +164,64 @@ export class ActorSelector {
         `;
     }
 
+    private renderCategoryFilters(actors: ActorRecord[]): string {
+        const categories: Array<{ key: string; label: string }> = [
+            { key: 'all', label: '全部' },
+            { key: 'censored', label: '有码' },
+            { key: 'uncensored', label: '无码' },
+            { key: 'western', label: '欧美' },
+            { key: 'unknown', label: '未知' },
+        ];
+        const counts = new Map<string, number>();
+        counts.set('all', actors.length);
+        actors.forEach((actor) => {
+            const key = actor.category || 'unknown';
+            counts.set(key, (counts.get(key) || 0) + 1);
+        });
+
+        return categories
+            .filter((cat) => cat.key === 'all' || (counts.get(cat.key) || 0) > 0)
+            .map((cat) => `
+                <button
+                    class="actor-selector-spine-filter${this.categoryFilter === cat.key ? ' is-active' : ''}"
+                    type="button"
+                    data-category-filter="${cat.key}"
+                >
+                    <span>${cat.label}</span>
+                    <em>${counts.get(cat.key) || 0}</em>
+                </button>
+            `)
+            .join('');
+    }
+
     /**
      * 渲染演员列表
      */
     private renderActorList(actors: ActorRecord[]): string {
-        return actors.map(actor => `
-            <div class="actor-selector-item" data-actor-id="${actor.id}">
+        if (actors.length === 0) {
+            return `<div class="actor-selector-empty-state" role="status">没有匹配的演员。试试别的关键词，或清空筛选。</div>`;
+        }
+
+        return actors.map(actor => {
+            const selected = this.selectedActors.has(actor.id);
+            return `
+            <div class="actor-selector-item${selected ? ' is-selected' : ''}" data-actor-id="${actor.id}" role="button" tabindex="0" aria-pressed="${selected}">
                 <div class="actor-checkbox">
-                    <input type="checkbox" id="actor-${actor.id}" />
+                    <input type="checkbox" id="actor-${actor.id}" ${selected ? 'checked' : ''} aria-label="选择 ${actor.name}" />
                 </div>
                 <div class="actor-avatar" data-avatar-url="${actor.avatarUrl || ''}">
-                    ${actor.avatarUrl 
+                    ${actor.avatarUrl
                         ? `<img src="${actor.avatarUrl}" alt="${actor.name}" />`
                         : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`
                     }
                 </div>
                 <div class="actor-info">
-                    <div class="actor-name">${actor.name}</div>
+                    <div class="actor-name">
+                        <span>${actor.name}</span>
+                        <span class="actor-category-tag">${this.getCategoryText(actor.category)}</span>
+                    </div>
                     <div class="actor-meta">
                         <span class="actor-gender">${this.getGenderText(actor.gender)}</span>
-                        <span class="actor-category">${this.getCategoryText(actor.category)}</span>
                         ${actor.details?.worksCount ? `<span class="actor-works">${actor.details.worksCount} 作品</span>` : ''}
                     </div>
                     ${actor.aliases.length > 0 ? `
@@ -166,12 +232,13 @@ export class ActorSelector {
                     ` : ''}
                 </div>
                 <div class="actor-actions">
-                    <button class="btn-check-single" data-actor-id="${actor.id}" title="立即检查此演员的新作品">
+                    <button class="btn-check-single" data-actor-id="${actor.id}" title="立即检查此演员的新作品" type="button" aria-label="立即检查 ${actor.name}">
                         <i class="fas fa-sync-alt"></i>
                     </button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     /**
@@ -194,88 +261,23 @@ export class ActorSelector {
 
         // 搜索框
         const searchInput = this.modal.querySelector('#actorSelectorSearch') as HTMLInputElement;
-        searchInput?.addEventListener('input', (e) => {
-            const query = (e.target as HTMLInputElement).value;
-            this.handleSearch(query, actors);
+        searchInput?.addEventListener('input', () => {
+            this.refreshFilteredList();
         });
 
-        // 演员项点击事件
-        const actorItems = this.modal.querySelectorAll('.actor-selector-item');
-        actorItems.forEach(item => {
-            const checkbox = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
-            const actorId = item.getAttribute('data-actor-id');
-
-            if (checkbox && actorId) {
-                // 点击整个项目时切换选择状态（排除按钮点击）
-                item.addEventListener('click', (e) => {
-                    const target = e.target as HTMLElement;
-                    if (target.tagName !== 'INPUT' && 
-                        !target.closest('.btn-check-single') && 
-                        !target.closest('.actor-actions')) {
-                        checkbox.checked = !checkbox.checked;
-                        this.handleActorToggle(actorId, checkbox.checked, actors);
-                    }
+        // 分类筛选
+        this.modal.querySelectorAll('[data-category-filter]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const category = (btn as HTMLElement).getAttribute('data-category-filter') || 'all';
+                this.categoryFilter = category;
+                this.modal?.querySelectorAll('[data-category-filter]').forEach((el) => {
+                    el.classList.toggle('is-active', el.getAttribute('data-category-filter') === category);
                 });
-
-                // 复选框变化事件
-                checkbox.addEventListener('change', () => {
-                    this.handleActorToggle(actorId, checkbox.checked, actors);
-                });
-            }
-
-            // 单独检查按钮事件
-            const checkBtn = item.querySelector('.btn-check-single') as HTMLButtonElement;
-            if (checkBtn) {
-                checkBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const actorId = checkBtn.getAttribute('data-actor-id');
-                    if (actorId) {
-                        const actor = actors.find(a => a.id === actorId);
-                        if (actor) {
-                            this.handleSingleActorCheck(actor, checkBtn);
-                        }
-                    }
-                });
-            }
-
-            // 头像悬浮大图定位
-            const avatar = item.querySelector('.actor-avatar') as HTMLElement;
-            const avatarUrl = avatar?.getAttribute('data-avatar-url');
-            
-            if (avatar && avatarUrl) {
-                let preview: HTMLElement | null = null;
-                let isHovering = false;
-                
-                const showPreview = () => {
-                    isHovering = true;
-                    
-                    // 创建预览元素并添加到body
-                    preview = document.createElement('div');
-                    preview.className = 'actor-avatar-preview show';
-                    preview.innerHTML = `<img src="${avatarUrl}" alt="预览" />`;
-                    document.body.appendChild(preview);
-                    
-                    const rect = avatar.getBoundingClientRect();
-                    const top = rect.top + rect.height / 2 - 100;
-                    const left = rect.right + 15;
-                    preview.style.top = `${top}px`;
-                    preview.style.left = `${left}px`;
-                };
-                
-                const hidePreview = () => {
-                    isHovering = false;
-                    setTimeout(() => {
-                        if (!isHovering && preview) {
-                            preview.remove();
-                            preview = null;
-                        }
-                    }, 100);
-                };
-                
-                avatar.addEventListener('mouseenter', showPreview);
-                avatar.addEventListener('mouseleave', hidePreview);
-            }
+                this.refreshFilteredList();
+            });
         });
+
+        this.setupActorItemListeners(actors);
 
         // 点击遮罩层关闭
         const overlay = this.modal.querySelector('.modal-overlay');
@@ -289,30 +291,40 @@ export class ActorSelector {
     /**
      * 处理演员选择切换
      */
-    private handleActorToggle(actorId: string, selected: boolean, actors: ActorRecord[]): void {
+    private handleActorToggle(actorId: string, selected: boolean, _actors: ActorRecord[]): void {
         if (selected) {
             this.selectedActors.add(actorId);
         } else {
             this.selectedActors.delete(actorId);
         }
 
-        this.updateSelectedActorsList(actors);
+        const row = this.modal?.querySelector(`.actor-selector-item[data-actor-id="${actorId}"]`);
+        row?.classList.toggle('is-selected', selected);
+        row?.setAttribute('aria-pressed', selected ? 'true' : 'false');
+
+        this.updateSelectedActorsList(this.allAvailableActors);
         this.updateConfirmButton();
     }
 
     /**
      * 更新已选择演员列表
      */
-    private updateSelectedActorsList(actors: ActorRecord[]): void {
+    private updateSelectedActorsList(actors: ActorRecord[] = this.allAvailableActors): void {
         const selectedList = this.modal?.querySelector('#selectedActorsList');
         const selectedCount = this.modal?.querySelector('#selectedCount');
-        
+        const footMeta = this.modal?.querySelector('#actorSelectorFootMeta');
+
         if (!selectedList || !selectedCount) return;
 
         selectedCount.textContent = this.selectedActors.size.toString();
+        if (footMeta) {
+            footMeta.textContent = this.selectedActors.size
+                ? `已选 ${this.selectedActors.size} 位 · 确认后加入订阅`
+                : '可从演员库继续多选';
+        }
 
         if (this.selectedActors.size === 0) {
-            selectedList.innerHTML = '<div class="no-selection">未选择任何演员</div>';
+            selectedList.innerHTML = '<div class="no-selection">点选左侧名单<br/>演员会出现在这里</div>';
             return;
         }
 
@@ -320,13 +332,16 @@ export class ActorSelector {
         selectedList.innerHTML = selectedActorData.map(actor => `
             <div class="selected-actor-item">
                 <div class="selected-actor-avatar">
-                    ${actor.avatarUrl 
+                    ${actor.avatarUrl
                         ? `<img src="${actor.avatarUrl}" alt="${actor.name}" />`
                         : `<div class="avatar-placeholder-small"><i class="fas fa-user"></i></div>`
                     }
                 </div>
-                <span class="selected-actor-name">${actor.name}</span>
-                <button class="remove-selected-actor" data-actor-id="${actor.id}">
+                <div class="selected-actor-copy">
+                    <span class="selected-actor-name">${actor.name}</span>
+                    <span class="selected-actor-category">${this.getCategoryText(actor.category)}</span>
+                </div>
+                <button class="remove-selected-actor" data-actor-id="${actor.id}" type="button" aria-label="移除 ${actor.name}">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -338,14 +353,17 @@ export class ActorSelector {
                 const actorId = (e.target as HTMLElement).closest('.remove-selected-actor')?.getAttribute('data-actor-id');
                 if (actorId) {
                     this.selectedActors.delete(actorId);
-                    
+
                     // 更新复选框状态
                     const checkbox = this.modal?.querySelector(`#actor-${actorId}`) as HTMLInputElement;
                     if (checkbox) {
                         checkbox.checked = false;
                     }
-                    
-                    this.updateSelectedActorsList(actors);
+                    const row = this.modal?.querySelector(`.actor-selector-item[data-actor-id="${actorId}"]`);
+                    row?.classList.remove('is-selected');
+                    row?.setAttribute('aria-pressed', 'false');
+
+                    this.updateSelectedActorsList(this.allAvailableActors);
                     this.updateConfirmButton();
                 }
             });
@@ -362,25 +380,31 @@ export class ActorSelector {
         }
     }
 
-    /**
-     * 处理搜索
-     */
-    private handleSearch(query: string, actors: ActorRecord[]): void {
-        const listContainer = this.modal?.querySelector('#actorSelectorList');
-        if (!listContainer) return;
+    private getSearchQuery(): string {
+        const searchInput = this.modal?.querySelector('#actorSelectorSearch') as HTMLInputElement | null;
+        return (searchInput?.value || '').trim().toLowerCase();
+    }
 
-        const filteredActors = actors.filter(actor => {
-            const lowerQuery = query.toLowerCase();
-            // 搜索时也要排除拉黑的演员
-            return !actor.blacklisted && (
-                actor.name.toLowerCase().includes(lowerQuery) ||
-                actor.aliases.some(alias => alias.toLowerCase().includes(lowerQuery))
+    private getFilteredActors(actors: ActorRecord[] = this.allAvailableActors): ActorRecord[] {
+        const query = this.getSearchQuery();
+        return actors.filter((actor) => {
+            if (actor.blacklisted) return false;
+            if (this.categoryFilter !== 'all' && (actor.category || 'unknown') !== this.categoryFilter) {
+                return false;
+            }
+            if (!query) return true;
+            return (
+                actor.name.toLowerCase().includes(query) ||
+                actor.aliases.some((alias) => alias.toLowerCase().includes(query))
             );
         });
+    }
 
+    private refreshFilteredList(): void {
+        const listContainer = this.modal?.querySelector('#actorSelectorList');
+        if (!listContainer) return;
+        const filteredActors = this.getFilteredActors();
         listContainer.innerHTML = this.renderActorList(filteredActors);
-        
-        // 重新设置事件监听器
         this.setupActorItemListeners(filteredActors);
     }
 
@@ -397,17 +421,28 @@ export class ActorSelector {
 
             if (checkbox && actorId) {
                 // 恢复选择状态
-                checkbox.checked = this.selectedActors.has(actorId);
+                const selected = this.selectedActors.has(actorId);
+                checkbox.checked = selected;
+                item.classList.toggle('is-selected', selected);
+                item.setAttribute('aria-pressed', selected ? 'true' : 'false');
 
                 // 重新绑定事件（排除按钮点击）
                 item.addEventListener('click', (e) => {
                     const target = e.target as HTMLElement;
-                    if (target.tagName !== 'INPUT' && 
-                        !target.closest('.btn-check-single') && 
+                    if (target.tagName !== 'INPUT' &&
+                        !target.closest('.btn-check-single') &&
                         !target.closest('.actor-actions')) {
                         checkbox.checked = !checkbox.checked;
                         this.handleActorToggle(actorId, checkbox.checked, actors);
                     }
+                });
+
+                item.addEventListener('keydown', (e) => {
+                    const keyEvent = e as KeyboardEvent;
+                    if (keyEvent.key !== 'Enter' && keyEvent.key !== ' ') return;
+                    keyEvent.preventDefault();
+                    checkbox.checked = !checkbox.checked;
+                    this.handleActorToggle(actorId, checkbox.checked, actors);
                 });
 
                 checkbox.addEventListener('change', () => {
@@ -474,12 +509,13 @@ export class ActorSelector {
      * 处理确认选择
      */
     private handleConfirm(actors: ActorRecord[]): void {
-        const selectedActorData = actors.filter(actor => this.selectedActors.has(actor.id));
-        
+        const source = this.allAvailableActors.length ? this.allAvailableActors : actors;
+        const selectedActorData = source.filter(actor => this.selectedActors.has(actor.id));
+
         if (this.onSelectCallback) {
             this.onSelectCallback(selectedActorData);
         }
-        
+
         this.hideModal();
     }
 
@@ -492,7 +528,7 @@ export class ActorSelector {
         if (this.modal) {
             console.log('ActorSelector: 弹窗元素存在，设置显示样式');
 
-            // 强制设置样式
+            // 仅控制宿主层显示；遮罩与内容样式交给 CSS，避免再叠一层实色底
             this.modal.style.display = 'block';
             this.modal.style.position = 'fixed';
             this.modal.style.top = '0';
@@ -500,7 +536,11 @@ export class ActorSelector {
             this.modal.style.width = '100%';
             this.modal.style.height = '100%';
             this.modal.style.zIndex = '10000';
-            this.modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            this.modal.style.backgroundColor = 'transparent';
+            this.modal.style.padding = '0';
+            this.modal.style.margin = '0';
+            this.modal.style.border = '0';
+            this.modal.style.boxSizing = 'border-box';
 
             document.body.style.overflow = 'hidden';
 

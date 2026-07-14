@@ -82,7 +82,21 @@ describe('new works subscription modal runtime', () => {
 
     expect((modal.querySelector('[data-actor-id="actor-1"]') as HTMLElement).style.display).toBe('');
     expect((modal.querySelector('[data-actor-id="actor-2"]') as HTMLElement).style.display).toBe('none');
-    expect(modal.querySelector('.subscription-management-summary')?.textContent).toBe('搜索结果 1 / 2');
+    expect(modal.querySelector('.subscription-management-summary')?.textContent).toBe('共 2 个订阅 · 2 位订阅中 · 当前显示 1');
+  });
+
+  it('filters subscriptions by status pill', () => {
+    const runtime = deps();
+    const modal = openSubscriptionManagementModal([
+      subscription({ actorName: 'Alice', enabled: true }),
+      subscription({ actorId: 'actor-2', actorName: 'Bob', enabled: false }),
+    ], runtime);
+
+    modal.querySelector<HTMLElement>('[data-status-filter="off"]')?.click();
+
+    expect((modal.querySelector('[data-actor-id="actor-1"]') as HTMLElement).style.display).toBe('none');
+    expect((modal.querySelector('[data-actor-id="actor-2"]') as HTMLElement).style.display).toBe('');
+    expect(modal.querySelector('.subscription-management-summary')?.textContent).toBe('共 2 个订阅 · 1 位订阅中 · 当前显示 1');
   });
 
   it('closes modal before opening add subscription selector', () => {

@@ -113,26 +113,51 @@ function attachAddActorAction(
 
 function attachSearchFilter(modal: HTMLDivElement, subscriptions: ActorSubscription[]): () => void {
   const searchInput = modal.querySelector('#subscriptionManagementSearch') as HTMLInputElement | null;
+  const statusPills = Array.from(modal.querySelectorAll('[data-status-filter]')) as HTMLButtonElement[];
   const subscriptionItems = Array.from(modal.querySelectorAll('.subscription-item')) as HTMLElement[];
+  let statusFilter: 'all' | 'on' | 'off' = 'all';
+
   const applySearchFilter = () => {
     const keyword = (searchInput?.value || '').trim().toLowerCase();
     let visibleCount = 0;
+    const enabledCount = subscriptions.filter(sub => sub.enabled).length;
 
     subscriptionItems.forEach(item => {
       const nameEl = item.querySelector('.subscription-name');
       const actorName = (nameEl?.textContent || '').trim().toLowerCase();
-      const matched = !keyword || actorName.includes(keyword);
+      const enabled = item.getAttribute('data-enabled') === '1';
+      const statusMatched =
+        statusFilter === 'all' ||
+        (statusFilter === 'on' && enabled) ||
+        (statusFilter === 'off' && !enabled);
+      const keywordMatched = !keyword || actorName.includes(keyword);
+      const matched = statusMatched && keywordMatched;
       item.style.display = matched ? '' : 'none';
       if (matched) visibleCount++;
     });
 
     const summaryEl = modal.querySelector('.subscription-management-summary');
     if (summaryEl) {
-      summaryEl.textContent = keyword
-        ? `搜索结果 ${visibleCount} / ${subscriptions.length}`
-        : `共 ${subscriptions.length} 个订阅演员`;
+      if (keyword || statusFilter !== 'all') {
+        summaryEl.textContent = `共 ${subscriptions.length} 个订阅 · ${enabledCount} 位订阅中 · 当前显示 ${visibleCount}`;
+      } else {
+        summaryEl.textContent = `共 ${subscriptions.length} 个订阅 · ${enabledCount} 位订阅中`;
+      }
     }
   };
+
+  statusPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      const next = pill.getAttribute('data-status-filter');
+      if (next !== 'all' && next !== 'on' && next !== 'off') return;
+      statusFilter = next;
+      statusPills.forEach(btn => {
+        btn.classList.toggle('is-active', btn === pill);
+      });
+      applySearchFilter();
+    });
+  });
+
   searchInput?.addEventListener('input', applySearchFilter);
   return applySearchFilter;
 }
