@@ -21,6 +21,7 @@ import { initModal } from '../../dashboard/import';
 // import { setValue, getValue } from '../utils/storage';
 // import { STORAGE_KEYS } from '../utils/config';
 import { initDashboardUserMenu } from '../../dashboard/userMenu';
+import { initDashboardLastPageResume } from '../../dashboard/lastPage';
 // import { initDataSyncSection } from './dataSync';
 import '../../dashboard/ui/dataViewModal'; // 确保 dataViewModal 被初始化
 import { ensureMounted } from '../../dashboard/loaders/partialsLoader';
@@ -176,6 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // initLogsTab(); // 已迁移到模块化设置系统
     initBackupActions(document);
     initDashboardUserMenu();
+    void initDashboardLastPageResume();
     // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
     initModal();
     updateSyncStatusModule();

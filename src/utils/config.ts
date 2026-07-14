@@ -61,7 +61,10 @@ export const STORAGE_KEYS = {
     IDB_ACTORS_MIGRATED: 'idb_actors_migrated',
 
     // Emby/Jellyfin 媒体库入库索引
-    EMBY_LIBRARY_STATE: 'emby_library_state'
+    EMBY_LIBRARY_STATE: 'emby_library_state',
+
+    // Dashboard 上次关闭页面（完整 hash 恢复提示）
+    DASHBOARD_LAST_PAGE: 'dashboard_last_page',
 } as const;
 
 export const VIDEO_STATUS = {
