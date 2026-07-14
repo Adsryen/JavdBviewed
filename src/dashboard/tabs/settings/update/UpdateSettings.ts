@@ -15,6 +15,7 @@ import {
 } from '../../../../features/updateChecker';
 import { log } from '../../../../utils/logController';
 import type { ExtensionSettings } from '../../../../types';
+import { renderDashboardVersionInfo } from '../../../../apps/dashboard/dashboardVersionInfo';
 
 export class UpdateSettings extends BaseSettingsPanel {
     private settings: any = {};
@@ -30,7 +31,7 @@ export class UpdateSettings extends BaseSettingsPanel {
     constructor() {
         const config: SettingsPanelConfig = {
             panelId: 'update-settings',
-            panelName: '检查更新',
+            panelName: '版本与关于',
             requireValidation: false,
             autoSave: false
         };
@@ -62,6 +63,8 @@ export class UpdateSettings extends BaseSettingsPanel {
                 console.warn(`[UpdateSettings] DOM元素未找到: ${elementId}`);
             }
         }
+
+        renderDashboardVersionInfo('aboutVersionInfo');
 
         log.verbose('[UpdateSettings] DOM元素初始化完成');
     }
@@ -179,6 +182,7 @@ export class UpdateSettings extends BaseSettingsPanel {
 
             // 更新版本信息
             this.updateVersionInfo();
+            renderDashboardVersionInfo('aboutVersionInfo');
 
             // 自动检查最新版本（延迟执行，避免阻塞UI加载）
             setTimeout(() => {

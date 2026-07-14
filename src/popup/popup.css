@@ -292,6 +292,14 @@ button {
     line-height: 1;
 }
 
+.theme-switcher .fa-sun {
+    color: #fbbf24;
+}
+
+.theme-switcher .fa-moon {
+    color: #f1f5f9;
+}
+
 .top-management-btn {
     display: inline-flex;
     align-items: center;

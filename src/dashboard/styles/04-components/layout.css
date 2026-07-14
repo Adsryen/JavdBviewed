@@ -1341,8 +1341,8 @@
     align-items: center;
     justify-content: center;
     min-height: 0;
-    margin: -4px 0 4px;
-    padding: 0 8px 2px;
+    margin: -6px 0 2px;
+    padding: 0 8px;
     border-bottom: 1px solid var(--border-primary);
 }
 
@@ -1355,7 +1355,7 @@
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: center;
-    gap: 3px 14px;
+    gap: 4px 18px;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -1364,16 +1364,16 @@
 .dashboard-sub-tab {
     position: relative;
     isolation: isolate;
-    min-height: 18px;
+    min-height: 17px;
     padding: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 1.35;
+    font-size: 14px;
+    font-weight: 820;
+    line-height: 1.15;
     white-space: nowrap;
     transition: color var(--transition-fast) var(--ease-out),
         transform var(--transition-fast) var(--ease-out);
@@ -1390,7 +1390,7 @@
     position: absolute;
     z-index: 1;
     right: 0;
-    bottom: -3px;
+    bottom: -2px;
     left: 0;
     height: 2px;
     border-radius: 999px;

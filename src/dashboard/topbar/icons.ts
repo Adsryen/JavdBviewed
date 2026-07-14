@@ -2,17 +2,12 @@
 
 let themeObserver: MutationObserver | null = null;
 
-function updateFavicon(theme: 'light' | 'dark'): void {
+function updateFavicon(): void {
   const favicon32 = document.getElementById('favicon-32') as HTMLLinkElement | null;
   const favicon16 = document.getElementById('favicon-16') as HTMLLinkElement | null;
 
-  const path32 = theme === 'dark'
-    ? 'assets/favicons/dark/favicon-32x32.png'
-    : 'assets/favicons/light/favicon-32x32.png';
-
-  const path16 = theme === 'dark'
-    ? 'assets/favicons/dark/favicon-16x16.png'
-    : 'assets/favicons/light/favicon-16x16.png';
+  const path32 = 'assets/favicons/dark/favicon-32x32.png';
+  const path16 = 'assets/favicons/dark/favicon-16x16.png';
 
   if (favicon32) {
     favicon32.href = chrome.runtime.getURL(path32);
@@ -24,13 +19,10 @@ function updateFavicon(theme: 'light' | 'dark'): void {
 }
 
 function updateIconsForTheme(): void {
-  const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-  const faviconPath = theme === 'dark'
-    ? 'assets/favicons/dark/favicon-32x32.png'
-    : 'assets/favicons/light/favicon-32x32.png';
+  const faviconPath = 'assets/favicons/dark/favicon-32x32.png';
 
-  // 更新浏览器标签页 favicon
-  updateFavicon(theme);
+  // 固定使用深色图标，保证 title/标签页图标在亮色主题下仍保持白色主体。
+  updateFavicon();
 
   try {
     const titleIcon = document.getElementById('title-icon') as HTMLImageElement | null;

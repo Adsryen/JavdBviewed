@@ -22,11 +22,12 @@ describe('Dashboard tab resources', () => {
     });
   });
 
-  it('registers the about settings partial with page-scoped styles', () => {
+  it('aliases the legacy about settings route to the merged version page', () => {
     expect(TAB_PARTIALS['tab-settings-about']).toEqual({
-      name: 'tabs/settings-about.html',
+      name: 'tabs/settings-update.html',
       styles: [
         './styles/05-pages/settings/settings.css',
+        './styles/05-pages/settings/update.css',
         './styles/05-pages/settings/about.css',
       ],
     });

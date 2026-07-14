@@ -1,46 +1,210 @@
-﻿.about-links-grid {
+:is(#about-settings, #update-settings) {
+  position: relative;
+}
+
+:is(#about-settings, #update-settings) .settings-page-header {
+  margin-bottom: 24px;
+}
+
+:is(#about-settings, #update-settings) .settings-page-header h2 {
+  color: var(--text-primary);
+}
+
+:is(#about-settings, #update-settings) .settings-page-body {
+  gap: 18px;
+}
+
+:is(#about-settings, #update-settings) .about-settings-card {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0;
+  padding: 22px;
+  border-color: color-mix(in srgb, var(--border-primary) 82%, var(--primary) 18%);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 10%, transparent), transparent 34%),
+    var(--surface-primary);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+
+:is(#about-settings, #update-settings) .about-settings-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.1);
+}
+
+:is(#about-settings, #update-settings) .about-settings-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+:is(#about-settings, #update-settings) .about-settings-card h3 i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 14px;
+}
+
+:is(#about-settings, #update-settings) .about-links-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
-.about-link-card {
+:is(#about-settings, #update-settings) .about-link-card {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  min-height: 54px;
+  gap: 12px;
   padding: 12px 14px;
   border: 1px solid var(--border-primary);
-  border-radius: 10px;
+  border-radius: 14px;
   color: var(--text-primary);
   text-decoration: none;
-  background: var(--surface-primary);
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  background: color-mix(in srgb, var(--surface-secondary) 72%, var(--surface-primary) 28%);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.about-link-card:hover {
-  background: var(--bg-hover);
+:is(#about-settings, #update-settings) .about-link-card i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 10px;
+  background: var(--surface-primary);
+  color: var(--primary);
+  font-size: 16px;
+  box-shadow: inset 0 0 0 1px var(--border-primary);
+}
+
+:is(#about-settings, #update-settings) .about-link-card span {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+:is(#about-settings, #update-settings) .about-link-card:hover {
+  background: var(--surface-primary);
   border-color: var(--primary);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.12);
   transform: translateY(-1px);
 }
 
-.dashboard-version-info .info-item,
-.dashboard-version-info .info-author {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--border-primary);
+:is(#about-settings, #update-settings) .about-link-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
 }
 
-.dashboard-version-info .info-label,
-.dashboard-version-info .info-author-label {
+:is(#about-settings, #update-settings) .dashboard-version-info {
+  display: grid;
+  gap: 8px;
+  padding: 0;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-family: inherit;
+  font-size: 13px;
 }
 
-.dashboard-version-info .info-value,
-.dashboard-version-info .info-author-link {
+:is(#about-settings, #update-settings) .dashboard-version-info .info-item,
+:is(#about-settings, #update-settings) .dashboard-version-info .info-author {
+  display: grid;
+  grid-template-columns: minmax(96px, max-content) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-secondary) 68%, transparent);
+}
+
+:is(#about-settings, #update-settings) .dashboard-version-info .info-item + .info-item {
+  margin-top: 0;
+}
+
+:is(#about-settings, #update-settings) .dashboard-version-info .info-author {
+  justify-content: stretch;
+  border-top: 1px solid var(--border-primary);
+}
+
+:is(#about-settings, #update-settings) .dashboard-version-info .info-label,
+:is(#about-settings, #update-settings) .dashboard-version-info .info-author-label {
+  color: var(--text-secondary);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:is(#about-settings, #update-settings) .dashboard-version-info .info-value,
+:is(#about-settings, #update-settings) .dashboard-version-info .info-author-link {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
   color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-weight: 700;
   text-align: right;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+:is(#about-settings, #update-settings) .dashboard-version-info .info-author-link {
+  justify-self: end;
+  text-decoration: none;
+}
+
+:is(#about-settings, #update-settings) .dashboard-version-info .info-author-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+[data-theme="dark"] :is(#about-settings, #update-settings) .about-settings-card {
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="dark"] :is(#about-settings, #update-settings) .about-link-card:hover {
+  box-shadow: 0 12px 26px rgba(96, 165, 250, 0.16);
+}
+
+@media (max-width: 768px) {
+  :is(#about-settings, #update-settings) .about-settings-card {
+    padding: 18px;
+  }
+
+  :is(#about-settings, #update-settings) .about-links-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :is(#about-settings, #update-settings) .dashboard-version-info .info-item,
+  :is(#about-settings, #update-settings) .dashboard-version-info .info-author {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  :is(#about-settings, #update-settings) .dashboard-version-info .info-value,
+  :is(#about-settings, #update-settings) .dashboard-version-info .info-author-link {
+    justify-self: start;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(#about-settings, #update-settings) .about-settings-card,
+  :is(#about-settings, #update-settings) .about-link-card {
+    transition: none;
+  }
+
+  :is(#about-settings, #update-settings) .about-settings-card:hover,
+  :is(#about-settings, #update-settings) .about-link-card:hover {
+    transform: none;
+  }
 }

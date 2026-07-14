@@ -1,10 +1,10 @@
-﻿<div class="settings-page" id="update-settings">
+<div class="settings-page" id="update-settings">
     <div class="settings-page-header">
         <button class="settings-back-btn" data-action="back-to-settings">
             <i class="fas fa-arrow-left"></i> 返回设置
         </button>
-        <h2>检查更新</h2>
-        <p class="settings-description">管理扩展程序的更新检查设置，获取最新版本信息。</p>
+        <h2>版本与关于</h2>
+        <p class="settings-description">检查更新、查看版本与项目链接。</p>
     </div>
     <div class="settings-page-body">
         <!-- 更新状态卡片 -->
@@ -105,6 +105,30 @@
                     </label>
                 </div>
             </div>
+        </div>
+
+
+        <div class="settings-card settings-section about-settings-card">
+            <h3><i class="fas fa-info-circle"></i> 项目信息</h3>
+            <div class="about-links-grid">
+                <a class="about-link-card" href="https://github.com/lmixture/JavdBviewed" target="_blank" rel="noopener noreferrer">
+                    <i class="fab fa-github"></i>
+                    <span>GitHub 项目</span>
+                </a>
+                <a class="about-link-card" href="https://t.me/javdbviewed" target="_blank" rel="noopener noreferrer">
+                    <i class="fab fa-telegram"></i>
+                    <span>Telegram 群组</span>
+                </a>
+                <a class="about-link-card" href="https://jbd.we-together.club/" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-question-circle"></i>
+                    <span>帮助文档</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section about-settings-card">
+            <h3><i class="fas fa-code-branch"></i> 版本详情</h3>
+            <div id="aboutVersionInfo" class="dashboard-version-info"></div>
         </div>
 
     </div>

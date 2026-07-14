@@ -38,7 +38,7 @@ export function initDashboardUserMenu(): void {
               <img src="../assets/115-logo.svg" alt="" /><span>115 设置</span>
             </button>
             <button type="button" class="dashboard-user-menu-action" data-user-menu-action="about">
-              <i class="fas fa-info-circle"></i><span>关于与版本</span>
+              <i class="fas fa-code-branch"></i><span>版本与关于</span>
             </button>
             <button type="button" class="dashboard-user-menu-action" data-user-menu-action="help">
               <i class="fas fa-question-circle"></i><span>帮助文档</span>
@@ -115,7 +115,7 @@ function bindMenuEvents(root: HTMLElement): () => void {
       return;
     }
     if (action === 'about') {
-      window.location.hash = '#tab-settings/about-settings';
+      window.location.hash = '#tab-settings/update-settings';
       setOpen(false);
       return;
     }

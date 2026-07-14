@@ -1,33 +1,35 @@
-﻿<div class="settings-page" id="about-settings">
-  <div class="settings-header">
-    <button class="back-to-settings" data-action="back-to-settings">
+<div class="settings-page" id="about-settings">
+  <div class="settings-page-header">
+    <button class="settings-back-btn" data-action="back-to-settings">
       <i class="fas fa-arrow-left"></i>
       返回设置
     </button>
     <h2>关于</h2>
-    <p>项目链接、版本与构建信息</p>
+    <p class="settings-description">项目链接、版本与构建信息</p>
   </div>
 
-  <div class="settings-card settings-section about-settings-card">
-    <h3><i class="fas fa-info-circle"></i> 项目信息</h3>
-    <div class="about-links-grid">
-      <a class="about-link-card" href="https://github.com/lmixture/JavdBviewed" target="_blank" rel="noopener noreferrer">
-        <i class="fab fa-github"></i>
-        <span>GitHub 项目</span>
-      </a>
-      <a class="about-link-card" href="https://t.me/javdbviewed" target="_blank" rel="noopener noreferrer">
-        <i class="fab fa-telegram"></i>
-        <span>Telegram 群组</span>
-      </a>
-      <a class="about-link-card" href="https://jbd.we-together.club/" target="_blank" rel="noopener noreferrer">
-        <i class="fas fa-question-circle"></i>
-        <span>帮助文档</span>
-      </a>
+  <div class="settings-page-body">
+    <div class="settings-card settings-section about-settings-card">
+      <h3><i class="fas fa-info-circle"></i> 项目信息</h3>
+      <div class="about-links-grid">
+        <a class="about-link-card" href="https://github.com/lmixture/JavdBviewed" target="_blank" rel="noopener noreferrer">
+          <i class="fab fa-github"></i>
+          <span>GitHub 项目</span>
+        </a>
+        <a class="about-link-card" href="https://t.me/javdbviewed" target="_blank" rel="noopener noreferrer">
+          <i class="fab fa-telegram"></i>
+          <span>Telegram 群组</span>
+        </a>
+        <a class="about-link-card" href="https://jbd.we-together.club/" target="_blank" rel="noopener noreferrer">
+          <i class="fas fa-question-circle"></i>
+          <span>帮助文档</span>
+        </a>
+      </div>
     </div>
-  </div>
 
-  <div class="settings-card settings-section about-settings-card">
-    <h3><i class="fas fa-code-branch"></i> 版本详情</h3>
-    <div id="aboutVersionInfo" class="dashboard-version-info"></div>
+    <div class="settings-card settings-section about-settings-card">
+      <h3><i class="fas fa-code-branch"></i> 版本详情</h3>
+      <div id="aboutVersionInfo" class="dashboard-version-info"></div>
+    </div>
   </div>
 </div>
