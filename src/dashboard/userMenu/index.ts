@@ -82,7 +82,8 @@ function bindMenuEvents(root: HTMLElement): () => void {
   };
 
   const handleDocumentClick = (event: MouseEvent) => {
-    if (!root.contains(event.target as Node)) {
+    const clickedInsideMenu = event.composedPath().includes(root);
+    if (!clickedInsideMenu) {
       setOpen(false);
     }
   };
@@ -95,6 +96,10 @@ function bindMenuEvents(root: HTMLElement): () => void {
   };
 
   const handleRootClick = (event: MouseEvent) => {
+    // 菜单内的刷新、退出等操作可能会同步重绘自身 DOM。
+    // 先截断冒泡，避免 document click 在目标节点被移除后误判为外部点击并关闭菜单。
+    event.stopPropagation();
+
     const actionElement = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-user-menu-action]');
     const action = actionElement?.dataset.userMenuAction;
     if (!action) return;

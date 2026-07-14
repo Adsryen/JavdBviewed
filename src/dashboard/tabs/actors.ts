@@ -4,7 +4,7 @@
 import { actorManager } from '../../features/actors';
 import { newWorksManager } from '../../features/newWorks';
 import { showMessage } from '../ui/toast';
-import { getSettings } from '../../utils/storage';
+import { getSettings, saveSettings } from '../../utils/storage';
 import { showConfirm } from '../components/confirmModal';
 import { logAsync } from '../logger';
 import type { ActorRecord, ActorPagedSearchResult, ExtensionSettings } from '../../types';
@@ -37,6 +37,7 @@ import { copyActorNameRuntime } from './actors/actorClipboardRuntime';
 import { renderActorStats } from './actors/statsRuntime';
 import { renderActorListRuntime } from './actors/actorListRuntime';
 import { setupActorControlsRuntime, syncActorViewModeButton } from './actors/actorControlsRuntime';
+import { readActorViewMode, writeActorViewMode, type ActorViewMode } from './actors/viewPreferenceModel';
 import { scheduleActorAliasesOverflowCheck, toggleActorAliasesExpansion } from './actors/actorAliasRuntime';
 import {
     deleteActorWorkflow,
@@ -57,7 +58,7 @@ export class ActorsTab {
     private isLoading = false;
     public isInitialized = false;
     private settings?: ExtensionSettings;
-    private currentViewMode: 'list' | 'card' = 'list';
+    private currentViewMode: ActorViewMode = 'list';
     
     // 批量操作相关
     private selectedActors = new Set<string>();
@@ -73,6 +74,7 @@ export class ActorsTab {
             // 读取设置以确定默认黑名单过滤
             this.settings = await getSettings();
             this.currentBlacklistFilter = this.settings.actorLibrary.blacklist.hideInList ? 'exclude' : 'all';
+            this.currentViewMode = readActorViewMode(this.settings);
             this.setupEventListeners();
             this.setupDataUpdateListeners();
             await this.loadActors();
@@ -141,6 +143,7 @@ export class ActorsTab {
             toggleViewMode: () => {
                 this.currentViewMode = this.currentViewMode === 'list' ? 'card' : 'list';
                 syncActorViewModeButton(this.currentViewMode);
+                void this.persistActorViewMode(this.currentViewMode);
                 this.loadActors();
             },
             handleSelectAll: () => this.handleSelectAll(),
@@ -150,6 +153,19 @@ export class ActorsTab {
             handleBatchDelete: () => this.handleBatchDelete(),
             clearSelection: () => this.clearAllSelection(),
         });
+        syncActorViewModeButton(this.currentViewMode);
+    }
+
+    private async persistActorViewMode(mode: ActorViewMode): Promise<void> {
+        try {
+            if (!this.settings) {
+                this.settings = await getSettings();
+            }
+            writeActorViewMode(this.settings, mode);
+            await saveSettings(this.settings);
+        } catch (error) {
+            console.error('[Actor] Failed to save actor view mode:', error);
+        }
     }
 
     /**

@@ -103,7 +103,7 @@
   /* === Z-index 层级 - Z-index Layers === */
   --z-modal-backdrop: 1000;
   --z-modal: 1001;
-  --z-toast: 2000;
+  --z-toast: 1000002;
   --z-tooltip: 3000;
   
   /* === 过渡时间 - Transition Duration === */
@@ -240,7 +240,7 @@
   /* === Z-index 层级 - Z-index Layers === */
   --z-modal-backdrop: 1000;
   --z-modal: 1001;
-  --z-toast: 2000;
+  --z-toast: 1000002;
   --z-tooltip: 3000;
   
   /* === 过渡时间 - Transition Duration === */

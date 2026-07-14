@@ -1206,6 +1206,30 @@
     border-radius: 12px !important;
 }
 
+.dashboard-user-menu-popover .drive115-inline-settings-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    padding: 0;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+    cursor: pointer;
+    font-size: 10px;
+    vertical-align: text-bottom;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-user-menu-popover .drive115-inline-settings-btn:hover {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: rgba(245, 158, 11, 0.18);
+    transform: translateY(-1px);
+}
+
 .dashboard-user-menu-popover #drive115-quota-box {
     padding-top: 8px;
 }

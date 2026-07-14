@@ -8,6 +8,7 @@ import { getDrive115V2Service, type Drive115V2UserInfo, type Drive115V2QuotaInfo
 import { describe115Error } from '../features/drive115/v2/errorCodes';
 import { showToast } from '../platform/browser/toast';
 import { normalizeDrive115Settings, isDrive115EnabledState } from '../features/drive115/app';
+import { buildDrive115UserInfoFailureCopy } from './userProfileDrive115Feedback';
 
 // 115 加载并发保护
 let isLoadingDrive115 = false;
@@ -601,10 +602,10 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         const rtStatus = s?.v2RefreshTokenStatus;
         const rtLastError = s?.v2RefreshTokenLastError;
         if (rtStatus === 'invalid' || rtStatus === 'expired') {
-            set115Status('refresh_token 已失效', 'error');
-            const statusText = rtStatus === 'expired' ? '已过期' : '已失效';
-            const errorMsg = rtLastError || '需要重新授权';
-            if (basic) basic.innerHTML = `<p style="margin:0; color:#d00;">refresh_token ${statusText}：${errorMsg}</p>`;
+            const feedback = buildDrive115UserInfoFailureCopy(rtLastError || 'refresh_token 需要重新授权');
+            set115Status(feedback.inlineStatus, 'warn');
+            renderDrive115BasicMessage(basic, feedback.inlineMessage, '#ef6c00', feedback.action);
+            showToast(feedback.toastMessage, feedback.toastType);
             return;
         }
 
@@ -615,9 +616,10 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         if (!userAuto.success || !userAuto.data) {
             console.debug('[drive115v2-ui] 获取 115 用户信息失败', { message: userAuto.message, raw: (userAuto as any).raw });
             const emsg = describe115Error((userAuto as any).raw) || userAuto.message || '获取用户信息失败';
-            set115Status('获取失败（用户信息）', 'warn');
-            if (basic) basic.innerHTML = `<p style=\"margin:0; color:#ef6c00;\">${emsg}（已显示缓存或占位）</p>`;
-            showToast(emsg, 'info');
+            const feedback = buildDrive115UserInfoFailureCopy(emsg);
+            set115Status(feedback.inlineStatus, 'warn');
+            renderDrive115BasicMessage(basic, feedback.inlineMessage, '#ef6c00', feedback.action);
+            showToast(feedback.toastMessage, feedback.toastType);
             const newSettings: any = { ...settings };
             newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
             await saveSettings(newSettings);
@@ -643,10 +645,11 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
 
     } catch (e: any) {
         const msg = describe115Error(e) || e?.message || '加载失败';
-        set115Status(msg, 'error');
+        const feedback = buildDrive115UserInfoFailureCopy(msg);
+        set115Status(feedback.inlineStatus, 'warn');
         const basic = box.querySelector('#drive115-user-basic') as HTMLDivElement | null;
-        if (basic) basic.innerHTML = `<p style=\"margin:0; color:#d00;\">${msg}</p>`;
-        showToast(msg, 'error');
+        renderDrive115BasicMessage(basic, feedback.inlineMessage, '#ef6c00', feedback.action);
+        showToast(feedback.toastMessage, feedback.toastType);
     } finally {
         isLoadingDrive115 = false;
         try { await refreshBtnTooltipFromStorage(); } catch {}
@@ -662,6 +665,35 @@ function formatTsToYMD(tsSec: number): string {
         const day = `${d.getDate()}`.padStart(2, '0');
         return `${y}-${m}-${day}`;
     } catch { return ''; }
+}
+
+function renderDrive115BasicMessage(
+    container: HTMLElement | null,
+    message: string,
+    color: string,
+    action?: { hash: string; label: string }
+): void {
+    if (!container) return;
+    container.textContent = '';
+    const paragraph = document.createElement('p');
+    paragraph.style.margin = '0';
+    paragraph.style.color = color;
+    paragraph.textContent = message;
+    container.appendChild(paragraph);
+    if (!action) return;
+
+    const actionButton = document.createElement('button');
+    actionButton.type = 'button';
+    actionButton.className = 'drive115-inline-settings-btn';
+    actionButton.title = action.label;
+    actionButton.setAttribute('aria-label', action.label);
+    actionButton.innerHTML = '<i class="fas fa-external-link-alt" aria-hidden="true"></i>';
+    actionButton.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.location.hash = action.hash;
+    });
+    paragraph.appendChild(actionButton);
 }
 
 // ===== 模块级工具函数：避免块级声明导致的作用域/提升问题 =====

@@ -79,6 +79,28 @@ describe('Dashboard user menu', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('keeps the menu open when an internal profile action updates its own DOM', async () => {
+    const { initDashboardUserMenu } = await import('../../src/dashboard/userMenu');
+    initDashboardUserMenu();
+
+    const trigger = document.getElementById('dashboard-user-menu-trigger') as HTMLButtonElement;
+    const popover = document.getElementById('dashboard-user-menu-popover') as HTMLElement;
+    const profileSection = document.getElementById('user-profile-section') as HTMLElement;
+    const internalButton = document.createElement('button');
+    internalButton.type = 'button';
+    internalButton.textContent = '刷新账号';
+    internalButton.addEventListener('click', () => {
+      internalButton.remove();
+    });
+    profileSection.appendChild(internalButton);
+
+    trigger.click();
+    internalButton.click();
+
+    expect(popover.hidden).toBe(false);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('opens external help and project links in a new tab', async () => {
     const { initDashboardUserMenu } = await import('../../src/dashboard/userMenu');
     initDashboardUserMenu();

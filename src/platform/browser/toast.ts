@@ -11,7 +11,7 @@ const TOAST_CONFIG = {
     FADE_DURATION: 500,                               // 淡出动画时长（毫秒）
     DISPLAY_DURATION: 3000,                            // 显示时长（毫秒）
     MAX_MESSAGES: 3,                                   // 最大同时显示数
-    Z_INDEX: 10000                                     // 层级
+    Z_INDEX: 1000002                                     // 层级
 };
 
 // --- Toast Message System ---

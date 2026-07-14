@@ -224,7 +224,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         blacklist: {
             hideInList: true,
             showBadge: true,
-        }
+        },
+        viewMode: 'list' as 'list' | 'card',
     },
     webdav: {
         enabled: true,
