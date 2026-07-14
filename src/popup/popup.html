@@ -8,34 +8,47 @@
 </head>
 <body>
     <div id="panel">
-        <div id="title" class="panel-title">
-            <div class="title-left">
-                <img id="titleLogo" alt="Jav 助手 logo">
-                <span>Jav 助手</span>
-                <span id="versionTag" class="version-tag"></span>
-                <!-- 网站可用状态标签 -->
-                <span id="site-status-tag" class="site-status-tag" style="display: none;">
-                    <span class="status-text">检测中...</span>
-                </span>
-                <!-- 手动锁定按钮 -->
-                <button id="popup-lock-btn" class="popup-lock-btn" style="display: none;" title="手动锁定">
-                    <i class="fas fa-lock"></i>
-                </button>
+        <section class="popup-hero" id="title">
+            <div class="popup-top">
+                <div class="brand">
+                    <div class="brand-mark">
+                        <img id="titleLogo" class="brand-logo" alt="Jav 助手 logo">
+                    </div>
+                    <div class="brand-title">
+                        <div class="brand-name-row">
+                            <strong>Jav 助手</strong>
+                            <span id="versionTag" class="version-tag"></span>
+                        </div>
+                        <!-- 网站可用状态标签 -->
+                        <span id="site-status-tag" class="site-status-tag" style="display: none;">
+                            <span class="status-text">检测中...</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="top-actions">
+                    <!-- 主题切换按钮 -->
+                    <button id="theme-switcher-btn" class="theme-switcher icon-btn" title="切换主题">
+                        <i class="fas fa-sun theme-icon"></i>
+                    </button>
+                    <button id="helpBtn" class="icon-btn" title="功能说明">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                    <button id="dashboard-button" class="top-management-btn" title="管理面板">
+                        <i class="fas fa-table-columns"></i>
+                        <span>管理面板</span>
+                    </button>
+                    <!-- 手动锁定按钮 -->
+                    <button id="popup-lock-btn" class="popup-lock-btn icon-btn" style="display: none;" title="手动锁定">
+                        <i class="fas fa-lock"></i>
+                    </button>
+                </div>
             </div>
-            <div class="title-right">
-                <!-- 主题切换按钮 -->
-                <button id="theme-switcher-btn" class="theme-switcher" title="切换主题">
-                    <i class="fas fa-sun theme-icon"></i>
-                </button>
-                <button id="helpBtn" title="功能说明">
-                    <i class="fas fa-question-circle"></i>
-                </button>
-            </div>
-        </div>
+
+        </section>
 
         <div class="main-grid">
             <div class="filters-left main-controls">
-                <div class="section-title" style="font-weight:600;">番号过滤</div>
+                <div class="section-title">番号过滤</div>
                 <div id="toggleWatchedContainer"></div>
                 <div id="toggleViewedContainer"></div>
                 <div id="toggleVRContainer"></div>
@@ -43,7 +56,7 @@
             </div>
 
             <div class="filters-right main-controls">
-                <div class="section-title" style="font-weight:600;">演员过滤（列表）</div>
+                <div class="section-title">演员过滤</div>
                 <div id="toggleHideBlacklistedActorsContainer"></div>
                 <div id="toggleHideNonFavoritedActorsContainer"></div>
                 <div id="toggleHideUnrecognizedActorsContainer"></div>
@@ -99,14 +112,6 @@
                             <span id="containerWidthValue" class="control-value">100%</span>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="full-row">
-                <div class="dashboard-link">
-                    <button id="dashboard-button" class="button">
-                        高级设置 & 数据管理
-                    </button>
                 </div>
             </div>
         </div>

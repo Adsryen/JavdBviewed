@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 显示标签并设置为检测中状态
             siteStatusTag.style.display = 'inline-flex';
             siteStatusTag.className = 'site-status-tag checking';
-            siteStatusTag.querySelector('.status-text')!.textContent = '检测中...';
+            siteStatusTag.querySelector('.status-text')!.textContent = '当前站点检测中';
 
             // 提取当前域名
             const urlObj = new URL(url);
@@ -235,12 +235,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (response.ok || response.status === 403 || response.status === 301 || response.status === 302) {
                     // 网站可访问（包括重定向和403，这些通常表示网站在线）
                     siteStatusTag.className = 'site-status-tag available';
-                    siteStatusTag.querySelector('.status-text')!.textContent = '可用';
+                    siteStatusTag.querySelector('.status-text')!.textContent = '当前站点可用';
                     siteStatusTag.title = `当前线路 ${currentDomain} 可访问`;
                 } else {
                     // 网站返回错误状态
                     siteStatusTag.className = 'site-status-tag unavailable';
-                    siteStatusTag.querySelector('.status-text')!.textContent = '不可用';
+                    siteStatusTag.querySelector('.status-text')!.textContent = '当前站点不可用';
                     siteStatusTag.title = `当前线路 ${currentDomain} 无法访问 (状态码: ${response.status})`;
                 }
             } catch (error) {
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 // 网络错误或超时
                 siteStatusTag.className = 'site-status-tag unavailable';
-                siteStatusTag.querySelector('.status-text')!.textContent = '不可用';
+                siteStatusTag.querySelector('.status-text')!.textContent = '当前站点不可用';
                 
                 if (error instanceof Error && error.name === 'AbortError') {
                     siteStatusTag.title = `当前线路 ${currentDomain} 连接超时`;
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('[Popup] 检测网站可用性失败:', error);
             if (siteStatusTag) {
                 siteStatusTag.className = 'site-status-tag unknown';
-                siteStatusTag.querySelector('.status-text')!.textContent = '未知';
+                siteStatusTag.querySelector('.status-text')!.textContent = '站点状态未知';
                 siteStatusTag.title = '无法检测网站状态';
             }
         }
@@ -327,18 +327,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         key: keyof ExtensionSettings['display'],
         container: HTMLElement,
         textShowing: string,
-        textHiding: string
+        textHiding: string,
+        displayLabel: string
     ) {
         const button = document.createElement('button');
         button.className = 'toggle-button';
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'toggle-label';
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'toggle-icon';
+        iconSpan.textContent = '✓';
+        const textSpan = document.createElement('span');
+        textSpan.textContent = displayLabel;
+        labelSpan.append(iconSpan, textSpan);
+        const switchSpan = document.createElement('span');
+        switchSpan.className = 'toggle-switch';
+        switchSpan.setAttribute('aria-hidden', 'true');
+        button.replaceChildren(labelSpan, switchSpan);
         let settings: ExtensionSettings | null;
 
         const updateState = (isHiding: boolean) => {
             // isHiding=true means the feature is enabled (hiding content)
             // isHiding=false means the feature is disabled (showing content)
-            const label = isHiding ? `当前：${textHiding}` : `当前：${textShowing}`;
-            button.textContent = label;
-            button.title = label;
+            const stateText = isHiding ? textHiding : textShowing;
+            button.title = stateText;
+            button.setAttribute('aria-label', `${displayLabel}，${stateText}`);
+            button.setAttribute('aria-pressed', String(isHiding));
             button.classList.toggle('active', isHiding);
         };
 
@@ -380,15 +394,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         key: keyof ExtensionSettings['listEnhancement'],
         container: HTMLElement,
         textTrue: string,
-        textFalse: string
+        textFalse: string,
+        displayLabel: string
     ) {
         const button = document.createElement('button');
         button.className = 'toggle-button';
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'toggle-label';
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'toggle-icon';
+        iconSpan.textContent = '✓';
+        const textSpan = document.createElement('span');
+        textSpan.textContent = displayLabel;
+        labelSpan.append(iconSpan, textSpan);
+        const switchSpan = document.createElement('span');
+        switchSpan.className = 'toggle-switch';
+        switchSpan.setAttribute('aria-hidden', 'true');
+        button.replaceChildren(labelSpan, switchSpan);
 
         const updateState = (flag: boolean) => {
-            const label = flag ? `当前：${textTrue}` : `当前：${textFalse}`;
-            button.textContent = label;
-            button.title = label;
+            const stateText = flag ? textTrue : textFalse;
+            button.title = stateText;
+            button.setAttribute('aria-label', `${displayLabel}，${stateText}`);
+            button.setAttribute('aria-pressed', String(flag));
             button.classList.toggle('active', flag);
         };
 
@@ -729,15 +757,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // 输入框滚轮事件
-        columnCountInput.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const currentValue = parseInt(columnCountInput.value) || 4;
-            const delta = e.deltaY > 0 ? -1 : 1; // 向下滚动减少，向上滚动增加
-            const newValue = currentValue + delta;
-            updateColumnCount(newValue);
-        });
-        
         // 初始化时也要设置最大值（根据容器扩展状态）
         const enableContainerExpansion = control.enableContainerExpansion === true;
         let initialMaxWidth: number;
@@ -884,16 +903,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initializer Function
     async function initialize() {
-        createToggleButton('hideViewed', toggleWatchedContainer, '显示已看的作品', '隐藏已看的作品');
-        createToggleButton('hideBrowsed', toggleViewedContainer, '显示已浏览的作品', '隐藏已浏览的作品');
-        createToggleButton('hideVR', toggleVRContainer, '显示VR作品', '隐藏VR作品');
-        createToggleButton('hideWant', toggleWantContainer, '显示想看的作品', '隐藏想看的作品');
+        createToggleButton('hideViewed', toggleWatchedContainer, '显示已看的作品', '隐藏已看的作品', '隐藏已看');
+        createToggleButton('hideBrowsed', toggleViewedContainer, '显示已浏览的作品', '隐藏已浏览的作品', '隐藏已浏览');
+        createToggleButton('hideVR', toggleVRContainer, '显示VR作品', '隐藏VR作品', '隐藏 VR');
+        createToggleButton('hideWant', toggleWantContainer, '显示想看的作品', '隐藏想看的作品', '隐藏想看');
 
         // 演员过滤开关（列表）
-        await createListEnhancementToggle('hideBlacklistedActorsInList', toggleHideBlacklistedActorsContainer, '隐藏含黑名单演员', '显示含黑名单演员');
-        await createListEnhancementToggle('hideNonFavoritedActorsInList', toggleHideNonFavoritedActorsContainer, '隐藏未收藏演员的作品', '显示未收藏演员的作品');
-        await createListEnhancementToggle('hideUnrecognizedActorsInList', toggleHideUnrecognizedActorsContainer, '隐藏无法识别演员的作品', '显示无法识别演员的作品');
-        await createListEnhancementToggle('treatSubscribedAsFavorited', toggleTreatSubscribedContainer, '订阅视为收藏', '订阅不视为收藏');
+        await createListEnhancementToggle('hideBlacklistedActorsInList', toggleHideBlacklistedActorsContainer, '隐藏含黑名单演员', '显示含黑名单演员', '黑名单演员');
+        await createListEnhancementToggle('hideNonFavoritedActorsInList', toggleHideNonFavoritedActorsContainer, '隐藏未收藏演员的作品', '显示未收藏演员的作品', '未收藏演员');
+        await createListEnhancementToggle('hideUnrecognizedActorsInList', toggleHideUnrecognizedActorsContainer, '隐藏无法识别演员的作品', '显示无法识别演员的作品', '无法识别');
+        await createListEnhancementToggle('treatSubscribedAsFavorited', toggleTreatSubscribedContainer, '订阅视为收藏', '订阅不视为收藏', '订阅视为收藏');
 
         await setupVolumeControl();
         await setupListDisplayControl();
