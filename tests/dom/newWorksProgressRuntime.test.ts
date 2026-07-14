@@ -8,6 +8,7 @@ import {
   attachNewWorksProgressListener,
   detachNewWorksProgressListener,
   ensureNewWorksProgressUI,
+  formatActiveActorsLabel,
   hideNewWorksProgressUIAfter,
   updateNewWorksProgressUI,
 } from '../../src/dashboard/tabs/newWorksProgressRuntime';
@@ -63,7 +64,13 @@ describe('new works progress runtime', () => {
     expect(document.querySelectorAll('#newWorksProgress')).toHaveLength(1);
   });
 
-  it('updates progress text, percent and done state', () => {
+  it('formats concurrent active actors in the progress label', () => {
+    expect(formatActiveActorsLabel(['Alice', 'Bob', 'Carol'])).toBe('，正在检查（3）：Alice、Bob、Carol');
+    expect(formatActiveActorsLabel(['Alice'])).toBe('，正在检查：Alice');
+    expect(formatActiveActorsLabel([], 'Alice')).toBe('，当前：Alice');
+  });
+
+  it('updates progress text, percent, concurrent actors and done state', () => {
     const progressEl = ensureNewWorksProgressUI(undefined, { sendCancelMessage: vi.fn() })!;
 
     updateNewWorksProgressUI(progressEl, {
@@ -71,15 +78,19 @@ describe('new works progress runtime', () => {
       total: 4,
       identifiedTotal: 8,
       effectiveTotal: 3,
+      activeActorNames: ['Alice', 'Bob'],
       actorName: 'Alice',
     });
 
-    expect(progressEl.querySelector('.text')?.textContent).toBe('进度 2/4，已识别 8，有效 3，当前：Alice');
+    expect(progressEl.querySelector('.text')?.textContent).toBe('进度 2/4，已识别 8，有效 3，正在检查（2）：Alice、Bob');
     expect((progressEl.querySelector('.progress-bar-fill') as HTMLElement).style.width).toBe('50%');
+    expect(progressEl.querySelector('.progress-active-actors')?.textContent).toBe('并发进行中（2）：Alice、Bob');
+    expect((progressEl.querySelector('.progress-active-actors') as HTMLElement).style.display).toBe('block');
 
     updateNewWorksProgressUI(progressEl, { done: true });
     expect(progressEl.querySelector('.text')?.textContent).toBe('检查完成');
     expect((progressEl.querySelector('.progress-bar-fill') as HTMLElement).style.width).toBe('100%');
+    expect((progressEl.querySelector('.progress-active-actors') as HTMLElement).style.display).toBe('none');
   });
 
   it('hides progress UI after delay and clears owner reference', () => {
@@ -103,7 +114,16 @@ describe('new works progress runtime', () => {
     expect(bus.onMessage.removeListener).toHaveBeenCalledWith(previous);
     expect(bus.onMessage.addListener).toHaveBeenCalledWith(listener);
 
-    listener({ type: 'new-works-progress', payload: { processed: 1, total: 3, actorName: 'Alice' } });
+    listener({
+      type: 'new-works-progress',
+      payload: {
+        processed: 1,
+        total: 3,
+        actorName: 'Alice',
+        activeActorNames: ['Alice', 'Bob'],
+        concurrency: 3,
+      },
+    });
     listener({ type: 'ignored', payload: { processed: 9 } });
 
     expect(onProgress).toHaveBeenCalledTimes(1);
@@ -113,6 +133,8 @@ describe('new works progress runtime', () => {
       identifiedTotal: undefined,
       effectiveTotal: undefined,
       actorName: 'Alice',
+      activeActorNames: ['Alice', 'Bob'],
+      concurrency: 3,
     });
 
     const detached = detachNewWorksProgressListener(listener, bus);

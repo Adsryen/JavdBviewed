@@ -68,14 +68,39 @@ function handleManualCheck(sendResponse: SendResponse): void {
         },
       } as any;
 
-      const concurrency = cfg.concurrency || 1;
+      const concurrency = Math.max(1, Number(cfg.concurrency) || 1);
       console.log(`[Background] 开始手动检查，并发数: ${concurrency}`);
+
+      const emitProgress = (activeActorNames: string[], actorName?: string) => {
+        try {
+          chrome.runtime.sendMessage({
+            type: 'new-works-progress',
+            payload: {
+              processed,
+              total,
+              discovered,
+              identifiedTotal,
+              effectiveTotal,
+              actorName,
+              activeActorNames,
+              concurrency,
+            },
+          });
+        } catch {}
+      };
+
+      // 初始进度：让前端立刻知道即将按并发批次推进
+      emitProgress([]);
 
       for (let i = 0; i < active.length; i += concurrency) {
         if (manualCheckCancel.cancelled) break;
 
         const batch = active.slice(i, i + concurrency);
         console.log(`[Background] 处理批次 ${Math.floor(i / concurrency) + 1}，包含 ${batch.length} 个演员`);
+
+        // 当前批次内“正在检查”的演员（按 actorId 去重，支持并发多人同时显示）
+        const activeById = new Map(batch.map((sub) => [sub.actorId, sub.actorName]));
+        emitProgress([...activeById.values()]);
 
         const batchPromises = batch.map(async (sub) => {
           if (manualCheckCancel.cancelled) return null;
@@ -98,19 +123,8 @@ function handleManualCheck(sendResponse: SendResponse): void {
             discovered += det.works.length;
             processed++;
 
-            try {
-              chrome.runtime.sendMessage({
-                type: 'new-works-progress',
-                payload: {
-                  processed,
-                  total,
-                  discovered,
-                  identifiedTotal,
-                  effectiveTotal,
-                  actorName: sub.actorName
-                },
-              });
-            } catch {}
+            activeById.delete(sub.actorId);
+            emitProgress([...activeById.values()], sub.actorName);
 
             return {
               success: true,
@@ -125,19 +139,8 @@ function handleManualCheck(sendResponse: SendResponse): void {
             const errorMsg = `检查演员 ${sub.actorName} 失败: ${e?.message || String(e)}`;
             errors.push(errorMsg);
 
-            try {
-              chrome.runtime.sendMessage({
-                type: 'new-works-progress',
-                payload: {
-                  processed,
-                  total,
-                  discovered,
-                  identifiedTotal,
-                  effectiveTotal,
-                  actorName: sub.actorName
-                },
-              });
-            } catch {}
+            activeById.delete(sub.actorId);
+            emitProgress([...activeById.values()], sub.actorName);
 
             return {
               success: false,

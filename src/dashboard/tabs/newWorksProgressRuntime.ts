@@ -3,7 +3,11 @@ export interface NewWorksProgressData {
   total?: number;
   identifiedTotal?: number;
   effectiveTotal?: number;
+  /** 最近完成/上报的单个演员（兼容旧字段） */
   actorName?: string;
+  /** 当前并发批次中仍在检查的演员名单 */
+  activeActorNames?: string[];
+  concurrency?: number;
   done?: boolean;
 }
 
@@ -17,6 +21,25 @@ export interface NewWorksProgressMessageBus {
     addListener(listener: (message: any) => void): void;
     removeListener(listener: (message: any) => void): void;
   };
+}
+
+function normalizeActorNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean);
+}
+
+export function formatActiveActorsLabel(activeActorNames?: string[], actorName?: string): string {
+  const names = normalizeActorNames(activeActorNames);
+  if (names.length > 0) {
+    if (names.length === 1) return `，正在检查：${names[0]}`;
+    return `，正在检查（${names.length}）：${names.join('、')}`;
+  }
+  if (actorName && actorName.trim()) {
+    return `，当前：${actorName.trim()}`;
+  }
+  return '';
 }
 
 export function ensureNewWorksProgressUI(
@@ -44,6 +67,7 @@ export function ensureNewWorksProgressUI(
                 <span class="text">准备中...</span>
                 <button id="newWorksCancelBtn" class="btn-secondary" style="margin-left:auto;">取消</button>
             </div>
+            <div class="progress-active-actors" style="display:none;margin:0 0 8px;color:var(--text-secondary,#64748b);font-size:12px;line-height:1.5;"></div>
             <div class="progress-bar-container" style="width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;">
                 <div class="progress-bar-fill" style="width:0%;height:100%;background:linear-gradient(90deg, #4caf50, #66bb6a);transition:width 0.3s ease;"></div>
             </div>
@@ -68,12 +92,17 @@ export function updateNewWorksProgressUI(progressEl: HTMLElement | undefined, da
 
   const text = progressEl.querySelector('.text') as HTMLElement | null;
   const progressBar = progressEl.querySelector('.progress-bar-fill') as HTMLElement | null;
+  const activeLine = progressEl.querySelector('.progress-active-actors') as HTMLElement | null;
   if (!text) return;
 
   if (data.done) {
     text.textContent = '检查完成';
     if (progressBar) {
       progressBar.style.width = '100%';
+    }
+    if (activeLine) {
+      activeLine.style.display = 'none';
+      activeLine.textContent = '';
     }
     return;
   }
@@ -82,7 +111,8 @@ export function updateNewWorksProgressUI(progressEl: HTMLElement | undefined, da
   const total = typeof data.total === 'number' ? data.total : undefined;
   const identifiedTotal = typeof data.identifiedTotal === 'number' ? data.identifiedTotal : undefined;
   const effectiveTotal = typeof data.effectiveTotal === 'number' ? data.effectiveTotal : undefined;
-  const actor = data.actorName ? `，当前：${data.actorName}` : '';
+  const activeActorNames = normalizeActorNames(data.activeActorNames);
+  const actor = formatActiveActorsLabel(activeActorNames, data.actorName);
 
   if (progressBar && processed !== undefined && total !== undefined && total > 0) {
     progressBar.style.width = `${Math.round((processed / total) * 100)}%`;
@@ -92,6 +122,18 @@ export function updateNewWorksProgressUI(progressEl: HTMLElement | undefined, da
   const segmentIdentified = identifiedTotal !== undefined ? `，已识别 ${identifiedTotal}` : '';
   const segmentEffective = effectiveTotal !== undefined ? `，有效 ${effectiveTotal}` : '';
   text.textContent = `${segmentProgress}${segmentIdentified}${segmentEffective}${actor}`;
+
+  if (activeLine) {
+    if (activeActorNames.length > 0) {
+      activeLine.style.display = 'block';
+      activeLine.textContent = activeActorNames.length === 1
+        ? `并发进行中：${activeActorNames[0]}`
+        : `并发进行中（${activeActorNames.length}）：${activeActorNames.join('、')}`;
+    } else {
+      activeLine.style.display = 'none';
+      activeLine.textContent = '';
+    }
+  }
 }
 
 export function hideNewWorksProgressUIAfter(
@@ -124,6 +166,8 @@ export function attachNewWorksProgressListener(
           identifiedTotal: payload.identifiedTotal,
           effectiveTotal: payload.effectiveTotal,
           actorName: payload.actorName,
+          activeActorNames: normalizeActorNames(payload.activeActorNames),
+          concurrency: typeof payload.concurrency === 'number' ? payload.concurrency : undefined,
         });
       }
     } catch {}
