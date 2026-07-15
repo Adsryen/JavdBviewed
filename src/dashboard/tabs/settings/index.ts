@@ -42,6 +42,11 @@ const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
     'privacy-settings',
     'search-engine-settings',
     'ai-settings',
+    'emby-settings',
+    'drive115-settings',
+    'webdav-settings',
+    'network-test-settings',
+    'enhancement-settings',
 ]);
 
 function isReactFullSettingsPage(subSection: string | null | undefined): boolean {
@@ -58,7 +63,12 @@ function isReactFullSettingsPage(subSection: string | null | undefined): boolean
         document.querySelector('[data-update-settings-react]') ||
         document.querySelector('[data-privacy-settings-react]') ||
         document.querySelector('[data-search-engine-settings-react]') ||
-        document.querySelector('[data-ai-settings-react]')
+        document.querySelector('[data-ai-settings-react]') ||
+        document.querySelector('[data-emby-settings-react]') ||
+        document.querySelector('[data-drive115-settings-react]') ||
+        document.querySelector('[data-webdav-settings-react]') ||
+        document.querySelector('[data-network-test-settings-react]') ||
+        document.querySelector('[data-enhancement-settings-react]')
     );
 }
 
@@ -188,43 +198,8 @@ export async function initSettingsPage(): Promise<void> {
             return;
         }
 
-        // 根据子路径初始化对应的设置模块（仅 shell + partial 页）
-        const moduleMap: Record<string, () => Promise<void>> = {
-            'emby-settings': async () => {
-                const { getEmbySettings } = await import('./emby');
-                const panel = await getEmbySettings();
-                panel.init();
-            },
-            'enhancement-settings': async () => {
-                const { getEnhancementSettings } = await import('./enhancement');
-                const panel = await getEnhancementSettings();
-                panel.init();
-            },
-            'webdav-settings': async () => {
-                const { getWebdavSettings } = await import('./webdav');
-                const panel = await getWebdavSettings();
-                panel.init();
-            },
-            'drive115-settings': async () => {
-                const { getDrive115SettingsV2 } = await import('./drive115');
-                const panel = await getDrive115SettingsV2();
-                panel.init();
-            },
-            'network-test-settings': async () => {
-                const { getNetworkTestSettings } = await import('./networkTest');
-                const panel = await getNetworkTestSettings();
-                panel.init();
-            },
-        };
-
-        const initFn = moduleMap[subSection];
-        if (initFn) {
-            console.log(`[Settings] 初始化设置模块: ${subSection}`);
-            await initFn();
-            await revealSettingsSearchTargetOnPage();
-        } else {
-            console.log(`[Settings] 未找到对应的设置模块: ${subSection}`);
-        }
+        // 全部设置子页已 React 全页化；此处仅保留搜索高亮回放
+        await revealSettingsSearchTargetOnPage();
     } catch (error) {
         console.error('[Settings] 初始化设置页面失败:', error);
     }
@@ -267,43 +242,9 @@ export async function initSettingsTab(): Promise<void> {
             return;
         }
 
-        // 仅 shell + partial 页走遗留 init
-        const moduleMap: Record<string, () => Promise<void>> = {
-            'emby-settings': async () => {
-                const { getEmbySettings } = await import('./emby');
-                const panel = await getEmbySettings();
-                panel.init();
-            },
-            'enhancement-settings': async () => {
-                const { getEnhancementSettings } = await import('./enhancement');
-                const panel = await getEnhancementSettings();
-                panel.init();
-            },
-            'webdav-settings': async () => {
-                const { getWebdavSettings } = await import('./webdav');
-                const panel = await getWebdavSettings();
-                panel.init();
-            },
-            'drive115-settings': async () => {
-                const { getDrive115SettingsV2 } = await import('./drive115');
-                const panel = await getDrive115SettingsV2();
-                panel.init();
-            },
-            'network-test-settings': async () => {
-                const { getNetworkTestSettings } = await import('./networkTest');
-                const panel = await getNetworkTestSettings();
-                panel.init();
-            },
-        };
-
-        const initFn = moduleMap[subSection];
-        if (initFn) {
-            console.debug(`初始化单个设置模块: ${subSection}`);
-            await initFn();
-            await revealSettingsSearchTargetOnPage();
-        } else {
-            console.warn(`未找到对应的设置模块: ${subSection}`);
-        }
+        // 全部设置子页已 React 全页化
+        console.debug(`${subSection} 由 React 页接管，跳过遗留 init`);
+        await revealSettingsSearchTargetOnPage();
 
         console.debug('设置标签页初始化完成');
     } catch (error) {

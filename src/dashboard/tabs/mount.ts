@@ -95,6 +95,36 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
             );
             mountAISettingsPage('#tab-settings');
           },
+          'emby-settings': async () => {
+            const { mountEmbySettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/emby/mountEmbySettingsPage'
+            );
+            mountEmbySettingsPage('#tab-settings');
+          },
+          'drive115-settings': async () => {
+            const { mountDrive115SettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/drive115/mountDrive115SettingsPage'
+            );
+            mountDrive115SettingsPage('#tab-settings');
+          },
+          'webdav-settings': async () => {
+            const { mountWebdavSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/webdav/mountWebdavSettingsPage'
+            );
+            mountWebdavSettingsPage('#tab-settings');
+          },
+          'network-test-settings': async () => {
+            const { mountNetworkTestSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/networkTest/mountNetworkTestSettingsPage'
+            );
+            mountNetworkTestSettingsPage('#tab-settings');
+          },
+          'enhancement-settings': async () => {
+            const { mountEnhancementSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/enhancement/mountEnhancementSettingsPage'
+            );
+            mountEnhancementSettingsPage('#tab-settings');
+          },
         };
 
         const reactMount = reactFullMounts[subSection];

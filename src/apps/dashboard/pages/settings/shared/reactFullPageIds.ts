@@ -17,6 +17,11 @@ export const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
   'privacy-settings',
   'search-engine-settings',
   'ai-settings',
+  'emby-settings',
+  'drive115-settings',
+  'webdav-settings',
+  'network-test-settings',
+  'enhancement-settings',
 ]);
 
 /**
