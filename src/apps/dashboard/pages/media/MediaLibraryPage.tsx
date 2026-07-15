@@ -358,35 +358,41 @@ function MediaCard({ item, usingPreview }: { item: MediaBrowseItem; usingPreview
   };
 
   return (
-    <div className="ml-card" data-code={item.code}>
-      <button
-        type="button"
-        className="ml-card-hit"
-        onClick={openOnServer}
-        disabled={!openUrl}
-        title={openUrl ? '在服务器网页打开' : usingPreview ? '预览数据，无服务器链接' : '缺少服务器链接'}
-      >
-        <MediaCover
-          artStyle={coverArtStyle(item)}
-          badges={
-            <>
-              <Badge tone={item.source === 'emby' ? 'primary' : item.source === 'jellyfin' ? 'info' : 'neutral'}>
-                {sourceLabel(item.source)}
-              </Badge>
-              <Badge tone={usingPreview ? 'warning' : 'success'}>
-                {usingPreview ? '预览' : '已索引'}
-              </Badge>
-            </>
-          }
-          footer={
-            <>
-              <span className="ml-code">{item.code}</span>
-              <div className="ml-card-title">{item.title}</div>
-            </>
-          }
-          showPlayHint={Boolean(openUrl)}
-        />
-      </button>
+    <article className="ml-card" data-code={item.code} data-layout-card="1">
+      {/*
+        高度必须由「非 button」的文档流容器撑开。
+        button 内 aspect-ratio / padding-% 在扩展页易塌成 0，导致网格卡片叠在一起。
+      */}
+      <div className="ml-card-cover">
+        <button
+          type="button"
+          className="ml-card-hit"
+          onClick={openOnServer}
+          disabled={!openUrl}
+          title={openUrl ? '在服务器网页打开' : usingPreview ? '预览数据，无服务器链接' : '缺少服务器链接'}
+        >
+          <MediaCover
+            artStyle={coverArtStyle(item)}
+            badges={
+              <>
+                <Badge tone={item.source === 'emby' ? 'primary' : item.source === 'jellyfin' ? 'info' : 'neutral'}>
+                  {sourceLabel(item.source)}
+                </Badge>
+                <Badge tone={usingPreview ? 'warning' : 'success'}>
+                  {usingPreview ? '预览' : '已索引'}
+                </Badge>
+              </>
+            }
+            footer={
+              <>
+                <span className="ml-code">{item.code}</span>
+                <div className="ml-card-title">{item.title}</div>
+              </>
+            }
+            showPlayHint={Boolean(openUrl)}
+          />
+        </button>
+      </div>
       <div className="ml-meta">
         <span>{item.serverName || sourceLabel(item.source)}</span>
         {openUrl ? (
@@ -403,6 +409,6 @@ function MediaCard({ item, usingPreview }: { item: MediaBrowseItem; usingPreview
           <span>{item.year || '—'}</span>
         )}
       </div>
-    </div>
+    </article>
   );
 }

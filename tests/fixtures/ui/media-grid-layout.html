@@ -39,17 +39,39 @@
       background: transparent !important;
       transform: none !important;
       text-align: left;
-      cursor: pointer;
       font: inherit;
       color: inherit;
     }
-    .ui-media-cover { display: block; width: 100%; }
+    /* 文档流 16:9 占位（与 mediaPage.css 一致） */
+    .ml-card-cover {
+      position: relative !important;
+      display: block !important;
+      width: 100% !important;
+      height: 0 !important;
+      padding: 0 0 56.25% 0 !important;
+      overflow: hidden !important;
+      border-radius: 14px;
+      background: var(--surface-secondary);
+    }
+    .ml-card-hit {
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0; padding: 0; border: 0;
+      background: transparent;
+      cursor: pointer;
+      font: inherit; color: inherit; text-align: left;
+    }
+    .ui-media-cover,
     .ui-media-cover__frame {
-      position: relative;
+      position: absolute !important;
+      inset: 0 !important;
       display: block;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      min-height: 120px;
+      width: 100% !important;
+      height: 100% !important;
+      aspect-ratio: auto !important;
+      min-height: 0 !important;
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid var(--border-primary);
@@ -82,22 +104,25 @@
     ];
     const grid = document.getElementById('mediaLibraryGrid');
     for (const item of items) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'ml-card';
-      btn.setAttribute('data-layout-card', item.code);
+      const card = document.createElement('article');
+      card.className = 'ml-card';
+      card.setAttribute('data-layout-card', item.code);
       const bg = `linear-gradient(125deg, hsl(${item.hue} 48% 48%), hsl(${(item.hue + 36) % 360} 42% 28%))`;
-      btn.innerHTML = `
-        <div class="ui-media-cover">
-          <div class="ui-media-cover__frame">
-            <div class="ui-media-cover__art" style="background:${bg}"></div>
-            <div class="ui-media-cover__shade"></div>
-            <div class="ui-media-cover__footer">${item.code} · ${item.title}</div>
-          </div>
+      card.innerHTML = `
+        <div class="ml-card-cover">
+          <button type="button" class="ml-card-hit">
+            <div class="ui-media-cover">
+              <div class="ui-media-cover__frame">
+                <div class="ui-media-cover__art" style="background:${bg}"></div>
+                <div class="ui-media-cover__shade"></div>
+                <div class="ui-media-cover__footer">${item.code} · ${item.title}</div>
+              </div>
+            </div>
+          </button>
         </div>
         <div class="ml-meta"><span>Emby</span><span>2024</span></div>
       `;
-      grid.appendChild(btn);
+      grid.appendChild(card);
     }
   </script>
 </body>

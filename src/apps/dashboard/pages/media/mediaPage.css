@@ -1,10 +1,11 @@
 /**
  * @file mediaPage.css
- * @description 媒体库页面布局：筛选 / 轮播堆叠定位 / 网格。封面高度与悬浮由 MediaCover 负责。
+ * @description 媒体库页面布局：筛选 / 轮播堆叠定位 / 网格。
  * @module apps/dashboard/pages/media
  *
  * 布局合约：
- * - 列表网格必须 display:grid + gap，卡片 position:relative，禁止 absolute
+ * - 列表网格必须 display:grid + gap；卡片在文档流，禁止 absolute
+ * - 列表封面高度由 .ml-card-cover 的 padding-bottom:56.25% 在文档流撑开
  * - 仅 .ml-hero-card 允许 absolute（轮播堆叠）
  * - 轮播区 isolation + overflow:hidden，不得盖住下方列表
  */
@@ -245,13 +246,15 @@
   grid-auto-rows: auto !important;
   grid-auto-flow: row !important;
   gap: 18px 14px !important;
-  align-items: start !important;
+  align-items: stretch !important;
   position: relative !important;
   width: 100%;
   min-width: 0;
+  /* 防止子项因 transform/绝对定位逃出格子互相叠 */
+  isolation: isolate;
 }
 
-/* 列表卡片：必须在文档流中，禁止 absolute/fixed */
+/* 列表卡片：必须在文档流中，禁止 absolute/fixed 堆叠 */
 .ml-card {
   position: relative !important;
   top: auto !important;
@@ -276,11 +279,35 @@
   z-index: auto !important;
   float: none !important;
   clear: none !important;
+  transform: none !important;
+  overflow: visible !important;
 }
 
-.ml-card-hit {
+/*
+ * 列表封面高度：用 padding-bottom 在文档流占位（不依赖 button 内 aspect-ratio）。
+ * 16:9 → 9/16 = 56.25%
+ */
+.ml-card-cover {
+  position: relative !important;
   display: block !important;
   width: 100% !important;
+  height: 0 !important;
+  padding: 0 0 56.25% 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  border-radius: 14px;
+  flex: 0 0 auto !important;
+  background: var(--color-surface-2, var(--surface-secondary, #f8fafc));
+}
+
+/* 点击层铺满占位盒 */
+.ml-card-hit {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
   padding: 0 !important;
   margin: 0 !important;
   border: 0 !important;
@@ -293,6 +320,7 @@
   appearance: none !important;
   -webkit-appearance: none !important;
   box-shadow: none !important;
+  z-index: 1;
 }
 
 .ml-card-hit:disabled {
@@ -309,10 +337,24 @@
   outline: none;
 }
 
-.ml-card .ui-media-cover {
-  display: block;
-  width: 100%;
-  flex: 0 0 auto;
+/* 封面组件填满占位盒，不再自己 aspect-ratio */
+.ml-card-cover .ui-media-cover,
+.ml-card-cover .ui-media-cover__frame {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 14px;
+}
+
+.ml-card-cover .ui-media-cover__frame {
+  border: 1px solid var(--color-border, var(--border-primary, #e5e7eb));
 }
 
 .ml-open-link {
