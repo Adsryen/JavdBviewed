@@ -33,17 +33,11 @@
   gap: 12px;
 }
 
-.ml-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-}
-
-.ml-desc {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--color-fg-muted, var(--text-secondary));
+/* PageHeader 在工具栏内：取消默认下边距，占满左侧 */
+.ml-page-header {
+  margin-bottom: 0;
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
 .ml-filters {
@@ -53,30 +47,11 @@
   align-items: center;
 }
 
-.ml-chip {
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border, var(--border-primary));
-  background: var(--color-surface-2, var(--surface-secondary));
-  color: var(--color-fg-muted, var(--text-secondary));
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.ml-chip.is-active {
-  border-color: color-mix(in srgb, var(--color-primary, var(--primary)) 40%, var(--color-border, var(--border-primary)));
-  background: color-mix(in srgb, var(--color-primary, var(--primary)) 12%, var(--color-surface, var(--surface-primary)));
-  color: var(--color-primary, var(--primary));
-}
-
 .ml-search {
   min-width: 220px;
 }
 
 .ml-sync-msg {
-  margin: 6px 0 0;
   font-size: 12.5px;
   color: var(--color-fg-muted, var(--text-secondary));
 }
@@ -382,15 +357,7 @@
   flex: 0 0 auto;
 }
 
-.ml-empty {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 18px;
-  border-radius: 12px;
-  border: 1px dashed var(--color-border-strong, var(--border-hover));
-  background: var(--color-surface-2, var(--surface-secondary));
-}
+/* EmptyState 自带虚线框 / token 色；保留 class 名供 id 宿主与样式岛兼容 */
 
 .ml-note {
   padding: 12px 14px;

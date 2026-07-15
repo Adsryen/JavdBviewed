@@ -11,22 +11,9 @@
   color: var(--color-fg, var(--text-primary));
 }
 
+/* PageHeader 宿主；标题字号由 pattern 提供，此处只保留页级间距 */
 .si-header {
-  text-align: center;
   margin-bottom: 20px;
-}
-
-.si-title {
-  margin: 0 0 8px;
-  font-size: 28px;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-}
-
-.si-desc {
-  margin: 0;
-  font-size: 15px;
-  color: var(--color-fg-muted, var(--text-secondary));
 }
 
 .si-search-host {
@@ -46,10 +33,10 @@
   margin: 0 auto 22px;
 }
 
+/* EmptyState 在设置首页的轻量收窄 */
 .si-empty {
-  text-align: center;
-  color: var(--color-fg-muted, var(--text-secondary));
-  font-size: 14px;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .si-grid {

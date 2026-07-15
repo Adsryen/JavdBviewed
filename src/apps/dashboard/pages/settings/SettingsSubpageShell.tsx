@@ -3,6 +3,8 @@
  * @description 设置子页 React 壳：返回栏 + 标题 + 内容区（partial HTML 由 React 托管注入）
  * @module apps/dashboard/pages/settings
  */
+import { PageHeader } from '../../../../ui/patterns/PageHeader/PageHeader';
+
 export type SettingsSubpageShellProps = {
   title: string;
   description?: string;
@@ -23,19 +25,21 @@ export function SettingsSubpageShell({
 }: SettingsSubpageShellProps) {
   return (
     <div className="ssp-page" data-settings-subpage="react-shell">
-      <header className="ssp-header">
-        <button
-          type="button"
-          className="ssp-back"
-          data-action="back-to-settings"
-        >
-          ← 返回设置
-        </button>
-        <div className="ssp-heading">
-          <h2 className="ssp-title">{title}</h2>
-          {description ? <p className="ssp-desc">{description}</p> : null}
-        </div>
-      </header>
+      <PageHeader
+        className="ssp-header"
+        align="center"
+        eyebrow={
+          <button
+            type="button"
+            className="ssp-back"
+            data-action="back-to-settings"
+          >
+            ← 返回设置
+          </button>
+        }
+        title={title}
+        description={description}
+      />
       {/* 关键：partial 必须走 React 属性注入，禁止 render 后再 body.innerHTML=... */}
       <div
         className="ssp-body"

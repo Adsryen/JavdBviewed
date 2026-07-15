@@ -9,9 +9,8 @@
   color: var(--color-fg, var(--text-primary));
 }
 
+/* PageHeader 宿主：保留返回钮 + 居中标题间距 */
 .ssp-header {
-  display: grid;
-  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -30,29 +29,6 @@
 
 .ssp-back:hover {
   border-color: color-mix(in srgb, var(--color-primary, var(--primary)) 35%, var(--color-border, var(--border-primary)));
-}
-
-/* 标题区居中，与设置首页 .si-header 风格一致 */
-.ssp-heading {
-  text-align: center;
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-.ssp-title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  text-align: center;
-}
-
-.ssp-desc {
-  margin: 6px 0 0;
-  font-size: 13.5px;
-  color: var(--color-fg-muted, var(--text-secondary));
-  line-height: 1.5;
-  text-align: center;
 }
 
 .ssp-body {

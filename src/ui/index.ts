@@ -30,4 +30,13 @@ export type { TabItem, TabsProps } from './primitives/Tabs/Tabs';
 export { Toast } from './primitives/Toast/Toast';
 export type { ToastProps, ToastTone } from './primitives/Toast/Toast';
 
+export { PageHeader } from './patterns/PageHeader/PageHeader';
+export type { PageHeaderAlign, PageHeaderProps } from './patterns/PageHeader/PageHeader';
+
+export { EmptyState } from './patterns/EmptyState/EmptyState';
+export type { EmptyStateProps } from './patterns/EmptyState/EmptyState';
+
+export { FilterChip } from './patterns/FilterChip/FilterChip';
+export type { FilterChipProps } from './patterns/FilterChip/FilterChip';
+
 export { cn } from './lib/cn';

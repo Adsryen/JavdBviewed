@@ -8,6 +8,9 @@ import { Badge } from '../../../../ui/primitives/Badge/Badge';
 import { Button } from '../../../../ui/primitives/Button/Button';
 import { Input } from '../../../../ui/primitives/Input/Input';
 import { MediaCover } from '../../../../ui/primitives/MediaCover/MediaCover';
+import { EmptyState } from '../../../../ui/patterns/EmptyState/EmptyState';
+import { FilterChip } from '../../../../ui/patterns/FilterChip/FilterChip';
+import { PageHeader } from '../../../../ui/patterns/PageHeader/PageHeader';
 import { resolveDashboardNavState } from '../../../../dashboard/tabs/navModel';
 import type { EmbyLibraryState } from '../../../../features/embyLibrary/types';
 import { STORAGE_KEYS } from '../../../../utils/config';
@@ -180,22 +183,31 @@ export function MediaLibraryPage() {
   return (
     <div className="ml-page" data-media-page data-media-stack="react">
       <div className="ml-toolbar">
-        <div>
-          <h2 className="ml-title">媒体库</h2>
-          <p className="ml-desc">{statusLabel}</p>
-          {syncMessage ? <p className="ml-sync-msg">{syncMessage}</p> : null}
-        </div>
+        <PageHeader
+          className="ml-page-header"
+          title="媒体库"
+          description={
+            <>
+              {statusLabel}
+              {syncMessage ? (
+                <>
+                  <br />
+                  <span className="ml-sync-msg">{syncMessage}</span>
+                </>
+              ) : null}
+            </>
+          }
+        />
         <div className="ml-filters">
           {FILTERS.map((f) => (
-            <button
+            <FilterChip
               key={f.id}
-              type="button"
-              className={`ml-chip${filter === f.id ? ' is-active' : ''}`}
+              active={filter === f.id}
               data-media-filter={f.id}
               onClick={() => setFilter(f.id)}
             >
               {f.label}
-            </button>
+            </FilterChip>
           ))}
           <Button
             size="sm"
@@ -297,14 +309,16 @@ export function MediaLibraryPage() {
         </div>
 
         {list.length === 0 ? (
-          <div className="ml-empty" id="mediaLibraryEmpty">
-            <div>
-              <h3 style={{ margin: '0 0 4px' }}>这里还没有可展示的条目</h3>
-              <p style={{ margin: '0 0 10px' }}>
-                {usingPreview
-                  ? '可先到设置中配置 Emby / Jellyfin 并完成媒体库同步。'
-                  : '当前筛选下无结果，可切换来源或清空搜索。'}
-              </p>
+          <EmptyState
+            className="ml-empty"
+            id="mediaLibraryEmpty"
+            title="这里还没有可展示的条目"
+            description={
+              usingPreview
+                ? '可先到设置中配置 Emby / Jellyfin 并完成媒体库同步。'
+                : '当前筛选下无结果，可切换来源或清空搜索。'
+            }
+            action={
               <Button
                 size="sm"
                 onClick={() => {
@@ -313,8 +327,8 @@ export function MediaLibraryPage() {
               >
                 前往 Emby / Jellyfin 设置
               </Button>
-            </div>
-          </div>
+            }
+          />
         ) : (
           <div className="ml-grid" id="mediaLibraryGrid" data-layout-check="media-grid">
             {list.map((item) => (

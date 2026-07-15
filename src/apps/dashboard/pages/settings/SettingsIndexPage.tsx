@@ -8,6 +8,8 @@
 import { useMemo, useState } from 'react';
 import { Badge } from '../../../../ui/primitives/Badge/Badge';
 import { Input } from '../../../../ui/primitives/Input/Input';
+import { EmptyState } from '../../../../ui/patterns/EmptyState/EmptyState';
+import { PageHeader } from '../../../../ui/patterns/PageHeader/PageHeader';
 import {
   filterSettingsNavItems,
   SETTINGS_NAV_ITEMS,
@@ -28,10 +30,12 @@ export function SettingsIndexPage() {
 
   return (
     <div className="si-page" data-settings-stack="react">
-      <header className="si-header settings-index-header">
-        <h2 className="si-title">设置</h2>
-        <p className="si-desc">选择要配置的设置项</p>
-      </header>
+      <PageHeader
+        className="si-header settings-index-header"
+        align="center"
+        title="设置"
+        description="选择要配置的设置项"
+      />
 
       {/* 遗留全站设置搜索（jdb-settings-search）挂载点；initSettingsTab 会注入 */}
       <div
@@ -52,7 +56,7 @@ export function SettingsIndexPage() {
       </div>
 
       {items.length === 0 ? (
-        <p className="si-empty">没有匹配的设置项</p>
+        <EmptyState className="si-empty" title="没有匹配的设置项" />
       ) : (
         <div className="si-grid" role="navigation" aria-label="设置导航">
           {items.map((item) => (
