@@ -29,47 +29,15 @@ async function revealSettingsSearchTargetOnPage(): Promise<void> {
     await revealDashboardSettingsSearchTarget();
 }
 
-/** 已完整 React 化、跳过遗留 panel.init 的设置子页 id */
-const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
-    'display-settings',
-    'insights-settings',
-    'sync-settings',
-    'global-actions',
-    'advanced-settings',
-    'log-settings',
-    'update-settings',
-    'about-settings',
-    'privacy-settings',
-    'search-engine-settings',
-    'ai-settings',
-    'emby-settings',
-    'drive115-settings',
-    'webdav-settings',
-    'network-test-settings',
-    'enhancement-settings',
-]);
+/**
+ * 完整 React 内容页 id（默认空：全部子页走壳 + partial + 遗留 init，保留原 CSS/弹窗）
+ * 与 shared/reactFullPageIds 保持一致；代码侧 React 页仍保留供后续渐进接入。
+ */
+const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([]);
 
 function isReactFullSettingsPage(subSection: string | null | undefined): boolean {
     if (!subSection) return false;
-    if (REACT_FULL_SETTINGS_PAGE_IDS.has(subSection)) return true;
-    // DOM 标记兜底（防止 hash 与 mount 时序竞态）
-    return !!(
-        document.querySelector('[data-display-settings-react]') ||
-        document.querySelector('[data-insights-settings-react]') ||
-        document.querySelector('[data-sync-settings-react]') ||
-        document.querySelector('[data-global-actions-react]') ||
-        document.querySelector('[data-advanced-settings-react]') ||
-        document.querySelector('[data-log-settings-react]') ||
-        document.querySelector('[data-update-settings-react]') ||
-        document.querySelector('[data-privacy-settings-react]') ||
-        document.querySelector('[data-search-engine-settings-react]') ||
-        document.querySelector('[data-ai-settings-react]') ||
-        document.querySelector('[data-emby-settings-react]') ||
-        document.querySelector('[data-drive115-settings-react]') ||
-        document.querySelector('[data-webdav-settings-react]') ||
-        document.querySelector('[data-network-test-settings-react]') ||
-        document.querySelector('[data-enhancement-settings-react]')
-    );
+    return REACT_FULL_SETTINGS_PAGE_IDS.has(subSection);
 }
 
 /**
@@ -191,15 +159,89 @@ export async function initSettingsPage(): Promise<void> {
             return;
         }
         
-        // React 全页：自包含加载/保存，跳过遗留 panel.init
+        // 完整 React 内容页（当前默认无）跳过遗留 init
         if (isReactFullSettingsPage(subSection)) {
             console.log(`[Settings] ${subSection} 由 React 页接管，跳过遗留 init`);
             await revealSettingsSearchTargetOnPage();
             return;
         }
 
-        // 全部设置子页已 React 全页化；此处仅保留搜索高亮回放
-        await revealSettingsSearchTargetOnPage();
+        // 壳 + partial：初始化对应遗留设置面板（保留原交互/弹窗）
+        const moduleMap: Record<string, () => Promise<void>> = {
+            'display-settings': async () => {
+                const { getDisplaySettings } = await import('./display');
+                (await getDisplaySettings()).init();
+            },
+            'ai-settings': async () => {
+                const { getAiSettings } = await import('./ai');
+                (await getAiSettings()).init();
+            },
+            'search-engine-settings': async () => {
+                const { getSearchEngineSettings } = await import('./searchEngine');
+                (await getSearchEngineSettings()).init();
+            },
+            'privacy-settings': async () => {
+                const { getPrivacySettings } = await import('./privacy');
+                (await getPrivacySettings()).init();
+            },
+            'global-actions': async () => {
+                const { getGlobalActionsSettings } = await import('./globalActions');
+                (await getGlobalActionsSettings()).init();
+            },
+            'emby-settings': async () => {
+                const { getEmbySettings } = await import('./emby');
+                (await getEmbySettings()).init();
+            },
+            'enhancement-settings': async () => {
+                const { getEnhancementSettings } = await import('./enhancement');
+                (await getEnhancementSettings()).init();
+            },
+            'webdav-settings': async () => {
+                const { getWebdavSettings } = await import('./webdav');
+                (await getWebdavSettings()).init();
+            },
+            'sync-settings': async () => {
+                const { getSyncSettings } = await import('./sync');
+                (await getSyncSettings()).init();
+            },
+            'drive115-settings': async () => {
+                const { getDrive115SettingsV2 } = await import('./drive115');
+                (await getDrive115SettingsV2()).init();
+            },
+            'insights-settings': async () => {
+                const { getInsightsSettings } = await import('./insights');
+                (await getInsightsSettings()).init();
+            },
+            'log-settings': async () => {
+                const { getLoggingSettings } = await import('./logging');
+                (await getLoggingSettings()).init();
+            },
+            'advanced-settings': async () => {
+                const { getAdvancedSettings } = await import('./advanced');
+                (await getAdvancedSettings()).init();
+            },
+            'network-test-settings': async () => {
+                const { getNetworkTestSettings } = await import('./networkTest');
+                (await getNetworkTestSettings()).init();
+            },
+            'update-settings': async () => {
+                const { getUpdateSettings } = await import('./update');
+                (await getUpdateSettings()).init();
+            },
+            'about-settings': async () => {
+                const { getUpdateSettings } = await import('./update');
+                (await getUpdateSettings()).init();
+            },
+        };
+
+        const initFn = moduleMap[subSection];
+        if (initFn) {
+            console.log(`[Settings] 初始化设置模块: ${subSection}`);
+            await initFn();
+            await revealSettingsSearchTargetOnPage();
+        } else {
+            console.log(`[Settings] 未找到对应的设置模块: ${subSection}`);
+        }
     } catch (error) {
         console.error('[Settings] 初始化设置页面失败:', error);
     }
@@ -235,16 +277,89 @@ export async function initSettingsTab(): Promise<void> {
         // 有子路径，只初始化对应的单个设置面板
         console.debug('初始化设置面板:', subSection);
 
-        // React 全页：自包含，跳过遗留 init
+        // 完整 React 内容页（当前默认无）跳过遗留 init
         if (isReactFullSettingsPage(subSection)) {
             console.debug(`${subSection} 由 React 页接管，跳过遗留 init`);
             await revealSettingsSearchTargetOnPage();
             return;
         }
 
-        // 全部设置子页已 React 全页化
-        console.debug(`${subSection} 由 React 页接管，跳过遗留 init`);
-        await revealSettingsSearchTargetOnPage();
+        // 壳 + partial：初始化对应遗留面板
+        const moduleMap: Record<string, () => Promise<void>> = {
+            'display-settings': async () => {
+                const { getDisplaySettings } = await import('./display');
+                (await getDisplaySettings()).init();
+            },
+            'ai-settings': async () => {
+                const { getAiSettings } = await import('./ai');
+                (await getAiSettings()).init();
+            },
+            'search-engine-settings': async () => {
+                const { getSearchEngineSettings } = await import('./searchEngine');
+                (await getSearchEngineSettings()).init();
+            },
+            'privacy-settings': async () => {
+                const { getPrivacySettings } = await import('./privacy');
+                (await getPrivacySettings()).init();
+            },
+            'global-actions': async () => {
+                const { getGlobalActionsSettings } = await import('./globalActions');
+                (await getGlobalActionsSettings()).init();
+            },
+            'emby-settings': async () => {
+                const { getEmbySettings } = await import('./emby');
+                (await getEmbySettings()).init();
+            },
+            'enhancement-settings': async () => {
+                const { getEnhancementSettings } = await import('./enhancement');
+                (await getEnhancementSettings()).init();
+            },
+            'webdav-settings': async () => {
+                const { getWebdavSettings } = await import('./webdav');
+                (await getWebdavSettings()).init();
+            },
+            'sync-settings': async () => {
+                const { getSyncSettings } = await import('./sync');
+                (await getSyncSettings()).init();
+            },
+            'drive115-settings': async () => {
+                const { getDrive115SettingsV2 } = await import('./drive115');
+                (await getDrive115SettingsV2()).init();
+            },
+            'insights-settings': async () => {
+                const { getInsightsSettings } = await import('./insights');
+                (await getInsightsSettings()).init();
+            },
+            'log-settings': async () => {
+                const { getLoggingSettings } = await import('./logging');
+                (await getLoggingSettings()).init();
+            },
+            'advanced-settings': async () => {
+                const { getAdvancedSettings } = await import('./advanced');
+                (await getAdvancedSettings()).init();
+            },
+            'network-test-settings': async () => {
+                const { getNetworkTestSettings } = await import('./networkTest');
+                (await getNetworkTestSettings()).init();
+            },
+            'update-settings': async () => {
+                const { getUpdateSettings } = await import('./update');
+                (await getUpdateSettings()).init();
+            },
+            'about-settings': async () => {
+                const { getUpdateSettings } = await import('./update');
+                (await getUpdateSettings()).init();
+            },
+        };
+
+        const initFn = moduleMap[subSection];
+        if (initFn) {
+            console.debug(`初始化单个设置模块: ${subSection}`);
+            await initFn();
+            await revealSettingsSearchTargetOnPage();
+        } else {
+            console.warn(`未找到对应的设置模块: ${subSection}`);
+        }
 
         console.debug('设置标签页初始化完成');
     } catch (error) {

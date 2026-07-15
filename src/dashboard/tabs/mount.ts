@@ -26,115 +26,8 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
           unmountSettingsIndexPage('#tab-settings');
         } catch {}
 
-        // 完整 React 设置子页（跳过 partial）
-        const reactFullMounts: Record<string, () => Promise<void>> = {
-          'display-settings': async () => {
-            const { mountDisplaySettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/display/mountDisplaySettingsPage'
-            );
-            mountDisplaySettingsPage('#tab-settings');
-          },
-          'insights-settings': async () => {
-            const { mountInsightsSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/insights/mountInsightsSettingsPage'
-            );
-            mountInsightsSettingsPage('#tab-settings');
-          },
-          'sync-settings': async () => {
-            const { mountSyncSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/sync/mountSyncSettingsPage'
-            );
-            mountSyncSettingsPage('#tab-settings');
-          },
-          'global-actions': async () => {
-            const { mountGlobalActionsPage } = await import(
-              '../../apps/dashboard/pages/settings/globalActions/mountGlobalActionsPage'
-            );
-            mountGlobalActionsPage('#tab-settings');
-          },
-          'advanced-settings': async () => {
-            const { mountAdvancedSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/advanced/mountAdvancedSettingsPage'
-            );
-            mountAdvancedSettingsPage('#tab-settings');
-          },
-          'log-settings': async () => {
-            const { mountLogSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/log/mountLogSettingsPage'
-            );
-            mountLogSettingsPage('#tab-settings');
-          },
-          'update-settings': async () => {
-            const { mountUpdateSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/update/mountUpdateSettingsPage'
-            );
-            mountUpdateSettingsPage('#tab-settings');
-          },
-          // about 已合并到 update
-          'about-settings': async () => {
-            const { mountUpdateSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/update/mountUpdateSettingsPage'
-            );
-            mountUpdateSettingsPage('#tab-settings');
-          },
-          'privacy-settings': async () => {
-            const { mountPrivacySettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/privacy/mountPrivacySettingsPage'
-            );
-            mountPrivacySettingsPage('#tab-settings');
-          },
-          'search-engine-settings': async () => {
-            const { mountSearchEngineSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/searchEngine/mountSearchEngineSettingsPage'
-            );
-            mountSearchEngineSettingsPage('#tab-settings');
-          },
-          'ai-settings': async () => {
-            const { mountAISettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/ai/mountAISettingsPage'
-            );
-            mountAISettingsPage('#tab-settings');
-          },
-          'emby-settings': async () => {
-            const { mountEmbySettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/emby/mountEmbySettingsPage'
-            );
-            mountEmbySettingsPage('#tab-settings');
-          },
-          'drive115-settings': async () => {
-            const { mountDrive115SettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/drive115/mountDrive115SettingsPage'
-            );
-            mountDrive115SettingsPage('#tab-settings');
-          },
-          'webdav-settings': async () => {
-            const { mountWebdavSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/webdav/mountWebdavSettingsPage'
-            );
-            mountWebdavSettingsPage('#tab-settings');
-          },
-          'network-test-settings': async () => {
-            const { mountNetworkTestSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/networkTest/mountNetworkTestSettingsPage'
-            );
-            mountNetworkTestSettingsPage('#tab-settings');
-          },
-          'enhancement-settings': async () => {
-            const { mountEnhancementSettingsPage } = await import(
-              '../../apps/dashboard/pages/settings/enhancement/mountEnhancementSettingsPage'
-            );
-            mountEnhancementSettingsPage('#tab-settings');
-          },
-        };
-
-        const reactMount = reactFullMounts[subSection];
-        if (reactMount) {
-          await reactMount();
-          console.debug('[mount] 设置子页：React 全页', subSection);
-          return;
-        }
-
-        // 构建子页面的配置键（例如：network-test-settings -> tab-settings-network-test）
+        // 设置子页：统一 React 壳（固定返回钮）+ 原 partial HTML/CSS/弹窗交互
+        // 完整 React 内容页暂不默认接入，避免覆盖已微调样式
         const subPageKey = `tab-settings-${subSection.replace('-settings', '')}`;
         const subCfg = getTabPartial(subPageKey);
 
@@ -142,7 +35,6 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
         console.debug('[mount] 子页面配置:', subCfg);
 
         if (subCfg) {
-          // 其余设置子页：React 壳（返回栏/标题）+ 原 partial HTML/样式/交互不变
           const html = await loadPartial(subCfg.name);
           if (html) {
             const { resolveSettingsSubpageMeta } = await import('../../apps/dashboard/pages/settings/settingsNavModel');

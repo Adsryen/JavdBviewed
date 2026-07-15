@@ -1,28 +1,15 @@
 /**
  * @file reactFullPageIds.ts
- * @description 已完整 React 化（跳过 partial + 遗留 init）的设置子页 id 集合
+ * @description 完整 React 内容页 id 集合
  * @module apps/dashboard/pages/settings/shared
+ *
+ * 产品决策（2026-07-15）：设置子页内容保持遗留 partial + 原 CSS/弹窗交互，
+ * 仅索引页与返回壳走 React。完整 React 内容页代码保留在 pages/settings/* 供后续渐进迁移，
+ * 默认不接入路由，避免覆盖已微调样式。
  */
 
-/** hash 子路径 id，如 display-settings */
-export const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
-  'display-settings',
-  'insights-settings',
-  'sync-settings',
-  'global-actions',
-  'advanced-settings',
-  'log-settings',
-  'update-settings',
-  'about-settings',
-  'privacy-settings',
-  'search-engine-settings',
-  'ai-settings',
-  'emby-settings',
-  'drive115-settings',
-  'webdav-settings',
-  'network-test-settings',
-  'enhancement-settings',
-]);
+/** hash 子路径 id；空集合 = 全部子页走壳 + partial */
+export const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([]);
 
 /**
  * 是否为完整 React 设置子页

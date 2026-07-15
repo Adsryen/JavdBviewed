@@ -19,40 +19,42 @@ import {
 } from '../dbClient';
 import { showMessage } from '../ui/toast';
 import { showConfirm } from '../components/confirmModal';
+import {
+  RECYCLE_BIN_PAGE_SIZE,
+  formatRecycleDeletedAt,
+  formatRecycleRemainingDays,
+  getRecycleActorUrl,
+  getRecycleVideoCoverUrl,
+  getRecycleVideoJavdbUrl,
+} from './recycleBinModel';
 
 let isInitialized = false;
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = RECYCLE_BIN_PAGE_SIZE;
 
 /** 格式化剩余天数 */
 function formatRemainingDays(deletedAt: number): string {
-  const elapsed = Date.now() - deletedAt;
-  const remaining = 30 * 24 * 60 * 60 * 1000 - elapsed;
-  if (remaining <= 0) return '即将清理';
-  const days = Math.ceil(remaining / (24 * 60 * 60 * 1000));
-  return `${days} 天`;
+  return formatRecycleRemainingDays(deletedAt);
 }
 
 /** 格式化删除时间 */
 function formatDeletedAt(deletedAt: number): string {
-  return new Date(deletedAt).toLocaleString('zh-CN');
+  return formatRecycleDeletedAt(deletedAt);
 }
 
 /** 获取封面 URL */
 function getCoverUrl(record: VideoRecord): string | null {
-  return record.javdbImage || record.coverImage || null;
+  return getRecycleVideoCoverUrl(record);
 }
 
 /** 获取 JavDB 链接 */
 function getJavdbUrl(record: VideoRecord): string | null {
-  if (record.javdbUrl) return record.javdbUrl;
-  if (record.id) return `https://javdb.com/search?q=${encodeURIComponent(record.id)}`;
-  return null;
+  return getRecycleVideoJavdbUrl(record);
 }
 
 /** 获取演员详情页链接 */
 function getActorUrl(actor: ActorRecord): string | null {
-  return actor.profileUrl || null;
+  return getRecycleActorUrl(actor);
 }
 
 function escapeHtml(text: string): string {

@@ -1,61 +1,48 @@
 /**
  * @file settingsSubpageShell.css
- * @description 设置子页 React 壳 / 全页共用布局
+ * @description 设置子页极简壳样式：只负责返回钮，不改 partial 内布局
  * @module apps/dashboard/pages/settings
+ *
+ * 严禁在此覆盖 .settings-page-body / 卡片 / 按钮悬浮等遗留微调。
  */
+
 .ssp-page {
   width: 100%;
   min-width: 0;
-  color: var(--color-fg, var(--text-primary));
 }
 
-/* 返回栏：始终贴宿主左上，不参与标题居中 */
+/* 返回栏：贴宿主左上 */
 .ssp-back-bar {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   padding: 0 4px;
 }
 
-/* PageHeader 宿主：居中标题间距 */
-.ssp-header {
-  margin-bottom: 20px;
-}
-
 .ssp-back {
-  justify-self: start;
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid var(--color-border, var(--border-primary));
-  background: var(--color-surface-2, var(--surface-secondary));
-  color: var(--color-fg, var(--text-primary));
+  border: 1px solid var(--border-primary, var(--color-border, #d0d7de));
+  background: var(--surface-secondary, var(--color-surface-2, #f6f8fa));
+  color: var(--text-primary, var(--color-fg, #1f2328));
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .ssp-back:hover {
-  border-color: color-mix(
-    in srgb,
-    var(--color-primary, var(--primary)) 35%,
-    var(--color-border, var(--border-primary))
-  );
+  border-color: var(--border-hover, var(--color-border-strong, #afb8c1));
 }
 
 .ssp-body {
+  width: 100%;
   min-width: 0;
 }
 
-/* 去掉 partial 内重复的页头（若存在），避免双标题 */
-.ssp-body .settings-page-header {
+/* 壳已提供返回钮：隐藏 partial 内重复返回，其余 header 文案/标题原样保留 */
+.ssp-body .settings-page-header .settings-back-btn,
+.ssp-body .settings-page-header [data-action='back-to-settings'] {
   display: none !important;
-}
-
-.ssp-body .settings-page {
-  border: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 0 !important;
 }

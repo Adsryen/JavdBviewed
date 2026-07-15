@@ -1,7 +1,10 @@
 /**
  * @file mountSettingsSubpageShell.ts
- * @description 挂载设置子页 React 壳，并以 React 方式注入遗留 HTML（flushSync 保证 init 前 DOM 就绪）
+ * @description 挂载设置子页 React 壳，并以 React 方式注入遗留 HTML
  * @module apps/dashboard/pages/settings
+ *
+ * 注意：不要在此 import Tailwind globals.css。
+ * Preflight 会重置 button/卡片边框与 transform，破坏遗留页面已微调样式。
  */
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -12,7 +15,6 @@ import {
   setSettingsReactRoot,
 } from './settingsReactRoots';
 import './settingsSubpageShell.css';
-import '../../../../ui/styles/globals.css';
 
 export type MountSettingsSubpageOptions = {
   title: string;
