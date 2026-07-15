@@ -29,6 +29,30 @@ async function revealSettingsSearchTargetOnPage(): Promise<void> {
     await revealDashboardSettingsSearchTarget();
 }
 
+/** 已完整 React 化、跳过遗留 panel.init 的设置子页 id */
+const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
+    'display-settings',
+    'insights-settings',
+    'sync-settings',
+    'global-actions',
+    'advanced-settings',
+    'log-settings',
+]);
+
+function isReactFullSettingsPage(subSection: string | null | undefined): boolean {
+    if (!subSection) return false;
+    if (REACT_FULL_SETTINGS_PAGE_IDS.has(subSection)) return true;
+    // DOM 标记兜底（防止 hash 与 mount 时序竞态）
+    return !!(
+        document.querySelector('[data-display-settings-react]') ||
+        document.querySelector('[data-insights-settings-react]') ||
+        document.querySelector('[data-sync-settings-react]') ||
+        document.querySelector('[data-global-actions-react]') ||
+        document.querySelector('[data-advanced-settings-react]') ||
+        document.querySelector('[data-log-settings-react]')
+    );
+}
+
 /**
  * 初始化所有设置面板
  *
@@ -148,23 +172,15 @@ export async function initSettingsPage(): Promise<void> {
             return;
         }
         
-        // React 全页路径：显示设置已自包含加载/保存，跳过遗留 DisplaySettings.init
-        if (
-            subSection === 'display-settings' ||
-            document.querySelector('[data-display-settings-react]')
-        ) {
-            console.log('[Settings] 显示设置由 React 页接管，跳过遗留 init');
+        // React 全页：自包含加载/保存，跳过遗留 panel.init
+        if (isReactFullSettingsPage(subSection)) {
+            console.log(`[Settings] ${subSection} 由 React 页接管，跳过遗留 init`);
             await revealSettingsSearchTargetOnPage();
             return;
         }
 
-        // 根据子路径初始化对应的设置模块
+        // 根据子路径初始化对应的设置模块（仅 shell + partial 页）
         const moduleMap: Record<string, () => Promise<void>> = {
-            'display-settings': async () => {
-                const { getDisplaySettings } = await import('./display');
-                const panel = await getDisplaySettings();
-                panel.init();
-            },
             'ai-settings': async () => {
                 const { getAiSettings } = await import('./ai');
                 const panel = await getAiSettings();
@@ -178,11 +194,6 @@ export async function initSettingsPage(): Promise<void> {
             'privacy-settings': async () => {
                 const { getPrivacySettings } = await import('./privacy');
                 const panel = await getPrivacySettings();
-                panel.init();
-            },
-            'global-actions': async () => {
-                const { getGlobalActionsSettings } = await import('./globalActions');
-                const panel = await getGlobalActionsSettings();
                 panel.init();
             },
             'emby-settings': async () => {
@@ -200,29 +211,9 @@ export async function initSettingsPage(): Promise<void> {
                 const panel = await getWebdavSettings();
                 panel.init();
             },
-            'sync-settings': async () => {
-                const { getSyncSettings } = await import('./sync');
-                const panel = await getSyncSettings();
-                panel.init();
-            },
             'drive115-settings': async () => {
                 const { getDrive115SettingsV2 } = await import('./drive115');
                 const panel = await getDrive115SettingsV2();
-                panel.init();
-            },
-            'insights-settings': async () => {
-                const { getInsightsSettings } = await import('./insights');
-                const panel = await getInsightsSettings();
-                panel.init();
-            },
-            'log-settings': async () => {
-                const { getLoggingSettings } = await import('./logging');
-                const panel = await getLoggingSettings();
-                panel.init();
-            },
-            'advanced-settings': async () => {
-                const { getAdvancedSettings } = await import('./advanced');
-                const panel = await getAdvancedSettings();
                 panel.init();
             },
             'network-test-settings': async () => {
@@ -285,23 +276,15 @@ export async function initSettingsTab(): Promise<void> {
         // 有子路径，只初始化对应的单个设置面板
         console.debug('初始化设置面板:', subSection);
 
-        // React 全页路径：显示设置已自包含，跳过遗留 init
-        if (
-            subSection === 'display-settings' ||
-            document.querySelector('[data-display-settings-react]')
-        ) {
-            console.debug('显示设置由 React 页接管，跳过遗留 init');
+        // React 全页：自包含，跳过遗留 init
+        if (isReactFullSettingsPage(subSection)) {
+            console.debug(`${subSection} 由 React 页接管，跳过遗留 init`);
             await revealSettingsSearchTargetOnPage();
             return;
         }
 
-        // 根据子路径初始化对应的设置模块
+        // 仅 shell + partial 页走遗留 init
         const moduleMap: Record<string, () => Promise<void>> = {
-            'display-settings': async () => {
-                const { getDisplaySettings } = await import('./display');
-                const panel = await getDisplaySettings();
-                panel.init();
-            },
             'ai-settings': async () => {
                 const { getAiSettings } = await import('./ai');
                 const panel = await getAiSettings();
@@ -315,11 +298,6 @@ export async function initSettingsTab(): Promise<void> {
             'privacy-settings': async () => {
                 const { getPrivacySettings } = await import('./privacy');
                 const panel = await getPrivacySettings();
-                panel.init();
-            },
-            'global-actions': async () => {
-                const { getGlobalActionsSettings } = await import('./globalActions');
-                const panel = await getGlobalActionsSettings();
                 panel.init();
             },
             'emby-settings': async () => {
@@ -337,29 +315,9 @@ export async function initSettingsTab(): Promise<void> {
                 const panel = await getWebdavSettings();
                 panel.init();
             },
-            'sync-settings': async () => {
-                const { getSyncSettings } = await import('./sync');
-                const panel = await getSyncSettings();
-                panel.init();
-            },
             'drive115-settings': async () => {
                 const { getDrive115SettingsV2 } = await import('./drive115');
                 const panel = await getDrive115SettingsV2();
-                panel.init();
-            },
-            'insights-settings': async () => {
-                const { getInsightsSettings } = await import('./insights');
-                const panel = await getInsightsSettings();
-                panel.init();
-            },
-            'log-settings': async () => {
-                const { getLoggingSettings } = await import('./logging');
-                const panel = await getLoggingSettings();
-                panel.init();
-            },
-            'advanced-settings': async () => {
-                const { getAdvancedSettings } = await import('./advanced');
-                const panel = await getAdvancedSettings();
                 panel.init();
             },
             'network-test-settings': async () => {

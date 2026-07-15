@@ -45,4 +45,10 @@ export type { SettingSectionProps } from './patterns/SettingSection/SettingSecti
 export { SettingToggleRow } from './patterns/SettingToggleRow/SettingToggleRow';
 export type { SettingToggleRowProps } from './patterns/SettingToggleRow/SettingToggleRow';
 
+export { SettingField } from './patterns/SettingField/SettingField';
+export type { SettingFieldProps } from './patterns/SettingField/SettingField';
+
+export { SettingSelect } from './patterns/SettingSelect/SettingSelect';
+export type { SettingSelectOption, SettingSelectProps } from './patterns/SettingSelect/SettingSelect';
+
 export { cn } from './lib/cn';

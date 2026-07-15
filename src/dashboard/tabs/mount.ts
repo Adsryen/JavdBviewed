@@ -26,13 +26,50 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
           unmountSettingsIndexPage('#tab-settings');
         } catch {}
 
-        // 显示设置：完整 React 内容页（不再注入 partial）
-        if (subSection === 'display-settings') {
-          const { mountDisplaySettingsPage } = await import(
-            '../../apps/dashboard/pages/settings/display/mountDisplaySettingsPage'
-          );
-          mountDisplaySettingsPage('#tab-settings');
-          console.debug('[mount] 设置子页：React 全页 display-settings');
+        // 完整 React 设置子页（跳过 partial）
+        const reactFullMounts: Record<string, () => Promise<void>> = {
+          'display-settings': async () => {
+            const { mountDisplaySettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/display/mountDisplaySettingsPage'
+            );
+            mountDisplaySettingsPage('#tab-settings');
+          },
+          'insights-settings': async () => {
+            const { mountInsightsSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/insights/mountInsightsSettingsPage'
+            );
+            mountInsightsSettingsPage('#tab-settings');
+          },
+          'sync-settings': async () => {
+            const { mountSyncSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/sync/mountSyncSettingsPage'
+            );
+            mountSyncSettingsPage('#tab-settings');
+          },
+          'global-actions': async () => {
+            const { mountGlobalActionsPage } = await import(
+              '../../apps/dashboard/pages/settings/globalActions/mountGlobalActionsPage'
+            );
+            mountGlobalActionsPage('#tab-settings');
+          },
+          'advanced-settings': async () => {
+            const { mountAdvancedSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/advanced/mountAdvancedSettingsPage'
+            );
+            mountAdvancedSettingsPage('#tab-settings');
+          },
+          'log-settings': async () => {
+            const { mountLogSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/log/mountLogSettingsPage'
+            );
+            mountLogSettingsPage('#tab-settings');
+          },
+        };
+
+        const reactMount = reactFullMounts[subSection];
+        if (reactMount) {
+          await reactMount();
+          console.debug('[mount] 设置子页：React 全页', subSection);
           return;
         }
 
