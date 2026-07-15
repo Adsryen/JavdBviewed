@@ -1,6 +1,6 @@
 /**
  * @file mediaBrowseModel.ts
- * @description 媒体库浏览页的预览目录与纯函数筛选/轮播位置计算
+ * @description 媒体库浏览页的目录模型、筛选与轮播位置计算
  * @module apps/dashboard/pages/media
  */
 export type MediaBrowseSource = 'all' | 'emby' | 'jellyfin' | '115';
@@ -10,11 +10,17 @@ export type MediaBrowseItem = {
   title: string;
   source: Exclude<MediaBrowseSource, 'all'>;
   year: string;
-  hue: number; // 预览封面渐变色相（真实索引接入后可废弃）
+  hue: number; // 无封面图时的渐变色相
+  coverImageUrl?: string;
+  serverName?: string;
+  itemId?: string;
+  serverUrl?: string;
+  /** Emby/Jellyfin 服务端 ID，用于拼网页详情链接 */
+  serverId?: string;
 };
 
 /**
- * UI 预览用片单，直至接入 Emby/Jellyfin 真实索引（Phase B）
+ * 无真实索引时的预览片单
  */
 export const MEDIA_PREVIEW_ITEMS: MediaBrowseItem[] = [
   { code: 'SSIS-458', title: '恋人未满的同居生活', source: 'emby', year: '2022', hue: 330 },
@@ -40,6 +46,18 @@ export function coverGradient(item: MediaBrowseItem): string {
 }
 
 /**
+ * 封面 art 样式：优先真实封面图，否则渐变
+ */
+export function coverArtStyle(item: MediaBrowseItem): { background: string } {
+  if (item.coverImageUrl) {
+    return {
+      background: `center/cover no-repeat url(${JSON.stringify(item.coverImageUrl)}), ${coverGradient(item)}`,
+    };
+  }
+  return { background: coverGradient(item) };
+}
+
+/**
  * 来源展示名
  */
 export function sourceLabel(source: MediaBrowseItem['source']): string {
@@ -60,14 +78,16 @@ export function filterMediaItems(
   return items.filter((item) => {
     if (filter !== 'all' && item.source !== filter) return false;
     if (!q) return true;
-    return item.code.toLowerCase().includes(q) || item.title.toLowerCase().includes(q);
+    return (
+      item.code.toLowerCase().includes(q)
+      || item.title.toLowerCase().includes(q)
+      || (item.serverName || '').toLowerCase().includes(q)
+    );
   });
 }
 
 /**
- * 计算堆叠轮播中卡片相对中心的位置（支持环形）
- *
- * @returns 相对位移，约在 -floor(n/2) … floor(n/2)
+ * 计算堆叠轮播中卡片相对中心的位置（环形）
  */
 export function relativeCarouselPos(index: number, active: number, len: number): number {
   if (len <= 0) return 0;
@@ -80,12 +100,12 @@ export function relativeCarouselPos(index: number, active: number, len: number):
 /**
  * 轮播条使用的前几条条目
  */
-export function heroItems(items: MediaBrowseItem[] = MEDIA_PREVIEW_ITEMS): MediaBrowseItem[] {
+export function heroItems(items: MediaBrowseItem[]): MediaBrowseItem[] {
   return items.slice(0, 5);
 }
 
 /**
- * 兼容旧 hash 子路径（#tab-media/emby）到页内筛选
+ * 兼容旧 hash 子路径到页内筛选
  */
 export function subPathToFilter(subPath?: string): MediaBrowseSource {
   if (subPath === 'emby') return 'emby';

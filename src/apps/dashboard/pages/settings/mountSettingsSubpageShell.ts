@@ -1,0 +1,83 @@
+/**
+ * @file mountSettingsSubpageShell.ts
+ * @description 挂载设置子页 React 壳，并以 React 方式注入遗留 HTML（flushSync 保证 init 前 DOM 就绪）
+ * @module apps/dashboard/pages/settings
+ */
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
+import { SettingsSubpageShell } from './SettingsSubpageShell';
+import {
+  clearSettingsReactRoot,
+  setSettingsReactRoot,
+} from './settingsReactRoots';
+import './settingsSubpageShell.css';
+import '../../../../ui/styles/globals.css';
+
+export type MountSettingsSubpageOptions = {
+  title: string;
+  description?: string;
+  /** partial 原始 HTML */
+  panelHtml: string;
+  /** 注入后应存在的面板根 id（校验用） */
+  panelRootId?: string;
+  hostSelector?: string;
+};
+
+/**
+ * 在 #tab-settings 挂载壳并注入面板 HTML
+ *
+ * @returns 面板内容宿主元素
+ */
+export function mountSettingsSubpageShell(options: MountSettingsSubpageOptions): HTMLElement {
+  const hostSelector = options.hostSelector || '#tab-settings';
+  const host = document.querySelector(hostSelector);
+  if (!host) {
+    throw new Error(`[SettingsSubpage] missing host ${hostSelector}`);
+  }
+
+  // 卸掉索引页或上一个子页
+  clearSettingsReactRoot(host);
+  host.innerHTML = '';
+
+  const mount = document.createElement('div');
+  mount.dataset.settingsSubpageRoot = '1';
+  host.appendChild(mount);
+
+  const bodyHostId = 'settings-panel-body-host';
+  const root = createRoot(mount);
+  setSettingsReactRoot(host, 'subpage', root, mount);
+
+  // 同步提交：partial 走 dangerouslySetInnerHTML，随后 init 能立刻 getElementById
+  flushSync(() => {
+    root.render(
+      createElement(SettingsSubpageShell, {
+        title: options.title,
+        description: options.description,
+        panelHtml: options.panelHtml,
+        bodyHostId,
+      }),
+    );
+  });
+
+  const body = document.getElementById(bodyHostId);
+  if (!body) {
+    throw new Error('[SettingsSubpage] body host missing after render');
+  }
+
+  // 仅校验面板根节点；具体控件由各 BaseSettingsPanel 自己负责
+  if (options.panelRootId && !body.querySelector(`#${options.panelRootId}`)) {
+    console.warn('[SettingsSubpage] panel root id not found in HTML:', options.panelRootId);
+  }
+
+  return body;
+}
+
+/**
+ * 卸载子页 React 壳
+ */
+export function unmountSettingsSubpageShell(hostSelector = '#tab-settings'): void {
+  const host = document.querySelector(hostSelector);
+  if (!host) return;
+  clearSettingsReactRoot(host);
+}

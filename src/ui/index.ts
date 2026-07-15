@@ -24,4 +24,10 @@ export type { MediaCoverProps } from './primitives/MediaCover/MediaCover';
 export { Card } from './primitives/Card/Card';
 export type { CardProps } from './primitives/Card/Card';
 
+export { Tabs } from './primitives/Tabs/Tabs';
+export type { TabItem, TabsProps } from './primitives/Tabs/Tabs';
+
+export { Toast } from './primitives/Toast/Toast';
+export type { ToastProps, ToastTone } from './primitives/Toast/Toast';
+
 export { cn } from './lib/cn';

@@ -31,8 +31,8 @@ describe('mediaBrowseModel', () => {
     expect(relativeCarouselPos(1, 0, 5)).toBe(1);
   });
 
-  it('exposes a non-empty hero strip', () => {
-    expect(heroItems().length).toBeGreaterThan(0);
+  it('exposes a non-empty hero strip from a catalog', () => {
+    expect(heroItems(MEDIA_PREVIEW_ITEMS).length).toBeGreaterThan(0);
     expect(MEDIA_PREVIEW_ITEMS.length).toBeGreaterThanOrEqual(8);
   });
 });

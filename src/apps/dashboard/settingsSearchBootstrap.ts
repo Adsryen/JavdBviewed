@@ -11,11 +11,28 @@ import { TAB_PARTIALS } from '../../dashboard/tabs/resources';
 let cachedIndexPromise: Promise<ReturnType<typeof buildSettingsSearchIndex>> | null = null;
 
 export async function mountDashboardSettingsSearch(): Promise<void> {
-  const container = document.querySelector<HTMLElement>('.settings-index');
+  // React 入口页 flush 后可能略晚出现；短轮询避免漏挂搜索框
+  const container = await waitForSettingsIndexContainer();
   if (!container) return;
 
   const index = await getDashboardSettingsSearchIndex();
   mountSettingsSearch({ container, index });
+}
+
+/**
+ * 等待设置首页容器（遗留 .settings-index 或 React 页根）
+ */
+async function waitForSettingsIndexContainer(timeoutMs = 2000): Promise<HTMLElement | null> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const el =
+      document.querySelector<HTMLElement>('.settings-index')
+      || document.querySelector<HTMLElement>('.si-page')
+      || document.querySelector<HTMLElement>('[data-settings-stack="react"]');
+    if (el) return el;
+    await new Promise((r) => setTimeout(r, 32));
+  }
+  return null;
 }
 
 export async function revealDashboardSettingsSearchTarget(): Promise<void> {

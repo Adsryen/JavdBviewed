@@ -18,7 +18,7 @@
     "test:regression": "vitest run --config vitest.regression.config.cjs",
     "test:dom": "vitest run --config vitest.dom.config.cjs",
     "test:extension": "vitest run --config vitest.extension.config.cjs",
-    "test:style-contract": "vitest run --config vitest.unit.config.cjs src/ui/tokens/themeTokens.test.ts scripts/assert-css-isolation.test.ts src/ui/primitives/Button/Button.test.tsx src/ui/primitives/Input/Input.test.tsx src/ui/primitives/Toggle/Toggle.test.tsx src/ui/primitives/Modal/Modal.test.tsx src/ui/primitives/MediaCover/MediaCover.test.tsx src/ui/primitives/Card/Card.test.tsx && node scripts/assert-css-isolation.cjs",
+    "test:style-contract": "vitest run --config vitest.unit.config.cjs src/ui/tokens/themeTokens.test.ts scripts/assert-css-isolation.test.ts src/ui/primitives/Button/Button.test.tsx src/ui/primitives/Input/Input.test.tsx src/ui/primitives/Toggle/Toggle.test.tsx src/ui/primitives/Modal/Modal.test.tsx src/ui/primitives/MediaCover/MediaCover.test.tsx src/ui/primitives/Card/Card.test.tsx src/ui/primitives/Tabs/Tabs.test.tsx src/ui/primitives/Toast/Toast.test.tsx && node scripts/assert-css-isolation.cjs",
     "test:visual": "playwright test",
     "test:visual:layout": "playwright test tests/visual/mediaGridLayout.visual.spec.ts",
     "test:visual:update": "playwright test --update-snapshots",

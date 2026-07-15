@@ -1,0 +1,72 @@
+/**
+ * @file settingsSubpageShell.css
+ * @description 设置子页 React 壳布局
+ * @module apps/dashboard/pages/settings
+ */
+.ssp-page {
+  width: 100%;
+  min-width: 0;
+  color: var(--color-fg, var(--text-primary));
+}
+
+.ssp-header {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ssp-back {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface-2, var(--surface-secondary));
+  color: var(--color-fg, var(--text-primary));
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ssp-back:hover {
+  border-color: color-mix(in srgb, var(--color-primary, var(--primary)) 35%, var(--color-border, var(--border-primary)));
+}
+
+/* 标题区居中，与设置首页 .si-header 风格一致 */
+.ssp-heading {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.ssp-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.ssp-desc {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--color-fg-muted, var(--text-secondary));
+  line-height: 1.5;
+  text-align: center;
+}
+
+.ssp-body {
+  min-width: 0;
+}
+
+/* 去掉 partial 内重复的页头（若存在），避免双标题 */
+.ssp-body .settings-page-header {
+  display: none !important;
+}
+
+.ssp-body .settings-page {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}

@@ -19,7 +19,13 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
       // 如果有子路径，直接加载对应的子页面
       if (mainTab === 'tab-settings' && subSection) {
         console.debug('[mount] 检测到设置子页面:', subSection);
-        
+
+        // 进入子页前卸掉 React 索引，避免与 partial 叠层
+        try {
+          const { unmountSettingsIndexPage } = await import('../../apps/dashboard/pages/settings/mountSettingsIndexPage');
+          unmountSettingsIndexPage('#tab-settings');
+        } catch {}
+
         // 构建子页面的配置键（例如：network-test-settings -> tab-settings-network-test）
         const subPageKey = `tab-settings-${subSection.replace('-settings', '')}`;
         const subCfg = getTabPartial(subPageKey);
@@ -28,40 +34,44 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
         console.debug('[mount] 子页面配置:', subCfg);
         
         if (subCfg) {
-          const selector = '#tab-settings';
+          // 所有设置子页：React 壳（返回栏/标题）+ 原 partial HTML/样式/交互不变
           const html = await loadPartial(subCfg.name);
-          
           if (html) {
-            await injectPartial(selector, html, { mode: 'replace' });
-            console.debug('[mount] 子页面 HTML 加载完成:', subSection);
+            const { resolveSettingsSubpageMeta } = await import('../../apps/dashboard/pages/settings/settingsNavModel');
+            const { mountSettingsSubpageShell } = await import('../../apps/dashboard/pages/settings/mountSettingsSubpageShell');
+            const meta = resolveSettingsSubpageMeta(subSection);
+            mountSettingsSubpageShell({
+              title: meta.title,
+              description: meta.description,
+              panelHtml: html,
+              panelRootId: meta.panelRootId,
+            });
+            console.debug('[mount] 设置子页：React 壳 + 原 partial', subSection);
+          } else {
+            console.warn('[mount] 设置子页 partial 为空:', subCfg.name);
           }
-          
+
           if (subCfg.styles && subCfg.styles.length) {
             await ensureStylesLoaded(subCfg.styles);
           }
-          
+
           return;
         } else {
           console.warn('[mount] 未找到子页面配置，回退到导航页:', subPageKey);
         }
       }
       
-      // 没有子路径或子页面配置不存在，加载设置导航页
+      // 没有子路径：设置中心索引页由 React 接管，跳过 HTML partial
       const cfg = getTabPartial('tab-settings');
-      if (cfg) {
-        const selector = '#tab-settings';
-        const html = await loadPartial(cfg.name);
-        
-        if (html) {
-          await injectPartial(selector, html, { mode: 'replace' });
-          console.debug('[mount] 设置导航页加载完成');
-        }
-        
-        if (cfg.styles && cfg.styles.length) {
-          await ensureStylesLoaded(cfg.styles);
-        }
+      if (cfg?.styles?.length) {
+        await ensureStylesLoaded(cfg.styles);
       }
-      
+      // 清空可能残留的子页 HTML，交给 initSettingsTab 挂 React
+      const host = document.getElementById('tab-settings');
+      if (host && host.querySelector('[data-settings-react-root]') == null) {
+        // 保留空容器；init 会渲染
+      }
+      console.debug('[mount] 设置导航页交给 React 入口');
       return;
     }
     

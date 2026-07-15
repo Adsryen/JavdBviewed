@@ -29,8 +29,18 @@ export function mountSettingsSearch(options: MountSettingsSearchOptions): void {
     <div class="jdb-settings-search-results" role="listbox" hidden style="display: none;"></div>
   `;
 
-  const header = container.querySelector('.settings-index-header');
-  if (header?.parentElement) {
+  // 兼容遗留 HTML 头与 React 设置首页结构
+  const preferredHost =
+    container.querySelector<HTMLElement>('[data-settings-search-host]')
+    || container.querySelector<HTMLElement>('#settings-index-search-host')
+    || container.querySelector<HTMLElement>('.si-search-host');
+  const header =
+    container.querySelector('.settings-index-header')
+    || container.querySelector('.si-header');
+
+  if (preferredHost) {
+    preferredHost.replaceChildren(root);
+  } else if (header?.parentElement) {
     header.insertAdjacentElement('afterend', root);
   } else {
     container.prepend(root);

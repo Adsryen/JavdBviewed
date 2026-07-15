@@ -1,0 +1,124 @@
+/**
+ * @file settingsIndexPage.css
+ * @description 设置中心入口页布局（.si-page 作用域）
+ * @module apps/dashboard/pages/settings
+ */
+
+.si-page {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 4px 24px;
+  color: var(--color-fg, var(--text-primary));
+}
+
+.si-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.si-title {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.si-desc {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.si-search-host {
+  max-width: 760px;
+  margin: 0 auto 12px;
+  min-height: 0;
+}
+
+/* 遗留全站设置搜索挂入后的间距 */
+.si-search-host .jdb-settings-search {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.si-filter {
+  max-width: 420px;
+  margin: 0 auto 22px;
+}
+
+.si-empty {
+  text-align: center;
+  color: var(--color-fg-muted, var(--text-secondary));
+  font-size: 14px;
+}
+
+.si-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.si-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 92px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface, var(--surface-primary));
+  box-shadow: var(--shadow-1, var(--shadow-sm));
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.si-card:hover {
+  border-color: color-mix(in srgb, var(--color-primary, var(--primary)) 40%, var(--color-border, var(--border-primary)));
+  box-shadow: var(--shadow-2, var(--shadow-md));
+}
+
+.si-card-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary, var(--primary)) 12%, transparent);
+  color: var(--color-primary, var(--primary));
+  font-size: 16px;
+}
+
+.si-card-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.si-card-title {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--color-fg, var(--text-primary));
+}
+
+.si-card-desc {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.si-beta {
+  vertical-align: middle;
+}
+
+@media (max-width: 720px) {
+  .si-grid {
+    grid-template-columns: 1fr;
+  }
+}

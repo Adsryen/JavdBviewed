@@ -259,9 +259,15 @@ export async function initSettingsTab(): Promise<void> {
         console.debug('mainTab:', mainTab);
         console.debug('subSection:', subSection);
         
-        // 如果没有子路径，说明是在设置导航页，不需要初始化任何面板
+        // 如果没有子路径，说明是在设置导航页
         if (!subSection) {
-            console.debug('设置导航页，无需初始化面板');
+            console.debug('设置导航页，挂载 React 入口');
+            try {
+                const { mountSettingsIndexPage } = await import('../../../apps/dashboard/pages/settings/mountSettingsIndexPage');
+                mountSettingsIndexPage('#tab-settings');
+            } catch (error) {
+                console.error('[Settings] React 设置入口挂载失败:', error);
+            }
             await mountSettingsSearchOnIndex();
             return;
         }

@@ -75,6 +75,12 @@
   min-width: 220px;
 }
 
+.ml-sync-msg {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
 /* —— 轮播：独立层，裁剪溢出，避免盖住列表 —— */
 .ml-hero {
   position: relative;
@@ -291,27 +297,38 @@
   background: transparent !important;
   color: inherit !important;
   text-align: left !important;
-  cursor: pointer;
   font: inherit;
-  transform: none !important;
-  translate: none !important;
-  scale: none !important;
-  transition: none !important;
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  box-shadow: none !important;
   z-index: auto !important;
   float: none !important;
   clear: none !important;
 }
 
-.ml-card:hover,
-.ml-card:focus,
-.ml-card:active,
-.ml-card:focus-visible {
+.ml-card-hit {
+  display: block !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  text-align: left !important;
+  cursor: pointer;
+  font: inherit;
   transform: none !important;
-  translate: none !important;
-  scale: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  box-shadow: none !important;
+}
+
+.ml-card-hit:disabled {
+  cursor: default;
+}
+
+.ml-card-hit:hover,
+.ml-card-hit:focus,
+.ml-card-hit:active,
+.ml-card-hit:focus-visible {
+  transform: none !important;
   box-shadow: none !important;
   background: transparent !important;
   outline: none;
@@ -321,6 +338,17 @@
   display: block;
   width: 100%;
   flex: 0 0 auto;
+}
+
+.ml-open-link {
+  color: var(--color-primary, var(--primary));
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ml-open-link:hover {
+  text-decoration: underline;
 }
 
 .ml-code {
