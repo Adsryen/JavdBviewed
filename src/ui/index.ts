@@ -39,4 +39,10 @@ export type { EmptyStateProps } from './patterns/EmptyState/EmptyState';
 export { FilterChip } from './patterns/FilterChip/FilterChip';
 export type { FilterChipProps } from './patterns/FilterChip/FilterChip';
 
+export { SettingSection } from './patterns/SettingSection/SettingSection';
+export type { SettingSectionProps } from './patterns/SettingSection/SettingSection';
+
+export { SettingToggleRow } from './patterns/SettingToggleRow/SettingToggleRow';
+export type { SettingToggleRowProps } from './patterns/SettingToggleRow/SettingToggleRow';
+
 export { cn } from './lib/cn';

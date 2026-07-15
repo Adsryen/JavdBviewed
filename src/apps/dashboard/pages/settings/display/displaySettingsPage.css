@@ -1,0 +1,10 @@
+/**
+ * @file displaySettingsPage.css
+ * @description 显示设置页岛样式（尽量少；布局优先 Tailwind）
+ * @module apps/dashboard/pages/settings/display
+ */
+
+/* 预留：当前以 Tailwind + ssp-back 复用为主，无需额外规则 */
+.dsp-page {
+  min-width: 0;
+}

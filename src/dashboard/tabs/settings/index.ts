@@ -148,6 +148,16 @@ export async function initSettingsPage(): Promise<void> {
             return;
         }
         
+        // React 全页路径：显示设置已自包含加载/保存，跳过遗留 DisplaySettings.init
+        if (
+            subSection === 'display-settings' ||
+            document.querySelector('[data-display-settings-react]')
+        ) {
+            console.log('[Settings] 显示设置由 React 页接管，跳过遗留 init');
+            await revealSettingsSearchTargetOnPage();
+            return;
+        }
+
         // 根据子路径初始化对应的设置模块
         const moduleMap: Record<string, () => Promise<void>> = {
             'display-settings': async () => {
@@ -231,7 +241,7 @@ export async function initSettingsPage(): Promise<void> {
                 panel.init();
             },
         };
-        
+
         const initFn = moduleMap[subSection];
         if (initFn) {
             console.log(`[Settings] 初始化设置模块: ${subSection}`);
@@ -274,7 +284,17 @@ export async function initSettingsTab(): Promise<void> {
         
         // 有子路径，只初始化对应的单个设置面板
         console.debug('初始化设置面板:', subSection);
-        
+
+        // React 全页路径：显示设置已自包含，跳过遗留 init
+        if (
+            subSection === 'display-settings' ||
+            document.querySelector('[data-display-settings-react]')
+        ) {
+            console.debug('显示设置由 React 页接管，跳过遗留 init');
+            await revealSettingsSearchTargetOnPage();
+            return;
+        }
+
         // 根据子路径初始化对应的设置模块
         const moduleMap: Record<string, () => Promise<void>> = {
             'display-settings': async () => {
@@ -358,7 +378,7 @@ export async function initSettingsTab(): Promise<void> {
                 panel.init();
             },
         };
-        
+
         const initFn = moduleMap[subSection];
         if (initFn) {
             console.debug(`初始化单个设置模块: ${subSection}`);

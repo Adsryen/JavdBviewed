@@ -1,0 +1,58 @@
+/**
+ * @file SettingSection.tsx
+ * @description 设置区块模式：卡片式标题 + 说明 + 内容区
+ * @module ui/patterns
+ */
+import type { HTMLAttributes, ReactNode } from 'react';
+import { cn } from '../../lib/cn';
+
+export type SettingSectionProps = HTMLAttributes<HTMLElement> & {
+  /** 区块标题 */
+  title: ReactNode;
+  /** 可选说明 */
+  description?: ReactNode;
+  children: ReactNode;
+  /**
+   * 内容区 class（可放 grid 等布局工具类）
+   * 例：`grid gap-1 sm:grid-cols-2`
+   */
+  contentClassName?: string;
+};
+
+/**
+ * 自研设置区块（设置页分组容器）
+ */
+export function SettingSection({
+  title,
+  description,
+  children,
+  contentClassName,
+  className,
+  ...rest
+}: SettingSectionProps) {
+  return (
+    <section
+      className={cn(
+        'rounded-[var(--radius-3)] border border-[var(--color-border)] bg-[var(--color-surface)]',
+        'shadow-[var(--shadow-1)] text-[var(--color-fg)]',
+        className,
+      )}
+      data-ui-pattern="setting-section"
+      {...rest}
+    >
+      <header className="border-b border-[var(--color-border)] px-4 py-3">
+        <h3 className="m-0 text-sm font-bold tracking-tight text-[var(--color-fg)]">
+          {title}
+        </h3>
+        {description ? (
+          <p className="mt-1 mb-0 text-[12.5px] leading-relaxed text-[var(--color-fg-muted)]">
+            {description}
+          </p>
+        ) : null}
+      </header>
+      <div className={cn('flex flex-col gap-0.5 px-2 py-2', contentClassName)}>
+        {children}
+      </div>
+    </section>
+  );
+}

@@ -26,15 +26,25 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
           unmountSettingsIndexPage('#tab-settings');
         } catch {}
 
+        // 显示设置：完整 React 内容页（不再注入 partial）
+        if (subSection === 'display-settings') {
+          const { mountDisplaySettingsPage } = await import(
+            '../../apps/dashboard/pages/settings/display/mountDisplaySettingsPage'
+          );
+          mountDisplaySettingsPage('#tab-settings');
+          console.debug('[mount] 设置子页：React 全页 display-settings');
+          return;
+        }
+
         // 构建子页面的配置键（例如：network-test-settings -> tab-settings-network-test）
         const subPageKey = `tab-settings-${subSection.replace('-settings', '')}`;
         const subCfg = getTabPartial(subPageKey);
-        
+
         console.debug('[mount] 子页面配置键:', subPageKey);
         console.debug('[mount] 子页面配置:', subCfg);
-        
+
         if (subCfg) {
-          // 所有设置子页：React 壳（返回栏/标题）+ 原 partial HTML/样式/交互不变
+          // 其余设置子页：React 壳（返回栏/标题）+ 原 partial HTML/样式/交互不变
           const html = await loadPartial(subCfg.name);
           if (html) {
             const { resolveSettingsSubpageMeta } = await import('../../apps/dashboard/pages/settings/settingsNavModel');
