@@ -54,12 +54,10 @@ export const DASHBOARD_NAV_GROUPS: readonly DashboardNavGroup[] = [
   {
     id: 'media',
     label: '媒体库',
-    defaultItemId: 'media-all',
+    defaultItemId: 'media-library',
     items: [
-      { id: 'media-all', label: '全部', tabId: 'tab-media' },
-      { id: 'media-115', label: '115', tabId: 'tab-media', subPath: '115' },
-      { id: 'media-emby', label: 'Emby', tabId: 'tab-media', subPath: 'emby' },
-      { id: 'media-jellyfin', label: 'Jellyfin', tabId: 'tab-media', subPath: 'jellyfin' },
+      // 单一入口：来源筛选放在页面内，不再占用二级子菜单高度
+      { id: 'media-library', label: '媒体库', tabId: 'tab-media' },
     ],
   },
   {
@@ -130,16 +128,13 @@ function findMediaState(subPath?: string): DashboardNavState {
     return getDefaultNavState();
   }
 
-  const sourceItem = subPath
-    ? mediaGroup.items.find(item => item.subPath === subPath)
-    : null;
-  const item = sourceItem ?? findDefaultItem(mediaGroup);
-
+  const item = findDefaultItem(mediaGroup);
   if (!item) {
     return getDefaultNavState();
   }
 
-  return toNavState(mediaGroup, item, item.subPath);
+  // 兼容旧 hash（#tab-media/emby 等）：导航高亮仍落在单一媒体库入口，subPath 留给页内筛选
+  return toNavState(mediaGroup, item, subPath);
 }
 
 function normalizeHash(hash: string | null | undefined): string {

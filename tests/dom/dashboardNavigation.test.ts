@@ -129,46 +129,43 @@ describe('Dashboard 9C navigation runtime', () => {
     expect(css).not.toContain('#c7d2fe');
   });
 
-  it('presents the media library as an in-development preview instead of a live library', () => {
+  it('presents the media library as a browseable vault surface instead of a planning placeholder', () => {
     const mediaHtml = readFileSync(
       resolve(process.cwd(), 'src/dashboard/partials/tabs/media.html'),
       'utf8',
     );
 
-    expect(mediaHtml).toContain('媒体库 · 开发中');
-    expect(mediaHtml).toContain('正在规划媒体库');
-    expect(mediaHtml).toContain('媒体库入口先开放');
-    expect(mediaHtml).toContain('优先看到的使用场景');
-    expect(mediaHtml).toContain('暂时不会连接你的 115、Emby 或 Jellyfin');
-    expect(mediaHtml).toContain('115');
+    expect(mediaHtml).toContain('媒体库');
+    expect(mediaHtml).toContain('media-hero-carousel');
+    expect(mediaHtml).toContain('media-landscape-grid');
+    expect(mediaHtml).toContain('片库条目');
     expect(mediaHtml).toContain('Emby');
     expect(mediaHtml).toContain('Jellyfin');
+    expect(mediaHtml).toContain('115');
+    expect(mediaHtml).toContain('界面预览数据');
+    expect(mediaHtml).not.toContain('媒体库 · 开发中');
+    expect(mediaHtml).not.toContain('正在规划媒体库');
+    expect(mediaHtml).not.toContain('暂时不会连接你的 115、Emby 或 Jellyfin');
     expect(mediaHtml).not.toContain('当前页面不会读取');
     expect(mediaHtml).not.toContain('避免用户误以为');
     expect(mediaHtml).not.toContain('先把入口放出来');
     expect(mediaHtml).not.toContain('我想');
     expect(mediaHtml).not.toContain('我放');
-    expect(mediaHtml).not.toContain('立即播放');
-    expect(mediaHtml).not.toContain('已接入');
   });
 
-  it('links the media library preview to GitHub issues for requirement feedback', () => {
+  it('keeps a settings path for media server configuration from the media empty state', () => {
     const host = document.createElement('div');
     host.innerHTML = readFileSync(
       resolve(process.cwd(), 'src/dashboard/partials/tabs/media.html'),
       'utf8',
     );
 
-    const feedbackPanel = host.querySelector('.media-feedback-panel');
-    const issueLink = feedbackPanel?.querySelector<HTMLAnchorElement>('a[href="https://github.com/lmixture/JavdBviewed/issues"]');
+    const empty = host.querySelector('#mediaLibraryEmpty');
+    const settingsLink = empty?.querySelector<HTMLAnchorElement>('a[href="#tab-settings/emby-settings"]');
 
-    expect(feedbackPanel).toBeTruthy();
-    expect(feedbackPanel?.textContent ?? '').toContain('媒体库优先做哪一块');
-    expect(feedbackPanel?.textContent ?? '').toContain('提交需求或建议');
-    expect(issueLink).toBeTruthy();
-    expect(issueLink?.target).toBe('_blank');
-    expect(issueLink?.rel).toContain('noopener');
-    expect(issueLink?.rel).toContain('noreferrer');
+    expect(empty).toBeTruthy();
+    expect(settingsLink).toBeTruthy();
+    expect(settingsLink?.textContent ?? '').toContain('Emby');
   });
 
   it('opens data sync as the default task group page with backup placed last', async () => {
@@ -256,7 +253,7 @@ describe('Dashboard 9C navigation runtime', () => {
     expect(document.getElementById('tab-home')?.classList.contains('active')).toBe(true);
   });
 
-  it('switches media source subitems with source hashes', async () => {
+  it('opens media library as a single primary entry without secondary source tabs', async () => {
     window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-home');
 
     const { initTabs } = await import('../../src/dashboard/tabs/navigation');
@@ -266,17 +263,27 @@ describe('Dashboard 9C navigation runtime', () => {
     document.querySelector<HTMLButtonElement>('.dashboard-main-tab[data-nav-group-id="media"]')?.click();
     await flushNavigationTasks();
 
-    expect(readButtonLabels('.dashboard-sub-tab')).toEqual(['全部', '115', 'Emby', 'Jellyfin']);
+    expect(window.location.hash).toBe('#tab-media');
+    expect(document.querySelector('.dashboard-main-tab.active')?.textContent).toBe('媒体库');
+    expect(readButtonLabels('.dashboard-sub-tab')).toEqual([]);
+    expect(document.getElementById('dashboard-section-nav')?.hidden).toBe(true);
+    expect(document.getElementById('tab-media')?.classList.contains('active')).toBe(true);
+    expect(navigationMocks.mountTabIfNeeded).toHaveBeenCalledWith('tab-media');
+    expect(navigationMocks.initializeTabById).toHaveBeenCalledWith('tab-media');
+  });
 
-    document.querySelector<HTMLButtonElement>('.dashboard-sub-tab[data-nav-item-id="media-emby"]')?.click();
+  it('keeps legacy media source hashes on the media tab without showing secondary menus', async () => {
+    window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-media/emby');
+
+    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    await initTabs();
     await flushNavigationTasks();
 
     expect(window.location.hash).toBe('#tab-media/emby');
     expect(document.querySelector('.dashboard-main-tab.active')?.textContent).toBe('媒体库');
-    expect(document.querySelector('.dashboard-sub-tab.active')?.textContent).toBe('Emby');
+    expect(readButtonLabels('.dashboard-sub-tab')).toEqual([]);
+    expect(document.getElementById('dashboard-section-nav')?.hidden).toBe(true);
     expect(document.getElementById('tab-media')?.classList.contains('active')).toBe(true);
-    expect(navigationMocks.mountTabIfNeeded).toHaveBeenCalledWith('tab-media');
-    expect(navigationMocks.initializeTabById).toHaveBeenCalledWith('tab-media');
   });
 
   it('keeps settings subpage hashes active under the settings group', async () => {

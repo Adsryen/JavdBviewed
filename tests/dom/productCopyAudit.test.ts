@@ -38,8 +38,8 @@ describe('product copy audit', () => {
   it('uses product-side guidance for preview and pending surfaces', () => {
     const source = readAuditedSource();
 
-    expect(source).toContain('媒体库入口先开放');
-    expect(source).toContain('欢迎补充你最想优先看到的使用场景');
+    expect(source).toContain('媒体库');
+    expect(source).toContain('界面预览数据');
     expect(source).toContain('生成自己的月报时');
     expect(source).toContain('Markdown 导出还在整理中，目前可先导出 HTML 报告');
     expect(source).toContain('解析测试暂未开放');

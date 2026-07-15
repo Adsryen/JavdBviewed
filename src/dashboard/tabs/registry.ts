@@ -55,6 +55,11 @@ export async function initializeTabById(tabId: string | null | undefined): Promi
         await initRecycleBinTab();
         break;
       }
+      case 'tab-media': {
+        const { initMediaTab } = await import('./media');
+        await initMediaTab();
+        break;
+      }
       case 'tab-insights': {
         const { insightsTab } = await import('./insights');
         if (!insightsTab.isInitialized) await insightsTab.initialize();
@@ -104,6 +109,9 @@ export async function prefetchModuleById(tabId: string | null | undefined): Prom
         break;
       case 'tab-recycle-bin':
         await import('./recycleBin');
+        break;
+      case 'tab-media':
+        await import('./media');
         break;
       case 'tab-insights':
         await import('./insights');

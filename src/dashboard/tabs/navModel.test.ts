@@ -72,12 +72,18 @@ describe('Dashboard 9C navigation model', () => {
     });
   });
 
-  it('resolves media source hashes to tab-media with the matching source subpath', () => {
+  it('resolves media source hashes to the single media entry while keeping the source subpath', () => {
     expect(resolveDashboardNavState('#tab-media/emby')).toEqual({
       groupId: 'media',
-      itemId: 'media-emby',
+      itemId: 'media-library',
       tabId: 'tab-media',
       subPath: 'emby',
+    });
+
+    expect(resolveDashboardNavState('#tab-media')).toEqual({
+      groupId: 'media',
+      itemId: 'media-library',
+      tabId: 'tab-media',
     });
 
     expect(buildDashboardNavHash({ tabId: 'tab-media', subPath: 'jellyfin' })).toBe('#tab-media/jellyfin');

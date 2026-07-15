@@ -1,7 +1,7 @@
 {
   "name": "javdb-extension",
   "type": "module",
-  "version": "1.21.4",
+  "version": "1.21.5",
   "license": "AGPL-3.0-only",
   "description": "Jav 助手",
   "scripts": {
