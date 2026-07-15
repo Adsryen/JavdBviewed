@@ -15,13 +15,13 @@ describe('PageHeader pattern', () => {
         PageHeader,
         {
           title: '设置',
-          description: '选择要配置的设置项',
+          description: '页面说明文案',
           actions: createElement('button', { type: 'button' }, '操作'),
         },
       ),
     );
     expect(html).toContain('设置');
-    expect(html).toContain('选择要配置的设置项');
+    expect(html).toContain('页面说明文案');
     expect(html).toContain('操作');
     expect(html).toContain('data-ui-pattern="page-header"');
     expect(html).toContain('text-[var(--color-fg)]');

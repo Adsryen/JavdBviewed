@@ -34,7 +34,6 @@ export function SettingsIndexPage() {
         className="si-header settings-index-header"
         align="center"
         title="设置"
-        description="选择要配置的设置项"
       />
 
       {/* 遗留全站设置搜索（jdb-settings-search）挂载点；initSettingsTab 会注入 */}
