@@ -12,6 +12,10 @@ export const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
   'global-actions',
   'advanced-settings',
   'log-settings',
+  'update-settings',
+  'about-settings',
+  'privacy-settings',
+  'search-engine-settings',
 ]);
 
 /**

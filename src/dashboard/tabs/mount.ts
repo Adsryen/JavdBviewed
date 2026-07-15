@@ -64,6 +64,31 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
             );
             mountLogSettingsPage('#tab-settings');
           },
+          'update-settings': async () => {
+            const { mountUpdateSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/update/mountUpdateSettingsPage'
+            );
+            mountUpdateSettingsPage('#tab-settings');
+          },
+          // about 已合并到 update
+          'about-settings': async () => {
+            const { mountUpdateSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/update/mountUpdateSettingsPage'
+            );
+            mountUpdateSettingsPage('#tab-settings');
+          },
+          'privacy-settings': async () => {
+            const { mountPrivacySettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/privacy/mountPrivacySettingsPage'
+            );
+            mountPrivacySettingsPage('#tab-settings');
+          },
+          'search-engine-settings': async () => {
+            const { mountSearchEngineSettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/searchEngine/mountSearchEngineSettingsPage'
+            );
+            mountSearchEngineSettingsPage('#tab-settings');
+          },
         };
 
         const reactMount = reactFullMounts[subSection];

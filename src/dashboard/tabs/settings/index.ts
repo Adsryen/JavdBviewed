@@ -37,6 +37,10 @@ const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
     'global-actions',
     'advanced-settings',
     'log-settings',
+    'update-settings',
+    'about-settings',
+    'privacy-settings',
+    'search-engine-settings',
 ]);
 
 function isReactFullSettingsPage(subSection: string | null | undefined): boolean {
@@ -49,7 +53,10 @@ function isReactFullSettingsPage(subSection: string | null | undefined): boolean
         document.querySelector('[data-sync-settings-react]') ||
         document.querySelector('[data-global-actions-react]') ||
         document.querySelector('[data-advanced-settings-react]') ||
-        document.querySelector('[data-log-settings-react]')
+        document.querySelector('[data-log-settings-react]') ||
+        document.querySelector('[data-update-settings-react]') ||
+        document.querySelector('[data-privacy-settings-react]') ||
+        document.querySelector('[data-search-engine-settings-react]')
     );
 }
 
@@ -186,16 +193,6 @@ export async function initSettingsPage(): Promise<void> {
                 const panel = await getAiSettings();
                 panel.init();
             },
-            'search-engine-settings': async () => {
-                const { getSearchEngineSettings } = await import('./searchEngine');
-                const panel = await getSearchEngineSettings();
-                panel.init();
-            },
-            'privacy-settings': async () => {
-                const { getPrivacySettings } = await import('./privacy');
-                const panel = await getPrivacySettings();
-                panel.init();
-            },
             'emby-settings': async () => {
                 const { getEmbySettings } = await import('./emby');
                 const panel = await getEmbySettings();
@@ -219,16 +216,6 @@ export async function initSettingsPage(): Promise<void> {
             'network-test-settings': async () => {
                 const { getNetworkTestSettings } = await import('./networkTest');
                 const panel = await getNetworkTestSettings();
-                panel.init();
-            },
-            'update-settings': async () => {
-                const { getUpdateSettings } = await import('./update');
-                const panel = await getUpdateSettings();
-                panel.init();
-            },
-            'about-settings': async () => {
-                const { getUpdateSettings } = await import('./update');
-                const panel = await getUpdateSettings();
                 panel.init();
             },
         };
@@ -290,16 +277,6 @@ export async function initSettingsTab(): Promise<void> {
                 const panel = await getAiSettings();
                 panel.init();
             },
-            'search-engine-settings': async () => {
-                const { getSearchEngineSettings } = await import('./searchEngine');
-                const panel = await getSearchEngineSettings();
-                panel.init();
-            },
-            'privacy-settings': async () => {
-                const { getPrivacySettings } = await import('./privacy');
-                const panel = await getPrivacySettings();
-                panel.init();
-            },
             'emby-settings': async () => {
                 const { getEmbySettings } = await import('./emby');
                 const panel = await getEmbySettings();
@@ -323,16 +300,6 @@ export async function initSettingsTab(): Promise<void> {
             'network-test-settings': async () => {
                 const { getNetworkTestSettings } = await import('./networkTest');
                 const panel = await getNetworkTestSettings();
-                panel.init();
-            },
-            'update-settings': async () => {
-                const { getUpdateSettings } = await import('./update');
-                const panel = await getUpdateSettings();
-                panel.init();
-            },
-            'about-settings': async () => {
-                const { getUpdateSettings } = await import('./update');
-                const panel = await getUpdateSettings();
                 panel.init();
             },
         };
