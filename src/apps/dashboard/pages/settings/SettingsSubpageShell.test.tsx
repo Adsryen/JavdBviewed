@@ -32,6 +32,7 @@ describe('SettingsSubpageShell', () => {
     expect(html).toContain('id="hideViewed"');
     expect(html).toContain('id="hideWant"');
     expect(html).toContain('data-action="back-to-settings"');
+    expect(html).toContain('ssp-back-bar');
     expect(html).toContain('列表显示设置');
   });
 });

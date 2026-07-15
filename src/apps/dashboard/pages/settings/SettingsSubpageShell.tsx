@@ -1,6 +1,6 @@
 /**
  * @file SettingsSubpageShell.tsx
- * @description 设置子页 React 壳：返回栏 + 标题 + 内容区（partial HTML 由 React 托管注入）
+ * @description 设置子页 React 壳：返回栏固定左上 + 居中标题 + partial 内容区
  * @module apps/dashboard/pages/settings
  */
 import { PageHeader } from '../../../../ui/patterns/PageHeader/PageHeader';
@@ -15,7 +15,7 @@ export type SettingsSubpageShellProps = {
 };
 
 /**
- * 子设置页外壳
+ * 子设置页外壳（与 SettingsPageFrame 同一返回钮布局）
  */
 export function SettingsSubpageShell({
   title,
@@ -25,24 +25,22 @@ export function SettingsSubpageShell({
 }: SettingsSubpageShellProps) {
   return (
     <div className="ssp-page" data-settings-subpage="react-shell">
-      <PageHeader
-        className="ssp-header"
-        align="center"
-        eyebrow={
-          <button
-            type="button"
-            className="ssp-back"
-            data-action="back-to-settings"
-          >
-            ← 返回设置
-          </button>
-        }
-        title={title}
-        description={description}
-      />
+      <div className="ssp-back-bar">
+        <button type="button" className="ssp-back" data-action="back-to-settings">
+          ← 返回设置
+        </button>
+      </div>
+      <div className="mx-auto w-full max-w-3xl px-1">
+        <PageHeader
+          className="ssp-header"
+          align="center"
+          title={title}
+          description={description}
+        />
+      </div>
       {/* 关键：partial 必须走 React 属性注入，禁止 render 后再 body.innerHTML=... */}
       <div
-        className="ssp-body"
+        className="ssp-body mx-auto w-full max-w-3xl px-1"
         id={bodyHostId}
         data-settings-panel-host="1"
         dangerouslySetInnerHTML={{ __html: panelHtml }}

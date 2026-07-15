@@ -1,6 +1,6 @@
 /**
  * @file settingsPageFrame.tsx
- * @description 设置子页共用外框：返回栏 + 标题/说明 + 内容区
+ * @description 设置子页共用外框：返回钮固定左上，标题/正文居中限宽
  * @module apps/dashboard/pages/settings/shared
  */
 import type { ReactNode } from 'react';
@@ -18,7 +18,9 @@ export type SettingsPageFrameProps = {
 };
 
 /**
- * 全页 React 设置页外框（复用 .ssp-back 样式）
+ * 全页 React 设置页外框
+ * - 返回钮始终贴内容宿主左上，不随 max-w 居中栏漂移
+ * - 标题与正文在 max-w-3xl 内居中
  */
 export function SettingsPageFrame({
   title,
@@ -29,22 +31,19 @@ export function SettingsPageFrame({
 }: SettingsPageFrameProps) {
   return (
     <div
-      className={cn('mx-auto w-full max-w-3xl px-1 pb-8', className)}
+      className={cn('ssp-page w-full min-w-0 pb-8', className)}
       data-settings-stack="react-full"
       {...rootDataAttrs}
     >
-      <PageHeader
-        className="mb-5"
-        align="center"
-        eyebrow={
-          <button type="button" className="ssp-back" data-action="back-to-settings">
-            ← 返回设置
-          </button>
-        }
-        title={title}
-        description={description}
-      />
-      {children}
+      <div className="ssp-back-bar">
+        <button type="button" className="ssp-back" data-action="back-to-settings">
+          ← 返回设置
+        </button>
+      </div>
+      <div className="mx-auto w-full max-w-3xl px-1">
+        <PageHeader className="mb-5" align="center" title={title} description={description} />
+        {children}
+      </div>
     </div>
   );
 }

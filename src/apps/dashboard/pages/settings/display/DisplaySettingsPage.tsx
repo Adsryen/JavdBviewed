@@ -4,11 +4,11 @@
  * @module apps/dashboard/pages/settings/display
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PageHeader } from '../../../../../ui/patterns/PageHeader/PageHeader';
 import { SettingSection } from '../../../../../ui/patterns/SettingSection/SettingSection';
 import { SettingToggleRow } from '../../../../../ui/patterns/SettingToggleRow/SettingToggleRow';
 import type { ExtensionSettings } from '../../../../../types';
 import { getSettings, saveSettings } from '../../../../../utils/storage';
+import { SettingsPageFrame } from '../shared/settingsPageFrame';
 import {
   ACTOR_LIST_FILTER_FIELDS,
   applyDisplayFormToSettings,
@@ -130,27 +130,12 @@ export function DisplaySettingsPage() {
   );
 
   return (
-    <div
-      className="dsp-page mx-auto w-full max-w-3xl px-1 pb-8"
-      data-display-settings-react="1"
-      data-settings-stack="react-display"
+    <SettingsPageFrame
+      className="dsp-page"
+      title="列表显示设置"
+      description="控制在JavDB网站上访问时，是否自动隐藏符合条件的影片。"
+      rootDataAttrs={{ 'data-display-settings-react': '1' }}
     >
-      <PageHeader
-        className="mb-5"
-        align="center"
-        eyebrow={
-          <button
-            type="button"
-            className="ssp-back"
-            data-action="back-to-settings"
-          >
-            ← 返回设置
-          </button>
-        }
-        title="列表显示设置"
-        description="控制在JavDB网站上访问时，是否自动隐藏符合条件的影片。"
-      />
-
       {loading ? (
         <p className="m-0 text-[13px] text-[var(--color-fg-muted)]">加载中…</p>
       ) : (
@@ -199,6 +184,6 @@ export function DisplaySettingsPage() {
           ) : null}
         </div>
       )}
-    </div>
+    </SettingsPageFrame>
   );
 }

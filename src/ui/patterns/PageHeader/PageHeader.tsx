@@ -46,9 +46,7 @@ export function PageHeader({
       {...rest}
     >
       <div className={cn('min-w-0 flex-1', centered ? 'text-center' : undefined)}>
-        {eyebrow ? (
-          <div className={cn('mb-3', centered ? 'text-left' : undefined)}>{eyebrow}</div>
-        ) : null}
+        {eyebrow ? <div className="mb-3">{eyebrow}</div> : null}
         <h2
           className={cn(
             'm-0 text-[22px] font-bold tracking-tight text-[var(--color-fg)]',

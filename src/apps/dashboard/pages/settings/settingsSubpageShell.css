@@ -1,6 +1,6 @@
 /**
  * @file settingsSubpageShell.css
- * @description 设置子页 React 壳布局
+ * @description 设置子页 React 壳 / 全页共用布局
  * @module apps/dashboard/pages/settings
  */
 .ssp-page {
@@ -9,7 +9,16 @@
   color: var(--color-fg, var(--text-primary));
 }
 
-/* PageHeader 宿主：保留返回钮 + 居中标题间距 */
+/* 返回栏：始终贴宿主左上，不参与标题居中 */
+.ssp-back-bar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 0 4px;
+}
+
+/* PageHeader 宿主：居中标题间距 */
 .ssp-header {
   margin-bottom: 20px;
 }
@@ -28,7 +37,11 @@
 }
 
 .ssp-back:hover {
-  border-color: color-mix(in srgb, var(--color-primary, var(--primary)) 35%, var(--color-border, var(--border-primary)));
+  border-color: color-mix(
+    in srgb,
+    var(--color-primary, var(--primary)) 35%,
+    var(--color-border, var(--border-primary))
+  );
 }
 
 .ssp-body {
