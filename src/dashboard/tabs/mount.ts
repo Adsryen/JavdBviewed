@@ -89,6 +89,12 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
             );
             mountSearchEngineSettingsPage('#tab-settings');
           },
+          'ai-settings': async () => {
+            const { mountAISettingsPage } = await import(
+              '../../apps/dashboard/pages/settings/ai/mountAISettingsPage'
+            );
+            mountAISettingsPage('#tab-settings');
+          },
         };
 
         const reactMount = reactFullMounts[subSection];

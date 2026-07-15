@@ -16,6 +16,7 @@ export const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
   'about-settings',
   'privacy-settings',
   'search-engine-settings',
+  'ai-settings',
 ]);
 
 /**

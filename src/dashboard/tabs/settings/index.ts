@@ -41,6 +41,7 @@ const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
     'about-settings',
     'privacy-settings',
     'search-engine-settings',
+    'ai-settings',
 ]);
 
 function isReactFullSettingsPage(subSection: string | null | undefined): boolean {
@@ -56,7 +57,8 @@ function isReactFullSettingsPage(subSection: string | null | undefined): boolean
         document.querySelector('[data-log-settings-react]') ||
         document.querySelector('[data-update-settings-react]') ||
         document.querySelector('[data-privacy-settings-react]') ||
-        document.querySelector('[data-search-engine-settings-react]')
+        document.querySelector('[data-search-engine-settings-react]') ||
+        document.querySelector('[data-ai-settings-react]')
     );
 }
 
@@ -188,11 +190,6 @@ export async function initSettingsPage(): Promise<void> {
 
         // 根据子路径初始化对应的设置模块（仅 shell + partial 页）
         const moduleMap: Record<string, () => Promise<void>> = {
-            'ai-settings': async () => {
-                const { getAiSettings } = await import('./ai');
-                const panel = await getAiSettings();
-                panel.init();
-            },
             'emby-settings': async () => {
                 const { getEmbySettings } = await import('./emby');
                 const panel = await getEmbySettings();
@@ -272,11 +269,6 @@ export async function initSettingsTab(): Promise<void> {
 
         // 仅 shell + partial 页走遗留 init
         const moduleMap: Record<string, () => Promise<void>> = {
-            'ai-settings': async () => {
-                const { getAiSettings } = await import('./ai');
-                const panel = await getAiSettings();
-                panel.init();
-            },
             'emby-settings': async () => {
                 const { getEmbySettings } = await import('./emby');
                 const panel = await getEmbySettings();
