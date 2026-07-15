@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const auditedFiles = [
-  'src/dashboard/partials/tabs/media.html',
+  'src/apps/dashboard/pages/media/MediaLibraryPage.tsx',
   'src/dashboard/tabs/insights/samplePreviewModel.ts',
   'src/dashboard/tabs/insights/reportExportModel.ts',
   'src/dashboard/tabs/insights/reportGenerationModel.ts',

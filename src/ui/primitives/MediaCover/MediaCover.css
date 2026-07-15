@@ -1,0 +1,159 @@
+/**
+ * @file MediaCover.css
+ * @description 媒体封面 16:9 高度合约（frame + aspect-ratio，组件自包含）
+ * @module ui/primitives
+ */
+
+.ui-media-cover {
+  --ui-media-cover-radius: 14px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  /* 外层不参与 absolute，避免在 grid 中脱离文档流 */
+  position: relative;
+  flex: none;
+}
+
+/* 文档流高度来源：宽定、高按 16:9 */
+.ui-media-cover__frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  min-height: 120px; /* 极端情况下兜底，防止再出现细条 */
+  border-radius: var(--ui-media-cover-radius);
+  overflow: hidden;
+  border: 1px solid var(--color-border, var(--border-primary, #e5e7eb));
+  background: var(--color-surface-2, var(--surface-secondary, #f8fafc));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  isolation: isolate;
+}
+
+/* 不支持 aspect-ratio 的回退（老内核） */
+@supports not (aspect-ratio: 16 / 9) {
+  .ui-media-cover__frame {
+    height: 0;
+    padding-top: 56.25%;
+    min-height: 0;
+  }
+}
+
+.ui-media-cover__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: scale(1);
+  transform-origin: 50% 50%;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
+.ui-media-cover__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 42%, rgba(8, 12, 20, 0.88) 100%);
+}
+
+.ui-media-cover__badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.ui-media-cover__footer {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  color: #f8fafc;
+  pointer-events: none;
+}
+
+.ui-media-cover__play {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  background: transparent;
+}
+
+.ui-media-cover__play span {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, var(--primary, #3b82f6)),
+    var(--color-info, var(--info, #14b8a6))
+  );
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  transform: scale(0.96);
+  opacity: 0;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.ui-media-cover--hover-zoom:hover .ui-media-cover__frame,
+.ui-media-cover--hover-zoom:focus-within .ui-media-cover__frame {
+  border-color: color-mix(
+    in srgb,
+    var(--color-primary, var(--primary, #3b82f6)) 40%,
+    var(--color-border, var(--border-primary, #e5e7eb))
+  );
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.ui-media-cover--hover-zoom:hover .ui-media-cover__art,
+.ui-media-cover--hover-zoom:focus-within .ui-media-cover__art {
+  transform: scale(1.02);
+  transform-origin: 50% 50%;
+}
+
+.ui-media-cover--hover-zoom:hover .ui-media-cover__play,
+.ui-media-cover--hover-zoom:focus-within .ui-media-cover__play {
+  opacity: 1;
+}
+
+.ui-media-cover--hover-zoom:hover .ui-media-cover__play span,
+.ui-media-cover--hover-zoom:focus-within .ui-media-cover__play span {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-media-cover__art,
+  .ui-media-cover__play,
+  .ui-media-cover__play span {
+    transition: none !important;
+  }
+
+  .ui-media-cover--hover-zoom:hover .ui-media-cover__art,
+  .ui-media-cover--hover-zoom:focus-within .ui-media-cover__art {
+    transform: none !important;
+  }
+}

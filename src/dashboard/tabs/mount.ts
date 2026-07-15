@@ -69,6 +69,14 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
     const cfg = getTabPartial(tabId);
     if (!cfg) return;
 
+    // React/脚本自建 DOM 的 tab：不注入 HTML partial
+    if (cfg.skipPartial) {
+      if (cfg.styles && cfg.styles.length) {
+        await ensureStylesLoaded(cfg.styles);
+      }
+      return;
+    }
+
     const selector = `#${tabId}`;
     const el = document.querySelector(selector) as HTMLElement | null;
 

@@ -1,0 +1,23 @@
+/**
+ * @file globals.css
+ * @description 新 UI 栈全局样式：先 @import 主题变量与语义 token，再 Tailwind，最后基础页面规则
+ * @module ui/styles
+ */
+
+/* CSS 规范：所有 @import 必须在 @tailwind / 其它规则之前 */
+@import '../../dashboard/styles/01-settings/variables.css';
+@import '../tokens/semantic.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#storybook-root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--color-bg, var(--bg-primary));
+  color: var(--color-fg, var(--text-primary));
+  font-family: Inter, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}

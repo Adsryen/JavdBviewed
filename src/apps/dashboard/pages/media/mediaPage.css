@@ -1,0 +1,401 @@
+/**
+ * @file mediaPage.css
+ * @description 媒体库页面布局：筛选 / 轮播堆叠定位 / 网格。封面高度与悬浮由 MediaCover 负责。
+ * @module apps/dashboard/pages/media
+ *
+ * 布局合约：
+ * - 列表网格必须 display:grid + gap，卡片 position:relative，禁止 absolute
+ * - 仅 .ml-hero-card 允许 absolute（轮播堆叠）
+ * - 轮播区 isolation + overflow:hidden，不得盖住下方列表
+ */
+
+.ml-page {
+  --ml-gap: 18px;
+  display: grid;
+  gap: var(--ml-gap);
+  width: 100%;
+  min-width: 0;
+  color: var(--color-fg, var(--text-primary));
+  position: relative;
+}
+
+.ml-page *,
+.ml-page *::before,
+.ml-page *::after {
+  box-sizing: border-box;
+}
+
+.ml-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ml-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.ml-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ml-chip {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface-2, var(--surface-secondary));
+  color: var(--color-fg-muted, var(--text-secondary));
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ml-chip.is-active {
+  border-color: color-mix(in srgb, var(--color-primary, var(--primary)) 40%, var(--color-border, var(--border-primary)));
+  background: color-mix(in srgb, var(--color-primary, var(--primary)) 12%, var(--color-surface, var(--surface-primary)));
+  color: var(--color-primary, var(--primary));
+}
+
+.ml-search {
+  min-width: 220px;
+}
+
+/* —— 轮播：独立层，裁剪溢出，避免盖住列表 —— */
+.ml-hero {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  overflow: hidden !important;
+  border-radius: 16px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background:
+    radial-gradient(ellipse 70% 80% at 50% 40%, color-mix(in srgb, var(--color-primary, var(--primary)) 10%, transparent), transparent 60%),
+    var(--color-surface-2, var(--surface-secondary));
+  padding: 22px 44px 44px;
+}
+
+.ml-hero-track {
+  --ml-hero-w: min(520px, 48vw);
+  --ml-hero-h: calc(var(--ml-hero-w) * 9 / 16);
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: var(--ml-hero-h);
+  min-height: 168px;
+  max-height: 300px;
+  overflow: visible;
+}
+
+.ml-hero-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--ml-hero-w) !important;
+  height: var(--ml-hero-h) !important;
+  max-height: 300px !important;
+  border: 0 !important;
+  border-radius: 16px;
+  overflow: hidden;
+  transform-origin: center center;
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.42s ease, filter 0.42s ease, box-shadow 0.42s ease;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  color: inherit;
+  text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
+  will-change: transform, opacity;
+}
+
+.ml-hero-card .ui-media-cover,
+.ml-hero-card .ui-media-cover__frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  border-radius: 16px;
+}
+
+.ml-hero-card:hover,
+.ml-hero-card:focus,
+.ml-hero-card:active,
+.ml-hero-card:focus-visible {
+  outline: none;
+  background: transparent !important;
+}
+
+.ml-hero-card[data-pos='-2'] {
+  transform: translate3d(-50%, -50%, 0) translateX(-92%) scale(0.82) !important;
+  opacity: 0.48;
+  z-index: 1;
+  filter: saturate(0.78) brightness(0.88);
+}
+
+.ml-hero-card[data-pos='-1'] {
+  transform: translate3d(-50%, -50%, 0) translateX(-52%) scale(0.92) !important;
+  opacity: 0.78;
+  z-index: 2;
+}
+
+.ml-hero-card[data-pos='0'] {
+  transform: translate3d(-50%, -50%, 0) scale(1) !important;
+  opacity: 1;
+  z-index: 5;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28), 0 0 0 1px color-mix(in srgb, var(--color-primary, var(--primary)) 35%, transparent);
+  cursor: default;
+}
+
+.ml-hero-card[data-pos='1'] {
+  transform: translate3d(-50%, -50%, 0) translateX(52%) scale(0.92) !important;
+  opacity: 0.78;
+  z-index: 2;
+}
+
+.ml-hero-card[data-pos='2'] {
+  transform: translate3d(-50%, -50%, 0) translateX(92%) scale(0.82) !important;
+  opacity: 0.48;
+  z-index: 1;
+  filter: saturate(0.78) brightness(0.88);
+}
+
+.ml-hero-card[data-pos='hide'] {
+  transform: translate3d(-50%, -50%, 0) scale(0.72) !important;
+  opacity: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ml-hero-meta-inline {
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.ml-hero-nav {
+  position: absolute;
+  z-index: 8;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: color-mix(in srgb, var(--color-surface, var(--surface-primary)) 88%, transparent);
+  color: var(--color-fg, var(--text-primary));
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.ml-hero-nav.prev { left: 10px; }
+.ml-hero-nav.next { right: 10px; }
+
+.ml-hero-dots {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.ml-hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--color-fg-subtle, var(--text-muted)) 55%, transparent);
+  cursor: pointer;
+}
+
+.ml-hero-dot.is-active {
+  width: 18px;
+  background: var(--color-primary, var(--primary));
+}
+
+/* —— 列表区：独立层，高于轮播，正常文档流网格 —— */
+.ml-catalog {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+
+.ml-section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ml-section-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.ml-section-head span {
+  color: var(--color-fg-muted, var(--text-secondary));
+  font-size: 12.5px;
+}
+
+.ml-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+  grid-auto-rows: auto !important;
+  grid-auto-flow: row !important;
+  gap: 18px 14px !important;
+  align-items: start !important;
+  position: relative !important;
+  width: 100%;
+  min-width: 0;
+}
+
+/* 列表卡片：必须在文档流中，禁止 absolute/fixed */
+.ml-card {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  text-align: left !important;
+  cursor: pointer;
+  font: inherit;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  transition: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  box-shadow: none !important;
+  z-index: auto !important;
+  float: none !important;
+  clear: none !important;
+}
+
+.ml-card:hover,
+.ml-card:focus,
+.ml-card:active,
+.ml-card:focus-visible {
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none;
+}
+
+.ml-card .ui-media-cover {
+  display: block;
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.ml-code {
+  display: inline-flex;
+  width: max-content;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.75);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ml-card-title {
+  font-size: 13.5px;
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f8fafc;
+}
+
+.ml-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+  color: var(--color-fg-muted, var(--text-secondary));
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.ml-empty {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border-strong, var(--border-hover));
+  background: var(--color-surface-2, var(--surface-secondary));
+}
+
+.ml-note {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border, var(--border-primary));
+  background: var(--color-surface-2, var(--surface-secondary));
+  color: var(--color-fg-muted, var(--text-secondary));
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .ml-search { min-width: 0; width: 100%; }
+  .ml-hero { padding: 14px 36px 36px; }
+  .ml-hero-track {
+    --ml-hero-w: min(300px, 78vw);
+  }
+  .ml-hero-card {
+    width: var(--ml-hero-w) !important;
+    height: calc(var(--ml-hero-w) * 9 / 16) !important;
+  }
+  .ml-hero-card[data-pos='-2'],
+  .ml-hero-card[data-pos='2'] {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .ml-hero-card[data-pos='-1'] {
+    transform: translate3d(-50%, -50%, 0) translateX(-42%) scale(0.88) !important;
+  }
+  .ml-hero-card[data-pos='1'] {
+    transform: translate3d(-50%, -50%, 0) translateX(42%) scale(0.88) !important;
+  }
+  .ml-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+  }
+}

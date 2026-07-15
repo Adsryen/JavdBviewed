@@ -7,6 +7,11 @@ import { prefetchStyles } from '../loaders/stylesLoader';
 export type TabPartialResource = {
   name: string;
   styles?: string[];
+  /**
+   * 为 true 时表示该 tab 由 React/脚本自建 DOM，跳过 HTML partial 注入
+   * （仍可挂载 styles，若数组非空）
+   */
+  skipPartial?: boolean;
 };
 
 export const TAB_PARTIALS: Partial<Record<string, TabPartialResource>> = {
@@ -66,12 +71,11 @@ export const TAB_PARTIALS: Partial<Record<string, TabPartialResource>> = {
       './styles/05-pages/drive115Tasks.css',
     ],
   },
-  // 媒体库
+  // 媒体库：React 页自建 DOM，跳过 HTML partial（少双轨）
   'tab-media': {
     name: 'tabs/media.html',
-    styles: [
-      './styles/05-pages/media.css',
-    ],
+    skipPartial: true,
+    styles: [],
   },
   // 回收站
   'tab-recycle-bin': {

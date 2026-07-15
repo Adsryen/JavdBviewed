@@ -45,6 +45,7 @@ import {
     initializeDashboardThemeForDom,
     mountDashboardThemeSwitcher,
 } from './themeBootstrap';
+import { mountDashboardShell } from './shell/mountDashboardShell';
 
 initializeDashboardThemeEarly();
 installDashboardConsoleProxy();
@@ -94,24 +95,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     await initializeDashboardThemeForDom();
 
-    // Ensure layout skeleton is mounted before any DOM access
+    // W2: React shell owns chrome layout (topbar + tab hosts). Less dual-track than skeleton partials.
     try {
-        await ensureMounted('#app-root', 'layout/skeleton.html');
-    } catch {}
-
-    registerDashboardPrivacyLockHandler();
-
-    // Mount layout fragments and ensure layout styles are present
-    try {
-        // 顶层 Topbar（品牌横跨整个容器）
-        await ensureMounted('#layout-topbar-root', 'layout/topbar.html');
-        // 左侧侧栏与顶部 tabs 导航
-        await ensureMounted('#layout-tabs-nav-root', 'layout/tabs-nav.html');
-        // 注入对应样式
+        mountDashboardShell('#app-root');
         await ensureStylesLoaded([
             './styles/04-components/layout.css',
         ]);
-    } catch {}
+        console.log('[Dashboard] React shell mounted');
+    } catch (error) {
+        console.error('[Dashboard] React shell mount failed, falling back to HTML skeleton', error);
+        try {
+            await ensureMounted('#app-root', 'layout/skeleton.html');
+            await ensureMounted('#layout-topbar-root', 'layout/topbar.html');
+            await ensureMounted('#layout-tabs-nav-root', 'layout/tabs-nav.html');
+            await ensureStylesLoaded(['./styles/04-components/layout.css']);
+        } catch {}
+    }
+
+    registerDashboardPrivacyLockHandler();
 
     await initializeGlobalState();
     reportDashboardOpenTelemetry();

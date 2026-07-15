@@ -5,6 +5,7 @@
     "module": "ESNext",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "strict": true,
     "useUnknownInCatchVariables": false,
     "sourceMap": true,
@@ -17,7 +18,7 @@
     "types": ["chrome", "node"],
     "skipLibCheck": true
   },
-  "include": ["src", "scripts"],
+  "include": ["src", "scripts", ".storybook"],
   "exclude": [
     "src/**/*.test.ts",
     "src/**/*.test.tsx",

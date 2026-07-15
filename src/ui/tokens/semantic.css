@@ -1,0 +1,48 @@
+/* Semantic tokens for the new UI stack.
+ * Values alias the existing dashboard theme variables so light/dark
+ * continues to work via documentElement[data-theme].
+ * Source of truth during migration: styles/01-settings/variables.css
+ */
+:root {
+  /* surfaces */
+  --color-bg: var(--bg-primary);
+  --color-bg-subtle: var(--bg-secondary);
+  --color-bg-muted: var(--bg-tertiary);
+  --color-bg-hover: var(--bg-hover);
+  --color-surface: var(--surface-primary);
+  --color-surface-2: var(--surface-secondary);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-overlay: var(--surface-overlay);
+
+  /* text */
+  --color-fg: var(--text-primary);
+  --color-fg-muted: var(--text-secondary);
+  --color-fg-subtle: var(--text-muted);
+  --color-fg-inverse: var(--text-inverse);
+
+  /* borders */
+  --color-border: var(--border-primary);
+  --color-border-subtle: var(--border-secondary);
+  --color-border-strong: var(--border-hover);
+
+  /* brand / status */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-soft: var(--primary-light);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--error);
+  --color-info: var(--info);
+
+  /* effects */
+  --shadow-1: var(--shadow-sm);
+  --shadow-2: var(--shadow-md);
+  --shadow-3: var(--shadow-lg);
+  --radius-1: var(--radius-sm);
+  --radius-2: var(--radius-md);
+  --radius-3: var(--radius-lg);
+  --radius-4: var(--radius-xl);
+  --radius-pill: var(--radius-full);
+  --ring-focus: var(--ring);
+}

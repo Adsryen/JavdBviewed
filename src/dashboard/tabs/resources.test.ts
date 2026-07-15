@@ -8,10 +8,11 @@ import { describe, expect, it } from 'vitest';
 import { TAB_PARTIALS } from './resources';
 
 describe('Dashboard tab resources', () => {
-  it('registers the media library placeholder partial and styles', () => {
+  it('registers the media library as a React-owned tab without page CSS partial styles', () => {
     expect(TAB_PARTIALS['tab-media']).toEqual({
       name: 'tabs/media.html',
-      styles: ['./styles/05-pages/media.css'],
+      skipPartial: true,
+      styles: [],
     });
   });
 

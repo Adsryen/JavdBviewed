@@ -1,5 +1,7 @@
 /* ===================================================================
    主题变量系统 - Theme Variables System
+   New UI stack aliases: src/ui/tokens/semantic.css
+   Day/night: html[data-theme="light"|"dark"] via themeManager
    ================================================================ */
 
 /* ===================================================================

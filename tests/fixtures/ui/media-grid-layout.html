@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>媒体库网格布局自检</title>
+  <!-- 内联关键样式：不依赖 Vite，Playwright file:// 可测 -->
+  <style>
+    :root {
+      --bg-primary: #f5f7fb;
+      --text-primary: #0f172a;
+      --text-secondary: #64748b;
+      --border-primary: #e5e7eb;
+      --surface-primary: #fff;
+      --surface-secondary: #f8fafc;
+      --primary: #3b82f6;
+      --info: #14b8a6;
+    }
+    body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); padding: 24px; }
+
+    .ml-grid {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+      grid-auto-rows: auto !important;
+      gap: 18px 14px !important;
+      align-items: start !important;
+      width: 960px;
+      max-width: 100%;
+    }
+    .ml-card {
+      position: relative !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      transform: none !important;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      color: inherit;
+    }
+    .ui-media-cover { display: block; width: 100%; }
+    .ui-media-cover__frame {
+      position: relative;
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 120px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border-primary);
+      background: var(--surface-secondary);
+    }
+    .ui-media-cover__art { position: absolute; inset: 0; }
+    .ui-media-cover__shade {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, transparent 42%, rgba(8,12,20,.88) 100%);
+    }
+    .ui-media-cover__footer {
+      position: absolute; left: 12px; right: 12px; bottom: 12px;
+      color: #fff; font-weight: 700; font-size: 13px;
+    }
+    .ml-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+  <h1>媒体库网格布局自检</h1>
+  <p>用于 Playwright：卡片不得重叠，封面接近 16:9。</p>
+  <div class="ml-grid" id="mediaLibraryGrid" data-layout-check="media-grid"></div>
+  <script>
+    const items = [
+      { code: 'A-1', title: '卡片一', hue: 200 },
+      { code: 'A-2', title: '卡片二', hue: 330 },
+      { code: 'A-3', title: '卡片三', hue: 145 },
+      { code: 'A-4', title: '卡片四', hue: 40 },
+      { code: 'A-5', title: '卡片五', hue: 280 },
+      { code: 'A-6', title: '卡片六', hue: 170 },
+    ];
+    const grid = document.getElementById('mediaLibraryGrid');
+    for (const item of items) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ml-card';
+      btn.setAttribute('data-layout-card', item.code);
+      const bg = `linear-gradient(125deg, hsl(${item.hue} 48% 48%), hsl(${(item.hue + 36) % 360} 42% 28%))`;
+      btn.innerHTML = `
+        <div class="ui-media-cover">
+          <div class="ui-media-cover__frame">
+            <div class="ui-media-cover__art" style="background:${bg}"></div>
+            <div class="ui-media-cover__shade"></div>
+            <div class="ui-media-cover__footer">${item.code} · ${item.title}</div>
+          </div>
+        </div>
+        <div class="ml-meta"><span>Emby</span><span>2024</span></div>
+      `;
+      grid.appendChild(btn);
+    }
+  </script>
+</body>
+</html>
