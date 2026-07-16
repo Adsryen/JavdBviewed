@@ -31,15 +31,19 @@ function Show-Help {
     Write-Host "  .\scripts\release-history.ps1 reset" -ForegroundColor Gray
 }
 
+function Get-ReleaseHistoryPath {
+    return "docs/releases/release-history.json"
+}
+
 function Get-ReleaseHistory {
-    $releaseHistoryPath = "release-history.json"
+    $releaseHistoryPath = Get-ReleaseHistoryPath
     if (-not (Test-Path $releaseHistoryPath)) {
         return @{
             "releases" = @()
             "lastReleaseCommit" = $null
         }
     }
-    
+
     try {
         return Get-Content $releaseHistoryPath | ConvertFrom-Json
     } catch {
@@ -117,7 +121,11 @@ function Reset-ReleaseHistory {
     }
     
     try {
-        $resetHistory | ConvertTo-Json -Depth 10 | Set-Content "release-history.json" -Encoding UTF8
+        $dir = Split-Path -Parent (Get-ReleaseHistoryPath)
+        if ($dir -and -not (Test-Path $dir)) {
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        }
+        $resetHistory | ConvertTo-Json -Depth 10 | Set-Content (Get-ReleaseHistoryPath) -Encoding UTF8
         Write-Host "Release history has been reset successfully." -ForegroundColor Green
     } catch {
         Write-Host "Error resetting release history: $($_.Exception.Message)" -ForegroundColor Red

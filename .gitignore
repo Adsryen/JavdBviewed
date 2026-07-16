@@ -48,6 +48,8 @@ javdb-backup_*.json
 !tutorial/*.md
 !docs/*.md
 !docs/**/*.md
+!docs/releases/**
+!docs/releases/**/*.md
 !apps/**/README.md
 !packages/**/README.md
 !apps/extension/src/apps/**/README.md
