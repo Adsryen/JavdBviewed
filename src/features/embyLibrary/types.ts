@@ -61,6 +61,10 @@ export interface EmbyMediaItem {
   ServerId?: string;
   ImageTags?: Record<string, string>;
   PrimaryImageTag?: string;
+  BackdropImageTags?: string[];
+  ParentThumbImageTag?: string;
+  ParentPrimaryImageItemId?: string;
+  SeriesPrimaryImageTag?: string;
   RunTimeTicks?: number;
   UserData?: EmbyUserDataPayload;
   DateCreated?: string;
@@ -100,7 +104,13 @@ export interface EmbyLibraryIndexEntry {
   serverId?: string;
   itemName: string;                                   // 媒体名称
   path?: string;                                      // 文件路径
+  /** 默认封面（通常 Primary，兼容旧字段） */
   coverImageUrl?: string;
+  /**
+   * 多视图封面 URL（同步时生成，带 api_key）
+   * Primary=海报竖图，Thumb=略缩图横图，Backdrop=背景横图
+   */
+  imageUrls?: Partial<Record<'Primary' | 'Thumb' | 'Backdrop' | 'Logo' | 'Banner', string>>;
   /** 真实观看摘要（来自 UserData；ApiKey 场景下可能为空） */
   userData?: EmbyWatchUserData;
   updatedAt: number;

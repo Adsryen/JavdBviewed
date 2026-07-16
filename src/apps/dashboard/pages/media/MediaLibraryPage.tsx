@@ -19,14 +19,19 @@ import {
   coverArtStyle,
   filterMediaItems,
   heroItems,
+  MEDIA_COVER_VIEW_MODES,
   MEDIA_PREVIEW_ITEMS,
+  readCoverViewMode,
+  resolveCoverImageUrl,
   resumeMediaItems,
   type MediaBrowseItem,
   type MediaBrowseSource,
+  type MediaCoverViewMode,
   type MediaWatchFilter,
   relativeCarouselPos,
   sourceLabel,
   subPathToFilter,
+  writeCoverViewMode,
 } from './mediaBrowseModel';
 import {
   buildServerOpenUrl,
@@ -65,6 +70,7 @@ const EMPTY_STATE: EmbyLibraryState = { entries: {}, updatedAt: 0 };
 export function MediaLibraryPage() {
   const [filter, setFilter] = useState<MediaBrowseSource>('all');
   const [watchFilter, setWatchFilter] = useState<MediaWatchFilter>('all');
+  const [coverView, setCoverView] = useState<MediaCoverViewMode>(() => readCoverViewMode());
   const [query, setQuery] = useState('');
   const [heroIndex, setHeroIndex] = useState(0);
   const [catalog, setCatalog] = useState<MediaBrowseItem[]>(MEDIA_PREVIEW_ITEMS);
@@ -216,7 +222,7 @@ export function MediaLibraryPage() {
       : `本地索引 · ${catalog.length} 部${indexUpdatedAt ? ` · 更新于 ${new Date(indexUpdatedAt).toLocaleString()}` : ''}`;
 
   return (
-    <div className="ml-page" data-media-page data-media-stack="react">
+    <div className="ml-page" data-media-page data-media-stack="react" data-cover-view={coverView}>
       <div className="ml-toolbar">
         <PageHeader
           className="ml-page-header"
@@ -252,6 +258,21 @@ export function MediaLibraryPage() {
               onClick={() => setWatchFilter(f.id)}
             >
               {f.label}
+            </FilterChip>
+          ))}
+          <span className="ml-filter-sep" aria-hidden="true" />
+          {MEDIA_COVER_VIEW_MODES.map((m) => (
+            <FilterChip
+              key={`c-${m.id}`}
+              active={coverView === m.id}
+              data-media-cover-view={m.id}
+              title={m.hint}
+              onClick={() => {
+                setCoverView(m.id);
+                writeCoverViewMode(m.id);
+              }}
+            >
+              {m.label}
             </FilterChip>
           ))}
           <Button
@@ -322,8 +343,9 @@ export function MediaLibraryPage() {
                   <MediaCover
                     hoverZoom={false}
                     showPlayHint={false}
-                    imageUrl={item.coverImageUrl}
-                    artStyle={coverArtStyle(item)}
+                    fit="cover"
+                    imageUrl={resolveCoverImageUrl(item, coverView === 'poster' ? 'thumb' : coverView)}
+                    artStyle={coverArtStyle(item, coverView === 'poster' ? 'thumb' : coverView)}
                     alt={item.code}
                     footer={
                       <>
@@ -374,6 +396,8 @@ export function MediaLibraryPage() {
             {resumeList.map((item) => {
               const playUrl = buildServerPlayUrl(item) || buildServerOpenUrl(item);
               const pct = formatWatchPercent(item.userData);
+              // 继续观看条始终用横图，避免竖图裁切难看
+              const resumeCover = resolveCoverImageUrl(item, 'thumb') || item.coverImageUrl;
               return (
                 <a
                   key={`resume-${item.code}`}
@@ -389,12 +413,12 @@ export function MediaLibraryPage() {
                   <div
                     className="ml-resume-cover"
                     style={
-                      item.coverImageUrl
+                      resumeCover
                         ? {
-                            backgroundImage: `url("${String(item.coverImageUrl).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`,
+                            backgroundImage: `url("${String(resumeCover).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`,
                             backgroundColor: '#0f172a',
                           }
-                        : coverArtStyle(item)
+                        : coverArtStyle(item, 'thumb')
                     }
                   />
                   <div className="ml-resume-body">
@@ -430,7 +454,7 @@ export function MediaLibraryPage() {
         <div className="ml-section-head">
           <h3>片库条目</h3>
           <span>
-            {list.length} 部 · 竖版封面完整显示
+            {list.length} 部 · {coverView === 'poster' ? '海报竖版' : coverView === 'backdrop' ? '背景横图' : '略缩图横版'}
           </span>
         </div>
 
@@ -462,6 +486,7 @@ export function MediaLibraryPage() {
                 key={item.code}
                 item={item}
                 usingPreview={usingPreview}
+                coverView={coverView}
                 onWatchChanged={() => {
                   void reloadCatalogFromStorage();
                 }}
@@ -490,11 +515,13 @@ export function MediaLibraryPage() {
 function MediaCard({
   item,
   usingPreview,
+  coverView,
   onWatchChanged,
   onEnqueuedCleanup,
 }: {
   item: MediaBrowseItem;
   usingPreview: boolean;
+  coverView: MediaCoverViewMode;
   onWatchChanged?: () => void;
   onEnqueuedCleanup?: () => void;
 }) {
@@ -583,8 +610,9 @@ function MediaCard({
           }
         >
           <MediaCover
-            imageUrl={item.coverImageUrl}
-            artStyle={coverArtStyle(item)}
+            fit={coverView === 'poster' ? 'contain' : 'cover'}
+            imageUrl={resolveCoverImageUrl(item, coverView)}
+            artStyle={coverArtStyle(item, coverView)}
             alt={item.code}
             badges={
               <>

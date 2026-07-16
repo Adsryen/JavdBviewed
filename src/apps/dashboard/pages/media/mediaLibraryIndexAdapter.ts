@@ -93,6 +93,7 @@ export function mapLibraryStateToBrowseItems(state: EmbyLibraryState | null | un
       year: '',
       hue: hueFromCode(code),
       coverImageUrl: entry.coverImageUrl,
+      imageUrls: entry.imageUrls,
       serverName: entry.serverName,
       itemId: entry.itemId,
       serverUrl: entry.serverUrl,

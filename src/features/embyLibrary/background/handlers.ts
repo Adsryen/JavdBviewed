@@ -110,7 +110,7 @@ async function fetchAllMediaItems(
     Recursive: 'true',
     IncludeItemTypes: 'Movie',
     // UserData：真实观看进度；RunTimeTicks：推算百分比
-    Fields: 'Path,PrimaryImageAspectRatio,ImageTags,UserData,RunTimeTicks',
+    Fields: 'Path,PrimaryImageAspectRatio,ImageTags,PrimaryImageTag,BackdropImageTags,UserData,RunTimeTicks',
   });
   // 有用户会话时带 UserId，UserData 更完整
   if (server.userId) {

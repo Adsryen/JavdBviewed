@@ -93,12 +93,21 @@ export function generateVideoCodeSearchTerms(videoCode: string): string[] {
 }
 
 /**
- * 构建媒体封面图 URL（必须可在扩展页 CSS/img 无 Header 时加载）
- * 因此鉴权走 query：api_key（ApiKey 或 AccessToken 均可，Emby/JF 常见支持）
+ * Emby 图片类型（与 Images/{type} 路径一致）
  */
-export function buildMediaItemCoverImageUrl(
+export type EmbyImageType = 'Primary' | 'Thumb' | 'Backdrop' | 'Logo' | 'Banner';
+
+/**
+ * 构建单种封面图 URL（CSS/img 无 Header，鉴权走 api_key query）
+ */
+export function buildMediaItemImageUrl(
   server: Pick<EmbyMediaServer, 'url' | 'apiKey' | 'accessToken'>,
-  item: Pick<EmbyMediaItem, 'Id' | 'ImageTags' | 'PrimaryImageTag'>,
+  item: Pick<
+    EmbyMediaItem,
+    'Id' | 'ImageTags' | 'PrimaryImageTag' | 'BackdropImageTags' | 'ParentThumbImageTag'
+  >,
+  imageType: EmbyImageType = 'Primary',
+  opts?: { maxWidth?: number; maxHeight?: number; quality?: number },
 ): string | undefined {
   const itemId = String(item.Id || '').trim();
   if (!itemId) return undefined;
@@ -106,23 +115,66 @@ export function buildMediaItemCoverImageUrl(
   const serverUrl = normalizeServerUrl(server.url);
   if (!serverUrl) return undefined;
 
-  const primaryImageTag = String(item.ImageTags?.Primary || item.PrimaryImageTag || '').trim();
+  const tags = item.ImageTags || {};
+  let tag = '';
+  if (imageType === 'Primary') {
+    tag = String(tags.Primary || item.PrimaryImageTag || '').trim();
+  } else if (imageType === 'Thumb') {
+    tag = String(tags.Thumb || item.ParentThumbImageTag || '').trim();
+  } else if (imageType === 'Backdrop') {
+    const bt = item.BackdropImageTags;
+    tag = Array.isArray(bt) && bt[0] ? String(bt[0]).trim() : String(tags.Backdrop || '').trim();
+  } else {
+    tag = String((tags as any)[imageType] || '').trim();
+  }
+
+  // Primary 无 tag 仍可试默认图；其它类型无 tag 通常表示没有该图
+  if (!tag && imageType !== 'Primary') return undefined;
+
   const params = new URLSearchParams();
-  if (primaryImageTag) {
-    params.set('tag', primaryImageTag);
+  if (tag) params.set('tag', tag);
+  if (imageType === 'Backdrop' && Array.isArray(item.BackdropImageTags) && item.BackdropImageTags.length) {
+    // Backdrop 有时用 index
+    // 保持默认 index=0
   }
-  // 略缩图尺寸，减轻流量
-  params.set('maxHeight', '480');
-  params.set('quality', '90');
-  params.set('fillHeight', '480');
 
-  // CSS background-image 无法带 X-Emby-Token；必须 query 鉴权
+  const maxH = opts?.maxHeight ?? (imageType === 'Primary' ? 720 : 480);
+  const maxW = opts?.maxWidth ?? (imageType === 'Primary' ? 480 : 720);
+  const quality = opts?.quality ?? 90;
+  params.set('maxHeight', String(maxH));
+  params.set('maxWidth', String(maxW));
+  params.set('quality', String(quality));
+
   const auth = String(server.apiKey || server.accessToken || '').trim();
-  if (auth) {
-    params.set('api_key', auth);
-  }
+  if (auth) params.set('api_key', auth);
 
-  return `${serverUrl}/Items/${encodeURIComponent(itemId)}/Images/Primary?${params.toString()}`;
+  return `${serverUrl}/Items/${encodeURIComponent(itemId)}/Images/${imageType}?${params.toString()}`;
+}
+
+/**
+ * @deprecated 使用 buildMediaItemImageUrl(..., 'Primary')
+ */
+export function buildMediaItemCoverImageUrl(
+  server: Pick<EmbyMediaServer, 'url' | 'apiKey' | 'accessToken'>,
+  item: Pick<EmbyMediaItem, 'Id' | 'ImageTags' | 'PrimaryImageTag'>,
+): string | undefined {
+  return buildMediaItemImageUrl(server, item, 'Primary');
+}
+
+/**
+ * 收集条目可用的多视图封面 URL
+ */
+export function buildMediaItemImageUrlMap(
+  server: Pick<EmbyMediaServer, 'url' | 'apiKey' | 'accessToken'>,
+  item: EmbyMediaItem,
+): Partial<Record<EmbyImageType, string>> {
+  const map: Partial<Record<EmbyImageType, string>> = {};
+  const types: EmbyImageType[] = ['Primary', 'Thumb', 'Backdrop', 'Banner', 'Logo'];
+  for (const t of types) {
+    const url = buildMediaItemImageUrl(server, item, t);
+    if (url) map[t] = url;
+  }
+  return map;
 }
 
 export function buildLibraryIndex(
@@ -140,7 +192,9 @@ export function buildLibraryIndex(
     const code = extractCodeFromMediaItem(item);
     if (!code) continue;
 
-    const coverImageUrl = buildMediaItemCoverImageUrl(server, item);
+    const imageUrls = buildMediaItemImageUrlMap(server, item);
+    // 默认 cover：优先 Primary，其次 Thumb（略缩图），再 Backdrop
+    const coverImageUrl = imageUrls.Primary || imageUrls.Thumb || imageUrls.Backdrop;
     const userData = parseEmbyUserData(item.UserData, Number(item.RunTimeTicks) || 0);
     const entry: EmbyLibraryIndexEntry = {
       serverType: server.type || 'emby',
@@ -151,6 +205,7 @@ export function buildLibraryIndex(
       itemName: String(item.Name || code),
       path: item.Path,
       ...(coverImageUrl ? { coverImageUrl } : {}),
+      ...(Object.keys(imageUrls).length ? { imageUrls } : {}),
       ...(userData ? { userData } : {}),
       updatedAt: now,
     };

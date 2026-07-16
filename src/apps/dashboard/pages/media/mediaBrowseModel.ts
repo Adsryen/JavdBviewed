@@ -11,27 +11,36 @@ export type MediaBrowseSource = 'all' | 'emby' | 'jellyfin' | '115';
 /** 真实观看筛选（与来源筛选叠加） */
 export type MediaWatchFilter = 'all' | 'in_progress' | 'watched' | 'not_watched';
 
+/**
+ * 封面视图模式（对应 Emby 图片类型）
+ * - poster: Primary 竖版海报 2:3 contain
+ * - thumb: Thumb 横版略缩图 16:9 cover（默认）
+ * - backdrop: Backdrop 横版背景 16:9 cover
+ */
+export type MediaCoverViewMode = 'poster' | 'thumb' | 'backdrop';
+
+export const MEDIA_COVER_VIEW_MODES: { id: MediaCoverViewMode; label: string; hint: string }[] = [
+  { id: 'thumb', label: '略缩图', hint: '横版 Thumb，铺满 16:9（默认）' },
+  { id: 'poster', label: '海报', hint: '竖版 Primary，完整显示 2:3' },
+  { id: 'backdrop', label: '背景图', hint: '横版 Backdrop，铺满 16:9' },
+];
+
 export type MediaBrowseItem = {
   code: string;
   title: string;
   source: Exclude<MediaBrowseSource, 'all'>;
   year: string;
-  hue: number; // 无封面图时的渐变色相
+  hue: number;
   coverImageUrl?: string;
+  imageUrls?: Partial<Record<'Primary' | 'Thumb' | 'Backdrop' | 'Logo' | 'Banner', string>>;
   serverName?: string;
   itemId?: string;
   serverUrl?: string;
-  /** Emby/Jellyfin 服务端 ID，用于拼网页详情链接 */
   serverId?: string;
-  /** 真实观看摘要（Emby/JF UserData） */
   userData?: EmbyWatchUserData;
-  /** 推导后的展示态：已入库 / 在看 / 真实已看 */
   watchState?: MediaWatchState;
 };
 
-/**
- * 无真实索引时的预览片单
- */
 export const MEDIA_PREVIEW_ITEMS: MediaBrowseItem[] = [
   { code: 'SSIS-458', title: '恋人未满的同居生活', source: 'emby', year: '2022', hue: 330 },
   { code: 'STARS-712', title: '第一次的温泉旅行', source: 'jellyfin', year: '2023', hue: 200 },
@@ -47,21 +56,32 @@ export const MEDIA_PREVIEW_ITEMS: MediaBrowseItem[] = [
   { code: 'SSIS-790', title: '蓝色窗帘', source: 'emby', year: '2023', hue: 210 },
 ];
 
-/**
- * 根据条目色相生成预览封面渐变
- */
 export function coverGradient(item: MediaBrowseItem): string {
   const h = item.hue;
   return `linear-gradient(125deg, hsl(${h} 48% 48%), hsl(${(h + 36) % 360} 42% 28%) 50%, hsl(${(h + 18) % 360} 28% 14%))`;
 }
 
-/**
- * 封面 art 样式：优先真实封面图，否则渐变
- */
-export function coverArtStyle(item: MediaBrowseItem): { backgroundImage?: string; background: string } {
-  if (item.coverImageUrl) {
-    // 使用 backgroundImage 单独字段，避免 JSON 引号在部分环境下解析异常
-    const safeUrl = item.coverImageUrl.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+export function resolveCoverImageUrl(
+  item: MediaBrowseItem,
+  mode: MediaCoverViewMode = 'thumb',
+): string | undefined {
+  const map = item.imageUrls || {};
+  if (mode === 'poster') {
+    return map.Primary || item.coverImageUrl || map.Thumb || map.Backdrop;
+  }
+  if (mode === 'backdrop') {
+    return map.Backdrop || map.Thumb || map.Primary || item.coverImageUrl;
+  }
+  return map.Thumb || map.Backdrop || map.Primary || item.coverImageUrl;
+}
+
+export function coverArtStyle(
+  item: MediaBrowseItem,
+  mode: MediaCoverViewMode = 'thumb',
+): { backgroundImage?: string; background: string } {
+  const url = resolveCoverImageUrl(item, mode);
+  if (url) {
+    const safeUrl = url.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return {
       backgroundImage: `url("${safeUrl}")`,
       background: `${coverGradient(item)}`,
@@ -70,18 +90,12 @@ export function coverArtStyle(item: MediaBrowseItem): { backgroundImage?: string
   return { background: coverGradient(item) };
 }
 
-/**
- * 来源展示名
- */
 export function sourceLabel(source: MediaBrowseItem['source']): string {
   if (source === 'emby') return 'Emby';
   if (source === 'jellyfin') return 'Jellyfin';
   return '115';
 }
 
-/**
- * 按来源与关键词筛选片单
- */
 export function filterMediaItems(
   items: MediaBrowseItem[],
   filter: MediaBrowseSource,
@@ -106,9 +120,6 @@ export function filterMediaItems(
   });
 }
 
-/**
- * 续看列表：在看优先，其次按 lastPlayedAt
- */
 export function resumeMediaItems(items: MediaBrowseItem[], limit = 12): MediaBrowseItem[] {
   return items
     .filter((item) => item.watchState === 'in_progress' || (item.userData && item.userData.percent > 0 && item.watchState !== 'watched'))
@@ -116,9 +127,6 @@ export function resumeMediaItems(items: MediaBrowseItem[], limit = 12): MediaBro
     .slice(0, limit);
 }
 
-/**
- * 计算堆叠轮播中卡片相对中心的位置（环形）
- */
 export function relativeCarouselPos(index: number, active: number, len: number): number {
   if (len <= 0) return 0;
   let d = index - active;
@@ -127,19 +135,29 @@ export function relativeCarouselPos(index: number, active: number, len: number):
   return d;
 }
 
-/**
- * 轮播条使用的前几条条目
- */
 export function heroItems(items: MediaBrowseItem[]): MediaBrowseItem[] {
   return items.slice(0, 5);
 }
 
-/**
- * 兼容旧 hash 子路径到页内筛选
- */
 export function subPathToFilter(subPath?: string): MediaBrowseSource {
   if (subPath === 'emby') return 'emby';
   if (subPath === 'jellyfin') return 'jellyfin';
   if (subPath === '115') return '115';
   return 'all';
+}
+
+const COVER_VIEW_STORAGE_KEY = 'ml_cover_view_mode';
+
+export function readCoverViewMode(): MediaCoverViewMode {
+  try {
+    const v = localStorage.getItem(COVER_VIEW_STORAGE_KEY);
+    if (v === 'poster' || v === 'thumb' || v === 'backdrop') return v;
+  } catch { /* ignore */ }
+  return 'thumb';
+}
+
+export function writeCoverViewMode(mode: MediaCoverViewMode): void {
+  try {
+    localStorage.setItem(COVER_VIEW_STORAGE_KEY, mode);
+  } catch { /* ignore */ }
 }

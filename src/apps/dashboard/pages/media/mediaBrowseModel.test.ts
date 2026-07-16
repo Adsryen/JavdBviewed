@@ -8,9 +8,12 @@ import {
   filterMediaItems,
   heroItems,
   MEDIA_PREVIEW_ITEMS,
+  readCoverViewMode,
   relativeCarouselPos,
+  resolveCoverImageUrl,
   resumeMediaItems,
   subPathToFilter,
+  writeCoverViewMode,
   type MediaBrowseItem,
 } from './mediaBrowseModel';
 
@@ -64,5 +67,52 @@ describe('mediaBrowseModel', () => {
   it('exposes a non-empty hero strip from a catalog', () => {
     expect(heroItems(MEDIA_PREVIEW_ITEMS).length).toBeGreaterThan(0);
     expect(MEDIA_PREVIEW_ITEMS.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('resolves cover image by view mode with fallbacks', () => {
+    const item: MediaBrowseItem = {
+      ...MEDIA_PREVIEW_ITEMS[0],
+      coverImageUrl: 'http://x/primary-fallback',
+      imageUrls: {
+        Primary: 'http://x/primary',
+        Thumb: 'http://x/thumb',
+        Backdrop: 'http://x/backdrop',
+      },
+    };
+    expect(resolveCoverImageUrl(item, 'poster')).toBe('http://x/primary');
+    expect(resolveCoverImageUrl(item, 'thumb')).toBe('http://x/thumb');
+    expect(resolveCoverImageUrl(item, 'backdrop')).toBe('http://x/backdrop');
+    // 缺某种类型时回退
+    expect(resolveCoverImageUrl({ ...item, imageUrls: { Primary: 'http://x/primary' } }, 'thumb')).toBe(
+      'http://x/primary',
+    );
+    expect(resolveCoverImageUrl({ ...item, imageUrls: undefined }, 'poster')).toBe(
+      'http://x/primary-fallback',
+    );
+  });
+
+  it('persists cover view mode in localStorage', () => {
+    const store: Record<string, string> = {};
+    const ls = {
+      getItem: (k: string) => (k in store ? store[k] : null),
+      setItem: (k: string, v: string) => {
+        store[k] = String(v);
+      },
+      removeItem: (k: string) => {
+        delete store[k];
+      },
+    };
+    const original = (globalThis as any).localStorage;
+    Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true });
+    try {
+      writeCoverViewMode('poster');
+      expect(readCoverViewMode()).toBe('poster');
+      writeCoverViewMode('thumb');
+      expect(readCoverViewMode()).toBe('thumb');
+      writeCoverViewMode('backdrop');
+      expect(readCoverViewMode()).toBe('backdrop');
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', { value: original, configurable: true });
+    }
   });
 });

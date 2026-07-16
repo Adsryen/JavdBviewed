@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLibraryIndex,
   buildMediaItemCoverImageUrl,
+  buildMediaItemImageUrl,
+  buildMediaItemImageUrlMap,
   buildMediaItemUrl,
   buildMediaPlaybackUrl,
   findLibraryMatches,
@@ -171,20 +173,50 @@ describe('emby library index', () => {
     expect(url).toContain('http://192.168.1.10:8096/Items/item%2Fwith%20space/Images/Primary?');
     expect(url).toContain('tag=primary-tag-1');
     expect(url).toContain('api_key=secret');
-    expect(url).toContain('maxHeight=480');
+    // Primary 默认更高分辨率（海报）
+    expect(url).toContain('maxHeight=720');
+    expect(url).toContain('maxWidth=480');
     // 无图也可出 URL（部分条目 ImageTags 缺失仍可能有默认图）
     expect(buildMediaItemCoverImageUrl(embyServer, { Id: 'item-no-image', Name: 'ABC-003' })).toContain(
       '/Items/item-no-image/Images/Primary?',
     );
   });
 
-  it('stores cover URLs with api_key in library index entries', () => {
+  it('builds multi-type image URLs and only includes types with tags (except Primary)', () => {
+    const item = {
+      Id: 'item-multi',
+      Name: 'ABC-010',
+      ImageTags: { Primary: 'p1', Thumb: 't1' },
+      BackdropImageTags: ['b1'],
+    };
+    const thumb = buildMediaItemImageUrl(embyServer, item, 'Thumb');
+    expect(thumb).toContain('/Images/Thumb?');
+    expect(thumb).toContain('tag=t1');
+    expect(thumb).toContain('maxHeight=480');
+    expect(thumb).toContain('api_key=secret');
+
+    const backdrop = buildMediaItemImageUrl(embyServer, item, 'Backdrop');
+    expect(backdrop).toContain('/Images/Backdrop?');
+    expect(backdrop).toContain('tag=b1');
+
+    // Logo 无 tag → undefined
+    expect(buildMediaItemImageUrl(embyServer, item, 'Logo')).toBeUndefined();
+
+    const map = buildMediaItemImageUrlMap(embyServer, item);
+    expect(map.Primary).toContain('/Images/Primary?');
+    expect(map.Thumb).toContain('/Images/Thumb?');
+    expect(map.Backdrop).toContain('/Images/Backdrop?');
+    expect(map.Logo).toBeUndefined();
+  });
+
+  it('stores cover + imageUrls with api_key in library index entries', () => {
     const index = buildLibraryIndex(embyServer, [
       {
         Id: 'cover-item',
         Name: 'ABC-004 Cover Hit',
         Path: '/media/ABC-004.mkv',
-        ImageTags: { Primary: 'cover-tag' },
+        ImageTags: { Primary: 'cover-tag', Thumb: 'thumb-tag' },
+        BackdropImageTags: ['bd-tag'],
       },
     ], 123);
 
@@ -196,6 +228,11 @@ describe('emby library index', () => {
     );
     expect(index.entries['ABC-004'][0].coverImageUrl).toContain('api_key=secret');
     expect(index.entries['ABC-004'][0].coverImageUrl).toContain('tag=cover-tag');
+    expect(index.entries['ABC-004'][0].imageUrls?.Primary).toContain('/Images/Primary?');
+    expect(index.entries['ABC-004'][0].imageUrls?.Thumb).toContain('/Images/Thumb?');
+    expect(index.entries['ABC-004'][0].imageUrls?.Thumb).toContain('tag=thumb-tag');
+    expect(index.entries['ABC-004'][0].imageUrls?.Backdrop).toContain('/Images/Backdrop?');
+    expect(index.entries['ABC-004'][0].imageUrls?.Backdrop).toContain('tag=bd-tag');
   });
 
   it('builds Jellyfin media item links with the details route and server id', () => {
