@@ -28,6 +28,13 @@ import {
   recordAlarmFire,
   withAlarmDiagnostics,
 } from './alarmDiagnostics';
+import {
+  CLOUD_AUTO_SYNC_ALARM,
+  handleCloudAutoSyncAlarm,
+  registerCloudSyncMessageHandler,
+  registerCloudSyncStorageListener,
+  setupCloudAutoSyncAlarm,
+} from '../../features/cloudSync/backgroundCloudSync';
 
 // re-export for message handlers / tests
 export { ALARM_DIAGNOSTICS_STORAGE_KEY, readAlarmDiagnostics, recordAlarmFire };
@@ -42,6 +49,12 @@ export function initializeBackgroundAlarmWiring(): void {
   registerRecycleBinCleanupAlarm();
   registerBackgroundAlarmRouter();
   registerBackgroundSettingsChangeRouter();
+  // Cloud 自动同步：消息 + storage 监听 + 冷启动 ensure alarm
+  try {
+    registerCloudSyncMessageHandler();
+    registerCloudSyncStorageListener();
+    setupCloudAutoSyncAlarm().catch(() => {});
+  } catch {}
   // 冷启动也 ensure 新作品 alarm（onStartup 之外）
   newWorksScheduler.initialize().catch((e: any) => {
     console.warn('[Background] Failed to initialize new works scheduler on boot:', e?.message || e);
@@ -117,6 +130,19 @@ export function registerBackgroundAlarmRouter(): void {
       // 回收站清理
       if (name === RECYCLE_BIN_CLEANUP_ALARM) {
         void withAlarmDiagnostics(name, () => handleRecycleBinCleanup(), () => 'recycle-bin-cleanup').catch(() => {});
+        return;
+      }
+
+      // Cloud 自动同步
+      if (name === CLOUD_AUTO_SYNC_ALARM) {
+        void withAlarmDiagnostics(
+          name,
+          async () => {
+            await handleCloudAutoSyncAlarm(name);
+            return true;
+          },
+          () => 'cloud-auto-sync',
+        ).catch(() => {});
         return;
       }
 

@@ -543,6 +543,10 @@ function matchAdvBasic(r: VideoRecord, adv: Array<{ field: string; op: string; v
 export async function listsPut(record: ListRecord): Promise<void> {
   const db = await initDB();
   await db.put('lists', record);
+  try {
+    const { scheduleEnqueue, enqueueListChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueListChange(record));
+  } catch { /* cloud optional */ }
 }
 
 export async function listsBulkPut(records: ListRecord[]): Promise<void> {
@@ -558,6 +562,10 @@ export async function listsBulkPut(records: ListRecord[]): Promise<void> {
     try { await tx.done; } catch {}
     throw e;
   }
+  try {
+    const { scheduleEnqueue, enqueueListChanges } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueListChanges(records));
+  } catch { /* cloud optional */ }
 }
 
 export async function listsGet(id: string): Promise<ListRecord | undefined> {
@@ -699,6 +707,10 @@ export async function viewedPut(record: VideoRecord): Promise<ViewedPutResult> {
   await viewedStore.put(normalized as any);
   await syncViewedSecondaryIndexes(tx.objectStore('viewedByTag'), tx.objectStore('viewedByList'), oldRecord, normalized);
   await tx.done;
+  try {
+    const { scheduleEnqueue, enqueueVideoChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueVideoChange(normalized as VideoRecord));
+  } catch { /* cloud optional */ }
   return { success: true };
 }
 
@@ -707,6 +719,7 @@ export async function viewedBulkPut(records: VideoRecord[]): Promise<void> {
   const db = await initDB();
   const tx = db.transaction(['viewedRecords', 'viewedByTag', 'viewedByList'], 'readwrite');
   const viewedStore = tx.objectStore('viewedRecords');
+  const written: VideoRecord[] = [];
   try {
     for (const r of records) {
       const normalized = normalizeViewedRecord(r);
@@ -715,11 +728,18 @@ export async function viewedBulkPut(records: VideoRecord[]): Promise<void> {
       if (oldRecord?.deletedAt) continue;
       await viewedStore.put(normalized as any);
       await syncViewedSecondaryIndexes(tx.objectStore('viewedByTag'), tx.objectStore('viewedByList'), oldRecord, normalized);
+      written.push(normalized as VideoRecord);
     }
     await tx.done;
   } catch (e) {
     try { await tx.done; } catch {}
     throw e;
+  }
+  if (written.length) {
+    try {
+      const { scheduleEnqueue, enqueueVideoChanges } = await import('../../features/cloudSync/enqueueLocalChange');
+      scheduleEnqueue(() => enqueueVideoChanges(written));
+    } catch { /* cloud optional */ }
   }
 }
 
@@ -1563,23 +1583,35 @@ export async function actorsPut(record: ActorRecord): Promise<void> {
   const existing = await db.get('actors', record.id) as ActorRecord | undefined;
   if (existing?.deletedAt) return;
   await db.put('actors', record);
+  try {
+    const { scheduleEnqueue, enqueueActorChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueActorChange(record));
+  } catch { /* cloud optional */ }
 }
 
 export async function actorsBulkPut(records: ActorRecord[]): Promise<void> {
   if (!records || records.length === 0) return;
   const db = await initDB();
   const tx = db.transaction('actors', 'readwrite');
+  const written: ActorRecord[] = [];
   try {
     for (const r of records) {
       const existing = await tx.store.get(r.id) as ActorRecord | undefined;
       // 如果记录在回收站中，跳过更新（保留软删除状态）
       if (existing?.deletedAt) continue;
       await tx.store.put(r);
+      written.push(r);
     }
     await tx.done;
   } catch (e) {
     try { await tx.done; } catch {}
     throw e;
+  }
+  if (written.length) {
+    try {
+      const { scheduleEnqueue, enqueueActorChanges } = await import('../../features/cloudSync/enqueueLocalChange');
+      scheduleEnqueue(() => enqueueActorChanges(written));
+    } catch { /* cloud optional */ }
   }
 }
 
@@ -1771,6 +1803,10 @@ export async function newWorksPut(record: NewWorkRecord): Promise<void> {
   const db = await initDB();
   await db.put('newWorks', record);
   await newWorksDailyStatRefreshToday();
+  try {
+    const { scheduleEnqueue, enqueueNewWorkChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueNewWorkChange(record));
+  } catch { /* cloud optional */ }
 }
 
 export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
@@ -1784,7 +1820,7 @@ export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
     }
     await tx.done;
     console.log(`[IDB] newWorksBulkPut: 成功写入 ${records.length} 个作品到 IndexedDB`);
-    
+
     // 验证写入：立即读取确认
     const count = await db.count('newWorks');
     console.log(`[IDB] newWorksBulkPut: 写入后 IndexedDB 中共有 ${count} 个作品`);
@@ -1795,6 +1831,10 @@ export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
   }
   // 写入后刷新当日快照，确保趋势数据不因后续已读/清理而丢失
   await newWorksDailyStatRefreshToday();
+  try {
+    const { scheduleEnqueue, enqueueNewWorkChanges } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueNewWorkChanges(records));
+  } catch { /* cloud optional */ }
 }
 
 export async function newWorksDelete(id: string): Promise<void> {

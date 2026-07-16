@@ -1,6 +1,6 @@
 /**
  * @file index.ts
- * @description Cloud 同步扩展侧入口（配置/会话/API/本地实体适配/立即同步）
+ * @description Cloud 同步扩展侧入口（配置/会话/API/本地实体适配/立即同步/自动入队）
  * @module features/cloudSync
  */
 export {
@@ -32,3 +32,26 @@ export {
   SYNC_TYPE_LABELS,
   type TypeCountMap,
 } from './syncStats';
+export {
+  loadCloudAutoSyncSettings,
+  saveCloudAutoSyncSettings,
+  CLOUD_AUTO_SYNC_STORAGE_KEY,
+  DEFAULT_CLOUD_AUTO_SYNC,
+  type CloudAutoSyncSettings,
+} from './autoSyncSettings';
+export {
+  enqueueVideoChange,
+  enqueueVideoChanges,
+  enqueueActorChange,
+  enqueueActorChanges,
+  enqueueListChange,
+  enqueueListChanges,
+  enqueueNewWorkChange,
+  enqueueNewWorkChanges,
+  scheduleEnqueue,
+} from './enqueueLocalChange';
+export {
+  CLOUD_AUTO_SYNC_ALARM,
+  setupCloudAutoSyncAlarm,
+  runCloudSyncExclusive,
+} from './backgroundCloudSync';

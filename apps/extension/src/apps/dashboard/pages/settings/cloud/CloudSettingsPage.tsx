@@ -15,11 +15,14 @@ import {
   createExtensionCloudClient,
   formatTypeCounts,
   humanizeCloudError,
+  loadCloudAutoSyncSettings,
   loadCloudSession,
   loadCloudSettings,
   normalizeCloudBaseUrl,
   runCloudSyncNow,
+  saveCloudAutoSyncSettings,
   saveCloudSettings,
+  type CloudAutoSyncSettings,
   type CloudConnectionSettings,
   type CloudSessionRecord,
   type CloudSyncNowResult,
@@ -52,6 +55,11 @@ export function CloudSettingsPage() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [syncReport, setSyncReport] = useState<SyncReport | null>(null);
   const [showDeviceId, setShowDeviceId] = useState(false);
+  const [autoSync, setAutoSync] = useState<CloudAutoSyncSettings>({
+    enabled: true,
+    intervalMinutes: 30,
+    updatedAt: 0,
+  });
 
   const busy = busyAction != null;
   const loggedIn = Boolean(session?.accessToken);
@@ -64,11 +72,12 @@ export function CloudSettingsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const s = await loadCloudSettings();
+        const [s, auto] = await Promise.all([loadCloudSettings(), loadCloudAutoSyncSettings()]);
         if (cancelled) return;
         setSettings(s);
         setBaseUrlDraft(s.baseUrl);
         setDeviceLabelDraft(s.deviceLabel);
+        setAutoSync(auto);
         await refreshSession();
       } finally {
         if (!cancelled) setLoading(false);
@@ -264,6 +273,30 @@ export function CloudSettingsPage() {
       } catch (e) {
         setStatus(humanizeCloudError(e), 'err');
       }
+    });
+
+  const onToggleAutoSync = (enabled: boolean) =>
+    withBusy('auto', async () => {
+      const next = await saveCloudAutoSyncSettings({ enabled });
+      setAutoSync(next);
+      try {
+        await chrome.runtime.sendMessage({ type: 'CLOUD_SYNC_SETUP_ALARM' });
+      } catch {
+        // ignore
+      }
+      setStatus(enabled ? '已开启自动同步（后台定时）' : '已关闭自动同步', 'ok');
+    });
+
+  const onChangeInterval = (minutes: number) =>
+    withBusy('auto', async () => {
+      const next = await saveCloudAutoSyncSettings({ intervalMinutes: minutes });
+      setAutoSync(next);
+      try {
+        await chrome.runtime.sendMessage({ type: 'CLOUD_SYNC_SETUP_ALARM' });
+      } catch {
+        // ignore
+      }
+      setStatus(`自动同步间隔已设为 ${next.intervalMinutes} 分钟`, 'ok');
     });
 
   const connectionReady = useMemo(() => {
@@ -502,9 +535,36 @@ export function CloudSettingsPage() {
             <span className="text-[12.5px] text-[var(--color-warning)]">请先完成登录</span>
           ) : (
             <span className="text-[12.5px] text-[var(--color-fg-muted)]">
-              空云首次会上传本地全量用户资产，不会清空本地
+              本地改动会自动入队；空云首传不会清空本地
             </span>
           )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-3 px-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-[var(--color-fg)]">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-[var(--color-primary)]"
+              checked={autoSync.enabled}
+              disabled={busy || !loggedIn}
+              onChange={(e) => void onToggleAutoSync(e.target.checked)}
+            />
+            后台自动同步
+          </label>
+          <label className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--color-fg-muted)]">
+            间隔
+            <select
+              className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[13px] text-[var(--color-fg)]"
+              value={autoSync.intervalMinutes}
+              disabled={busy || !loggedIn || !autoSync.enabled}
+              onChange={(e) => void onChangeInterval(Number(e.target.value))}
+            >
+              <option value={15}>15 分钟</option>
+              <option value={30}>30 分钟</option>
+              <option value={60}>1 小时</option>
+              <option value={180}>3 小时</option>
+            </select>
+          </label>
         </div>
 
         {syncReport ? (
