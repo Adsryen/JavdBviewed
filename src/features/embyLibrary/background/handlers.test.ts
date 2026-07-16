@@ -74,9 +74,14 @@ describe('emby library background handlers', () => {
       serverName: 'Main',
       serverUrl: 'http://media.local:8096',
       itemId: 'item-1',
-      coverImageUrl: 'http://media.local:8096/Items/item-1/Images/Primary?tag=cover-tag',
     });
-    expect(JSON.stringify(savedState)).not.toContain('api-secret');
+    expect(savedState.entries['ABC-101'][0].coverImageUrl).toContain(
+      'http://media.local:8096/Items/item-1/Images/Primary?',
+    );
+    expect(savedState.entries['ABC-101'][0].coverImageUrl).toContain('api_key=api-secret');
+    expect(savedState.entries['ABC-101'][0].coverImageUrl).toContain('tag=cover-tag');
+    // api_key 会出现在封面 URL 中，但响应其它字段不应泄露
+    expect(JSON.stringify(savedState.serverResults)).not.toContain('api-secret');
     expect(sendResponse).toHaveBeenCalledWith({
       success: true,
       synced: 1,

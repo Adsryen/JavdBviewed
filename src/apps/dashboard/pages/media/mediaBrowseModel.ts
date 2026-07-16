@@ -58,10 +58,13 @@ export function coverGradient(item: MediaBrowseItem): string {
 /**
  * 封面 art 样式：优先真实封面图，否则渐变
  */
-export function coverArtStyle(item: MediaBrowseItem): { background: string } {
+export function coverArtStyle(item: MediaBrowseItem): { backgroundImage?: string; background: string } {
   if (item.coverImageUrl) {
+    // 使用 backgroundImage 单独字段，避免 JSON 引号在部分环境下解析异常
+    const safeUrl = item.coverImageUrl.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return {
-      background: `center/cover no-repeat url(${JSON.stringify(item.coverImageUrl)}), ${coverGradient(item)}`,
+      backgroundImage: `url("${safeUrl}")`,
+      background: `${coverGradient(item)}`,
     };
   }
   return { background: coverGradient(item) };

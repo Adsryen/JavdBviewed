@@ -453,6 +453,7 @@
   border-radius: 8px;
   background-size: cover !important;
   background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
 .ml-resume-body {

@@ -160,7 +160,7 @@ describe('emby library index', () => {
     ).toContain('#!/details?id=jf1');
   });
 
-  it('builds token-free cover image URLs from primary image metadata', () => {
+  it('builds cover image URLs with api_key for unauthenticated img loads', () => {
     const url = buildMediaItemCoverImageUrl(embyServer, {
       Id: 'item/with space',
       Name: 'ABC-003',
@@ -168,13 +168,17 @@ describe('emby library index', () => {
       ImageTags: { Primary: 'primary-tag-1' },
     });
 
-    expect(url).toBe('http://192.168.1.10:8096/Items/item%2Fwith%20space/Images/Primary?tag=primary-tag-1');
-    expect(url).not.toContain('api_key');
-    expect(url).not.toContain(embyServer.apiKey);
-    expect(buildMediaItemCoverImageUrl(embyServer, { Id: 'item-no-image', Name: 'ABC-003' })).toBeUndefined();
+    expect(url).toContain('http://192.168.1.10:8096/Items/item%2Fwith%20space/Images/Primary?');
+    expect(url).toContain('tag=primary-tag-1');
+    expect(url).toContain('api_key=secret');
+    expect(url).toContain('maxHeight=480');
+    // 无图也可出 URL（部分条目 ImageTags 缺失仍可能有默认图）
+    expect(buildMediaItemCoverImageUrl(embyServer, { Id: 'item-no-image', Name: 'ABC-003' })).toContain(
+      '/Items/item-no-image/Images/Primary?',
+    );
   });
 
-  it('stores optional cover URLs in library index entries', () => {
+  it('stores cover URLs with api_key in library index entries', () => {
     const index = buildLibraryIndex(embyServer, [
       {
         Id: 'cover-item',
@@ -186,9 +190,12 @@ describe('emby library index', () => {
 
     expect(index.entries['ABC-004'][0]).toMatchObject({
       itemId: 'cover-item',
-      coverImageUrl: 'http://192.168.1.10:8096/Items/cover-item/Images/Primary?tag=cover-tag',
     });
-    expect(JSON.stringify(index)).not.toContain(embyServer.apiKey);
+    expect(index.entries['ABC-004'][0].coverImageUrl).toContain(
+      'http://192.168.1.10:8096/Items/cover-item/Images/Primary?',
+    );
+    expect(index.entries['ABC-004'][0].coverImageUrl).toContain('api_key=secret');
+    expect(index.entries['ABC-004'][0].coverImageUrl).toContain('tag=cover-tag');
   });
 
   it('builds Jellyfin media item links with the details route and server id', () => {

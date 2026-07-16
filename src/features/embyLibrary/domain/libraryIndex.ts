@@ -92,18 +92,36 @@ export function generateVideoCodeSearchTerms(videoCode: string): string[] {
   return terms;
 }
 
+/**
+ * 构建媒体封面图 URL（必须可在扩展页 CSS/img 无 Header 时加载）
+ * 因此鉴权走 query：api_key（ApiKey 或 AccessToken 均可，Emby/JF 常见支持）
+ */
 export function buildMediaItemCoverImageUrl(
-  server: Pick<EmbyMediaServer, 'url'>,
+  server: Pick<EmbyMediaServer, 'url' | 'apiKey' | 'accessToken'>,
   item: Pick<EmbyMediaItem, 'Id' | 'ImageTags' | 'PrimaryImageTag'>,
 ): string | undefined {
   const itemId = String(item.Id || '').trim();
-  const primaryImageTag = String(item.ImageTags?.Primary || item.PrimaryImageTag || '').trim();
-  if (!itemId || !primaryImageTag) return undefined;
+  if (!itemId) return undefined;
 
   const serverUrl = normalizeServerUrl(server.url);
   if (!serverUrl) return undefined;
 
-  const params = new URLSearchParams({ tag: primaryImageTag });
+  const primaryImageTag = String(item.ImageTags?.Primary || item.PrimaryImageTag || '').trim();
+  const params = new URLSearchParams();
+  if (primaryImageTag) {
+    params.set('tag', primaryImageTag);
+  }
+  // 略缩图尺寸，减轻流量
+  params.set('maxHeight', '480');
+  params.set('quality', '90');
+  params.set('fillHeight', '480');
+
+  // CSS background-image 无法带 X-Emby-Token；必须 query 鉴权
+  const auth = String(server.apiKey || server.accessToken || '').trim();
+  if (auth) {
+    params.set('api_key', auth);
+  }
+
   return `${serverUrl}/Items/${encodeURIComponent(itemId)}/Images/Primary?${params.toString()}`;
 }
 

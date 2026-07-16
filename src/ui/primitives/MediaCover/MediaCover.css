@@ -48,6 +48,9 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   transform: scale(1);
   transform-origin: 50% 50%;
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
