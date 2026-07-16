@@ -25,3 +25,10 @@ export {
   preparePushQueueStats,
 } from './extensionEntityStore';
 export { runCloudSyncNow, type CloudSyncNowResult } from './runCloudSyncNow';
+export {
+  countByType,
+  formatTypeCounts,
+  humanizeCloudError,
+  SYNC_TYPE_LABELS,
+  type TypeCountMap,
+} from './syncStats';
