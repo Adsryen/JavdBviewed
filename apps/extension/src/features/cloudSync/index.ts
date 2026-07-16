@@ -1,6 +1,6 @@
 /**
  * @file index.ts
- * @description Cloud 同步扩展侧入口（配置/会话/API 客户端）
+ * @description Cloud 同步扩展侧入口（配置/会话/API/本地实体适配/立即同步）
  * @module features/cloudSync
  */
 export {
@@ -18,3 +18,10 @@ export {
   type CloudSessionRecord,
 } from './chromeTokenStore';
 export { createExtensionCloudClient } from './createExtensionCloudClient';
+export { createChromeCursorStore, CLOUD_CURSORS_STORAGE_KEY } from './chromeCursorStore';
+export {
+  createExtensionEntityStore,
+  collectLocalSyncEntities,
+  preparePushQueueStats,
+} from './extensionEntityStore';
+export { runCloudSyncNow, type CloudSyncNowResult } from './runCloudSyncNow';

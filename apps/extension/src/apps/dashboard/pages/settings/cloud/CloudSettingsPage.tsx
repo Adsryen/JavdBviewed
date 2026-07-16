@@ -15,6 +15,7 @@ import {
   loadCloudSession,
   loadCloudSettings,
   normalizeCloudBaseUrl,
+  runCloudSyncNow,
   saveCloudSettings,
   type CloudConnectionSettings,
   type CloudSessionRecord,
@@ -202,6 +203,22 @@ export function CloudSettingsPage() {
     }
   };
 
+  const onSyncNow = async () => {
+    setBusy(true);
+    try {
+      const result = await runCloudSyncNow();
+      setStatus(
+        `同步完成：拉取 ${result.pulled} · 推送 ${result.pushed} · 本地实体 ${result.localEntityCount}` +
+          (result.enqueuedNow ? ` · 首推入队 ${result.enqueuedNow}` : ''),
+        'ok',
+      );
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : '同步失败', 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading || !settings) {
     return (
       <SettingsPageFrame
@@ -228,24 +245,26 @@ export function CloudSettingsPage() {
       </div>
 
       <SettingSection title="连接" description="指向你自己部署的 Go Cloud 实例">
-        <SettingField label="Cloud Base URL" hint="例如 http://127.0.0.1:8080">
+        <SettingField id="cloud-base-url" label="Cloud Base URL" description="例如 http://127.0.0.1:8080">
           <Input
+            id="cloud-base-url"
             value={baseUrlDraft}
             onChange={(e) => setBaseUrlDraft(e.target.value)}
             placeholder="http://127.0.0.1:8080"
             autoComplete="off"
           />
         </SettingField>
-        <SettingField label="本机设备名称">
+        <SettingField id="cloud-device-label" label="本机设备名称">
           <Input
+            id="cloud-device-label"
             value={deviceLabelDraft}
             onChange={(e) => setDeviceLabelDraft(e.target.value)}
             placeholder="浏览器扩展"
             autoComplete="off"
           />
         </SettingField>
-        <SettingField label="设备 ID（本机）" hint="自动生成，用于多端区分">
-          <Input value={settings.deviceId} readOnly />
+        <SettingField id="cloud-device-id" label="设备 ID（本机）" description="自动生成，用于多端区分">
+          <Input id="cloud-device-id" value={settings.deviceId} readOnly />
         </SettingField>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button type="button" variant="secondary" disabled={busy} onClick={() => void persistConnection().then(() => setStatus('连接配置已保存', 'ok'))}>
@@ -259,15 +278,17 @@ export function CloudSettingsPage() {
       </SettingSection>
 
       <SettingSection title="账号" description="注册/登录同一 Cloud 账号后，各端进入同一数据世界">
-        <SettingField label="账号（邮箱或用户名）">
+        <SettingField id="cloud-identifier" label="账号（邮箱或用户名）">
           <Input
+            id="cloud-identifier"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             autoComplete="username"
           />
         </SettingField>
-        <SettingField label="密码">
+        <SettingField id="cloud-password" label="密码">
           <Input
+            id="cloud-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -287,6 +308,17 @@ export function CloudSettingsPage() {
         </div>
         <p className="mt-2 text-[12.5px] text-[var(--color-fg-muted)]">
           登录状态：{loggedIn ? `已登录（设备 ${session?.deviceId ?? '—'}）` : '未登录'}
+        </p>
+      </SettingSection>
+
+      <SettingSection title="数据同步" description="将本机用户资产与 Cloud 双向同步（首次会把本地全量入队推送）">
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="primary" disabled={busy || !loggedIn} onClick={() => void onSyncNow()}>
+            立即同步
+          </Button>
+        </div>
+        <p className="mt-2 text-[12.5px] text-[var(--color-fg-muted)]">
+          覆盖：视频状态、演员、清单、新作品、订阅、资料、搜索方案及部分显示/同步偏好。不含遥测、Emby 本机库、日志与凭据明文。
         </p>
       </SettingSection>
 
