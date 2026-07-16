@@ -941,3 +941,72 @@ div.url-item input.url-input:disabled {
 .url-list::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
+
+/* 媒体库多选（同步范围） */
+.emby-server-libraries {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--emby-border, var(--border-primary));
+}
+.emby-server-libraries-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.emby-library-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--emby-border, var(--border-primary));
+  background: var(--emby-bg, var(--surface-secondary));
+}
+.emby-library-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--emby-text, var(--text-primary));
+  cursor: pointer;
+}
+.emby-library-check input {
+  margin: 0;
+}
+.emby-library-empty-hint {
+  margin: 0;
+}
+
+/* 用户登录区 */
+.emby-server-user-auth {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--emby-border, var(--border-primary));
+}
+.emby-user-auth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+@media (max-width: 720px) {
+  .emby-user-auth-grid { grid-template-columns: 1fr; }
+}
+.emby-user-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.emby-user-session-label {
+  font-size: 12px;
+  color: var(--emby-text-muted, var(--text-secondary));
+}
+.emby-user-session-label.is-on {
+  color: #059669;
+  font-weight: 700;
+}

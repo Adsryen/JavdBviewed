@@ -335,8 +335,15 @@ export class EmbySettings extends BaseSettingsPanel {
 
     private renderMediaServerItem(server: EmbyMediaServer, index: number): string {
         const type = server.type === 'jellyfin' ? 'jellyfin' : 'emby';
+        const libraryIds = Array.isArray(server.libraryIds) ? server.libraryIds : [];
+        const libraryOptions = Array.isArray(server.libraryOptions) ? server.libraryOptions : [];
+        const libraryPanel = this.renderLibraryPickerHtml(libraryIds, libraryOptions);
+        const userLoggedIn = Boolean(server.accessToken && server.userId);
+        const userLabel = userLoggedIn
+          ? `已登录：${this.escapeHtml(server.userDisplayName || server.username || server.userId || '')}`
+          : '未登录用户（写回「真实已看」通常需要登录）';
         return `
-            <div class="emby-media-server-item" data-index="${index}">
+            <div class="emby-media-server-item" data-index="${index}" data-server-id="${this.escapeHtml(server.id || '')}">
                 <div class="emby-media-server-grid">
                     <label class="setting-label">
                         <span class="setting-title">类型</span>
@@ -355,7 +362,7 @@ export class EmbySettings extends BaseSettingsPanel {
                     </label>
                     <label class="setting-label emby-server-key-field">
                         <span class="setting-title">API Key</span>
-                        <input type="password" class="emby-server-api-key setting-input" value="${this.escapeHtml(server.apiKey || '')}" placeholder="媒体服务器 API Key">
+                        <input type="password" class="emby-server-api-key setting-input" value="${this.escapeHtml(server.apiKey || '')}" placeholder="扫库/只读用 API Key">
                     </label>
                     <label class="setting-label emby-server-enabled-field">
                         <span class="setting-title">启用</span>
@@ -368,8 +375,71 @@ export class EmbySettings extends BaseSettingsPanel {
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
+                <div class="emby-server-user-auth">
+                    <div class="emby-server-libraries-head">
+                        <span class="setting-title">用户登录（写回观看状态 / 更完整 UserData）</span>
+                        <span class="emby-user-session-label ${userLoggedIn ? 'is-on' : ''}">${userLabel}</span>
+                    </div>
+                    <div class="emby-user-auth-grid">
+                        <label class="setting-label">
+                            <span class="setting-title">用户名</span>
+                            <input type="text" class="emby-server-username setting-input" value="${this.escapeHtml(server.username || '')}" placeholder="媒体服务器用户名" autocomplete="username">
+                        </label>
+                        <label class="setting-label">
+                            <span class="setting-title">密码</span>
+                            <input type="password" class="emby-server-password setting-input" value="" placeholder="登录后不会明文回显" autocomplete="current-password">
+                        </label>
+                        <div class="emby-user-auth-actions">
+                            <button type="button" class="btn btn-primary emby-user-login-btn">登录并保存令牌</button>
+                            <button type="button" class="btn btn-secondary emby-user-logout-btn" ${userLoggedIn ? '' : 'disabled'}>退出登录</button>
+                        </div>
+                    </div>
+                    <input type="hidden" class="emby-server-access-token" value="${this.escapeHtml(server.accessToken || '')}">
+                    <input type="hidden" class="emby-server-user-id" value="${this.escapeHtml(server.userId || '')}">
+                    <input type="hidden" class="emby-server-user-display" value="${this.escapeHtml(server.userDisplayName || '')}">
+                    <input type="hidden" class="emby-server-token-at" value="${server.tokenObtainedAt ? String(server.tokenObtainedAt) : ''}">
+                    <p class="setting-description">API Key 负责扫库；用户登录后的 AccessToken 用于标记真实已看。密码仅用于本次登录请求，不会写入设置。</p>
+                </div>
+                <div class="emby-server-libraries">
+                    <div class="emby-server-libraries-head">
+                        <span class="setting-title">同步媒体库（可多选；不选=整库，兼容旧配置）</span>
+                        <button type="button" class="btn btn-secondary emby-refresh-libraries" title="从服务器拉取媒体库列表">
+                            <i class="fas fa-folder-open"></i> 拉取媒体库
+                        </button>
+                    </div>
+                    <div class="emby-library-picker">
+                        ${libraryPanel}
+                    </div>
+                </div>
             </div>
         `;
+    }
+
+    private renderLibraryPickerHtml(
+        selectedIds: string[],
+        options: Array<{ id: string; name: string; collectionType?: string }>,
+    ): string {
+        if (!options.length) {
+            const hint = selectedIds.length
+                ? `已选 ${selectedIds.length} 个库 Id（请点「拉取媒体库」加载名称）`
+                : '尚未拉取列表。不选任何库时同步整库；建议拉取后只勾选需要的库（类似 115 选文件夹）。';
+            return `<p class="setting-description emby-library-empty-hint">${this.escapeHtml(hint)}</p>
+                <input type="hidden" class="emby-library-ids-json" value="${this.escapeHtml(JSON.stringify(selectedIds))}">
+                <input type="hidden" class="emby-library-options-json" value="${this.escapeHtml(JSON.stringify(options))}">`;
+        }
+        const selected = new Set(selectedIds.map(String));
+        const checks = options.map((opt) => {
+            const checked = selected.has(opt.id) ? 'checked' : '';
+            const typeHint = opt.collectionType ? ` · ${this.escapeHtml(opt.collectionType)}` : '';
+            return `
+                <label class="emby-library-check">
+                    <input type="checkbox" class="emby-library-id-checkbox" value="${this.escapeHtml(opt.id)}" ${checked}>
+                    <span>${this.escapeHtml(opt.name)}${typeHint}</span>
+                </label>`;
+        }).join('');
+        return `${checks}
+            <input type="hidden" class="emby-library-ids-json" value="${this.escapeHtml(JSON.stringify(selectedIds))}">
+            <input type="hidden" class="emby-library-options-json" value="${this.escapeHtml(JSON.stringify(options))}">`;
     }
 
     private handleAddMediaServer(): void {
@@ -393,6 +463,24 @@ export class EmbySettings extends BaseSettingsPanel {
 
         if (target.closest('.create-emby-media-server-cancel')) {
             this.cancelMediaServerCreate();
+            return;
+        }
+
+        if (target.closest('.emby-refresh-libraries')) {
+            const item = target.closest('.emby-media-server-item') as HTMLElement | null;
+            if (item) void this.refreshLibrariesForServerItem(item);
+            return;
+        }
+
+        if (target.closest('.emby-user-login-btn')) {
+            const item = target.closest('.emby-media-server-item') as HTMLElement | null;
+            if (item) void this.loginUserForServerItem(item);
+            return;
+        }
+
+        if (target.closest('.emby-user-logout-btn')) {
+            const item = target.closest('.emby-media-server-item') as HTMLElement | null;
+            if (item) this.logoutUserForServerItem(item);
             return;
         }
 
@@ -539,6 +627,18 @@ export class EmbySettings extends BaseSettingsPanel {
         const servers = STATE.settings.emby?.mediaServers;
         return Array.isArray(servers) ? servers.map((server: any): EmbyMediaServer => {
             const type: EmbyMediaServer['type'] = server.type === 'jellyfin' ? 'jellyfin' : 'emby';
+            const libraryIds = Array.isArray(server.libraryIds)
+                ? server.libraryIds.map((id: unknown) => String(id || '').trim()).filter(Boolean)
+                : [];
+            const libraryOptions = Array.isArray(server.libraryOptions)
+                ? server.libraryOptions
+                    .map((opt: any) => ({
+                        id: String(opt?.id || '').trim(),
+                        name: String(opt?.name || opt?.id || '').trim(),
+                        collectionType: opt?.collectionType ? String(opt.collectionType) : undefined,
+                    }))
+                    .filter((opt: { id: string }) => opt.id)
+                : undefined;
             return {
                 id: String(server.id || `media-server-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
                 type,
@@ -546,6 +646,13 @@ export class EmbySettings extends BaseSettingsPanel {
                 url: String(server.url || ''),
                 apiKey: String(server.apiKey || ''),
                 enabled: server.enabled !== false,
+                libraryIds,
+                ...(libraryOptions && libraryOptions.length ? { libraryOptions } : {}),
+                username: server.username ? String(server.username) : undefined,
+                accessToken: server.accessToken ? String(server.accessToken) : undefined,
+                userId: server.userId ? String(server.userId) : undefined,
+                userDisplayName: server.userDisplayName ? String(server.userDisplayName) : undefined,
+                tokenObtainedAt: Number(server.tokenObtainedAt) || undefined,
             };
         }) : [];
     }
@@ -559,7 +666,15 @@ export class EmbySettings extends BaseSettingsPanel {
             const url = item.querySelector<HTMLInputElement>('.emby-server-url')?.value.trim().replace(/\/+$/, '') || '';
             const apiKey = item.querySelector<HTMLInputElement>('.emby-server-api-key')?.value.trim() || '';
             const enabled = item.querySelector<HTMLInputElement>('.emby-server-enabled')?.checked !== false;
+            const username = item.querySelector<HTMLInputElement>('.emby-server-username')?.value.trim() || undefined;
+            const accessToken = item.querySelector<HTMLInputElement>('.emby-server-access-token')?.value.trim() || undefined;
+            const userId = item.querySelector<HTMLInputElement>('.emby-server-user-id')?.value.trim() || undefined;
+            const userDisplayName = item.querySelector<HTMLInputElement>('.emby-server-user-display')?.value.trim() || undefined;
+            const tokenAtRaw = item.querySelector<HTMLInputElement>('.emby-server-token-at')?.value.trim();
+            const tokenObtainedAt = tokenAtRaw ? Number(tokenAtRaw) : undefined;
             const existing = storedServers[index];
+            const libraryIds = this.readLibraryIdsFromServerItem(item);
+            const libraryOptions = this.readLibraryOptionsFromServerItem(item, existing);
             return {
                 id: existing?.id || `media-server-${Date.now()}-${index}`,
                 type,
@@ -567,8 +682,220 @@ export class EmbySettings extends BaseSettingsPanel {
                 url,
                 apiKey,
                 enabled,
+                libraryIds,
+                ...(libraryOptions.length ? { libraryOptions } : {}),
+                username: username || existing?.username,
+                accessToken: accessToken || existing?.accessToken,
+                userId: userId || existing?.userId,
+                userDisplayName: userDisplayName || existing?.userDisplayName,
+                tokenObtainedAt: tokenObtainedAt || existing?.tokenObtainedAt,
             };
-        }).filter((server) => server.url || server.apiKey);
+        }).filter((server) => server.url || server.apiKey || server.accessToken);
+    }
+
+    private readLibraryIdsFromServerItem(item: HTMLElement): string[] {
+        const checks = Array.from(item.querySelectorAll<HTMLInputElement>('.emby-library-id-checkbox'));
+        if (checks.length > 0) {
+            return checks.filter((c) => c.checked).map((c) => c.value.trim()).filter(Boolean);
+        }
+        const hidden = item.querySelector<HTMLInputElement>('.emby-library-ids-json');
+        if (hidden?.value) {
+            try {
+                const parsed = JSON.parse(hidden.value);
+                if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+            } catch { /* ignore */ }
+        }
+        return [];
+    }
+
+    private readLibraryOptionsFromServerItem(
+        item: HTMLElement,
+        existing?: EmbyMediaServer,
+    ): Array<{ id: string; name: string; collectionType?: string }> {
+        const hidden = item.querySelector<HTMLInputElement>('.emby-library-options-json');
+        if (hidden?.value) {
+            try {
+                const parsed = JSON.parse(hidden.value);
+                if (Array.isArray(parsed)) {
+                    return parsed
+                        .map((opt: any) => ({
+                            id: String(opt?.id || '').trim(),
+                            name: String(opt?.name || opt?.id || '').trim(),
+                            collectionType: opt?.collectionType ? String(opt.collectionType) : undefined,
+                        }))
+                        .filter((opt: { id: string }) => opt.id);
+                }
+            } catch { /* ignore */ }
+        }
+        return Array.isArray(existing?.libraryOptions) ? existing!.libraryOptions! : [];
+    }
+
+    private async refreshLibrariesForServerItem(item: HTMLElement): Promise<void> {
+        const url = item.querySelector<HTMLInputElement>('.emby-server-url')?.value.trim().replace(/\/+$/, '') || '';
+        const apiKey = item.querySelector<HTMLInputElement>('.emby-server-api-key')?.value.trim() || '';
+        const picker = item.querySelector<HTMLElement>('.emby-library-picker');
+        if (!url || !apiKey) {
+            showMessage('请先填写服务器地址和 API Key', 'warning');
+            return;
+        }
+        if (picker) {
+            picker.innerHTML = '<p class="setting-description">正在拉取媒体库列表…</p>';
+        }
+        try {
+            const response = await this.sendRuntimeMessage<{
+                success?: boolean;
+                libraries?: Array<{ id: string; name: string; collectionType?: string }>;
+                error?: string;
+            }>({
+                type: 'EMBY_LIBRARY_LIST_FOLDERS',
+                serverUrl: url,
+                apiKey,
+            });
+            if (!response?.success) {
+                throw new Error(response?.error || '拉取失败');
+            }
+            const libraries = Array.isArray(response.libraries) ? response.libraries : [];
+            const selected = this.readLibraryIdsFromServerItem(item);
+            // 保留仍存在的选中项
+            const idSet = new Set(libraries.map((l) => l.id));
+            const nextSelected = selected.filter((id) => idSet.has(id));
+            if (picker) {
+                picker.innerHTML = this.renderLibraryPickerHtml(nextSelected, libraries);
+            }
+            // 写回 STATE，避免仅 UI 变更丢失
+            const index = Number(item.dataset.index);
+            if (Number.isInteger(index)) {
+                const servers = this.getMediaServersFromUI();
+                if (servers[index]) {
+                    servers[index] = {
+                        ...servers[index],
+                        libraryIds: nextSelected,
+                        libraryOptions: libraries,
+                    };
+                    STATE.settings.emby = {
+                        ...STATE.settings.emby,
+                        mediaServers: servers,
+                    };
+                }
+            }
+            this.handleSettingsChange();
+            showMessage(
+                libraries.length
+                    ? `已拉取 ${libraries.length} 个媒体库，请勾选要同步的库`
+                    : '未获取到媒体库列表，请检查地址与 API Key',
+                libraries.length ? 'success' : 'warning',
+            );
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (picker) {
+                picker.innerHTML = `<p class="setting-description">拉取失败：${this.escapeHtml(message)}</p>`;
+            }
+            showMessage(`拉取媒体库失败：${message}`, 'error');
+        }
+    }
+
+    private async loginUserForServerItem(item: HTMLElement): Promise<void> {
+        const url = item.querySelector<HTMLInputElement>('.emby-server-url')?.value.trim().replace(/\/+$/, '') || '';
+        const username = item.querySelector<HTMLInputElement>('.emby-server-username')?.value.trim() || '';
+        const password = item.querySelector<HTMLInputElement>('.emby-server-password')?.value || '';
+        if (!url) {
+            showMessage('请先填写服务器地址', 'warning');
+            return;
+        }
+        if (!username || !password) {
+            showMessage('请填写用户名和密码', 'warning');
+            return;
+        }
+        try {
+            const response = await this.sendRuntimeMessage<{
+                success?: boolean;
+                accessToken?: string;
+                userId?: string;
+                userName?: string;
+                username?: string;
+                tokenObtainedAt?: number;
+                error?: string;
+            }>({
+                type: 'EMBY_USER_LOGIN',
+                serverUrl: url,
+                username,
+                password,
+            });
+            if (!response?.success || !response.accessToken || !response.userId) {
+                throw new Error(response?.error || '登录失败');
+            }
+
+            const setHidden = (sel: string, val: string) => {
+                const el = item.querySelector<HTMLInputElement>(sel);
+                if (el) el.value = val;
+            };
+            setHidden('.emby-server-access-token', response.accessToken);
+            setHidden('.emby-server-user-id', response.userId);
+            setHidden('.emby-server-user-display', response.userName || username);
+            setHidden('.emby-server-token-at', String(response.tokenObtainedAt || Date.now()));
+
+            const pwd = item.querySelector<HTMLInputElement>('.emby-server-password');
+            if (pwd) pwd.value = '';
+
+            const label = item.querySelector('.emby-user-session-label');
+            if (label) {
+                label.textContent = `已登录：${response.userName || username}`;
+                label.classList.add('is-on');
+            }
+            const logoutBtn = item.querySelector<HTMLButtonElement>('.emby-user-logout-btn');
+            if (logoutBtn) logoutBtn.disabled = false;
+
+            // 立刻写回 settings
+            const servers = this.getMediaServersFromUI();
+            STATE.settings.emby = {
+                ...STATE.settings.emby,
+                mediaServers: servers,
+            };
+            this.handleSettingsChange();
+            showMessage('用户登录成功，已保存访问令牌（可用于写回真实已看）', 'success');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            showMessage(`登录失败：${message}`, 'error');
+        }
+    }
+
+    private logoutUserForServerItem(item: HTMLElement): void {
+        const setHidden = (sel: string, val = '') => {
+            const el = item.querySelector<HTMLInputElement>(sel);
+            if (el) el.value = val;
+        };
+        setHidden('.emby-server-access-token');
+        setHidden('.emby-server-user-id');
+        setHidden('.emby-server-user-display');
+        setHidden('.emby-server-token-at');
+        const label = item.querySelector('.emby-user-session-label');
+        if (label) {
+            label.textContent = '未登录用户（写回「真实已看」通常需要登录）';
+            label.classList.remove('is-on');
+        }
+        const logoutBtn = item.querySelector<HTMLButtonElement>('.emby-user-logout-btn');
+        if (logoutBtn) logoutBtn.disabled = true;
+
+        const index = Number(item.dataset.index);
+        if (Number.isInteger(index)) {
+            const servers = this.getMediaServersFromUI();
+            if (servers[index]) {
+                const { accessToken: _a, userId: _u, userDisplayName: _d, tokenObtainedAt: _t, ...rest } = servers[index] as any;
+                servers[index] = {
+                    ...rest,
+                    accessToken: undefined,
+                    userId: undefined,
+                    userDisplayName: undefined,
+                    tokenObtainedAt: undefined,
+                };
+                STATE.settings.emby = {
+                    ...STATE.settings.emby,
+                    mediaServers: servers,
+                };
+            }
+        }
+        this.handleSettingsChange();
+        showMessage('已退出媒体服务器用户登录', 'info');
     }
 
     private async handleManualLibrarySync(): Promise<void> {

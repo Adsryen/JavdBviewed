@@ -63,6 +63,12 @@ export const STORAGE_KEYS = {
     // Emby/Jellyfin 媒体库入库索引
     EMBY_LIBRARY_STATE: 'emby_library_state',
 
+    // 媒体库：真实已看 → 115 待清理清单
+    MEDIA_115_CLEANUP_LIST: 'media_115_cleanup_list',
+
+    // 本地真实观看证据（115 播放进度等，与原站 status 分离）
+    MEDIA_WATCH_EVIDENCE: 'media_watch_evidence',
+
     // Dashboard 上次关闭页面（完整 hash 恢复提示）
     DASHBOARD_LAST_PAGE: 'dashboard_last_page',
 } as const;

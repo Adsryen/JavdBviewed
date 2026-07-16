@@ -3,7 +3,13 @@
  * @description 媒体库浏览页的目录模型、筛选与轮播位置计算
  * @module apps/dashboard/pages/media
  */
+import type { EmbyWatchUserData } from '../../../../features/embyLibrary/types';
+import type { MediaWatchState } from '../../../../features/embyLibrary/domain/watchState';
+
 export type MediaBrowseSource = 'all' | 'emby' | 'jellyfin' | '115';
+
+/** 真实观看筛选（与来源筛选叠加） */
+export type MediaWatchFilter = 'all' | 'in_progress' | 'watched' | 'not_watched';
 
 export type MediaBrowseItem = {
   code: string;
@@ -17,6 +23,10 @@ export type MediaBrowseItem = {
   serverUrl?: string;
   /** Emby/Jellyfin 服务端 ID，用于拼网页详情链接 */
   serverId?: string;
+  /** 真实观看摘要（Emby/JF UserData） */
+  userData?: EmbyWatchUserData;
+  /** 推导后的展示态：已入库 / 在看 / 真实已看 */
+  watchState?: MediaWatchState;
 };
 
 /**
@@ -73,10 +83,17 @@ export function filterMediaItems(
   items: MediaBrowseItem[],
   filter: MediaBrowseSource,
   query: string,
+  watchFilter: MediaWatchFilter = 'all',
 ): MediaBrowseItem[] {
   const q = query.trim().toLowerCase();
   return items.filter((item) => {
     if (filter !== 'all' && item.source !== filter) return false;
+    if (watchFilter !== 'all') {
+      const ws = item.watchState || 'none';
+      if (watchFilter === 'watched' && ws !== 'watched') return false;
+      if (watchFilter === 'in_progress' && ws !== 'in_progress') return false;
+      if (watchFilter === 'not_watched' && (ws === 'watched' || ws === 'in_progress')) return false;
+    }
     if (!q) return true;
     return (
       item.code.toLowerCase().includes(q)
@@ -84,6 +101,16 @@ export function filterMediaItems(
       || (item.serverName || '').toLowerCase().includes(q)
     );
   });
+}
+
+/**
+ * 续看列表：在看优先，其次按 lastPlayedAt
+ */
+export function resumeMediaItems(items: MediaBrowseItem[], limit = 12): MediaBrowseItem[] {
+  return items
+    .filter((item) => item.watchState === 'in_progress' || (item.userData && item.userData.percent > 0 && item.watchState !== 'watched'))
+    .sort((a, b) => (b.userData?.lastPlayedAt || 0) - (a.userData?.lastPlayedAt || 0))
+    .slice(0, limit);
 }
 
 /**

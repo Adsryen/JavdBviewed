@@ -7,9 +7,11 @@ import { describe, expect, it } from 'vitest';
 import type { EmbyLibraryState } from '../../../../features/embyLibrary/types';
 import {
   buildServerOpenUrl,
+  buildServerPlayUrl,
   hasLibraryIndex,
   hueFromCode,
   mapLibraryStateToBrowseItems,
+  mergeLocalWatchEvidence,
 } from './mediaLibraryIndexAdapter';
 
 describe('mediaLibraryIndexAdapter', () => {
@@ -26,6 +28,13 @@ describe('mediaLibraryIndexAdapter', () => {
             itemName: 'Sample Title',
             coverImageUrl: 'http://emby.local/Items/1/Images/Primary',
             serverId: 'srv1',
+            userData: {
+              played: false,
+              positionTicks: 10,
+              runtimeTicks: 100,
+              percent: 37,
+              lastPlayedAt: 0,
+            },
             updatedAt: 1,
           },
         ],
@@ -36,6 +45,13 @@ describe('mediaLibraryIndexAdapter', () => {
             serverUrl: 'http://jf.local',
             itemId: '2',
             itemName: 'Other',
+            userData: {
+              played: true,
+              positionTicks: 0,
+              runtimeTicks: 0,
+              percent: 100,
+              lastPlayedAt: 1,
+            },
             updatedAt: 1,
           },
         ],
@@ -48,7 +64,9 @@ describe('mediaLibraryIndexAdapter', () => {
     expect(items[0].source).toBe('emby');
     expect(items[0].coverImageUrl).toContain('Primary');
     expect(items[0].serverId).toBe('srv1');
+    expect(items[0].watchState).toBe('in_progress');
     expect(items[1].source).toBe('jellyfin');
+    expect(items[1].watchState).toBe('watched');
     expect(hasLibraryIndex(state)).toBe(true);
     expect(hasLibraryIndex({ entries: {}, updatedAt: 0 })).toBe(false);
   });
@@ -63,11 +81,47 @@ describe('mediaLibraryIndexAdapter', () => {
     expect(url).toContain('/web/index.html#!/item?id=42');
     expect(url).toContain('serverId=abc');
     expect(buildServerOpenUrl({ source: '115', serverUrl: 'x', itemId: '1' } as any)).toBeNull();
+
+    const play = buildServerPlayUrl({
+      source: 'emby',
+      serverUrl: 'http://emby.local/',
+      itemId: '42',
+      serverId: 'abc',
+    });
+    expect(play).toContain('#!/video?id=42');
   });
 
   it('produces stable hue for a code', () => {
     expect(hueFromCode('ABC-123')).toBe(hueFromCode('ABC-123'));
     expect(hueFromCode('ABC-123')).toBeGreaterThanOrEqual(0);
     expect(hueFromCode('ABC-123')).toBeLessThan(360);
+  });
+
+  it('merges local 115 evidence into watch state', () => {
+    const items = mapLibraryStateToBrowseItems({
+      updatedAt: 1,
+      entries: {
+        'ABC-1': [
+          {
+            serverType: 'emby',
+            serverName: 'H',
+            serverUrl: 'http://e',
+            itemId: '1',
+            itemName: 't',
+            updatedAt: 1,
+          },
+        ],
+      },
+    });
+    const merged = mergeLocalWatchEvidence(items, {
+      'ABC-1': {
+        source: 'drive115',
+        percent: 95,
+        watched: true,
+        lastPlayedAt: 9,
+      },
+    });
+    expect(merged[0].watchState).toBe('watched');
+    expect(merged[0].userData?.percent).toBe(95);
   });
 });

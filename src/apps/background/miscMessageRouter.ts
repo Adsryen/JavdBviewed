@@ -31,7 +31,10 @@ import {
 } from './tabMessageHandlers';
 import {
   handleEmbyLibraryCheckCodes,
+  handleEmbyLibraryListFolders,
+  handleEmbyLibrarySetPlayed,
   handleEmbyLibrarySync,
+  handleEmbyUserLogin,
 } from '../../features/embyLibrary/background/handlers';
 import {
   handleExternalDataFetch,
@@ -177,6 +180,60 @@ export function registerMiscRouter(): void {
         }
         case 'EMBY_LIBRARY_CHECK_CODES': {
           handleEmbyLibraryCheckCodes(message, sendResponse);
+          return true;
+        }
+        case 'EMBY_LIBRARY_SET_PLAYED': {
+          handleEmbyLibrarySetPlayed(message, sendResponse);
+          return true;
+        }
+        case 'EMBY_LIBRARY_LIST_FOLDERS': {
+          handleEmbyLibraryListFolders(message, sendResponse);
+          return true;
+        }
+        case 'EMBY_USER_LOGIN': {
+          handleEmbyUserLogin(message, sendResponse);
+          return true;
+        }
+        case 'MEDIA_115_CLEANUP_ENQUEUE': {
+          void (async () => {
+            try {
+              const { enqueueWatchedForCleanup } = await import('../../features/drive115/v2/drive115CleanupActions');
+              const ret = await enqueueWatchedForCleanup({
+                code: String(message?.code || ''),
+                title: String(message?.title || message?.code || ''),
+                embyItemId: message?.embyItemId,
+                embyServerUrl: message?.embyServerUrl,
+                fileId: message?.fileId,
+                pickCode: message?.pickCode,
+                fileName: message?.fileName,
+              });
+              sendResponse({ success: true, ...ret });
+            } catch (e: any) {
+              sendResponse({ success: false, error: e?.message || String(e) });
+            }
+          })();
+          return true;
+        }
+        case 'MEDIA_WATCH_EVIDENCE_REPORT': {
+          void (async () => {
+            try {
+              const { reportWatchProgress } = await import('../../features/media/mediaWatchEvidence');
+              const evidence = await reportWatchProgress({
+                code: String(message?.code || ''),
+                source: message?.source || 'drive115',
+                percent: message?.percent,
+                positionSec: message?.positionSec,
+                durationSec: message?.durationSec,
+                pickCode: message?.pickCode,
+                fileId: message?.fileId,
+                fileName: message?.fileName,
+                forceWatched: message?.forceWatched === true,
+              });
+              sendResponse({ success: true, evidence });
+            } catch (e: any) {
+              sendResponse({ success: false, error: e?.message || String(e) });
+            }
+          })();
           return true;
         }
         case 'setup-alarms':

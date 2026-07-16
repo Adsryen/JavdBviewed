@@ -277,6 +277,147 @@ export function installDrive115V2Proxy(): void {
             sendResponse({ success: false, message: e?.message || '后台配额异常' });
             return false;
           }
+        } else if (message.type === 'drive115.delete_files_v2') {
+          try {
+            const accessToken = String(message?.payload?.accessToken || '').trim();
+            const base = String(message?.payload?.baseUrl || 'https://proapi.115.com').replace(/\/$/, '');
+            const fileIds = Array.isArray(message?.payload?.fileIds)
+              ? message.payload.fileIds.map((id: unknown) => String(id || '').trim()).filter(Boolean)
+              : [];
+            if (!accessToken || !fileIds.length) {
+              sendResponse({ success: false, message: '缺少 accessToken 或 fileIds' });
+              return false;
+            }
+            const endpoints = [`${base}/open/rb/delete`, `${base}/open/ufile/delete`];
+            const tryNext = (idx: number) => {
+              if (idx >= endpoints.length) {
+                sendResponse({ success: false, message: '删除接口均不可用' });
+                return;
+              }
+              const url = endpoints[idx];
+              const fd = new FormData();
+              fd.set('file_id', fileIds.join(','));
+              fd.set('file_ids', fileIds.join(','));
+              fetch(url, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  Accept: 'application/json',
+                },
+                body: fd,
+              })
+                .then(async (res) => {
+                  const raw = await res.json().catch(() => ({} as any));
+                  const ok = (typeof raw.state === 'boolean' ? raw.state : res.ok) && res.ok;
+                  if (ok) {
+                    sendResponse({ success: true, raw, endpoint: url });
+                    return;
+                  }
+                  if (idx + 1 < endpoints.length) {
+                    tryNext(idx + 1);
+                    return;
+                  }
+                  sendResponse({
+                    success: false,
+                    message: raw?.message || raw?.error || `删除失败 (${res.status})`,
+                    raw,
+                    endpoint: url,
+                  });
+                })
+                .catch((err) => {
+                  if (idx + 1 < endpoints.length) {
+                    tryNext(idx + 1);
+                    return;
+                  }
+                  sendResponse({ success: false, message: err?.message || '后台删除请求失败' });
+                });
+            };
+            tryNext(0);
+            return true;
+          } catch (e: any) {
+            sendResponse({ success: false, message: e?.message || '后台删除异常' });
+            return false;
+          }
+        } else if (message.type === 'drive115.video_play_v2') {
+          try {
+            const accessToken = String(message?.payload?.accessToken || '').trim();
+            const pickCode = String(message?.payload?.pickCode || '').trim();
+            const base = String(message?.payload?.baseUrl || 'https://proapi.115.com').replace(/\/$/, '');
+            if (!accessToken || !pickCode) {
+              sendResponse({ success: false, message: '缺少 accessToken 或 pickCode' });
+              return false;
+            }
+            const endpoints = [
+              `${base}/open/video/play?pick_code=${encodeURIComponent(pickCode)}`,
+              `${base}/open/video/play?pickcode=${encodeURIComponent(pickCode)}`,
+              `${base}/open/ufile/downurl?pick_code=${encodeURIComponent(pickCode)}`,
+            ];
+            const extractUrl = (json: any): string | undefined => {
+              try {
+                // 与 extractStreamUrlFromPlayResponse 保持简单一致
+                const data = json?.data ?? json?.result ?? json;
+                if (typeof data === 'string' && /^https?:\/\//i.test(data)) return data;
+                if (!data || typeof data !== 'object') return undefined;
+                for (const k of ['url', 'video_url', 'down_url', 'download_url', 'src', 'play_url', 'm3u8']) {
+                  const v = (data as any)[k];
+                  if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
+                }
+                const vu = (data as any).video_url || (data as any).video_urls;
+                if (vu && typeof vu === 'object') {
+                  const vals = Array.isArray(vu) ? vu : Object.values(vu);
+                  for (const v of vals) {
+                    if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
+                    if (v && typeof (v as any).url === 'string' && /^https?:\/\//i.test((v as any).url)) {
+                      return (v as any).url;
+                    }
+                  }
+                }
+              } catch { /* ignore */ }
+              return undefined;
+            };
+            const tryNext = (idx: number) => {
+              if (idx >= endpoints.length) {
+                sendResponse({ success: false, message: '取流接口均不可用' });
+                return;
+              }
+              const url = endpoints[idx];
+              fetch(url, {
+                method: 'GET',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  Accept: 'application/json',
+                },
+              })
+                .then(async (res) => {
+                  const raw = await res.json().catch(() => ({} as any));
+                  const ok = (typeof raw.state === 'boolean' ? raw.state : res.ok) && res.ok;
+                  const streamUrl = ok ? extractUrl(raw) : undefined;
+                  if (streamUrl) {
+                    sendResponse({ success: true, streamUrl, raw, endpoint: url });
+                    return;
+                  }
+                  if (idx + 1 < endpoints.length) {
+                    tryNext(idx + 1);
+                    return;
+                  }
+                  sendResponse({
+                    success: false,
+                    message: raw?.message || raw?.error || '响应中无播放地址',
+                    raw,
+                    endpoint: url,
+                  });
+                })
+                .catch(() => {
+                  if (idx + 1 < endpoints.length) tryNext(idx + 1);
+                  else sendResponse({ success: false, message: '后台取流请求失败' });
+                });
+            };
+            tryNext(0);
+            return true;
+          } catch (e: any) {
+            sendResponse({ success: false, message: e?.message || '后台取流异常' });
+            return false;
+          }
         }
         // 未匹配任何 115 v2 消息类型
         return false;

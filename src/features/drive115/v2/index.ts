@@ -1438,6 +1438,199 @@ class Drive115V2Service {
       return { success: false, message: msg };
     }
   }
+
+  /**
+   * 删除网盘文件（尝试 open API；成功则进回收站/删除）
+   * 依次尝试常见路径：/open/rb/delete、/open/ufile/delete
+   */
+  async deleteFiles(params: {
+    accessToken: string;
+    fileIds: string[];
+  }): Promise<{ success: boolean; message?: string; raw?: any; endpoint?: string }> {
+    const token = (params.accessToken || '').trim();
+    const ids = (params.fileIds || []).map((id) => String(id || '').trim()).filter(Boolean);
+    if (!token) return { success: false, message: '缺少 access_token' };
+    if (!ids.length) return { success: false, message: '缺少 file_id' };
+
+    const base = await this.getBaseURL();
+    const endpoints = [`${base}/open/rb/delete`, `${base}/open/ufile/delete`];
+
+    // 后台代理优先（避免 CORS）
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+        const bgResp: any = await new Promise((resolve) => {
+          try {
+            chrome.runtime.sendMessage(
+              {
+                type: 'drive115.delete_files_v2',
+                payload: { accessToken: token, fileIds: ids, baseUrl: base },
+              },
+              (resp) => resolve(resp),
+            );
+          } catch {
+            resolve(undefined);
+          }
+        });
+        if (bgResp && typeof bgResp.success === 'boolean') {
+          return {
+            success: !!bgResp.success,
+            message: bgResp.message,
+            raw: bgResp.raw,
+            endpoint: bgResp.endpoint,
+          };
+        }
+      }
+    } catch { /* fall through */ }
+
+    let lastMsg = '删除失败';
+    for (const url of endpoints) {
+      try {
+        const fd = new FormData();
+        // 常见字段名：file_id / file_ids
+        fd.set('file_id', ids.join(','));
+        fd.set('file_ids', ids.join(','));
+
+        await addLogV2({ timestamp: Date.now(), level: 'debug', message: `尝试删除文件：${url}` });
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+          body: fd,
+        });
+        const json: any = await res.json().catch(() => ({} as any));
+        const ok = typeof json.state === 'boolean' ? json.state : res.ok;
+        if (ok && res.ok) {
+          await addLogV2({ timestamp: Date.now(), level: 'info', message: `删除文件成功：${ids.join(',')}` });
+          return { success: true, raw: json, endpoint: url };
+        }
+        lastMsg = describe115Error(json) || json.message || json.error || `删除失败 (${res.status})`;
+      } catch (e: any) {
+        lastMsg = describe115Error(e) || e?.message || '删除请求异常';
+      }
+    }
+    await addLogV2({ timestamp: Date.now(), level: 'warn', message: `删除文件失败：${lastMsg}` });
+    return { success: false, message: lastMsg };
+  }
+
+  /**
+   * 获取视频播放地址（尝试 open API）
+   * 常见：/open/video/play?pick_code=
+   */
+  async getVideoPlayInfo(params: {
+    accessToken: string;
+    pickCode: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    streamUrl?: string;
+    raw?: any;
+    endpoint?: string;
+  }> {
+    const token = (params.accessToken || '').trim();
+    const pickCode = String(params.pickCode || '').trim();
+    if (!token) return { success: false, message: '缺少 access_token' };
+    if (!pickCode) return { success: false, message: '缺少 pick_code' };
+
+    const base = await this.getBaseURL();
+
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+        const bgResp: any = await new Promise((resolve) => {
+          try {
+            chrome.runtime.sendMessage(
+              {
+                type: 'drive115.video_play_v2',
+                payload: { accessToken: token, pickCode, baseUrl: base },
+              },
+              (resp) => resolve(resp),
+            );
+          } catch {
+            resolve(undefined);
+          }
+        });
+        if (bgResp && typeof bgResp.success === 'boolean') {
+          return {
+            success: !!bgResp.success,
+            message: bgResp.message,
+            streamUrl: bgResp.streamUrl,
+            raw: bgResp.raw,
+            endpoint: bgResp.endpoint,
+          };
+        }
+      }
+    } catch { /* fall through */ }
+
+    const endpoints = [
+      `${base}/open/video/play?pick_code=${encodeURIComponent(pickCode)}`,
+      `${base}/open/video/play?pickcode=${encodeURIComponent(pickCode)}`,
+      `${base}/open/ufile/downurl?pick_code=${encodeURIComponent(pickCode)}`,
+    ];
+
+    let lastMsg = '获取播放地址失败';
+    for (const url of endpoints) {
+      try {
+        await addLogV2({ timestamp: Date.now(), level: 'debug', message: `尝试取流：${url.split('?')[0]}` });
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        });
+        const json: any = await res.json().catch(() => ({} as any));
+        const ok = typeof json.state === 'boolean' ? json.state : res.ok;
+        if (!ok || !res.ok) {
+          lastMsg = describe115Error(json) || json.message || json.error || `取流失败 (${res.status})`;
+          continue;
+        }
+        const streamUrl = extractStreamUrlFromPlayResponse(json);
+        if (streamUrl) {
+          await addLogV2({ timestamp: Date.now(), level: 'info', message: '获取播放地址成功' });
+          return { success: true, streamUrl, raw: json, endpoint: url };
+        }
+        lastMsg = '响应中无可用播放地址';
+      } catch (e: any) {
+        lastMsg = describe115Error(e) || e?.message || '取流请求异常';
+      }
+    }
+    return { success: false, message: lastMsg };
+  }
+}
+
+/**
+ * 从 115 播放/下载接口响应中尽量提取可播 URL
+ */
+export function extractStreamUrlFromPlayResponse(json: any): string | undefined {
+  if (!json || typeof json !== 'object') return undefined;
+  const data = json.data ?? json.result ?? json;
+  if (typeof data === 'string' && /^https?:\/\//i.test(data)) return data;
+  if (!data || typeof data !== 'object') return undefined;
+
+  const directKeys = ['url', 'video_url', 'down_url', 'download_url', 'src', 'play_url', 'm3u8'];
+  for (const k of directKeys) {
+    const v = (data as any)[k];
+    if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
+  }
+
+  // video_url 可能是对象 { "1": "https..." } 或数组
+  const vu = (data as any).video_url || (data as any).video_urls;
+  if (vu && typeof vu === 'object') {
+    if (Array.isArray(vu)) {
+      for (const item of vu) {
+        if (typeof item === 'string' && /^https?:\/\//i.test(item)) return item;
+        if (item && typeof item.url === 'string' && /^https?:\/\//i.test(item.url)) return item.url;
+      }
+    } else {
+      const vals = Object.values(vu);
+      for (const v of vals) {
+        if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 export function getDrive115V2Service(): Drive115V2Service {

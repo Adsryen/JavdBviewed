@@ -5,6 +5,7 @@
  */
 import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings, getValue, setValue } from '../../../utils/storage';
+import { authenticateEmbyUser, buildEmbyAuthHeaders, hasEmbyUserSession } from '../domain/embyUserAuth';
 import {
   buildLibraryIndex,
   extractCodeFromMediaItem,
@@ -14,6 +15,7 @@ import {
   normalizeVideoCode,
 } from '../domain/libraryIndex';
 import type {
+  EmbyLibraryFolderOption,
   EmbyLibraryIndexEntry,
   EmbyLibraryServerResult,
   EmbyLibraryState,
@@ -52,6 +54,18 @@ function getEnabledServers(settings: any): EmbyMediaServer[] {
     .filter((server) => server && server.enabled !== false)
     .map((server) => {
       const type: EmbyMediaServer['type'] = server.type === 'jellyfin' ? 'jellyfin' : 'emby';
+      const libraryIds = Array.isArray(server.libraryIds)
+        ? server.libraryIds.map((id: unknown) => String(id || '').trim()).filter(Boolean)
+        : [];
+      const libraryOptions = Array.isArray(server.libraryOptions)
+        ? server.libraryOptions
+            .map((opt: any) => ({
+              id: String(opt?.id || '').trim(),
+              name: String(opt?.name || opt?.id || '').trim(),
+              collectionType: opt?.collectionType ? String(opt.collectionType) : undefined,
+            }))
+            .filter((opt: EmbyLibraryFolderOption) => opt.id)
+        : undefined;
       return {
         id: String(server.id || `${type}:${server.url || server.name || ''}`),
         type,
@@ -59,9 +73,16 @@ function getEnabledServers(settings: any): EmbyMediaServer[] {
         url: normalizeServerUrl(String(server.url || '')),
         apiKey: String(server.apiKey || ''),
         enabled: true,
+        libraryIds,
+        ...(libraryOptions && libraryOptions.length ? { libraryOptions } : {}),
+        username: server.username ? String(server.username) : undefined,
+        accessToken: server.accessToken ? String(server.accessToken) : undefined,
+        userId: server.userId ? String(server.userId) : undefined,
+        userDisplayName: server.userDisplayName ? String(server.userDisplayName) : undefined,
+        tokenObtainedAt: Number(server.tokenObtainedAt) || undefined,
       };
     })
-    .filter((server) => server.url && server.apiKey);
+    .filter((server) => server.url && (server.apiKey || server.accessToken));
 }
 
 function sanitizeError(error: unknown): string {
@@ -83,17 +104,31 @@ async function fetchAllMediaItems(
   server: EmbyMediaServer,
   fetchImpl: typeof fetch,
   searchTerm?: string,
+  parentId?: string,
 ): Promise<EmbyMediaItem[]> {
   const params = new URLSearchParams({
     Recursive: 'true',
     IncludeItemTypes: 'Movie',
-    Fields: 'Path,PrimaryImageAspectRatio,ImageTags',
-    api_key: server.apiKey,
+    // UserData：真实观看进度；RunTimeTicks：推算百分比
+    Fields: 'Path,PrimaryImageAspectRatio,ImageTags,UserData,RunTimeTicks',
   });
+  // 有用户会话时带 UserId，UserData 更完整
+  if (server.userId) {
+    params.set('UserId', server.userId);
+  }
   if (searchTerm) {
     params.set('SearchTerm', searchTerm);
   }
+  if (parentId) {
+    params.set('ParentId', parentId);
+  }
+  // 无用户令牌时退回 api_key
+  if (!server.accessToken && server.apiKey) {
+    params.set('api_key', server.apiKey);
+  }
+
   const url = `${normalizeServerUrl(server.url)}/Items?${params.toString()}`;
+  const headers = buildEmbyAuthHeaders(server);
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timeoutId = controller
     ? setTimeout(() => controller.abort(), DEFAULT_LIBRARY_REQUEST_TIMEOUT_MS)
@@ -102,6 +137,7 @@ async function fetchAllMediaItems(
   try {
     response = await fetchImpl(url, {
       method: 'GET',
+      headers,
       ...(controller ? { signal: controller.signal } : {}),
     });
   } catch (error: any) {
@@ -114,7 +150,7 @@ async function fetchAllMediaItems(
   }
 
   if (response.status === 401) {
-    throw new Error('API Key 错误');
+    throw new Error(server.accessToken ? '用户令牌无效，请重新登录' : 'API Key 错误');
   }
 
   if (!response.ok) {
@@ -129,6 +165,90 @@ async function fetchAllMediaItems(
   }
 
   return Array.isArray(data?.Items) ? data.Items : [];
+}
+
+/**
+ * 拉取服务器顶层媒体库/媒体文件夹列表（供设置页多选）
+ * Emby: /Library/MediaFolders  Jellyfin: 同路径或 /Library/VirtualFolders
+ */
+export async function fetchServerLibraryFolders(
+  server: Pick<EmbyMediaServer, 'url' | 'apiKey'>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<EmbyLibraryFolderOption[]> {
+  const base = normalizeServerUrl(server.url);
+  const apiKey = String(server.apiKey || '');
+  if (!base || !apiKey) return [];
+
+  const endpoints = [
+    `${base}/Library/MediaFolders?api_key=${encodeURIComponent(apiKey)}`,
+    `${base}/Library/VirtualFolders?api_key=${encodeURIComponent(apiKey)}`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller
+        ? setTimeout(() => controller.abort(), DEFAULT_LIBRARY_REQUEST_TIMEOUT_MS)
+        : null;
+      let response: Response;
+      try {
+        response = await fetchImpl(url, {
+          method: 'GET',
+          ...(controller ? { signal: controller.signal } : {}),
+        });
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+      if (!response.ok) continue;
+      const data = await response.json();
+      // MediaFolders: { Items: [...] }  VirtualFolders: 数组或 { Items }
+      const rawItems: any[] = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.Items)
+          ? data.Items
+          : [];
+      const options: EmbyLibraryFolderOption[] = [];
+      for (const item of rawItems) {
+        const id = String(item?.ItemId || item?.Guid || item?.Id || '').trim();
+        const name = String(item?.Name || item?.LibraryOptions?.Name || id).trim();
+        if (!id || !name) continue;
+        options.push({
+          id,
+          name,
+          collectionType: item?.CollectionType
+            ? String(item.CollectionType)
+            : item?.LibraryOptions?.CollectionType
+              ? String(item.LibraryOptions.CollectionType)
+              : undefined,
+        });
+      }
+      if (options.length > 0) return options;
+    } catch {
+      // 尝试下一端点
+    }
+  }
+  return [];
+}
+
+/**
+ * 按服务器配置的媒体库多选拉取 Movie 列表；未选库时全量（兼容旧配置）
+ */
+async function fetchMoviesForServer(
+  server: EmbyMediaServer,
+  fetchImpl: typeof fetch,
+  searchTerm?: string,
+): Promise<EmbyMediaItem[]> {
+  const libraryIds = (server.libraryIds || []).map((id) => String(id).trim()).filter(Boolean);
+  if (libraryIds.length === 0) {
+    return fetchAllMediaItems(server, fetchImpl, searchTerm);
+  }
+
+  const buckets: EmbyMediaItem[] = [];
+  for (const parentId of libraryIds) {
+    const items = await fetchAllMediaItems(server, fetchImpl, searchTerm, parentId);
+    buckets.push(...items);
+  }
+  return deduplicateMediaItemsById(buckets);
 }
 
 function removeEntriesForSuccessfulServers(
@@ -205,7 +325,7 @@ export async function handleEmbyLibrarySync(
 
     for (const server of servers) {
       try {
-        const items = await fetchAllMediaItems(server, deps.fetchImpl);
+        const items = await fetchMoviesForServer(server, deps.fetchImpl);
         const index = buildLibraryIndex(server, items, now);
         indexes.push(index);
         successfulServerIds.add(server.id);
@@ -289,7 +409,7 @@ export async function handleEmbyLibraryCheckCodes(
           const searchTerms = generateVideoCodeSearchTerms(code);
           const returnedItems: EmbyMediaItem[] = [];
           for (const searchTerm of searchTerms) {
-            returnedItems.push(...await fetchAllMediaItems(server, deps.fetchImpl, searchTerm));
+            returnedItems.push(...await fetchMoviesForServer(server, deps.fetchImpl, searchTerm));
           }
           const items = deduplicateMediaItemsById(returnedItems);
           const matchedItems = items.filter((item) => extractCodeFromMediaItem(item) === code);
@@ -317,6 +437,218 @@ export async function handleEmbyLibraryCheckCodes(
     };
     await deps.saveState(nextState);
     sendResponse({ success: true, checked: codes.length, matches, state: nextState });
+  } catch (error) {
+    sendResponse({ success: false, error: sanitizeError(error) });
+  }
+}
+
+/**
+ * 写回 Emby/JF 播放标记（Played）
+ * 优先用户会话 PlayedItems；否则回退 ApiKey UserData
+ */
+export async function handleEmbyLibrarySetPlayed(
+  message: any,
+  sendResponse: SendResponse,
+  deps: EmbyLibraryHandlerDeps = defaultDeps(),
+): Promise<void> {
+  try {
+    const itemId = String(message?.itemId || '').trim();
+    const serverUrlRaw = String(message?.serverUrl || '').trim();
+    const played = message?.played === true;
+    if (!itemId || !serverUrlRaw) {
+      sendResponse({ success: false, error: '缺少 itemId 或 serverUrl' });
+      return;
+    }
+
+    const settings = await deps.getSettings();
+    const servers = getEnabledServers(settings);
+    const serverUrl = normalizeServerUrl(serverUrlRaw);
+    const server = servers.find((s) => normalizeServerUrl(s.url) === serverUrl)
+      || servers.find((s) => s.id === String(message?.serverId || ''));
+
+    if (!server) {
+      sendResponse({ success: false, error: '未找到匹配的已启用媒体服务器' });
+      return;
+    }
+
+    const base = normalizeServerUrl(server.url);
+    let response: Response;
+
+    if (hasEmbyUserSession(server) && server.userId && server.accessToken) {
+      const path = `${base}/Users/${encodeURIComponent(server.userId)}/PlayedItems/${encodeURIComponent(itemId)}`;
+      response = await deps.fetchImpl(path, {
+        method: played ? 'POST' : 'DELETE',
+        headers: {
+          ...buildEmbyAuthHeaders(server),
+          'Content-Type': 'application/json',
+        },
+      });
+    } else {
+      if (!server.apiKey) {
+        sendResponse({
+          success: false,
+          error: '请先填写 API Key，或登录媒体服务器用户账号后再写回',
+        });
+        return;
+      }
+      const userDataUrl = `${base}/Items/${encodeURIComponent(itemId)}/UserData?api_key=${encodeURIComponent(server.apiKey)}`;
+      response = await deps.fetchImpl(userDataUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          Played: played,
+          PlaybackPositionTicks: played ? 0 : undefined,
+        }),
+      });
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      sendResponse({
+        success: false,
+        error: hasEmbyUserSession(server)
+          ? '用户令牌无效或权限不足，请重新登录媒体服务器账号'
+          : '服务器拒绝写回：请在设置中登录 Emby/Jellyfin 用户账号（仅 ApiKey 通常不能写 UserData）',
+      });
+      return;
+    }
+    if (!response.ok) {
+      sendResponse({ success: false, error: `写回失败 (${response.status})` });
+      return;
+    }
+
+    // 同步更新本地索引摘要
+    const state = await deps.getState();
+    const now = deps.now();
+    let updated = false;
+    const nextEntries: Record<string, EmbyLibraryIndexEntry[]> = {};
+    for (const [code, entries] of Object.entries(state.entries || {})) {
+      nextEntries[code] = entries.map((entry) => {
+        const sameItem = entry.itemId === itemId
+          && normalizeServerUrl(entry.serverUrl) === serverUrl;
+        if (!sameItem) return entry;
+        updated = true;
+        return {
+          ...entry,
+          userData: {
+            played,
+            positionTicks: played ? 0 : (entry.userData?.positionTicks || 0),
+            runtimeTicks: entry.userData?.runtimeTicks || 0,
+            percent: played ? 100 : 0,
+            lastPlayedAt: played ? now : (entry.userData?.lastPlayedAt || 0),
+          },
+          updatedAt: now,
+        };
+      });
+    }
+
+    if (updated) {
+      await deps.saveState({
+        ...state,
+        entries: nextEntries,
+        updatedAt: state.updatedAt || now,
+      });
+    }
+
+    sendResponse({
+      success: true,
+      played,
+      itemId,
+      localIndexUpdated: updated,
+      usedUserSession: hasEmbyUserSession(server),
+    });
+  } catch (error) {
+    sendResponse({ success: false, error: sanitizeError(error) });
+  }
+}
+
+/**
+ * 列出某服务器上的媒体库文件夹，供设置页多选
+ * message: { serverUrl, apiKey?, serverId? }
+ */
+export async function handleEmbyLibraryListFolders(
+  message: any,
+  sendResponse: SendResponse,
+  deps: EmbyLibraryHandlerDeps = defaultDeps(),
+): Promise<void> {
+  try {
+    const settings = await deps.getSettings();
+    const servers = getEnabledServers(settings);
+    const serverUrl = normalizeServerUrl(String(message?.serverUrl || ''));
+    const apiKeyOverride = String(message?.apiKey || '').trim();
+
+    let server = servers.find((s) => normalizeServerUrl(s.url) === serverUrl)
+      || servers.find((s) => s.id === String(message?.serverId || ''));
+
+    // 设置页新建未保存时允许直接传 url+apiKey
+    if (!server && serverUrl && apiKeyOverride) {
+      server = {
+        id: `tmp:${serverUrl}`,
+        type: 'emby',
+        name: 'tmp',
+        url: serverUrl,
+        apiKey: apiKeyOverride,
+        enabled: true,
+        libraryIds: [],
+      };
+    }
+
+    const target = server
+      ? { url: server.url, apiKey: apiKeyOverride || server.apiKey }
+      : serverUrl && apiKeyOverride
+        ? { url: serverUrl, apiKey: apiKeyOverride }
+        : null;
+
+    if (!target) {
+      sendResponse({ success: false, error: '缺少服务器地址或 API Key', libraries: [] });
+      return;
+    }
+
+    const libraries = await fetchServerLibraryFolders(target, deps.fetchImpl);
+    sendResponse({ success: true, libraries });
+  } catch (error) {
+    sendResponse({ success: false, error: sanitizeError(error), libraries: [] });
+  }
+}
+
+/**
+ * 用户登录媒体服务器：AuthenticateByName，返回 token 字段由前端写入 settings
+ * message: { serverUrl, username, password, serverId? }
+ */
+export async function handleEmbyUserLogin(
+  message: any,
+  sendResponse: SendResponse,
+  deps: EmbyLibraryHandlerDeps = defaultDeps(),
+): Promise<void> {
+  try {
+    const serverUrl = normalizeServerUrl(String(message?.serverUrl || ''));
+    const username = String(message?.username || '').trim();
+    const password = String(message?.password || '');
+    if (!serverUrl || !username) {
+      sendResponse({ success: false, error: '请填写服务器地址与用户名' });
+      return;
+    }
+
+    const result = await authenticateEmbyUser({
+      url: serverUrl,
+      username,
+      password,
+      fetchImpl: deps.fetchImpl,
+    });
+
+    if (!result.success) {
+      sendResponse({ success: false, error: result.message || '登录失败' });
+      return;
+    }
+
+    sendResponse({
+      success: true,
+      accessToken: result.accessToken,
+      userId: result.userId,
+      userName: result.userName,
+      serverId: result.serverId,
+      username,
+      tokenObtainedAt: deps.now(),
+    });
   } catch (error) {
     sendResponse({ success: false, error: sanitizeError(error) });
   }

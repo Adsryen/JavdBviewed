@@ -9,7 +9,9 @@ import {
   heroItems,
   MEDIA_PREVIEW_ITEMS,
   relativeCarouselPos,
+  resumeMediaItems,
   subPathToFilter,
+  type MediaBrowseItem,
 } from './mediaBrowseModel';
 
 describe('mediaBrowseModel', () => {
@@ -18,6 +20,34 @@ describe('mediaBrowseModel', () => {
     expect(emby.every((i) => i.source === 'emby')).toBe(true);
     const q = filterMediaItems(MEDIA_PREVIEW_ITEMS, 'all', 'ssis');
     expect(q.some((i) => i.code.startsWith('SSIS'))).toBe(true);
+  });
+
+  it('filters by watch state', () => {
+    const items: MediaBrowseItem[] = [
+      { ...MEDIA_PREVIEW_ITEMS[0], watchState: 'watched' },
+      { ...MEDIA_PREVIEW_ITEMS[1], watchState: 'in_progress' },
+      { ...MEDIA_PREVIEW_ITEMS[2], watchState: 'in_library' },
+    ];
+    expect(filterMediaItems(items, 'all', '', 'watched')).toHaveLength(1);
+    expect(filterMediaItems(items, 'all', '', 'in_progress')).toHaveLength(1);
+    expect(filterMediaItems(items, 'all', '', 'not_watched')).toHaveLength(1);
+  });
+
+  it('orders resume items by lastPlayedAt', () => {
+    const items: MediaBrowseItem[] = [
+      {
+        ...MEDIA_PREVIEW_ITEMS[0],
+        watchState: 'in_progress',
+        userData: { played: false, positionTicks: 1, runtimeTicks: 10, percent: 20, lastPlayedAt: 100 },
+      },
+      {
+        ...MEDIA_PREVIEW_ITEMS[1],
+        watchState: 'in_progress',
+        userData: { played: false, positionTicks: 1, runtimeTicks: 10, percent: 40, lastPlayedAt: 200 },
+      },
+    ];
+    const resume = resumeMediaItems(items, 8);
+    expect(resume[0].code).toBe(MEDIA_PREVIEW_ITEMS[1].code);
   });
 
   it('maps hash subpath to page filter', () => {

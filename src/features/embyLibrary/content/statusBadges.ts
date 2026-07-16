@@ -1,6 +1,6 @@
 /**
  * @file statusBadges.ts
- * @description statusBadges
+ * @description 列表/详情页 Emby·JF 入库与真实观看徽章
  * @module features/embyLibrary
  */
 import { STATE } from '../../contentState';
@@ -9,6 +9,12 @@ import {
   findLibraryMatches,
   normalizeServerUrl,
 } from '../domain/libraryIndex';
+import {
+  computeWatchState,
+  formatWatchPercent,
+  watchStateLabel,
+  type MediaWatchState,
+} from '../domain/watchState';
 import type { EmbyLibraryIndexEntry } from '../types';
 
 type BadgeContext = 'list' | 'detail';
@@ -20,13 +26,32 @@ function isLibraryStatusEnabled(context: BadgeContext): boolean {
   return config.showOnDetail !== false;
 }
 
-function getLabel(entry: EmbyLibraryIndexEntry): string {
+/** 入库来源标签（Emby/JF） */
+function getSourceLabel(entry: EmbyLibraryIndexEntry): string {
   return entry.serverType === 'jellyfin' ? 'Jellyfin已入库' : 'Emby已入库';
 }
 
-function getClassName(entry: EmbyLibraryIndexEntry): string {
+function getSourceClassName(entry: EmbyLibraryIndexEntry): string {
   const style = entry.serverType === 'jellyfin' ? 'is-link' : 'is-success';
   return `tag ${style} is-light emby-library-status-tag emby-library-status-${entry.serverType}`;
+}
+
+/** 真实观看态徽章 class */
+function getWatchClassName(state: MediaWatchState): string {
+  if (state === 'watched') return 'tag is-success is-light emby-library-status-tag emby-library-watch-watched';
+  if (state === 'in_progress') return 'tag is-warning is-light emby-library-status-tag emby-library-watch-progress';
+  return 'tag is-info is-light emby-library-status-tag emby-library-watch-library';
+}
+
+function getWatchBadgeText(entry: EmbyLibraryIndexEntry): string | null {
+  const state = computeWatchState(entry.userData);
+  if (state === 'in_library' || state === 'none') return null;
+  const label = watchStateLabel(state);
+  if (state === 'in_progress') {
+    const p = formatWatchPercent(entry.userData);
+    return p ? `${label} ${p}` : label;
+  }
+  return label;
 }
 
 function hasLibraryIndex(): boolean {
@@ -55,6 +80,9 @@ function getConfiguredMatches(videoId: string): EmbyLibraryIndexEntry[] {
   });
 }
 
+/**
+ * 为容器追加入库 + 真实观看徽章（可点击跳转服务器）
+ */
 export function renderLibraryStatusBadges(container: HTMLElement, videoId: string, context: BadgeContext): void {
   container.querySelectorAll('.emby-library-status-tag').forEach((tag) => tag.remove());
 
@@ -65,8 +93,8 @@ export function renderLibraryStatusBadges(container: HTMLElement, videoId: strin
 
   for (const entry of matches) {
     const badge = document.createElement('a');
-    badge.className = getClassName(entry);
-    badge.textContent = getLabel(entry);
+    badge.className = getSourceClassName(entry);
+    badge.textContent = getSourceLabel(entry);
     badge.href = buildMediaItemUrl(entry);
     badge.target = '_blank';
     badge.rel = 'noopener noreferrer';
@@ -74,6 +102,69 @@ export function renderLibraryStatusBadges(container: HTMLElement, videoId: strin
     badge.dataset.embyLibraryServerType = entry.serverType;
     badge.dataset.embyLibraryItemId = entry.itemId;
     container.appendChild(badge);
+
+    // 真实观看态（与原站「已看」分离）
+    const watchText = getWatchBadgeText(entry);
+    if (watchText) {
+      const watchBadge = document.createElement('a');
+      const state = computeWatchState(entry.userData);
+      watchBadge.className = getWatchClassName(state);
+      watchBadge.textContent = watchText;
+      watchBadge.href = buildMediaItemUrl(entry);
+      watchBadge.target = '_blank';
+      watchBadge.rel = 'noopener noreferrer';
+      watchBadge.title = `${entry.serverName} · ${watchText}（真实观看，非原站已看）`;
+      watchBadge.dataset.embyLibraryWatchState = state;
+      container.appendChild(watchBadge);
+
+      // 详情页：真实已看可一键加入 115 清理清单
+      if (context === 'detail' && state === 'watched') {
+        const cleanBtn = document.createElement('button');
+        cleanBtn.type = 'button';
+        cleanBtn.className = 'tag is-danger is-light emby-library-status-tag emby-library-cleanup-btn';
+        cleanBtn.textContent = '加入115清理';
+        cleanBtn.title = '将此番号加入扩展内 115 待清理清单（会尝试搜索绑定文件）';
+        cleanBtn.style.cursor = 'pointer';
+        cleanBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          void enqueueCleanupFromContent(videoId, entry);
+        });
+        container.appendChild(cleanBtn);
+      }
+    }
+  }
+}
+
+async function enqueueCleanupFromContent(videoId: string, entry: EmbyLibraryIndexEntry): Promise<void> {
+  try {
+    const resp: any = await new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage(
+          {
+            type: 'MEDIA_115_CLEANUP_ENQUEUE',
+            code: videoId,
+            title: entry.itemName || videoId,
+            embyItemId: entry.itemId,
+            embyServerUrl: entry.serverUrl,
+          },
+          (r) => resolve(r),
+        );
+      } catch (e) {
+        resolve({ success: false, error: String(e) });
+      }
+    });
+    if (resp?.success) {
+      window.alert(
+        resp.bound
+          ? '已加入 115 清理清单（已尝试绑定文件）'
+          : `已加入清理清单${resp.message ? `：${resp.message}` : ''}`,
+      );
+    } else {
+      window.alert(`加入失败：${resp?.error || '未知错误'}`);
+    }
+  } catch (e) {
+    window.alert(`加入失败：${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

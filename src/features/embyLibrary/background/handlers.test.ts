@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleEmbyLibraryCheckCodes, handleEmbyLibrarySync } from './handlers';
+import {
+  handleEmbyLibraryCheckCodes,
+  handleEmbyLibrarySetPlayed,
+  handleEmbyLibrarySync,
+  handleEmbyUserLogin,
+} from './handlers';
 import type { EmbyLibraryState, EmbyMediaServer } from '../types';
 
 type FetchImpl = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -55,7 +60,7 @@ describe('emby library background handlers', () => {
     await handleEmbyLibrarySync({ manual: true }, sendResponse, deps);
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'http://media.local:8096/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path%2CPrimaryImageAspectRatio%2CImageTags&api_key=api-secret',
+      'http://media.local:8096/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path%2CPrimaryImageAspectRatio%2CImageTags%2CUserData%2CRunTimeTicks&api_key=api-secret',
       expect.objectContaining({ method: 'GET' }),
     );
     expect(deps.saveState).toHaveBeenCalledWith(expect.objectContaining({
@@ -317,6 +322,192 @@ describe('emby library background handlers', () => {
           expect.objectContaining({ itemId: 'item-201-compact' }),
         ],
       },
+    }));
+  });
+
+  it('scopes movie fetch to selected library ParentIds when configured', async () => {
+    const sendResponse = vi.fn();
+    const fetchImpl = createFetchMock(async (input) => {
+      const url = String(input);
+      if (url.includes('ParentId=lib-movies')) {
+        return new Response(JSON.stringify({
+          Items: [{ Id: 'm1', Name: 'MOV-1', Path: '/m/MOV-1.mkv' }],
+        }), { status: 200 });
+      }
+      if (url.includes('ParentId=')) {
+        return new Response(JSON.stringify({ Items: [] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        Items: [
+          { Id: 'm1', Name: 'MOV-1', Path: '/m/MOV-1.mkv' },
+          { Id: 't1', Name: 'TV-1', Path: '/t/TV-1.mkv' },
+        ],
+      }), { status: 200 });
+    });
+    const scopedServer: EmbyMediaServer = {
+      ...server,
+      libraryIds: ['lib-movies'],
+    };
+    const deps = {
+      ...createDeps(fetchImpl),
+      getSettings: vi.fn(async () => ({
+        emby: {
+          mediaServers: [scopedServer],
+          libraryStatus: { enabled: true, showOnList: true, showOnDetail: true },
+        },
+      })),
+    };
+
+    await handleEmbyLibrarySync({ manual: true }, sendResponse, deps);
+
+    const calledUrls = fetchImpl.mock.calls.map((c) => String(c[0]));
+    expect(calledUrls.some((u) => u.includes('ParentId=lib-movies'))).toBe(true);
+    expect(deps.saveState).toHaveBeenCalled();
+    const saved = deps.saveState.mock.calls[0][0] as EmbyLibraryState;
+    expect(Object.keys(saved.entries)).toContain('MOV-1');
+  });
+
+  it('writes played flag via UserData and updates local index', async () => {
+    const sendResponse = vi.fn();
+    const fetchImpl = createFetchMock(async () => new Response('{}', { status: 200 }));
+    const previousState: EmbyLibraryState = {
+      entries: {
+        'ABC-300': [{
+          serverType: 'emby',
+          serverName: 'Main',
+          serverUrl: 'http://media.local:8096',
+          itemId: 'item-300',
+          itemName: 'ABC-300',
+          userData: {
+            played: false,
+            positionTicks: 10,
+            runtimeTicks: 100,
+            percent: 10,
+            lastPlayedAt: 0,
+          },
+          updatedAt: 500,
+        }],
+      },
+      updatedAt: 500,
+    };
+    const deps = createDeps(fetchImpl, previousState);
+
+    await handleEmbyLibrarySetPlayed(
+      {
+        itemId: 'item-300',
+        serverUrl: 'http://media.local:8096/',
+        played: true,
+      },
+      sendResponse,
+      deps,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      expect.stringContaining('/Items/item-300/UserData?api_key='),
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(deps.saveState).toHaveBeenCalledWith(expect.objectContaining({
+      entries: {
+        'ABC-300': [
+          expect.objectContaining({
+            itemId: 'item-300',
+            userData: expect.objectContaining({ played: true, percent: 100 }),
+          }),
+        ],
+      },
+    }));
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      played: true,
+      itemId: 'item-300',
+      localIndexUpdated: true,
+      usedUserSession: false,
+    }));
+  });
+
+  it('writes played flag via user session PlayedItems', async () => {
+    const sendResponse = vi.fn();
+    const fetchImpl = createFetchMock(async () => new Response('{}', { status: 200 }));
+    const previousState: EmbyLibraryState = {
+      entries: {
+        'ABC-301': [{
+          serverType: 'emby',
+          serverName: 'Main',
+          serverUrl: 'http://media.local:8096',
+          itemId: 'item-301',
+          itemName: 'ABC-301',
+          updatedAt: 500,
+        }],
+      },
+      updatedAt: 500,
+    };
+    const sessionServer: EmbyMediaServer = {
+      ...server,
+      accessToken: 'user-token',
+      userId: 'user-1',
+    };
+    const deps = {
+      ...createDeps(fetchImpl, previousState),
+      getSettings: vi.fn(async () => ({
+        emby: {
+          mediaServers: [sessionServer],
+          libraryStatus: { enabled: true, showOnList: true, showOnDetail: true },
+        },
+      })),
+    };
+
+    await handleEmbyLibrarySetPlayed(
+      {
+        itemId: 'item-301',
+        serverUrl: 'http://media.local:8096/',
+        played: true,
+      },
+      sendResponse,
+      deps,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'http://media.local:8096/Users/user-1/PlayedItems/item-301',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'X-Emby-Token': 'user-token' }),
+      }),
+    );
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      usedUserSession: true,
+      localIndexUpdated: true,
+    }));
+  });
+
+  it('logs in user via AuthenticateByName', async () => {
+    const sendResponse = vi.fn();
+    const fetchImpl = createFetchMock(async () => new Response(JSON.stringify({
+      AccessToken: 'tok',
+      User: { Id: 'u1', Name: 'alice' },
+      ServerId: 's1',
+    }), { status: 200 }));
+    const deps = createDeps(fetchImpl);
+
+    await handleEmbyUserLogin(
+      {
+        serverUrl: 'http://media.local:8096/',
+        username: 'alice',
+        password: 'pw',
+      },
+      sendResponse,
+      deps,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'http://media.local:8096/Users/AuthenticateByName',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      accessToken: 'tok',
+      userId: 'u1',
+      userName: 'alice',
     }));
   });
 

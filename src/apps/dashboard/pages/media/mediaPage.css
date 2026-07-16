@@ -368,6 +368,343 @@
   text-decoration: underline;
 }
 
+.ml-open-link-secondary {
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.ml-link-group {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ml-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.ml-watch-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface-2, var(--surface-secondary));
+  color: var(--color-fg, var(--text-primary));
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ml-watch-btn:hover:not(:disabled) {
+  border-color: color-mix(
+    in srgb,
+    var(--color-primary, var(--primary)) 40%,
+    var(--color-border, var(--border-primary))
+  );
+}
+
+.ml-watch-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* 继续观看 */
+.ml-resume {
+  position: relative;
+  z-index: 1;
+}
+
+.ml-resume-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 240px);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.ml-resume-card {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  min-height: 72px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface, var(--surface-primary));
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+.ml-resume-card:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--color-primary, var(--primary)) 40%,
+    var(--color-border, var(--border-primary))
+  );
+}
+
+.ml-resume-cover {
+  width: 96px;
+  flex: 0 0 96px;
+  border-radius: 8px;
+  background-size: cover !important;
+  background-position: center !important;
+}
+
+.ml-resume-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.ml-resume-code {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-primary, var(--primary));
+}
+
+.ml-resume-title {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ml-resume-meta {
+  font-size: 12px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+/* 115 播放面板 */
+.ml-115-panel {
+  border: 1px solid var(--color-border, var(--border-primary));
+  border-radius: 12px;
+  background: var(--color-surface, var(--surface-primary));
+  padding: 12px 14px;
+}
+
+.ml-115-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ml-115-close {
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-115-hint {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--color-fg-muted, var(--text-secondary));
+  line-height: 1.5;
+}
+
+.ml-115-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ml-115-row > :first-child {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.ml-115-msg {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-115-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.ml-115-file {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface-2, var(--surface-secondary));
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.ml-115-file:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--color-primary, var(--primary)) 40%,
+    var(--color-border, var(--border-primary))
+  );
+}
+
+.ml-115-fname {
+  font-size: 13px;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.ml-115-fmeta {
+  font-size: 12px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-115-player {
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: #0b1220;
+}
+
+.ml-115-player-title {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ml-115-video {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  background: #000;
+}
+
+/* 115 清理清单 */
+.ml-cleanup-panel {
+  border: 1px solid var(--color-border, var(--border-primary));
+  border-radius: 12px;
+  background: var(--color-surface, var(--surface-primary));
+  padding: 12px 14px;
+}
+
+.ml-cleanup-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ml-cleanup-count {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-cleanup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ml-cleanup-hint,
+.ml-cleanup-msg,
+.ml-cleanup-empty {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--color-fg-muted, var(--text-secondary));
+  line-height: 1.5;
+}
+
+.ml-cleanup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.ml-cleanup-item {
+  border: 1px solid var(--color-border, var(--border-primary));
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--color-surface-2, var(--surface-secondary));
+}
+
+.ml-cleanup-item.is-failed {
+  border-color: color-mix(in srgb, #dc2626 35%, var(--color-border, #e5e7eb));
+}
+
+.ml-cleanup-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.ml-cleanup-code {
+  font-weight: 800;
+  color: var(--color-primary, var(--primary));
+}
+
+.ml-cleanup-title {
+  font-weight: 700;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ml-cleanup-status {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.ml-cleanup-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-fg-muted, var(--text-secondary));
+  word-break: break-all;
+}
+
+.ml-cleanup-row-actions {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .ml-code {
   display: inline-flex;
   width: max-content;

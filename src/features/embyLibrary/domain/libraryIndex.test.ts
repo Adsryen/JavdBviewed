@@ -3,6 +3,7 @@ import {
   buildLibraryIndex,
   buildMediaItemCoverImageUrl,
   buildMediaItemUrl,
+  buildMediaPlaybackUrl,
   findLibraryMatches,
   generateVideoCodeSearchTerms,
   normalizeVideoCode,
@@ -76,6 +77,30 @@ describe('emby library index', () => {
     });
   });
 
+  it('stores UserData watch summary when present on media items', () => {
+    const index = buildLibraryIndex(embyServer, [
+      {
+        Id: '10',
+        Name: 'DEF-100',
+        Path: '/media/DEF-100.mkv',
+        RunTimeTicks: 1000,
+        UserData: {
+          Played: false,
+          PlaybackPositionTicks: 400,
+          PlayedPercentage: 40,
+          LastPlayedDate: '2024-06-01T12:00:00Z',
+        },
+      },
+    ]);
+    expect(index.entries['DEF-100'][0].userData).toMatchObject({
+      played: false,
+      positionTicks: 400,
+      runtimeTicks: 1000,
+      percent: 40,
+    });
+    expect(index.entries['DEF-100'][0].userData!.lastPlayedAt).toBeGreaterThan(0);
+  });
+
   it('keeps Emby and Jellyfin matches separated for the same code', () => {
     const embyIndex = buildLibraryIndex(embyServer, [
       { Id: 'emby-item', Name: 'ABC-002', Path: '/emby/ABC-002.mkv' },
@@ -114,6 +139,25 @@ describe('emby library index', () => {
 
     expect(url).toBe('http://192.168.1.10:8096/web/index.html#!/item?id=abc123&serverId=emby-server');
     expect(url).not.toContain('secret');
+  });
+
+  it('builds playback-oriented web links for emby and jellyfin', () => {
+    expect(
+      buildMediaPlaybackUrl({
+        serverType: 'emby',
+        serverUrl: 'http://192.168.1.10:8096/',
+        itemId: 'abc123',
+        serverId: 'emby-server',
+      }),
+    ).toContain('#!/video?id=abc123');
+
+    expect(
+      buildMediaPlaybackUrl({
+        serverType: 'jellyfin',
+        serverUrl: 'http://192.168.1.11:8096',
+        itemId: 'jf1',
+      }),
+    ).toContain('#!/details?id=jf1');
   });
 
   it('builds token-free cover image URLs from primary image metadata', () => {

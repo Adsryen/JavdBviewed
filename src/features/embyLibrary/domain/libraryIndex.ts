@@ -10,6 +10,7 @@ import type {
   EmbyMediaServer,
 } from '../types';
 import { normalizeVideoCodeCandidate } from '../../../shared/utils/videoCodeExtractor';
+import { parseEmbyUserData } from './watchState';
 
 const GENERIC_FIRST_WORDS = new Set(['THE', 'THIS', 'WHAT', 'WITH', 'MOVIE', 'VIDEO', 'SAMPLE']);
 
@@ -122,6 +123,7 @@ export function buildLibraryIndex(
     if (!code) continue;
 
     const coverImageUrl = buildMediaItemCoverImageUrl(server, item);
+    const userData = parseEmbyUserData(item.UserData, Number(item.RunTimeTicks) || 0);
     const entry: EmbyLibraryIndexEntry = {
       serverType: server.type || 'emby',
       serverName: server.name || (server.type === 'jellyfin' ? 'Jellyfin' : 'Emby'),
@@ -131,6 +133,7 @@ export function buildLibraryIndex(
       itemName: String(item.Name || code),
       path: item.Path,
       ...(coverImageUrl ? { coverImageUrl } : {}),
+      ...(userData ? { userData } : {}),
       updatedAt: now,
     };
 
@@ -174,4 +177,23 @@ export function buildMediaItemUrl(
   const route = entry.serverType === 'jellyfin' ? 'details' : 'item';
   const serverIdParam = entry.serverId ? `&serverId=${encodeURIComponent(entry.serverId)}` : '';
   return `${normalizeServerUrl(entry.serverUrl)}/web/index.html#!/${route}?id=${encodeURIComponent(entry.itemId)}${serverIdParam}`;
+}
+
+/**
+ * 优先打开官方网页「播放」路由；失败回退时仍可用 buildMediaItemUrl 详情页。
+ * Emby: #!/video?id=…  Jellyfin: #!/details?id=…（详情内可播，兼容性更好）
+ */
+export function buildMediaPlaybackUrl(
+  entry: Pick<EmbyLibraryIndexEntry, 'serverUrl' | 'itemId' | 'serverType'> & Partial<Pick<EmbyLibraryIndexEntry, 'serverId'>>,
+): string {
+  const base = normalizeServerUrl(entry.serverUrl);
+  const id = encodeURIComponent(entry.itemId);
+  const serverIdParam = entry.serverId ? `&serverId=${encodeURIComponent(entry.serverId)}` : '';
+
+  if (entry.serverType === 'jellyfin') {
+    // Jellyfin 各版 video 路由不一致，详情页最稳
+    return `${base}/web/index.html#!/details?id=${id}${serverIdParam}`;
+  }
+  // Emby 网页客户端播放路由
+  return `${base}/web/index.html#!/video?id=${id}${serverIdParam}`;
 }
