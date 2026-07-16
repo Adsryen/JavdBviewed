@@ -242,7 +242,8 @@
 
 .ml-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+  /* 竖版封面列更窄一点，避免单卡过高 */
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)) !important;
   grid-auto-rows: auto !important;
   grid-auto-flow: row !important;
   gap: 18px 14px !important;
@@ -250,7 +251,6 @@
   position: relative !important;
   width: 100%;
   min-width: 0;
-  /* 防止子项因 transform/绝对定位逃出格子互相叠 */
   isolation: isolate;
 }
 
@@ -284,21 +284,21 @@
 }
 
 /*
- * 列表封面高度：用 padding-bottom 在文档流占位（不依赖 button 内 aspect-ratio）。
- * 16:9 → 9/16 = 56.25%
+ * 列表封面高度：竖版海报 2:3（AV 封面常见），完整显示不裁切
+ * 2:3 → 3/2 = 150%
  */
 .ml-card-cover {
   position: relative !important;
   display: block !important;
   width: 100% !important;
   height: 0 !important;
-  padding: 0 0 56.25% 0 !important;
+  padding: 0 0 150% 0 !important;
   margin: 0 !important;
   border: 0 !important;
   overflow: hidden !important;
   border-radius: 14px;
   flex: 0 0 auto !important;
-  background: var(--color-surface-2, var(--surface-secondary, #f8fafc));
+  background: var(--color-surface-2, var(--surface-secondary, #0f172a));
 }
 
 /* 点击层铺满占位盒 */
@@ -337,7 +337,7 @@
   outline: none;
 }
 
-/* 封面组件填满占位盒，不再自己 aspect-ratio */
+/* 封面组件填满占位盒；内部图片 contain 完整显示 */
 .ml-card-cover .ui-media-cover,
 .ml-card-cover .ui-media-cover__frame {
   position: absolute !important;
@@ -355,6 +355,11 @@
 
 .ml-card-cover .ui-media-cover__frame {
   border: 1px solid var(--color-border, var(--border-primary, #e5e7eb));
+}
+
+.ml-card-cover .ui-media-cover__art-img {
+  object-fit: contain !important;
+  background: #0b1220;
 }
 
 .ml-open-link {
@@ -771,6 +776,6 @@
     transform: translate3d(-50%, -50%, 0) translateX(42%) scale(0.88) !important;
   }
   .ml-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
   }
 }

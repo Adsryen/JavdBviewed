@@ -18,14 +18,14 @@
   flex: none;
 }
 
-/* 文档流高度来源：宽定、高按 16:9 */
+/* 文档流高度来源：默认按竖版海报 2:3（AV 封面常见），完整显示不裁切 */
 .ui-media-cover__frame {
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 2 / 3;
   height: auto;
-  min-height: 120px; /* 极端情况下兜底，防止再出现细条 */
+  min-height: 160px;
   border-radius: var(--ui-media-cover-radius);
   overflow: hidden;
   border: 1px solid var(--color-border, var(--border-primary, #e5e7eb));
@@ -34,9 +34,23 @@
   isolation: isolate;
 }
 
-/* 不支持 aspect-ratio 的回退（老内核） */
-@supports not (aspect-ratio: 16 / 9) {
+/* 不支持 aspect-ratio 的回退（老内核）：2:3 → padding-top 150% */
+@supports not (aspect-ratio: 2 / 3) {
   .ui-media-cover__frame {
+    height: 0;
+    padding-top: 150%;
+    min-height: 0;
+  }
+}
+
+/* 可选：强制 16:9 横版框（剧照等） */
+.ui-media-cover--ratio-16x9 .ui-media-cover__frame {
+  aspect-ratio: 16 / 9;
+  min-height: 120px;
+}
+
+@supports not (aspect-ratio: 16 / 9) {
+  .ui-media-cover--ratio-16x9 .ui-media-cover__frame {
     height: 0;
     padding-top: 56.25%;
     min-height: 0;
@@ -48,7 +62,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  background-size: cover;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
   transform: scale(1);
@@ -59,12 +73,29 @@
   pointer-events: none;
 }
 
-/* 真实封面 img：object-fit 保证铺满 16:9 框 */
+/* 真实封面 img：默认完整显示（contain），不裁切 */
 .ui-media-cover__art-img {
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   display: block;
   border: 0;
+  background: var(--color-surface-2, var(--surface-secondary, #0f172a));
+}
+
+.ui-media-cover--fit-cover .ui-media-cover__art {
+  background-size: cover;
+}
+
+.ui-media-cover--fit-cover .ui-media-cover__art-img {
+  object-fit: cover;
+}
+
+.ui-media-cover--fit-contain .ui-media-cover__art {
+  background-size: contain;
+}
+
+.ui-media-cover--fit-contain .ui-media-cover__art-img {
+  object-fit: contain;
 }
 
 .ui-media-cover__shade {

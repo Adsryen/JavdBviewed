@@ -430,7 +430,7 @@ export function MediaLibraryPage() {
         <div className="ml-section-head">
           <h3>片库条目</h3>
           <span>
-            {list.length} 部 · 横向封面 16:9
+            {list.length} 部 · 竖版封面完整显示
           </span>
         </div>
 

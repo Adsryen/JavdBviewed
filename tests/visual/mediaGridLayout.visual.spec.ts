@@ -1,6 +1,6 @@
 /**
  * @file mediaGridLayout.visual.spec.ts
- * @description 自检：媒体库网格卡片不得互相重叠，封面接近 16:9
+ * @description 自检：媒体库网格卡片不得互相重叠，封面为竖版 2:3 且完整框
  * @module tests/visual
  */
 import { expect, test } from '@playwright/test';
@@ -16,7 +16,7 @@ function overlaps(
 }
 
 test.describe('media grid layout self-check', () => {
-  test('grid cards do not overlap and cover is ~16:9', async ({ page }) => {
+  test('grid cards do not overlap and cover is poster 2:3 full-frame', async ({ page }) => {
     const fixturePath = path.resolve(process.cwd(), 'tests/fixtures/ui/media-grid-layout.html');
     await page.goto(pathToFileURL(fixturePath).href);
 
@@ -44,15 +44,18 @@ test.describe('media grid layout self-check', () => {
     }
 
     // 至少两行：第 4 张应比第 1 张更靠下（3 列布局）
-    expect(boxes[3].y).toBeGreaterThan(boxes[0].y + 40);
+    // 竖版海报更高，列数可能变化；至少有卡片不在第一行 y
+    const ys = boxes.map((b) => b.y);
+    expect(Math.max(...ys)).toBeGreaterThan(Math.min(...ys) + 40);
 
     const coverBox = await page.locator('.ui-media-cover__frame').first().boundingBox();
     expect(coverBox).toBeTruthy();
     if (coverBox) {
+      // 竖版海报 2:3 → ratio≈0.666；允许轻微误差
       const ratio = coverBox.width / coverBox.height;
-      expect(ratio, `cover ratio ${ratio}`).toBeGreaterThan(1.5);
-      expect(ratio, `cover ratio ${ratio}`).toBeLessThan(2.0);
-      expect(coverBox.height).toBeGreaterThan(100);
+      expect(ratio, `cover ratio ${ratio}`).toBeGreaterThan(0.55);
+      expect(ratio, `cover ratio ${ratio}`).toBeLessThan(0.85);
+      expect(coverBox.height).toBeGreaterThan(140);
     }
   });
 });

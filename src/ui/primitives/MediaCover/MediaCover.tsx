@@ -19,6 +19,12 @@ export type MediaCoverProps = {
   imageUrl?: string | null;
   /** 封面背景（渐变或 url(...)）；无 imageUrl 时使用 */
   artStyle?: CSSProperties;
+  /**
+   * 图片适配：
+   * - contain：完整显示，不裁切（默认，适合竖版 AV 封面）
+   * - cover：铺满裁切（适合横版剧照）
+   */
+  fit?: 'contain' | 'cover';
   /** 左上/右上等徽章区 */
   badges?: ReactNode;
   /** 底部文案（番号、标题） */
@@ -38,6 +44,7 @@ export type MediaCoverProps = {
 export function MediaCover({
   imageUrl,
   artStyle,
+  fit = 'contain',
   badges,
   footer,
   showPlayHint = true,
@@ -52,6 +59,7 @@ export function MediaCover({
       className={cn(
         'ui-media-cover',
         hoverZoom && 'ui-media-cover--hover-zoom',
+        fit === 'cover' ? 'ui-media-cover--fit-cover' : 'ui-media-cover--fit-contain',
         className,
       )}
     >

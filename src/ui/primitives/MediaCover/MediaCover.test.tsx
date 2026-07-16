@@ -1,6 +1,6 @@
 /**
  * @file MediaCover.test.tsx
- * @description 媒体封面渲染合约：必须有 frame 作为 16:9 文档流高度来源
+ * @description 媒体封面渲染合约：文档流高度框 + 完整海报显示
  * @module ui/primitives
  */
 import { createElement } from 'react';
@@ -19,11 +19,10 @@ describe('MediaCover primitive', () => {
     expect(html).toContain('ui-media-cover__frame');
     expect(html).toContain('ui-media-cover__art');
     expect(html).toContain('footer');
-    // 不再使用易塌缩的 padding-top ratio / svg sizer 作为主方案标记
     expect(html).not.toContain('ui-media-cover__ratio');
   });
 
-  it('renders img when imageUrl provided', () => {
+  it('renders img with contain fit class when imageUrl provided', () => {
     const html = renderToStaticMarkup(
       createElement(MediaCover, {
         imageUrl: 'http://example.com/a.jpg?api_key=x',
@@ -33,5 +32,6 @@ describe('MediaCover primitive', () => {
     expect(html).toContain('<img');
     expect(html).toContain('http://example.com/a.jpg?api_key=x');
     expect(html).toContain('ui-media-cover__art-img');
+    expect(html).toContain('ui-media-cover--fit-contain');
   });
 });
