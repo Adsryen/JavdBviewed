@@ -1,6 +1,6 @@
 /**
  * @file index.ts
- * @description Sync client public surface. Full engine/adapters land progressively in 07-16-sync-client-engine.
+ * @description @javdb/sync-client — HTTP API client, sync engine, mock transport (no chrome/DOM).
  * @module @javdb/sync-client
  */
 
@@ -21,9 +21,26 @@ export {
   advanceCursors,
 } from './conflictPolicy';
 
-/**
- * Minimal facade so apps can depend on the package before the full engine exists.
- */
+export { createApiClient, type ApiClient } from './apiClient';
+export { createFetchTransport, SyncHttpError } from './fetchTransport';
+export { createMemoryTokenStore } from './memoryTokenStore';
+export { createMockCloudTransport } from './mockTransport';
+export {
+  createSyncEngine,
+  createMemoryLocalStore,
+  createMemoryCursorStore,
+  type SyncEngine,
+  type LocalEntityStore,
+  type CursorStore,
+} from './syncEngine';
+export type {
+  TokenStore,
+  HttpTransport,
+  SyncClientConfig,
+  CloudApi,
+} from './types';
+
+/** @deprecated Prefer createApiClient + createSyncEngine. */
 export function createSyncClientStub(opts?: { protocolVersion?: ProtocolVersion }) {
   const protocolVersion = opts?.protocolVersion ?? PROTOCOL_VERSION;
   return {
