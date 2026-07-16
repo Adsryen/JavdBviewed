@@ -322,7 +322,9 @@ export function MediaLibraryPage() {
                   <MediaCover
                     hoverZoom={false}
                     showPlayHint={false}
+                    imageUrl={item.coverImageUrl}
                     artStyle={coverArtStyle(item)}
+                    alt={item.code}
                     footer={
                       <>
                         <span className="ml-code">{item.code}</span>
@@ -384,7 +386,17 @@ export function MediaLibraryPage() {
                     if (!playUrl) e.preventDefault();
                   }}
                 >
-                  <div className="ml-resume-cover" style={coverArtStyle(item)} />
+                  <div
+                    className="ml-resume-cover"
+                    style={
+                      item.coverImageUrl
+                        ? {
+                            backgroundImage: `url("${String(item.coverImageUrl).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`,
+                            backgroundColor: '#0f172a',
+                          }
+                        : coverArtStyle(item)
+                    }
+                  />
                   <div className="ml-resume-body">
                     <div className="ml-resume-code">{item.code}</div>
                     <div className="ml-resume-title">{item.title}</div>
@@ -571,7 +583,9 @@ function MediaCard({
           }
         >
           <MediaCover
+            imageUrl={item.coverImageUrl}
             artStyle={coverArtStyle(item)}
+            alt={item.code}
             badges={
               <>
                 <Badge tone={item.source === 'emby' ? 'primary' : item.source === 'jellyfin' ? 'info' : 'neutral'}>

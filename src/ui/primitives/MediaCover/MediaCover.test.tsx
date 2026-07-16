@@ -22,4 +22,16 @@ describe('MediaCover primitive', () => {
     // 不再使用易塌缩的 padding-top ratio / svg sizer 作为主方案标记
     expect(html).not.toContain('ui-media-cover__ratio');
   });
+
+  it('renders img when imageUrl provided', () => {
+    const html = renderToStaticMarkup(
+      createElement(MediaCover, {
+        imageUrl: 'http://example.com/a.jpg?api_key=x',
+        alt: 'SSIS-001',
+      }),
+    );
+    expect(html).toContain('<img');
+    expect(html).toContain('http://example.com/a.jpg?api_key=x');
+    expect(html).toContain('ui-media-cover__art-img');
+  });
 });

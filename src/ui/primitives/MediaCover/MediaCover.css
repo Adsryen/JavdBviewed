@@ -59,6 +59,14 @@
   pointer-events: none;
 }
 
+/* 真实封面 img：object-fit 保证铺满 16:9 框 */
+.ui-media-cover__art-img {
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border: 0;
+}
+
 .ui-media-cover__shade {
   position: absolute;
   inset: 0;
