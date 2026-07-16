@@ -1,0 +1,48 @@
+# Sync Protocol HTTP sketch (v1)
+
+Base path: `/v1`  
+Header: `Authorization: Bearer <accessToken>` (except register/login/refresh)  
+Header optional: `X-Protocol-Version: 1`
+
+## Auth
+
+| Method | Path | Body | Response |
+|--------|------|------|----------|
+| POST | `/auth/register` | `AuthRegisterRequest` | `AuthLoginResponse` or 201 + login required |
+| POST | `/auth/login` | `AuthLoginRequest` | `AuthLoginResponse` |
+| POST | `/auth/refresh` | `AuthRefreshRequest` | `AuthTokenPair` |
+| POST | `/auth/logout` | — | 204 |
+
+## Devices
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/devices` | `DeviceInfo[]` |
+| DELETE | `/devices/:deviceId` | revoke refresh for device |
+
+## Sync
+
+| Method | Path | Body | Response |
+|--------|------|------|----------|
+| POST | `/sync/pull` | `SyncPullRequest` | `SyncPullResponse` |
+| POST | `/sync/push` | `SyncPushRequest` | `SyncPushResponse` |
+
+Rules:
+
+- `protocolVersion` must match server support; reject higher major.
+- Entity `type` must be one of `SYNC_ENTITY_TYPES` for account payloads.
+- Conflict on push: server applies record LWW (+ soft-delete); may return `merged` with server entity.
+
+## Vault
+
+| Method | Path | Body | Response |
+|--------|------|------|----------|
+| GET | `/vault/items` | — | `VaultListResponse` |
+| PUT | `/vault/items/:id` | `VaultPutRequest` | `VaultItem` |
+| DELETE | `/vault/items/:id` | — | 204 (tombstone / hard delete per server policy) |
+
+Vault items use whole-item LWW; ciphertext never logged.
+
+## Types
+
+Canonical TypeScript: `@javdb/sync-protocol` package (`packages/sync-protocol/src`).

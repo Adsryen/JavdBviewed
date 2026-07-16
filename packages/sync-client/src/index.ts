@@ -1,28 +1,34 @@
 /**
  * @file index.ts
- * @description Sync client public surface (Day-1 skeleton).
- * Engine implementation lands in 07-16-sync-client-engine.
+ * @description Sync client public surface. Full engine/adapters land progressively in 07-16-sync-client-engine.
  * @module @javdb/sync-client
  */
 
-import { PROTOCOL_VERSION, type ProtocolVersion } from '@javdb/sync-protocol';
+import {
+  PROTOCOL_VERSION,
+  type ProtocolVersion,
+  type SyncCursorMap,
+  type SyncEntity,
+} from '@javdb/sync-protocol';
 
 export { PROTOCOL_VERSION };
-export type { ProtocolVersion };
+export type { ProtocolVersion, SyncCursorMap, SyncEntity };
 
-/** Opaque cursor map: entity type → last seen server revision. */
-export type SyncCursorMap = Record<string, number>;
+export {
+  entityKey,
+  mergeEntityBatches,
+  mergeVaultBatches,
+  advanceCursors,
+} from './conflictPolicy';
 
 /**
- * Minimal facade so apps can depend on the package before the engine exists.
- * Real pull/push/adapters are filled by the client-engine subtask.
+ * Minimal facade so apps can depend on the package before the full engine exists.
  */
 export function createSyncClientStub(opts?: { protocolVersion?: ProtocolVersion }) {
   const protocolVersion = opts?.protocolVersion ?? PROTOCOL_VERSION;
   return {
     protocolVersion,
-    /** Day-1 stub: always empty changes. */
-    async pull(_cursors: SyncCursorMap = {}): Promise<{ changes: unknown[]; cursors: SyncCursorMap }> {
+    async pull(_cursors: SyncCursorMap = {}): Promise<{ changes: SyncEntity[]; cursors: SyncCursorMap }> {
       return { changes: [], cursors: { ..._cursors } };
     },
   };

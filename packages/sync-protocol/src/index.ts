@@ -1,28 +1,60 @@
 /**
  * @file index.ts
- * @description Sync protocol public surface (Day-1 skeleton).
- * Full asset matrix / OpenAPI land in 07-16-sync-protocol-contract.
+ * @description @javdb/sync-protocol public surface — version, types, asset matrix, conflict.
+ * HTTP route sketch: ./openapi.sketch.txt (repo ignores *.md at root ignore rules).
  * @module @javdb/sync-protocol
  */
 
-/** Wire protocol version; bump only on breaking contract changes. */
-export const PROTOCOL_VERSION = 1 as const;
+export { PROTOCOL_VERSION, type ProtocolVersion, type ClientProductId } from './version';
 
-export type ProtocolVersion = typeof PROTOCOL_VERSION;
+export {
+  SYNC_ENTITY_TYPES,
+  type SyncEntity,
+  type SyncEntityEnvelope,
+  type SyncEntityType,
+  type SyncCursorMap,
+  type DeviceRegistration,
+  type AuthRegisterRequest,
+  type AuthLoginRequest,
+  type AuthTokenPair,
+  type AuthLoginResponse,
+  type AuthRefreshRequest,
+  type DeviceInfo,
+  type SyncPullRequest,
+  type SyncPullResponse,
+  type SyncPushRequest,
+  type SyncPushItemResult,
+  type SyncPushResponse,
+  type VaultItemKind,
+  type VaultItem,
+  type VaultPutRequest,
+  type VaultListResponse,
+} from './types';
 
-/** High-level product ids used by release tags and clients. */
-export type ClientProductId = 'extension' | 'desktop' | 'mobile' | 'tv';
+export {
+  ASSET_MATRIX,
+  ACCOUNT_ENTITY_TYPES,
+  assetsByClass,
+  accountEntityTypesFromMatrix,
+  assertAccountEntityTypesComplete,
+  classifySettingsPath,
+  assertNoSecretMarkedSyncable,
+  type CloudAssetClass,
+  type ConflictStrategy,
+  type AssetMatrixRow,
+  type SettingsPathClass,
+} from './assetMatrix';
 
-/**
- * Minimal entity envelope shared by clients and Cloud.
- * Full fields are frozen by the protocol contract subtask.
- */
-export interface SyncEntityEnvelope<T = unknown> {
-  id: string;
-  type: string;
-  revision: number;
-  updatedAt: number;
-  deletedAt?: number | null;
-  updatedByDeviceId?: string;
-  payload: T;
-}
+export {
+  compareRevisioned,
+  mergeRecord,
+  mergeRecordPreferSoftDelete,
+  mergeSetWithTombstones,
+  mergePreferenceMap,
+  mergeVaultItem,
+  mergeSyncEntity,
+  type Revisioned,
+  type Tombstone,
+  type SetMergeInput,
+  type PreferenceEntry,
+} from './conflict';

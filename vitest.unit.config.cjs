@@ -10,6 +10,7 @@ module.exports = defineConfig({
     include: [
       'apps/extension/src/**/*.test.ts',
       'apps/extension/src/**/*.test.tsx',
+      'packages/*/src/**/*.test.ts',
       'scripts/**/*.test.ts',
       'tests/*.test.ts',
     ],
