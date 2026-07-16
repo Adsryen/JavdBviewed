@@ -156,9 +156,13 @@ quick_build() {
 
   install_dependencies
 
-  info "Building via Vite"
-  # Use local dev dep vite
-  pnpm vite build
+  # 与 package.json / build.ps1 一致：走 scripts/build.ts
+  # （apps/extension vite 配置 + 资源复制 + dist-zip）
+  info "Building via pnpm run build (scripts/build.ts → apps/extension)"
+  if ! pnpm run build; then
+    err "pnpm run build 失败"
+    exit 1
+  fi
 
   if [[ ! -d "$dist_dir" ]]; then
     err "构建失败：未找到 dist/ 目录"
@@ -170,6 +174,7 @@ quick_build() {
   local build
   build=$(read_build)
   info "Detected version: $version"
+  # scripts/build.ts 已打 zip；此处再跑一次仅作兜底（产物名一致时覆盖）
   zip_dist "$version" "$build"
 
   ok "Done. Dist: $dist_dir"
@@ -189,8 +194,12 @@ install_and_build() {
   if ! have node; then err "需要 Node.js"; exit 1; fi
   if ! have pnpm; then err "需要 pnpm (npm i -g pnpm)"; exit 1; fi
   install_dependencies
-  info "Building via Vite"
-  pnpm vite build
+  # 与 package.json / build.ps1 一致（扩展入口在 apps/extension）
+  info "Building via pnpm run build (scripts/build.ts → apps/extension)"
+  if ! pnpm run build; then
+    err "pnpm run build 失败"
+    exit 1
+  fi
 }
 
 show_help() {
