@@ -51,17 +51,23 @@ export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
   },
   {
     id: 'webdav-settings',
-    title: 'WebDAV同步',
-    description: '云端备份和同步',
+    title: 'WebDAV 冷备份',
+    description: '全量备份与换机恢复兜底',
+    icon: 'fa-cloud-upload-alt',
+  },
+  {
+    id: 'cloud-settings',
+    title: 'Cloud 多端同步',
+    description: '自建中枢：账号、设备与 live 同步',
     icon: 'fa-cloud',
+    beta: true,
   },
   {
     id: 'sync-settings',
     title: '同步设置',
     description: 'JavDB数据同步配置',
     icon: 'fa-sync-alt',
-  },
-  {
+  },  {
     id: 'drive115-settings',
     title: '115网盘',
     description: '离线下载管理',

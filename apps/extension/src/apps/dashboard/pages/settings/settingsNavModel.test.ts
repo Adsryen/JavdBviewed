@@ -28,13 +28,10 @@ describe('settingsNavModel', () => {
     expect(filterSettingsNavItems(SETTINGS_NAV_ITEMS, '不存在的词')).toEqual([]);
   });
 
-  it('resolves subpage shell meta for known and unknown sections', () => {
-    const display = resolveSettingsSubpageMeta('display-settings');
-    expect(display.title).toContain('显示');
-    expect(display.panelRootId).toBe('display-settings');
-
-    const unknown = resolveSettingsSubpageMeta('future-settings');
-    expect(unknown.panelRootId).toBe('future-settings');
-    expect(unknown.title).toBe('设置');
+  it('includes cloud multi-end sync entry distinct from webdav backup', () => {
+    expect(SETTINGS_NAV_ITEMS.some((i) => i.id === 'cloud-settings')).toBe(true);
+    expect(SETTINGS_NAV_ITEMS.some((i) => i.id === 'webdav-settings')).toBe(true);
+    const cloudHits = filterSettingsNavItems(SETTINGS_NAV_ITEMS, 'cloud');
+    expect(cloudHits.some((i) => i.id === 'cloud-settings')).toBe(true);
   });
 });

@@ -8,9 +8,11 @@
  * 默认不接入路由，避免覆盖已微调样式。
  */
 
-/** hash 子路径 id；空集合 = 全部子页走壳 + partial */
-export const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([]);
-
+/** hash 子路径 id；仅名单内走完整 React 内容页（默认尽量少，避免覆盖已微调 partial） */
+export const REACT_FULL_SETTINGS_PAGE_IDS = new Set<string>([
+  // Cloud 为新能力，无遗留 partial 样式负担
+  'cloud-settings',
+]);
 /**
  * 是否为完整 React 设置子页
  */

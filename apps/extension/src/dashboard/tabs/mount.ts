@@ -26,8 +26,23 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
           unmountSettingsIndexPage('#tab-settings');
         } catch {}
 
+        // 完整 React 内容页（如 Cloud）：无遗留 partial，直接挂载
+        try {
+          const { isReactFullSettingsPage } = await import('../../apps/dashboard/pages/settings/shared/reactFullPageIds');
+          if (isReactFullSettingsPage(subSection)) {
+            if (subSection === 'cloud-settings') {
+              const { mountCloudSettingsPage } = await import('../../apps/dashboard/pages/settings/cloud/mountCloudSettingsPage');
+              mountCloudSettingsPage('#tab-settings');
+              console.debug('[mount] 设置子页：React 全页 cloud-settings');
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('[mount] React 全页设置挂载失败，回退 partial（若有）', e);
+        }
+
         // 设置子页：统一 React 壳（固定返回钮）+ 原 partial HTML/CSS/弹窗交互
-        // 完整 React 内容页暂不默认接入，避免覆盖已微调样式
+        // 完整 React 内容页默认极少接入，避免覆盖已微调样式
         const subPageKey = `tab-settings-${subSection.replace('-settings', '')}`;
         const subCfg = getTabPartial(subPageKey);
 
