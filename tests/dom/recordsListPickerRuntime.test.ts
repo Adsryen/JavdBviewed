@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsListPickerRuntime } from '../../src/dashboard/tabs/records/listPickerRuntime';
-import type { ListRecord, VideoRecord } from '../../src/types';
+import { createRecordsListPickerRuntime } from '../../apps/extension/src/dashboard/tabs/records/listPickerRuntime';
+import type { ListRecord, VideoRecord } from '../../apps/extension/src/types';
 
 function createRecord(overrides: Partial<VideoRecord> = {}): VideoRecord {
   return {

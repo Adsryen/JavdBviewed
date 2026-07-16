@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it } from 'vitest';
-import { UNREAD_BATCH_OPEN_COOLDOWN_MS } from '../../src/dashboard/tabs/newWorksBatchOpenPolicy';
-import { createNewWorksTabState } from '../../src/dashboard/tabs/newWorksTabState';
+import { UNREAD_BATCH_OPEN_COOLDOWN_MS } from '../../apps/extension/src/dashboard/tabs/newWorksBatchOpenPolicy';
+import { createNewWorksTabState } from '../../apps/extension/src/dashboard/tabs/newWorksTabState';
 
 describe('new works tab state', () => {
   it('keeps page, filters and selected works in a dedicated state controller', () => {

@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ActorSubscription } from '../../src/types';
-import { openSubscriptionManagementModal } from '../../src/dashboard/tabs/newWorksSubscriptionModalRuntime';
+import type { ActorSubscription } from '../../apps/extension/src/types';
+import { openSubscriptionManagementModal } from '../../apps/extension/src/dashboard/tabs/newWorksSubscriptionModalRuntime';
 
 function subscription(overrides: Partial<ActorSubscription> = {}): ActorSubscription {
   return {

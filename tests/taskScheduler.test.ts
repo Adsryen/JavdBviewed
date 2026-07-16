@@ -5,9 +5,9 @@
  */
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
-import type { GlobalTaskDescriptor } from '../src/shared/taskCenterTypes.ts';
-import { GlobalTaskCenter } from '../src/platform/tasks/globalTaskCenter.ts';
-import { TASK_CENTER_MESSAGE } from '../src/shared/taskCenterProtocol.ts';
+import type { GlobalTaskDescriptor } from '../apps/extension/src/shared/taskCenterTypes.ts';
+import { GlobalTaskCenter } from '../apps/extension/src/platform/tasks/globalTaskCenter.ts';
+import { TASK_CENTER_MESSAGE } from '../apps/extension/src/shared/taskCenterProtocol.ts';
 
 const originalWindow = (globalThis as any).window;
 const originalDocument = (globalThis as any).document;
@@ -44,7 +44,7 @@ const originalChrome = (globalThis as any).chrome;
   },
 };
 
-const orchestratorModulePromise = import('../src/apps/content/orchestrator/initOrchestrator.ts');
+const orchestratorModulePromise = import('../apps/extension/src/apps/content/orchestrator/initOrchestrator.ts');
 
 afterAll(() => {
   (globalThis as any).window = originalWindow;

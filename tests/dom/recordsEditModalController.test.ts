@@ -4,9 +4,9 @@
  * @module tests/dom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { openRecordsEditModal } from '../../src/dashboard/tabs/records/editModalController';
-import { VIDEO_STATUS } from '../../src/utils/config';
-import type { VideoRecord } from '../../src/types';
+import { openRecordsEditModal } from '../../apps/extension/src/dashboard/tabs/records/editModalController';
+import { VIDEO_STATUS } from '../../apps/extension/src/utils/config';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function createRecord(overrides: Partial<VideoRecord> = {}): VideoRecord {
   return {

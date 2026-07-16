@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsRenderCoordinator } from '../../src/dashboard/tabs/records/renderCoordinator';
+import { createRecordsRenderCoordinator } from '../../apps/extension/src/dashboard/tabs/records/renderCoordinator';
 
 describe('records render coordinator', () => {
   it('runs server mode render flow when IDB is enabled', async () => {

@@ -11,7 +11,7 @@ import {
   formatActiveActorsLabel,
   hideNewWorksProgressUIAfter,
   updateNewWorksProgressUI,
-} from '../../src/dashboard/tabs/newWorksProgressRuntime';
+} from '../../apps/extension/src/dashboard/tabs/newWorksProgressRuntime';
 
 function renderHost() {
   document.body.innerHTML = '<div class="new-works-controls"></div>';

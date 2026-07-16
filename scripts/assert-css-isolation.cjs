@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const pagesDir = path.join(root, 'src/dashboard/styles/05-pages');
+const pagesDir = path.join(root, 'apps/extension/src/dashboard/styles/05-pages');
 const strict = process.env.CSS_ISOLATION_STRICT === '1';
 
 function walk(dir, acc = []) {

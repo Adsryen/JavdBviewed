@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createInsightsConfirmRuntime } from '../../src/dashboard/tabs/insights/confirmRuntime';
+import { createInsightsConfirmRuntime } from '../../apps/extension/src/dashboard/tabs/insights/confirmRuntime';
 
 describe('insights confirm runtime', () => {
   beforeEach(() => {

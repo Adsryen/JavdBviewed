@@ -15,8 +15,8 @@ import {
   parseRelativeMagnetDate,
   parseSizeToBytes,
   sortMagnetResults,
-} from '../../src/features/magnets/application/resultMetadata';
-import type { MagnetResult } from '../../src/features/magnets/domain/types';
+} from '../../apps/extension/src/features/magnets/application/resultMetadata';
+import type { MagnetResult } from '../../apps/extension/src/features/magnets/domain/types';
 
 function magnet(overrides: Partial<MagnetResult>): MagnetResult {
   return {

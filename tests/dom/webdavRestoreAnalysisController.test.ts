@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebDAVRestoreAnalysisController } from '../../src/dashboard/webdavRestore/restoreAnalysisController';
+import { WebDAVRestoreAnalysisController } from '../../apps/extension/src/dashboard/webdavRestore/restoreAnalysisController';
 
 const storageKeys = {
   VIEWED_RECORDS: 'viewed',

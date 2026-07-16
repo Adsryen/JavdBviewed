@@ -4,7 +4,7 @@
  * @module tests/extension
  */
 import { describe, it, expect, vi } from 'vitest';
-import type { WebDAVFile } from '../../src/features/webdavSync/domain/types';
+import type { WebDAVFile } from '../../apps/extension/src/features/webdavSync/domain/types';
 
 describe('WebDAV cleanup service - per-device retention', () => {
   it('returns a readable WebDAV connection error when file listing fetch fails', async () => {
@@ -12,7 +12,7 @@ describe('WebDAV cleanup service - per-device retention', () => {
     global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as any;
     const logs: Array<{ level: string; message: string; payload?: any }> = [];
 
-    const { listWebDAVFiles } = await import('../../src/features/webdavSync/application/cleanupService');
+    const { listWebDAVFiles } = await import('../../apps/extension/src/features/webdavSync/application/cleanupService');
 
     const result = await listWebDAVFiles({
       getSettings: async () => ({
@@ -91,7 +91,7 @@ describe('WebDAV cleanup service - per-device retention', () => {
       },
     };
 
-    const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
+    const cleanupModule = await import('../../apps/extension/src/features/webdavSync/application/cleanupService');
     const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
     await cleanupModule.cleanupOldBackups(3, { ...options, listFiles } as any);
@@ -146,7 +146,7 @@ describe('WebDAV cleanup service - per-device retention', () => {
       logger: vi.fn(),
     };
 
-    const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
+    const cleanupModule = await import('../../apps/extension/src/features/webdavSync/application/cleanupService');
     const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
     await cleanupModule.cleanupOldBackups(2, { ...options, listFiles } as any);
@@ -178,7 +178,7 @@ describe('WebDAV cleanup service - per-device retention', () => {
       logger: vi.fn(),
     };
 
-    const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
+    const cleanupModule = await import('../../apps/extension/src/features/webdavSync/application/cleanupService');
     const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
     await cleanupModule.cleanupOldBackups(0, { ...options, listFiles } as any);
@@ -208,7 +208,7 @@ describe('WebDAV cleanup service - per-device retention', () => {
       logger: vi.fn(),
     };
 
-    const cleanupModule = await import('../../src/features/webdavSync/application/cleanupService');
+    const cleanupModule = await import('../../apps/extension/src/features/webdavSync/application/cleanupService');
     const listFiles = vi.fn().mockResolvedValue({ success: true, files: mockFiles });
 
     await cleanupModule.cleanupOldBackups(5, { ...options, listFiles } as any);

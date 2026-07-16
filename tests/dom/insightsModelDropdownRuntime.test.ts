@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createInsightsModelDropdownRuntime } from '../../src/dashboard/tabs/insights/modelDropdownRuntime';
+import { createInsightsModelDropdownRuntime } from '../../apps/extension/src/dashboard/tabs/insights/modelDropdownRuntime';
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 

@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it } from 'vitest';
-import { hideRecordsProgressModal, showRecordsProgressModal, updateRecordsProgressModal } from '../../src/dashboard/tabs/records/progressModalController';
+import { hideRecordsProgressModal, showRecordsProgressModal, updateRecordsProgressModal } from '../../apps/extension/src/dashboard/tabs/records/progressModalController';
 
 describe('records progress modal controller', () => {
   it('shows, updates and hides a progress modal', () => {

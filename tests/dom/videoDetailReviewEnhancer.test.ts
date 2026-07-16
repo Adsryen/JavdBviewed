@@ -4,9 +4,9 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { STATE } from '../../src/features/contentState';
-import { VideoDetailEnhancer } from '../../src/features/videoDetail/enhancer';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
+import { STATE } from '../../apps/extension/src/features/contentState';
+import { VideoDetailEnhancer } from '../../apps/extension/src/features/videoDetail/enhancer';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
 
 interface ReviewEnhancerHarness {
   enhanceExistingReviewContent(): void;

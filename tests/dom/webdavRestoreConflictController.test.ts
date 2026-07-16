@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebDAVRestoreConflictController } from '../../src/dashboard/webdavRestore/conflictController';
+import { WebDAVRestoreConflictController } from '../../apps/extension/src/dashboard/webdavRestore/conflictController';
 
 function mountConflictModal(): void {
   document.body.innerHTML = `

@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoDetailEnhancer } from '../../src/features/videoDetail';
-import { STATE } from '../../src/features/contentState';
+import { VideoDetailEnhancer } from '../../apps/extension/src/features/videoDetail';
+import { STATE } from '../../apps/extension/src/features/contentState';
 
 describe('VideoDetailEnhancer preview media loading', () => {
   beforeEach(() => {

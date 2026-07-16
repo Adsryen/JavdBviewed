@@ -13,7 +13,7 @@ import {
   SUPER_RANKING_ITEMS,
   SUPER_RANKING_TOP250_URL,
   isSuperRankingSupportedHost,
-} from '../../src/content/superRankingNav';
+} from '../../apps/extension/src/content/superRankingNav';
 
 function renderRankingNavbar(): void {
   document.body.innerHTML = `

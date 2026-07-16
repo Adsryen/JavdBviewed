@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getLegacyViewedRecordsFromStorage,
   handleGetAllTags,
-} from '../../src/apps/background/dbTagsMessageHandlers';
-import { STORAGE_KEYS } from '../../src/utils/config';
+} from '../../apps/extension/src/apps/background/dbTagsMessageHandlers';
+import { STORAGE_KEYS } from '../../apps/extension/src/utils/config';
 
 describe('db tags message handlers', () => {
   beforeEach(() => {

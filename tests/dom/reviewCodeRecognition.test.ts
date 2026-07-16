@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { enhanceReviewCodeRecognition } from '../../src/features/videoDetail/ui/reviewCodeRecognition';
+import { enhanceReviewCodeRecognition } from '../../apps/extension/src/features/videoDetail/ui/reviewCodeRecognition';
 
 const searchEngines = [
   {

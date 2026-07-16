@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderActorStats } from '../../src/dashboard/tabs/actors/statsRuntime';
+import { renderActorStats } from '../../apps/extension/src/dashboard/tabs/actors/statsRuntime';
 
 function renderControls() {
   document.body.innerHTML = `

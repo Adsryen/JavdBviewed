@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@ui': path.resolve(process.cwd(), 'src/ui'),
+      '@ui': path.resolve(process.cwd(), 'apps/extension/src/ui'),
     },
   },
 });

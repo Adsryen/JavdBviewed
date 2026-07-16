@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { WebDAVRestoreOptionsController } from '../../src/dashboard/webdavRestore/restoreOptionsController';
+import { WebDAVRestoreOptionsController } from '../../apps/extension/src/dashboard/webdavRestore/restoreOptionsController';
 
 function mountRestoreOptionsDom(): void {
   document.body.innerHTML = `
@@ -109,7 +109,7 @@ describe('WebDAV restore options controller', () => {
   });
 
   it('keeps restore strategy controls in a responsive option layout', () => {
-    const html = readFileSync(resolve(process.cwd(), 'src/dashboard/partials/modals/dashboard-modals.html'), 'utf8');
+    const html = readFileSync(resolve(process.cwd(), 'apps/extension/src/dashboard/partials/modals/dashboard-modals.html'), 'utf8');
     document.body.innerHTML = html;
 
     const strategyControls = Array.from(document.querySelectorAll<HTMLElement>('#webdavRestoreModal .restore-strategy-control'));

@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebDAVRestoreWizardController } from '../../src/dashboard/webdavRestore/restoreWizardController';
+import { WebDAVRestoreWizardController } from '../../apps/extension/src/dashboard/webdavRestore/restoreWizardController';
 
 function createDiffResult(): any {
   return {

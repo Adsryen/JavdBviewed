@@ -4,16 +4,16 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { STATE } from '../../src/features/contentState';
-import { LocalListInSourceModalEnhancer } from '../../src/features/videoDetail/localListInSourceModal';
-import { sendRuntimeMessage } from '../../src/platform/browser/runtimeMessages';
-import { showToast } from '../../src/platform/browser/toast';
+import { STATE } from '../../apps/extension/src/features/contentState';
+import { LocalListInSourceModalEnhancer } from '../../apps/extension/src/features/videoDetail/localListInSourceModal';
+import { sendRuntimeMessage } from '../../apps/extension/src/platform/browser/runtimeMessages';
+import { showToast } from '../../apps/extension/src/platform/browser/toast';
 
-vi.mock('../../src/platform/browser/runtimeMessages', () => ({
+vi.mock('../../apps/extension/src/platform/browser/runtimeMessages', () => ({
   sendRuntimeMessage: vi.fn(),
 }));
 
-vi.mock('../../src/platform/browser/toast', () => ({
+vi.mock('../../apps/extension/src/platform/browser/toast', () => ({
   showToast: vi.fn(),
 }));
 

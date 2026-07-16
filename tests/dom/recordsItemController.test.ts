@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsItemElement } from '../../src/dashboard/tabs/records/itemController';
-import type { VideoRecord } from '../../src/types';
+import { createRecordsItemElement } from '../../apps/extension/src/dashboard/tabs/records/itemController';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function createRecord(overrides: Partial<VideoRecord> = {}): VideoRecord {
   return {

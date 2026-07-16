@@ -4,9 +4,9 @@
  * @module tests/extension
  */
 import { describe, expect, it } from 'vitest';
-import { RELEASE_ANNOUNCEMENT_STORAGE_KEY } from '../../src/features/releaseAnnouncement';
-import { registerReleaseAnnouncementEvents } from '../../src/apps/background/releaseAnnouncementEvents';
-import manifest from '../../src/manifest.json';
+import { RELEASE_ANNOUNCEMENT_STORAGE_KEY } from '../../apps/extension/src/features/releaseAnnouncement';
+import { registerReleaseAnnouncementEvents } from '../../apps/extension/src/apps/background/releaseAnnouncementEvents';
+import manifest from '../../apps/extension/src/manifest.json';
 import { dispatchRuntimeInstalled, getChromeStorageSnapshot } from '../setup/chrome';
 
 const currentVersion = manifest.version;

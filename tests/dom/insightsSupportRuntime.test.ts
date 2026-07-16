@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   adjustInsightsIframeHeight,
   getInsightsPreviewContainer,
-} from '../../src/dashboard/tabs/insights/supportRuntime';
+} from '../../apps/extension/src/dashboard/tabs/insights/supportRuntime';
 
 describe('insights support runtime DOM helpers', () => {
   beforeEach(() => {

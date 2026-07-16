@@ -4,7 +4,7 @@
  * @module tests/extension
  */
 import { describe, expect, it, vi } from 'vitest';
-import { handleInsightsMessage } from '../../src/apps/background/dbInsightsMessageHandlers';
+import { handleInsightsMessage } from '../../apps/extension/src/apps/background/dbInsightsMessageHandlers';
 
 describe('db insights message handlers', () => {
   it('stores one insights view and broadcasts a change event', async () => {

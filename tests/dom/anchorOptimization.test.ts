@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AnchorOptimizationManager } from '../../src/features/anchorOptimization/content';
+import { AnchorOptimizationManager } from '../../apps/extension/src/features/anchorOptimization/content';
 
 describe('AnchorOptimizationManager themed floating buttons', () => {
   beforeEach(() => {

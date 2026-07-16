@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createInsightsSavedReportsRuntime } from '../../src/dashboard/tabs/insights/savedReportsRuntime';
+import { createInsightsSavedReportsRuntime } from '../../apps/extension/src/dashboard/tabs/insights/savedReportsRuntime';
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 

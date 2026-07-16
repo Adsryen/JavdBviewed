@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('telemetry error payload', () => {
   it('sanitizes error details and hashes normalized stacks', async () => {
-    const { buildTelemetryErrorPayload } = await import('../../src/features/telemetry');
+    const { buildTelemetryErrorPayload } = await import('../../apps/extension/src/features/telemetry');
     const first = new TypeError('failed https://javdb.com/v/ABC token=secret magnet:?xt=urn:btih:abcdef');
     first.stack = [
       'TypeError: failed https://javdb.com/v/ABC token=secret',
@@ -48,7 +48,7 @@ describe('telemetry error payload', () => {
   });
 
   it('normalizes unsafe component and code values to server-safe lengths', async () => {
-    const { buildTelemetryErrorPayload } = await import('../../src/features/telemetry');
+    const { buildTelemetryErrorPayload } = await import('../../apps/extension/src/features/telemetry');
 
     const payload = await buildTelemetryErrorPayload({
       component: 'content https://javdb.com/v/ABC / weird component name '.repeat(3),

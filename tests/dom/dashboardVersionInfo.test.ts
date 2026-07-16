@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { renderDashboardVersionInfo } from '../../src/apps/dashboard/dashboardVersionInfo';
-import { STATE } from '../../src/dashboard/state';
+import { renderDashboardVersionInfo } from '../../apps/extension/src/apps/dashboard/dashboardVersionInfo';
+import { STATE } from '../../apps/extension/src/dashboard/state';
 
 describe('dashboard version info about panel', () => {
   const originalSettings = STATE.settings;

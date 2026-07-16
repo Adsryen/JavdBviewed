@@ -8,7 +8,7 @@ import {
   attachListClickEnhancement,
   extractMovieIdFromJavdbVideoUrl,
   isFc2ListVideoCode,
-} from '../../src/features/listEnhancement/ui/clickEnhancement';
+} from '../../apps/extension/src/features/listEnhancement/ui/clickEnhancement';
 
 function createItem(url = 'https://javdb.com/v/abc123'): HTMLElement {
   const item = document.createElement('div');

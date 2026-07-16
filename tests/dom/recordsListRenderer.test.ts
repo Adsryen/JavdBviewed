@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { renderRecordsList } from '../../src/dashboard/tabs/records/listRenderer';
-import type { VideoRecord } from '../../src/types';
+import { renderRecordsList } from '../../apps/extension/src/dashboard/tabs/records/listRenderer';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function createRecord(id: string): VideoRecord {
   return {

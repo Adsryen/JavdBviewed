@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsAdvancedConditionsController } from '../../src/dashboard/tabs/records/advancedConditionsController';
-import type { RecordsAdvancedCondition } from '../../src/dashboard/tabs/records/advancedConditionModel';
+import { createRecordsAdvancedConditionsController } from '../../apps/extension/src/dashboard/tabs/records/advancedConditionsController';
+import type { RecordsAdvancedCondition } from '../../apps/extension/src/dashboard/tabs/records/advancedConditionModel';
 
 function createController(initialConditions: RecordsAdvancedCondition[] = []) {
   document.body.innerHTML = `

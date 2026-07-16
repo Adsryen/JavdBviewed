@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMagnetSourceTagView,
   countUniqueResultsBySource,
-} from '../../src/features/magnets/application/sourceTagState';
-import type { MagnetResult } from '../../src/features/magnets/domain/types';
+} from '../../apps/extension/src/features/magnets/application/sourceTagState';
+import type { MagnetResult } from '../../apps/extension/src/features/magnets/domain/types';
 
 function magnet(name: string, source: string, hash = name.padEnd(40, '0').slice(0, 40)): MagnetResult {
   return {

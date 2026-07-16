@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsMultiSelectFilterController } from '../../src/dashboard/tabs/records/multiSelectFilterController';
+import { createRecordsMultiSelectFilterController } from '../../apps/extension/src/dashboard/tabs/records/multiSelectFilterController';
 
 function buildFixture() {
   document.body.innerHTML = `

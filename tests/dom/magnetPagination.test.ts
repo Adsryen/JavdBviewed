@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it } from 'vitest';
-import { buildMagnetPaginationState } from '../../src/content/magnetPagination';
+import { buildMagnetPaginationState } from '../../apps/extension/src/content/magnetPagination';
 
 describe('magnet pagination', () => {
   it('does not paginate result sets up to the threshold', () => {

@@ -53,12 +53,14 @@ async function main() {
             console.warn('[build] Failed to refresh build id via scripts/version.ts. Proceeding with existing env/version files.');
         }
 
-        // Run Vite build (it will clean and create the dist directory)
-        await build();
+        // Run Vite build against apps/extension (dist still lands at monorepo root)
+        await build({
+            configFile: resolve(root, 'apps/extension/vite.config.ts'),
+        });
         console.log('Vite build finished successfully.');
 
         // Keep runtime-loaded Font Awesome assets at stable extension URLs.
-        const fontawesomeSrcDir = resolve(root, 'src/assets/fontawesome');
+        const fontawesomeSrcDir = resolve(root, 'apps/extension/src/assets/fontawesome');
         const fontawesomeDistDir = resolve(distDir, 'assets/fontawesome');
         if (fs.existsSync(fontawesomeSrcDir)) {
             await fs.copy(fontawesomeSrcDir, fontawesomeDistDir);
@@ -70,7 +72,7 @@ async function main() {
         await fs.ensureDir(distTemplatesDir);
         const g2plotDistPath = resolve(distTemplatesDir, 'g2plot.min.js');
         const g2plotCandidates = [
-            resolve(root, 'src/assets/templates/g2plot.min.js'),
+            resolve(root, 'apps/extension/src/assets/templates/g2plot.min.js'),
             resolve(root, 'public/assets/templates/g2plot.min.js'),
             resolve(root, 'node_modules/@antv/g2plot/dist/g2plot.min.js'),
         ];
@@ -84,7 +86,7 @@ async function main() {
             }
         }
         if (!copied) {
-            console.warn('[build] g2plot.min.js not found in src/public/node_modules. G2Plot will fallback to ECharts at runtime.');
+            console.warn('[build] g2plot.min.js not found in apps/extension/src/public/node_modules. G2Plot will fallback to ECharts at runtime.');
         }
 
         // Get version and define zip path

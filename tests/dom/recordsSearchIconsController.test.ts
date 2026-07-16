@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsSearchIconsContainer } from '../../src/dashboard/tabs/records/searchIconsController';
-import type { SearchEngineTemplate } from '../../src/features/externalSearch/domain/searchEngines';
+import { createRecordsSearchIconsContainer } from '../../apps/extension/src/dashboard/tabs/records/searchIconsController';
+import type { SearchEngineTemplate } from '../../apps/extension/src/features/externalSearch/domain/searchEngines';
 
 function createEngine(overrides: Partial<SearchEngineTemplate> = {}): SearchEngineTemplate {
   return {

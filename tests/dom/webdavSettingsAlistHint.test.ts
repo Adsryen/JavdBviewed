@@ -7,11 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { STATE } from '../../src/dashboard/state';
-import { WebDAVSettings } from '../../src/dashboard/tabs/settings/webdav/WebDAVSettings';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
+import { STATE } from '../../apps/extension/src/dashboard/state';
+import { WebDAVSettings } from '../../apps/extension/src/dashboard/tabs/settings/webdav/WebDAVSettings';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
 
-vi.mock('../../src/utils/storage', () => ({
+vi.mock('../../apps/extension/src/utils/storage', () => ({
   getSettings: vi.fn(async () => STATE.settings),
   saveSettings: vi.fn(async () => undefined),
 }));
@@ -19,7 +19,7 @@ vi.mock('../../src/utils/storage', () => ({
 const root = process.cwd();
 
 function setWebdavSettingsHtml(): void {
-  const htmlPath = path.resolve(root, 'src/dashboard/partials/tabs/settings-webdav.html');
+  const htmlPath = path.resolve(root, 'apps/extension/src/dashboard/partials/tabs/settings-webdav.html');
   document.body.innerHTML = `<div id="messageContainer"></div>${fs.readFileSync(htmlPath, 'utf8')}`;
 }
 

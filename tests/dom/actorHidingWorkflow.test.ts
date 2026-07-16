@@ -6,8 +6,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   applyActorBasedHiding,
-} from '../../src/features/listEnhancement/application/actorHidingWorkflow';
-import type { ActorRecord } from '../../src/types';
+} from '../../apps/extension/src/features/listEnhancement/application/actorHidingWorkflow';
+import type { ActorRecord } from '../../apps/extension/src/types';
 
 function createActor(id: string, name: string, overrides: Partial<ActorRecord> = {}): ActorRecord {
   return {

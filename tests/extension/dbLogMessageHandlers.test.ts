@@ -4,7 +4,7 @@
  * @module tests/extension
  */
 import { describe, expect, it, vi } from 'vitest';
-import { handleLogMessage } from '../../src/apps/background/dbLogMessageHandlers';
+import { handleLogMessage } from '../../apps/extension/src/apps/background/dbLogMessageHandlers';
 
 describe('db log message handlers', () => {
   it('adds one log entry and returns the inserted id', async () => {

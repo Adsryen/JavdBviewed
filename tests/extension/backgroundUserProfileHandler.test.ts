@@ -6,8 +6,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   fetchUserProfileFromJavDB,
-} from '../../src/apps/background/userProfileMessageHandler';
-import { DOCUMENT_ONLY_ACCEPT } from '../../src/platform/network/documentRequestHeaders';
+} from '../../apps/extension/src/apps/background/userProfileMessageHandler';
+import { DOCUMENT_ONLY_ACCEPT } from '../../apps/extension/src/platform/network/documentRequestHeaders';
 
 describe('background user profile message handler', () => {
   it('parses JavDB profile counts and profile fields from profile html', async () => {

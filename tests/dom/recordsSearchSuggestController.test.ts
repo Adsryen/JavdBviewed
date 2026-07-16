@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsSearchSuggestController } from '../../src/dashboard/tabs/records/searchSuggestController';
+import { createRecordsSearchSuggestController } from '../../apps/extension/src/dashboard/tabs/records/searchSuggestController';
 
 function createController(tags = ['高清', '字幕', '无码', '有码']) {
   document.body.innerHTML = `

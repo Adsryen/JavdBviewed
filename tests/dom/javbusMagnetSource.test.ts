@@ -10,7 +10,7 @@ import {
   getJavbusResponseDiagnostics,
   parseJavbusFallbackMagnets,
   parseJavbusMagnetRows,
-} from '../../src/content/javbusMagnetSource';
+} from '../../apps/extension/src/content/javbusMagnetSource';
 
 describe('JAVBUS magnet source helpers', () => {
   it('extracts ajax params from a JAVBUS detail page', () => {

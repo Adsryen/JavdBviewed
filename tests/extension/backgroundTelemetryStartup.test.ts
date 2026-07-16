@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 describe('background telemetry startup', () => {
   it('ensures the WebDAV client identity before telemetry starts', async () => {
-    const { initializeTelemetryAfterClientIdentity } = await import('../../src/apps/background/telemetryStartup');
+    const { initializeTelemetryAfterClientIdentity } = await import('../../apps/extension/src/apps/background/telemetryStartup');
     const order: string[] = [];
 
     await initializeTelemetryAfterClientIdentity({
@@ -23,7 +23,7 @@ describe('background telemetry startup', () => {
   });
 
   it('still starts telemetry when identity initialization fails', async () => {
-    const { initializeTelemetryAfterClientIdentity } = await import('../../src/apps/background/telemetryStartup');
+    const { initializeTelemetryAfterClientIdentity } = await import('../../apps/extension/src/apps/background/telemetryStartup');
     const initializeTelemetry = vi.fn(async () => {});
     const logWarning = vi.fn();
 

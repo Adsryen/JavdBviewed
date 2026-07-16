@@ -4,7 +4,7 @@
  * @module tests/extension
  */
 import { describe, expect, it } from 'vitest';
-import manifest from '../../src/manifest.json';
+import manifest from '../../apps/extension/src/manifest.json';
 
 describe('extension manifest contract', () => {
   it('declares the expected Manifest V3 extension entry points', () => {

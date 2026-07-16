@@ -4,7 +4,7 @@
  * @module tests/extension
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchHtml } from '../../src/features/records/refresh/application/cloudflareVerification';
+import { fetchHtml } from '../../apps/extension/src/features/records/refresh/application/cloudflareVerification';
 
 describe('record refresh fetchHtml request headers', () => {
   afterEach(() => {

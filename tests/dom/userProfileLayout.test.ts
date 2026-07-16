@@ -5,19 +5,19 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/dashboard/logger', () => ({
+vi.mock('../../apps/extension/src/dashboard/logger', () => ({
   logAsync: vi.fn(),
 }));
 
-vi.mock('../../src/dashboard/ui/toast', () => ({
+vi.mock('../../apps/extension/src/dashboard/ui/toast', () => ({
   showMessage: vi.fn(),
 }));
 
-vi.mock('../../src/platform/browser/toast', () => ({
+vi.mock('../../apps/extension/src/platform/browser/toast', () => ({
   showToast: vi.fn(),
 }));
 
-vi.mock('../../src/dashboard/services/userService', () => ({
+vi.mock('../../apps/extension/src/dashboard/services/userService', () => ({
   userService: {
     fetchUserProfile: vi.fn().mockResolvedValue(null),
     saveUserProfile: vi.fn().mockResolvedValue(undefined),
@@ -26,7 +26,7 @@ vi.mock('../../src/dashboard/services/userService', () => ({
   },
 }));
 
-vi.mock('../../src/features/drive115/v2', () => ({
+vi.mock('../../apps/extension/src/features/drive115/v2', () => ({
   getDrive115V2Service: vi.fn(() => ({
     getCachedUserInfo: vi.fn().mockResolvedValue(null),
     getCachedQuotaInfo: vi.fn().mockResolvedValue(null),
@@ -41,7 +41,7 @@ describe('user profile menu layout', () => {
 
   it('renders the account heading inside the user profile card', async () => {
     document.body.innerHTML = '<div id="user-profile-section"></div>';
-    const { initUserProfileSection } = await import('../../src/dashboard/userProfile');
+    const { initUserProfileSection } = await import('../../apps/extension/src/dashboard/userProfile');
 
     initUserProfileSection();
 

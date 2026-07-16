@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerEmbyDynamicScripts } from '../../src/apps/background/embyDynamicContentScripts';
+import { registerEmbyDynamicScripts } from '../../apps/extension/src/apps/background/embyDynamicContentScripts';
 
 describe('registerEmbyDynamicScripts', () => {
   beforeEach(() => {

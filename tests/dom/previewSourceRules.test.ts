@@ -14,7 +14,7 @@ import {
   isVbgflPacoCode,
   isVbgflPondoCode,
   normalizePreviewUrl,
-} from '../../src/content/previewSourceRules';
+} from '../../apps/extension/src/content/previewSourceRules';
 
 describe('preview source rules', () => {
   it('does not classify standard maker codes as 1Pondo sample codes', () => {

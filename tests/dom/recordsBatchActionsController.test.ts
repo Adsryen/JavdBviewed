@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsBatchActionsController } from '../../src/dashboard/tabs/records/batchActionsController';
+import { createRecordsBatchActionsController } from '../../apps/extension/src/dashboard/tabs/records/batchActionsController';
 
 async function waitFor(assertion: () => void, attempts = 20): Promise<void> {
   let lastError: unknown;

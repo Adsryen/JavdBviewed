@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ActorSyncService } from '../../src/features/actors';
+import { ActorSyncService } from '../../apps/extension/src/features/actors';
 
 const CLOUDFLARE_CHALLENGE_HTML = `<html>
 <head><title>Security Verification</title></head>

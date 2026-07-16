@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ActorPagedSearchResult, ActorRecord } from '../../src/types';
-import { renderActorListRuntime } from '../../src/dashboard/tabs/actors/actorListRuntime';
+import type { ActorPagedSearchResult, ActorRecord } from '../../apps/extension/src/types';
+import { renderActorListRuntime } from '../../apps/extension/src/dashboard/tabs/actors/actorListRuntime';
 
 function actor(overrides: Partial<ActorRecord> = {}): ActorRecord {
   return {

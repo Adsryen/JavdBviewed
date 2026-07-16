@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   extractListItemVideoInfo,
   optimizeListItemTitle,
-} from '../../src/features/listEnhancement/ui/listItemDom';
+} from '../../apps/extension/src/features/listEnhancement/ui/listItemDom';
 
 function createMovieItem(): HTMLElement {
   const item = document.createElement('div');

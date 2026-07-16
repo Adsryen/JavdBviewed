@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsPaginationRuntime } from '../../src/dashboard/tabs/records/paginationRuntime';
-import type { RenderRecordsPaginationOptions } from '../../src/dashboard/tabs/records/paginationController';
+import { createRecordsPaginationRuntime } from '../../apps/extension/src/dashboard/tabs/records/paginationRuntime';
+import type { RenderRecordsPaginationOptions } from '../../apps/extension/src/dashboard/tabs/records/paginationController';
 
 describe('records pagination runtime', () => {
   it('renders with server total when server mode is active', () => {

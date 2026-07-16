@@ -4,7 +4,7 @@
  * @module tests/extension
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { STORAGE_KEYS } from '../../src/utils/config';
+import { STORAGE_KEYS } from '../../apps/extension/src/utils/config';
 import {
   setChromeStorage,
   setRuntimeMessageHandler,
@@ -12,7 +12,7 @@ import {
 
 const viewedPutMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../src/platform/storage/indexedDb', () => ({
+vi.mock('../../apps/extension/src/platform/storage/indexedDb', () => ({
   viewedPut: viewedPutMock,
 }));
 
@@ -22,7 +22,7 @@ afterEach(() => {
 
 describe('record refresh baseline', () => {
   it('parses JavDB search result links from the refresh feature module', async () => {
-    const { parseSearchResults } = await import('../../src/features/records/refresh/application/javdbParsers');
+    const { parseSearchResults } = await import('../../apps/extension/src/features/records/refresh/application/javdbParsers');
     const html = `
       <div class="movie-list">
         <div class="item">
@@ -40,7 +40,7 @@ describe('record refresh baseline', () => {
   });
 
   it('parses JavDB detail metadata from the refresh feature module', async () => {
-    const { parseDetailPage } = await import('../../src/features/records/refresh/application/javdbParsers');
+    const { parseDetailPage } = await import('../../apps/extension/src/features/records/refresh/application/javdbParsers');
     const html = `
       <div class="panel-block">
         <strong>日期:</strong>
@@ -65,7 +65,7 @@ describe('record refresh baseline', () => {
   });
 
   it('detects Cloudflare challenge pages while allowing normal JavDB content', async () => {
-    const { isCloudflareChallenge } = await import('../../src/features/records/refresh/application/cloudflareVerification');
+    const { isCloudflareChallenge } = await import('../../apps/extension/src/features/records/refresh/application/cloudflareVerification');
 
     expect(isCloudflareChallenge(`
       <html>
@@ -82,7 +82,7 @@ describe('record refresh baseline', () => {
   });
 
   it('detects FC2 record ids from the refresh feature module', async () => {
-    const { isFC2Video } = await import('../../src/features/records/refresh/application/fc2Refresh');
+    const { isFC2Video } = await import('../../apps/extension/src/features/records/refresh/application/fc2Refresh');
 
     expect(isFC2Video('FC2-4903984')).toBe(true);
     expect(isFC2Video('fc2ppv-4903984')).toBe(true);
@@ -134,7 +134,7 @@ describe('record refresh baseline', () => {
     `, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const { refreshRecordById } = await import('../../src/features/records/refresh/application/recordRefresh');
+    const { refreshRecordById } = await import('../../apps/extension/src/features/records/refresh/application/recordRefresh');
     const updated = await refreshRecordById('ZEAA-087');
 
     expect(updated).toMatchObject({

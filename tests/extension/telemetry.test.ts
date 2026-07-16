@@ -4,8 +4,8 @@
  * @module tests/extension
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SERVER_ENDPOINT_STATE_KEY } from '../../src/platform/network';
-import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../../src/utils/config';
+import { SERVER_ENDPOINT_STATE_KEY } from '../../apps/extension/src/platform/network';
+import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../../apps/extension/src/utils/config';
 import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';
 
 describe('telemetry settings defaults', () => {
@@ -14,7 +14,7 @@ describe('telemetry settings defaults', () => {
   });
 
   it('fills the Cloudflare endpoint for legacy settings with an empty endpoint', async () => {
-    const { getSettings } = await import('../../src/utils/storage');
+    const { getSettings } = await import('../../apps/extension/src/utils/storage');
     setChromeStorage({
       [STORAGE_KEYS.SETTINGS]: {
         telemetry: {
@@ -33,7 +33,7 @@ describe('telemetry settings defaults', () => {
 
 describe('telemetry client state', () => {
   it('uses existing Device ID as the first installId and persists it separately', async () => {
-    const { getTelemetryClientState, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    const { getTelemetryClientState, TELEMETRY_CLIENT_STATE_KEY } = await import('../../apps/extension/src/features/telemetry');
 
     const state = await getTelemetryClientState({
       webdav: { clientId: 'existing-device-id' },
@@ -48,7 +48,7 @@ describe('telemetry client state', () => {
   });
 
   it('keeps a persisted installId even when settings Device ID changes', async () => {
-    const { getTelemetryClientState, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    const { getTelemetryClientState, TELEMETRY_CLIENT_STATE_KEY } = await import('../../apps/extension/src/features/telemetry');
     setChromeStorage({
       [TELEMETRY_CLIENT_STATE_KEY]: {
         installId: 'persisted-install-id',
@@ -68,7 +68,7 @@ describe('telemetry client state', () => {
 
 describe('telemetry payload', () => {
   it('uses finer buckets for large viewed libraries', async () => {
-    const { bucketViewedCount } = await import('../../src/features/telemetry');
+    const { bucketViewedCount } = await import('../../apps/extension/src/features/telemetry');
 
     expect([
       bucketViewedCount(999),
@@ -108,7 +108,7 @@ describe('telemetry payload', () => {
   });
 
   it('applies viewed-library buckets to telemetry payload metrics', async () => {
-    const { buildTelemetryPayload } = await import('../../src/features/telemetry');
+    const { buildTelemetryPayload } = await import('../../apps/extension/src/features/telemetry');
     setChromeStorage({
       [STORAGE_KEYS.VIEWED_RECORDS]: Object.fromEntries(Array.from({ length: 2000 }, (_v, index) => [`ID-${index}`, {}])),
     });
@@ -133,7 +133,7 @@ describe('telemetry payload', () => {
   });
 
   it('defines reportable feature flags through a display catalog', async () => {
-    const { TELEMETRY_FEATURE_CATALOG } = await import('../../src/features/telemetry');
+    const { TELEMETRY_FEATURE_CATALOG } = await import('../../apps/extension/src/features/telemetry');
 
     const keys = TELEMETRY_FEATURE_CATALOG.map((feature) => feature.key);
 
@@ -188,7 +188,7 @@ describe('telemetry payload', () => {
   });
 
   it('builds a strict whitelist payload with bucketed metrics', async () => {
-    const { buildTelemetryPayload, TELEMETRY_FEATURE_CATALOG } = await import('../../src/features/telemetry');
+    const { buildTelemetryPayload, TELEMETRY_FEATURE_CATALOG } = await import('../../apps/extension/src/features/telemetry');
     setChromeStorage({
       [STORAGE_KEYS.VIEWED_RECORDS]: Object.fromEntries(Array.from({ length: 12 }, (_v, index) => [`ID-${index}`, { title: `Title ${index}` }])),
       [STORAGE_KEYS.ACTOR_RECORDS]: Object.fromEntries(Array.from({ length: 51 }, (_v, index) => [`actor-${index}`, { name: `Actor ${index}` }])),
@@ -416,7 +416,7 @@ describe('telemetry payload', () => {
   });
 
   it('uses the latest settings Device ID while preserving telemetry installId', async () => {
-    const { buildTelemetryPayload } = await import('../../src/features/telemetry');
+    const { buildTelemetryPayload } = await import('../../apps/extension/src/features/telemetry');
 
     const payload = await buildTelemetryPayload({
       event: 'heartbeat',
@@ -454,7 +454,7 @@ describe('telemetry payload', () => {
   });
 
   it('does not report an install-prefixed telemetry ID as the real Device ID when settings Device ID is missing', async () => {
-    const { buildTelemetryPayload } = await import('../../src/features/telemetry');
+    const { buildTelemetryPayload } = await import('../../apps/extension/src/features/telemetry');
 
     const payload = await buildTelemetryPayload({
       event: 'heartbeat',
@@ -498,7 +498,7 @@ describe('telemetry reporter', () => {
   });
 
   it('does not schedule heartbeat alarms while the endpoint is empty', async () => {
-    const { TELEMETRY_HEARTBEAT_ALARM, syncTelemetryHeartbeatAlarm } = await import('../../src/features/telemetry');
+    const { TELEMETRY_HEARTBEAT_ALARM, syncTelemetryHeartbeatAlarm } = await import('../../apps/extension/src/features/telemetry');
 
     syncTelemetryHeartbeatAlarm({
       telemetry: {
@@ -513,7 +513,7 @@ describe('telemetry reporter', () => {
   });
 
   it('schedules heartbeat alarms every 6 hours when reporting is configured', async () => {
-    const { TELEMETRY_HEARTBEAT_ALARM, syncTelemetryHeartbeatAlarm } = await import('../../src/features/telemetry');
+    const { TELEMETRY_HEARTBEAT_ALARM, syncTelemetryHeartbeatAlarm } = await import('../../apps/extension/src/features/telemetry');
 
     syncTelemetryHeartbeatAlarm({
       telemetry: {
@@ -530,7 +530,7 @@ describe('telemetry reporter', () => {
   });
 
   it('allows another heartbeat after 6 hours', async () => {
-    const { reportTelemetryEvent, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    const { reportTelemetryEvent, TELEMETRY_CLIENT_STATE_KEY } = await import('../../apps/extension/src/features/telemetry');
     setChromeStorage({
       [TELEMETRY_CLIENT_STATE_KEY]: {
         installId: 'persisted-install-id',
@@ -559,7 +559,7 @@ describe('telemetry reporter', () => {
   });
 
   it('routes the default telemetry endpoint through the server endpoint resolver', async () => {
-    const { reportTelemetryEvent, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    const { reportTelemetryEvent, TELEMETRY_CLIENT_STATE_KEY } = await import('../../apps/extension/src/features/telemetry');
     setChromeStorage({
       [SERVER_ENDPOINT_STATE_KEY]: {
         apiBaseUrl: 'https://resolved-api.example',
@@ -595,7 +595,7 @@ describe('telemetry reporter', () => {
   });
 
   it('reports immediately for dashboard open even when heartbeat was just sent', async () => {
-    const { reportTelemetryForDashboardOpen, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    const { reportTelemetryForDashboardOpen, TELEMETRY_CLIENT_STATE_KEY } = await import('../../apps/extension/src/features/telemetry');
     setChromeStorage({
       [TELEMETRY_CLIENT_STATE_KEY]: {
         installId: 'persisted-install-id',
@@ -624,7 +624,7 @@ describe('telemetry reporter', () => {
   });
 
   it('handles dashboard open runtime messages silently', async () => {
-    const { handleTelemetryRuntimeMessage, TELEMETRY_DASHBOARD_OPEN_MESSAGE } = await import('../../src/features/telemetry');
+    const { handleTelemetryRuntimeMessage, TELEMETRY_DASHBOARD_OPEN_MESSAGE } = await import('../../apps/extension/src/features/telemetry');
     const reporter = vi.fn().mockResolvedValue({ sent: true, status: 200 });
     const sendResponse = vi.fn();
 
@@ -641,7 +641,7 @@ describe('telemetry reporter', () => {
   });
 
   it('skips reporting when telemetry is disabled', async () => {
-    const { reportTelemetryEvent } = await import('../../src/features/telemetry');
+    const { reportTelemetryEvent } = await import('../../apps/extension/src/features/telemetry');
     const fetchMock = vi.fn();
 
     const result = await reportTelemetryEvent('startup', {
@@ -662,7 +662,7 @@ describe('telemetry reporter', () => {
   });
 
   it('skips reporting when endpoint is empty', async () => {
-    const { reportTelemetryEvent } = await import('../../src/features/telemetry');
+    const { reportTelemetryEvent } = await import('../../apps/extension/src/features/telemetry');
     const fetchMock = vi.fn();
 
     const result = await reportTelemetryEvent('startup', {
@@ -683,7 +683,7 @@ describe('telemetry reporter', () => {
   });
 
   it('silently handles server failures', async () => {
-    const { reportTelemetryEvent } = await import('../../src/features/telemetry');
+    const { reportTelemetryEvent } = await import('../../apps/extension/src/features/telemetry');
     const fetchMock = vi.fn().mockRejectedValue(new Error('server is still in development'));
 
     const result = await reportTelemetryEvent('heartbeat', {
@@ -704,7 +704,7 @@ describe('telemetry reporter', () => {
   });
 
   it('reports sanitized error payloads without touching heartbeat throttling', async () => {
-    const { reportTelemetryError, TELEMETRY_CLIENT_STATE_KEY } = await import('../../src/features/telemetry');
+    const { reportTelemetryError, TELEMETRY_CLIENT_STATE_KEY } = await import('../../apps/extension/src/features/telemetry');
     setChromeStorage({
       [TELEMETRY_CLIENT_STATE_KEY]: {
         installId: 'persisted-telemetry-install-id',
@@ -766,7 +766,7 @@ describe('telemetry reporter', () => {
   });
 
   it('throttles duplicate telemetry errors by stack hash', async () => {
-    const { reportTelemetryError } = await import('../../src/features/telemetry');
+    const { reportTelemetryError } = await import('../../apps/extension/src/features/telemetry');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     const settings = {
       ...DEFAULT_SETTINGS,
@@ -806,7 +806,7 @@ describe('telemetry reporter', () => {
   });
 
   it('does not consume duplicate error throttle while telemetry is disabled', async () => {
-    const { reportTelemetryError } = await import('../../src/features/telemetry');
+    const { reportTelemetryError } = await import('../../apps/extension/src/features/telemetry');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     const error = new Error('same private message');
     error.stack = 'Error: same private message\n    at run (chrome-extension://test-runtime/background.js:1:2)';
@@ -852,7 +852,7 @@ describe('telemetry reporter', () => {
   });
 
   it('handles error report runtime messages silently', async () => {
-    const { handleTelemetryRuntimeMessage, TELEMETRY_ERROR_REPORT_MESSAGE } = await import('../../src/features/telemetry');
+    const { handleTelemetryRuntimeMessage, TELEMETRY_ERROR_REPORT_MESSAGE } = await import('../../apps/extension/src/features/telemetry');
     const reporter = vi.fn().mockResolvedValue({ sent: true, status: 200 });
     const sendResponse = vi.fn();
 

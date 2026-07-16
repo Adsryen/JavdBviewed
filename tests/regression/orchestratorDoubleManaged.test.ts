@@ -79,7 +79,7 @@ describe('content orchestrator managed tasks', () => {
       configurable: true,
     });
 
-    const { initOrchestrator } = await import('../../src/content/initOrchestrator.ts');
+    const { initOrchestrator } = await import('../../apps/extension/src/content/initOrchestrator.ts');
 
     await initOrchestrator.add('idle', async () => {}, { label: 'contentFilter:initialize' });
 

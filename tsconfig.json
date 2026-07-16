@@ -16,15 +16,26 @@
     "noUnusedParameters": false,
     "noImplicitReturns": true,
     "types": ["chrome", "node"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@javdb/sync-protocol": ["packages/sync-protocol/src/index.ts"],
+      "@javdb/sync-client": ["packages/sync-client/src/index.ts"]
+    }
   },
-  "include": ["src", "scripts", ".storybook"],
+  "include": [
+    "apps/extension/src",
+    "packages/sync-protocol/src",
+    "packages/sync-client/src",
+    "scripts",
+    ".storybook"
+  ],
   "exclude": [
-    "src/**/*.test.ts",
-    "src/**/*.test.tsx",
-    "src/**/__tests__/**",
+    "apps/extension/src/**/*.test.ts",
+    "apps/extension/src/**/*.test.tsx",
+    "apps/extension/src/**/__tests__/**",
     "scripts/**/*.test.ts",
     "tests/**",
-    "src/dashboard/dataSync/legacy/**"
+    "apps/extension/src/dashboard/dataSync/legacy/**"
   ]
 }

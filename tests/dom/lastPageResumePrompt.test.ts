@@ -8,8 +8,8 @@ import {
   maybeShowLastPageResumePrompt,
   mountLastPageResumePrompt,
   unmountLastPageResumePrompt,
-} from '../../src/dashboard/lastPage/resumePrompt';
-import type { DashboardLastPageRecord } from '../../src/dashboard/lastPage/types';
+} from '../../apps/extension/src/dashboard/lastPage/resumePrompt';
+import type { DashboardLastPageRecord } from '../../apps/extension/src/dashboard/lastPage/types';
 
 function record(overrides: Partial<DashboardLastPageRecord> = {}): DashboardLastPageRecord {
   return {

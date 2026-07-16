@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createInsightsTraceRuntime } from '../../src/dashboard/tabs/insights/traceRuntime';
+import { createInsightsTraceRuntime } from '../../apps/extension/src/dashboard/tabs/insights/traceRuntime';
 
 describe('insights trace runtime', () => {
   beforeEach(() => {

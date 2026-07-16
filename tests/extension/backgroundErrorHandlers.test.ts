@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('background error handlers', () => {
   it('ignores Chrome runtime message channel closure noise', async () => {
-    const { isIgnorableBackgroundTelemetryError } = await import('../../src/apps/background/errorHandlers');
+    const { isIgnorableBackgroundTelemetryError } = await import('../../apps/extension/src/apps/background/errorHandlers');
 
     expect(isIgnorableBackgroundTelemetryError(new Error(
       'A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received',
@@ -21,7 +21,7 @@ describe('background error handlers', () => {
   });
 
   it('keeps ordinary background errors reportable', async () => {
-    const { isIgnorableBackgroundTelemetryError } = await import('../../src/apps/background/errorHandlers');
+    const { isIgnorableBackgroundTelemetryError } = await import('../../apps/extension/src/apps/background/errorHandlers');
 
     expect(isIgnorableBackgroundTelemetryError(new TypeError('actor remarks fetch failed'))).toBe(false);
   });

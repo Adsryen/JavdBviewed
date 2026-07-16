@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsDropdownBackdropController } from '../../src/dashboard/tabs/records/dropdownBackdropController';
+import { createRecordsDropdownBackdropController } from '../../apps/extension/src/dashboard/tabs/records/dropdownBackdropController';
 
 function buildFixture() {
   document.body.innerHTML = `

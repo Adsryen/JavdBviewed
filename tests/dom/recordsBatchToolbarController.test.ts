@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsBatchToolbarController } from '../../src/dashboard/tabs/records/batchToolbarController';
+import { createRecordsBatchToolbarController } from '../../apps/extension/src/dashboard/tabs/records/batchToolbarController';
 
 function setupDom() {
   document.body.innerHTML = `

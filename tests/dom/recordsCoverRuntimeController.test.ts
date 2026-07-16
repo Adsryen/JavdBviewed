@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsCoverRuntimeController } from '../../src/dashboard/tabs/records/coverRuntimeController';
+import { createRecordsCoverRuntimeController } from '../../apps/extension/src/dashboard/tabs/records/coverRuntimeController';
 
 function createObserverFactory() {
   const instances: Array<{

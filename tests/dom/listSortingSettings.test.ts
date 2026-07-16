@@ -6,10 +6,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { STATE } from '../../src/dashboard/state';
-import { bindEvents } from '../../src/dashboard/tabs/settings/enhancement/binding/enhancementBindEvents';
-import { doLoadSettings } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementLoad';
-import { doGetSettings } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsSync';
+import { STATE } from '../../apps/extension/src/dashboard/state';
+import { bindEvents } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/binding/enhancementBindEvents';
+import { doLoadSettings } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/settings/enhancementLoad';
+import { doGetSettings } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsSync';
 
 function checkbox(checked = false): HTMLInputElement {
   const input = document.createElement('input');
@@ -72,7 +72,7 @@ function createHost(): Record<string, unknown> {
 
 describe('list sorting settings', () => {
   it('renders the sorting card under other enhancements with stacked subsettings', () => {
-    const partialPath = path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html');
+    const partialPath = path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-enhancement.html');
     document.body.innerHTML = fs.readFileSync(partialPath, 'utf8');
 
     const sortingToggle = document.querySelector<HTMLElement>('[data-target="enableListSorting"]');
@@ -88,7 +88,7 @@ describe('list sorting settings', () => {
   });
 
   it('keeps list sorting subsetting selects compact inside each row', () => {
-    const cssPath = path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/enhancement.css');
+    const cssPath = path.resolve(process.cwd(), 'apps/extension/src/dashboard/styles/05-pages/settings/enhancement.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toContain('#enhancement-settings .list-sorting-option-row');

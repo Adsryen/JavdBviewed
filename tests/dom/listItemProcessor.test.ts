@@ -4,13 +4,13 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { STATE } from '../../src/features/contentState';
-import { VIDEO_STATUS } from '../../src/utils/config';
-import type { VideoRecord } from '../../src/types';
-import { processVisibleItems } from '../../src/features/listEnhancement/content/itemProcessor';
+import { STATE } from '../../apps/extension/src/features/contentState';
+import { VIDEO_STATUS } from '../../apps/extension/src/utils/config';
+import type { VideoRecord } from '../../apps/extension/src/types';
+import { processVisibleItems } from '../../apps/extension/src/features/listEnhancement/content/itemProcessor';
 
-vi.mock('../../src/features/videoDetail', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/features/videoDetail')>();
+vi.mock('../../apps/extension/src/features/videoDetail', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../apps/extension/src/features/videoDetail')>();
   return {
     ...actual,
     isPageProperlyLoaded: vi.fn(() => true),

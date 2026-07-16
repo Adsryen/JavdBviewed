@@ -4,12 +4,12 @@
  * @module tests/dom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultHttpClient } from '../../src/platform/network/httpClient';
+import { defaultHttpClient } from '../../apps/extension/src/platform/network/httpClient';
 import {
   buildDetailSearchLinks,
   findDetailSearchInsertionTarget,
   renderDetailSearchLinks,
-} from '../../src/features/externalSearch';
+} from '../../apps/extension/src/features/externalSearch';
 
 describe('detail search links', () => {
   afterEach(() => {

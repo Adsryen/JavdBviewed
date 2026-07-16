@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachNativeJavdbPreview,
   restoreNativeJavdbPreview,
-} from '../../src/content/nativeJavdbPreview';
+} from '../../apps/extension/src/content/nativeJavdbPreview';
 
 describe('native JavDB preview reuse', () => {
   beforeEach(() => {

@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setupActorControlsRuntime, syncActorViewModeButton } from '../../src/dashboard/tabs/actors/actorControlsRuntime';
+import { setupActorControlsRuntime, syncActorViewModeButton } from '../../apps/extension/src/dashboard/tabs/actors/actorControlsRuntime';
 
 function renderControls() {
   document.body.innerHTML = `

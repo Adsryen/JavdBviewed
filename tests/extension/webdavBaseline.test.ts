@@ -6,8 +6,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TELEMETRY_CLIENT_STATE_KEY } from '../../src/features/telemetry';
-import { STORAGE_KEYS } from '../../src/utils/config';
+import { TELEMETRY_CLIENT_STATE_KEY } from '../../apps/extension/src/features/telemetry';
+import { STORAGE_KEYS } from '../../apps/extension/src/utils/config';
 
 const root = process.cwd();
 
@@ -25,12 +25,12 @@ function collectExportedFunctions(source: string): string[] {
 
 describe('WebDAV backup and restore baseline', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/platform/storage/indexedDb');
+    vi.doUnmock('../../apps/extension/src/platform/storage/indexedDb');
     vi.resetModules();
   });
 
   it('locks current WebDAV router message contract and sync export contract', () => {
-    expect(collectSwitchCases(readSource('src/features/webdavSync/background/router.ts'))).toEqual([
+    expect(collectSwitchCases(readSource('apps/extension/src/features/webdavSync/background/router.ts'))).toEqual([
       'webdav-list-files',
       'WEB_DAV:RESTORE_PREVIEW',
       'WEB_DAV:RESTORE_UNIFIED',
@@ -51,13 +51,13 @@ describe('WebDAV backup and restore baseline', () => {
       'restore-from-json',
     ]);
 
-    expect(collectExportedFunctions(readSource('src/background/sync.ts'))).toEqual([
+    expect(collectExportedFunctions(readSource('apps/extension/src/background/sync.ts'))).toEqual([
       'refreshRecordById',
     ]);
   });
 
   it('routes the legacy webdav-restore message through unified restore', async () => {
-    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const { registerWebDAVRouterListener } = await import('../../apps/extension/src/features/webdavSync/background/router');
     const performRestoreUnified = vi.fn().mockResolvedValue({ success: true, summary: { restored: true } });
 
     registerWebDAVRouterListener({
@@ -129,7 +129,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('routes unified restore with a restore progress task id', async () => {
-    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const { registerWebDAVRouterListener } = await import('../../apps/extension/src/features/webdavSync/background/router');
     const performRestoreUnified = vi.fn().mockResolvedValue({ success: true, summary: { restored: true } });
 
     registerWebDAVRouterListener({
@@ -177,7 +177,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('routes a WebDAV upload to a specific saved config', async () => {
-    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const { registerWebDAVRouterListener } = await import('../../apps/extension/src/features/webdavSync/background/router');
     const performUploadToConfig = vi.fn().mockResolvedValue({
       success: true,
       configId: 'config-b',
@@ -225,7 +225,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('routes WebDAV upload to all saved configs and returns the summary', async () => {
-    const { registerWebDAVRouterListener } = await import('../../src/features/webdavSync/background/router');
+    const { registerWebDAVRouterListener } = await import('../../apps/extension/src/features/webdavSync/background/router');
     const performUploadToAllConfigs = vi.fn().mockResolvedValue({
       success: false,
       total: 2,
@@ -293,8 +293,8 @@ describe('WebDAV backup and restore baseline', () => {
       getAll: vi.fn(async (storeName: string) => storeName === 'lists' ? listRecords : []),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -303,7 +303,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { collectBackupData } = await import('../../src/features/webdavSync/application/backupCollector');
+    const { collectBackupData } = await import('../../apps/extension/src/features/webdavSync/application/backupCollector');
 
     const snapshot = await collectBackupData();
 
@@ -324,8 +324,8 @@ describe('WebDAV backup and restore baseline', () => {
       transaction: vi.fn(() => fakeTx),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -333,7 +333,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
     const records = [
       { id: 'local_1', name: '本地清单', type: 'local', source: 'local' },
       { id: 'series:abc', name: '系列 A', type: 'series', source: 'javdb' },
@@ -364,8 +364,8 @@ describe('WebDAV backup and restore baseline', () => {
       transaction: vi.fn(() => fakeTx),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -373,7 +373,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
     const record = {
       id: 'ZEAA-087',
       title: 'ZEAA-087',
@@ -418,8 +418,8 @@ describe('WebDAV backup and restore baseline', () => {
       })),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -427,7 +427,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
     const progressEvents: any[] = [];
 
     const result = await applyImportDataDirect(
@@ -497,8 +497,8 @@ describe('WebDAV backup and restore baseline', () => {
       })),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -507,7 +507,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
 
     const result = await applyImportDataDirect(
       {
@@ -578,8 +578,8 @@ describe('WebDAV backup and restore baseline', () => {
       })),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -588,7 +588,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
 
     const result = await applyImportDataDirect(
       { idb: { viewedRecords: [{ id: 'CLOUD-001', title: 'Cloud only', updatedAt: 100 }] } },
@@ -649,8 +649,8 @@ describe('WebDAV backup and restore baseline', () => {
       transaction: vi.fn(() => fakeTx),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -658,7 +658,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
 
     const result = await applyImportDataDirect(
       {
@@ -730,8 +730,8 @@ describe('WebDAV backup and restore baseline', () => {
       })),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -742,7 +742,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
 
     const result = await applyImportDataDirect(
       {
@@ -803,8 +803,8 @@ describe('WebDAV backup and restore baseline', () => {
       })),
     });
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB,
@@ -813,7 +813,7 @@ describe('WebDAV backup and restore baseline', () => {
       };
     });
 
-    const { applyImportDataDirect } = await import('../../src/features/webdavSync/application/restoreService');
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
 
     const result = await applyImportDataDirect(
       {
@@ -854,7 +854,7 @@ describe('WebDAV backup and restore baseline', () => {
     const viewedReplaceAll = vi.fn().mockResolvedValue(0);
     const sendResponse = vi.fn();
 
-    const { handleClearAllRecords } = await import('../../src/apps/background/clearRecordsHandler');
+    const { handleClearAllRecords } = await import('../../apps/extension/src/apps/background/clearRecordsHandler');
     await handleClearAllRecords(sendResponse, { setValue, viewedReplaceAll });
 
     expect(sendResponse).toHaveBeenCalledWith({ success: true });
@@ -868,7 +868,7 @@ describe('WebDAV backup and restore baseline', () => {
       joinWebDavUrl,
       normalizeWebDavBaseUrl,
       sanitizeDeviceLabel,
-    } = await import('../../src/background/webdav');
+    } = await import('../../apps/extension/src/background/webdav');
 
     expect(normalizeWebDavBaseUrl(' https://alist.example.com/dav/backups ')).toBe('https://alist.example.com/dav/backups/');
     expect(joinWebDavUrl('https://alist.example.com/dav/backups/', '/javdb-extension-backup.zip')).toBe('https://alist.example.com/dav/backups/javdb-extension-backup.zip');
@@ -878,7 +878,7 @@ describe('WebDAV backup and restore baseline', () => {
   }, 20000);
 
   it('parses PROPFIND XML and keeps only user backup files', async () => {
-    const { isUserBackupFile, parseWebDAVResponse } = await import('../../src/background/webdav');
+    const { isUserBackupFile, parseWebDAVResponse } = await import('../../apps/extension/src/background/webdav');
     const xml = `<?xml version="1.0"?>
       <d:multistatus xmlns:d="DAV:">
         <d:response>
@@ -922,7 +922,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('builds upload index updates with dedupe and retention limit', async () => {
-    const { buildNextWebDAVUploadIndex } = await import('../../src/background/webdav');
+    const { buildNextWebDAVUploadIndex } = await import('../../apps/extension/src/background/webdav');
     const next = buildNextWebDAVUploadIndex(
       {
         version: 1,
@@ -953,7 +953,7 @@ describe('WebDAV backup and restore baseline', () => {
     const {
       omitLocalOnlyStorageKeys,
       sanitizeImportedSettings,
-    } = await import('../../src/background/webdav');
+    } = await import('../../apps/extension/src/background/webdav');
 
     expect(sanitizeImportedSettings(
       {
@@ -1031,7 +1031,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('keeps generated WebDAV client IDs in UUID format when randomUUID is unavailable', async () => {
-    const { createUuidLike } = await import('../../src/features/webdavSync');
+    const { createUuidLike } = await import('../../apps/extension/src/features/webdavSync');
     const bytes = new Uint8Array([
       0x3c, 0x60, 0xde, 0xc6,
       0x63, 0xd8,
@@ -1053,7 +1053,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('normalizes restore collections and batches writes', async () => {
-    const { chunk, toArrayFromObjMap } = await import('../../src/background/webdav');
+    const { chunk, toArrayFromObjMap } = await import('../../apps/extension/src/background/webdav');
 
     expect(toArrayFromObjMap({
       'SSIS-001': { id: 'SSIS-001' },
@@ -1068,7 +1068,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('builds restore preview counts from backup stats and fallback shapes', async () => {
-    const { buildBackupPreview } = await import('../../src/background/webdav');
+    const { buildBackupPreview } = await import('../../apps/extension/src/background/webdav');
 
     expect(buildBackupPreview({
       version: '2.1',
@@ -1134,7 +1134,7 @@ describe('WebDAV backup and restore baseline', () => {
   });
 
   it('maps WebDAV diagnostic config from settings shape', async () => {
-    const { buildWebDAVDiagnosticConfig } = await import('../../src/background/webdav');
+    const { buildWebDAVDiagnosticConfig } = await import('../../apps/extension/src/background/webdav');
 
     expect(buildWebDAVDiagnosticConfig({
       enabled: true,

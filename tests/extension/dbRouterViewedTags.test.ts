@@ -11,7 +11,7 @@ describe('DB:GET_ALL_TAGS route', () => {
   });
 
   afterEach(() => {
-    vi.doUnmock('../../src/platform/storage/indexedDb');
+    vi.doUnmock('../../apps/extension/src/platform/storage/indexedDb');
   });
 
   it('builds tag stats from the viewedByTag index when viewed records have no tag fields', async () => {
@@ -24,8 +24,8 @@ describe('DB:GET_ALL_TAGS route', () => {
       { key: '巨乳::SSIS-002', tag: '巨乳', videoId: 'SSIS-002' },
     ]);
 
-    vi.doMock('../../src/platform/storage/indexedDb', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/platform/storage/indexedDb')>();
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
       return {
         ...actual,
         initDB: vi.fn(() => Promise.resolve({})),
@@ -34,7 +34,7 @@ describe('DB:GET_ALL_TAGS route', () => {
       };
     });
 
-    const { registerDbMessageRouter } = await import('../../src/background/dbRouter');
+    const { registerDbMessageRouter } = await import('../../apps/extension/src/background/dbRouter');
     registerDbMessageRouter();
 
     const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls.at(-1)?.[0];

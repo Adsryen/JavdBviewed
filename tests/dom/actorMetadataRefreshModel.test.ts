@@ -4,13 +4,13 @@
  * @module tests/dom
  */
 import { describe, expect, it } from 'vitest';
-import type { ActorRecord } from '../../src/types';
+import type { ActorRecord } from '../../apps/extension/src/types';
 import {
   buildRefreshedActorRecord,
   buildActorMetadataRefreshToast,
   parseActorProfileHtml,
   sanitizeActorProfileHtml,
-} from '../../src/dashboard/tabs/actors/metadataRefreshModel';
+} from '../../apps/extension/src/dashboard/tabs/actors/metadataRefreshModel';
 
 function actor(overrides: Partial<ActorRecord> = {}): ActorRecord {
   return {

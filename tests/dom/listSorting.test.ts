@@ -8,12 +8,12 @@ import {
   detectNativeSortCapabilities,
   readSortableItems,
   sortSortableItems,
-} from '../../src/features/listEnhancement/application/listSorting';
+} from '../../apps/extension/src/features/listEnhancement/application/listSorting';
 import {
   createListSortingController,
-} from '../../src/features/listEnhancement/ui/listSortingControls';
-import { listEnhancementManager } from '../../src/features/listEnhancement/listEnhancementManager';
-import { LIST_ENHANCEMENT_BASE_STYLES } from '../../src/features/listEnhancement/ui/styles';
+} from '../../apps/extension/src/features/listEnhancement/ui/listSortingControls';
+import { listEnhancementManager } from '../../apps/extension/src/features/listEnhancement/listEnhancementManager';
+import { LIST_ENHANCEMENT_BASE_STYLES } from '../../apps/extension/src/features/listEnhancement/ui/styles';
 
 function mountMovieList(): void {
   document.body.innerHTML = `

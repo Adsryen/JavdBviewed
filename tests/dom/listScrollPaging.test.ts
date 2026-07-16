@@ -13,7 +13,7 @@ import {
   resolveScrollPagingPageInfo,
   setScrollLoadingIndicatorVisible,
   shouldTriggerScrollPaging,
-} from '../../src/features/listEnhancement/application/scrollPaging';
+} from '../../apps/extension/src/features/listEnhancement/application/scrollPaging';
 
 describe('list scroll paging helpers', () => {
   afterEach(() => {

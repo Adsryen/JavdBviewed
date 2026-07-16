@@ -1,8 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
-    './src/ui/**/*.{ts,tsx,js,jsx}',
-    './src/apps/dashboard/**/*.{ts,tsx,js,jsx,html}',
+    './apps/extension/src/ui/**/*.{ts,tsx,js,jsx}',
+    './apps/extension/src/apps/dashboard/**/*.{ts,tsx,js,jsx,html}',
     './.storybook/**/*.{ts,tsx,js,jsx}',
   ],
   darkMode: ['selector', '[data-theme="dark"]'],

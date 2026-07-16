@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { renderRecordsPagination } from '../../src/dashboard/tabs/records/paginationController';
+import { renderRecordsPagination } from '../../apps/extension/src/dashboard/tabs/records/paginationController';
 
 describe('records pagination controller', () => {
   it('hides pagination when the pagination model is not visible', () => {

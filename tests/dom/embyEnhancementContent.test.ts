@@ -4,9 +4,9 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { STATE } from '../../src/features/contentState';
-import { embyEnhancementManager } from '../../src/features/embyEnhancement/content';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
+import { STATE } from '../../apps/extension/src/features/contentState';
+import { embyEnhancementManager } from '../../apps/extension/src/features/embyEnhancement/content';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
 
 function setEmbySettings(videoCodePatterns: string[] = []): void {
   const settings = structuredClone(DEFAULT_SETTINGS);

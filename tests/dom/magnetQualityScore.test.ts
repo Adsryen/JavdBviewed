@@ -6,16 +6,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateMagnetQualityScore,
-} from '../../src/features/magnets/application/qualityScore';
+} from '../../apps/extension/src/features/magnets/application/qualityScore';
 import {
   sortMagnetResultsByMode,
   normalizeMagnetSortMode,
-} from '../../src/features/magnets/application/resultSort';
+} from '../../apps/extension/src/features/magnets/application/resultSort';
 import {
   buildMagnetQualityTagStyle,
   createMagnetQualityTag,
-} from '../../src/features/magnets/ui/qualityTag';
-import type { MagnetResult } from '../../src/features/magnets/domain/types';
+} from '../../apps/extension/src/features/magnets/ui/qualityTag';
+import type { MagnetResult } from '../../apps/extension/src/features/magnets/domain/types';
 
 const GB = 1024 * 1024 * 1024;
 const MB = 1024 * 1024;

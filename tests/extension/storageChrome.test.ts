@@ -4,9 +4,9 @@
  * @module tests/extension
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createChromeStorage } from '../../src/platform/storage/chromeStorage';
-import { STORAGE_KEYS } from '../../src/utils/config';
-import { getValue as getLegacyValue, setValue as setLegacyValue } from '../../src/utils/storage';
+import { createChromeStorage } from '../../apps/extension/src/platform/storage/chromeStorage';
+import { STORAGE_KEYS } from '../../apps/extension/src/utils/config';
+import { getValue as getLegacyValue, setValue as setLegacyValue } from '../../apps/extension/src/utils/storage';
 import {
   getChromeStorageSnapshot,
   getRuntimeMessages,
@@ -131,7 +131,7 @@ describe('storage chrome adapter', () => {
   it('keeps platform cache calls non-throwing when chrome storage is unavailable', async () => {
     vi.resetModules();
     removeChromeStorage();
-    const { CacheManager } = await import('../../src/platform/storage/cache');
+    const { CacheManager } = await import('../../apps/extension/src/platform/storage/cache');
     const cache = new CacheManager({ cleanupInterval: 60_000 });
 
     await expect(cache.getVideoDetail('ABC-001')).resolves.toBeNull();

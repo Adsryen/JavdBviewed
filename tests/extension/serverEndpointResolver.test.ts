@@ -53,7 +53,7 @@ describe('serverEndpointResolver', () => {
   });
 
   it('builds service URLs from the last known good API base without fetching bootstrap', async () => {
-    const { SERVER_ENDPOINT_STATE_KEY, buildServerApiUrl } = await import('../../src/platform/network/serverEndpointResolver');
+    const { SERVER_ENDPOINT_STATE_KEY, buildServerApiUrl } = await import('../../apps/extension/src/platform/network/serverEndpointResolver');
     setChromeStorage({
       [SERVER_ENDPOINT_STATE_KEY]: {
         apiBaseUrl: 'https://cached-api.example',
@@ -78,7 +78,7 @@ describe('serverEndpointResolver', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { GITHUB_BOOTSTRAP_URL, PRIMARY_BOOTSTRAP_URL, SERVER_ENDPOINT_STATE_KEY, refreshServerEndpoint } = await import(
-      '../../src/platform/network/serverEndpointResolver'
+      '../../apps/extension/src/platform/network/serverEndpointResolver'
     );
 
     expect(GITHUB_BOOTSTRAP_URL).toBe(
@@ -104,7 +104,7 @@ describe('serverEndpointResolver', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify(invalidBootstrap) });
     vi.stubGlobal('fetch', fetchMock);
 
-    const { SERVER_ENDPOINT_STATE_KEY, refreshServerEndpoint } = await import('../../src/platform/network/serverEndpointResolver');
+    const { SERVER_ENDPOINT_STATE_KEY, refreshServerEndpoint } = await import('../../apps/extension/src/platform/network/serverEndpointResolver');
 
     await expect(refreshServerEndpoint({ force: true })).resolves.toMatchObject({
       apiBaseUrl: 'https://jbd-server.we-together.club',
@@ -116,7 +116,7 @@ describe('serverEndpointResolver', () => {
   it('uses stale last known good endpoint without fetching while retry backoff is active', async () => {
     vi.setSystemTime(new Date('2026-07-04T00:00:00.000Z'));
     const now = Date.now();
-    const { SERVER_ENDPOINT_STATE_KEY, buildServerApiUrl } = await import('../../src/platform/network/serverEndpointResolver');
+    const { SERVER_ENDPOINT_STATE_KEY, buildServerApiUrl } = await import('../../apps/extension/src/platform/network/serverEndpointResolver');
     setChromeStorage({
       [SERVER_ENDPOINT_STATE_KEY]: {
         apiBaseUrl: 'https://cached-api.example',
@@ -139,7 +139,7 @@ describe('serverEndpointResolver', () => {
     const now = Date.now();
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, text: async () => '' });
     vi.stubGlobal('fetch', fetchMock);
-    const { SERVER_ENDPOINT_STATE_KEY, refreshServerEndpoint } = await import('../../src/platform/network/serverEndpointResolver');
+    const { SERVER_ENDPOINT_STATE_KEY, refreshServerEndpoint } = await import('../../apps/extension/src/platform/network/serverEndpointResolver');
     setChromeStorage({
       [SERVER_ENDPOINT_STATE_KEY]: {
         apiBaseUrl: 'https://cached-api.example',

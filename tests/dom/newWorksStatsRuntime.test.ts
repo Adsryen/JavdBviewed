@@ -7,10 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachNewWorksStatsCardListeners,
   renderNewWorksStatsRuntime,
-} from '../../src/dashboard/tabs/newWorksStatsRuntime';
-import { buildNewWorksStatsHtml } from '../../src/dashboard/tabs/newWorksStatsViewModel';
-import type { NewWorksFilters } from '../../src/dashboard/tabs/newWorksStatsRuntime';
-import type { NewWorksStats } from '../../src/types';
+} from '../../apps/extension/src/dashboard/tabs/newWorksStatsRuntime';
+import { buildNewWorksStatsHtml } from '../../apps/extension/src/dashboard/tabs/newWorksStatsViewModel';
+import type { NewWorksFilters } from '../../apps/extension/src/dashboard/tabs/newWorksStatsRuntime';
+import type { NewWorksStats } from '../../apps/extension/src/types';
 
 function stats(overrides: Partial<NewWorksStats> = {}): NewWorksStats {
   return {

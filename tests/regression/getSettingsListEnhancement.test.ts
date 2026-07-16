@@ -56,7 +56,7 @@ describe('getSettings listEnhancement regression', () => {
   });
 
   it('preserves stored values while filling missing list display defaults', async () => {
-    const { getSettings } = await import('../../src/utils/storage');
+    const { getSettings } = await import('../../apps/extension/src/utils/storage');
     const settings = await getSettings();
 
     expect(settings.listEnhancement.previewVolume).toBe(0.65);

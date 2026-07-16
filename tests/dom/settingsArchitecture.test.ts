@@ -17,10 +17,10 @@ describe('settings page architecture', () => {
 
   it('keeps the dashboard settings entry on the single-page settings architecture', () => {
     const oldPartials = [
-      'src/dashboard/partials/tabs/settings.html',
-      'src/dashboard/partials/tabs/settings.html.bak',
-      'src/dashboard/partials/tabs/settings.html.navbak',
-      'src/dashboard/partials/tabs/settings.html.navbak.1761127007',
+      'apps/extension/src/dashboard/partials/tabs/settings.html',
+      'apps/extension/src/dashboard/partials/tabs/settings.html.bak',
+      'apps/extension/src/dashboard/partials/tabs/settings.html.navbak',
+      'apps/extension/src/dashboard/partials/tabs/settings.html.navbak.1761127007',
     ];
 
     for (const partial of oldPartials) {
@@ -29,7 +29,7 @@ describe('settings page architecture', () => {
   });
 
   it('keeps legacy settings shell selectors out of the shared settings stylesheet', () => {
-    const cssPath = path.resolve(root, 'src/dashboard/styles/05-pages/settings/settings.css');
+    const cssPath = path.resolve(root, 'apps/extension/src/dashboard/styles/05-pages/settings/settings.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).not.toContain('旧架构样式');
@@ -43,7 +43,7 @@ describe('settings page architecture', () => {
   });
 
   it('keeps the settings subpage back button aligned to the left', () => {
-    const cssPath = path.resolve(root, 'src/dashboard/styles/05-pages/settings/settings.css');
+    const cssPath = path.resolve(root, 'apps/extension/src/dashboard/styles/05-pages/settings/settings.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toContain('.settings-page-header');
@@ -54,7 +54,7 @@ describe('settings page architecture', () => {
   });
 
   it('keeps translation sub-settings hidden before enhancement initialization', () => {
-    const htmlPath = path.resolve(root, 'src/dashboard/partials/tabs/settings-enhancement.html');
+    const htmlPath = path.resolve(root, 'apps/extension/src/dashboard/partials/tabs/settings-enhancement.html');
     const html = fs.readFileSync(htmlPath, 'utf8');
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const translationConfig = doc.getElementById('translationConfig');
@@ -64,7 +64,7 @@ describe('settings page architecture', () => {
   });
 
   it('keeps active settings partials on the settings-page shell classes', () => {
-    const partialDir = path.resolve(root, 'src/dashboard/partials/tabs');
+    const partialDir = path.resolve(root, 'apps/extension/src/dashboard/partials/tabs');
     const partials = fs
       .readdirSync(partialDir)
       .filter(file => /^settings.*\.html$/.test(file));
@@ -85,7 +85,7 @@ describe('settings page architecture', () => {
   });
 
   it('does not create legacy settings shell DOM from the settings bootstrap', () => {
-    const sourcePath = path.resolve(root, 'src/dashboard/tabs/settings/index.ts');
+    const sourcePath = path.resolve(root, 'apps/extension/src/dashboard/tabs/settings/index.ts');
     const source = fs.readFileSync(sourcePath, 'utf8');
 
     expect(source).not.toContain("document.querySelector('.settings-content')");

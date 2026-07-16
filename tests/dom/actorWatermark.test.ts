@@ -9,8 +9,8 @@ import {
   extractActorIdsFromListItem,
   extractActorsFromListItem,
   renderActorWatermark,
-} from '../../src/features/listEnhancement/application/actorWatermark';
-import type { ActorRecord } from '../../src/types';
+} from '../../apps/extension/src/features/listEnhancement/application/actorWatermark';
+import type { ActorRecord } from '../../apps/extension/src/types';
 
 function createActor(id: string, name: string, overrides: Partial<ActorRecord> = {}): ActorRecord {
   return {

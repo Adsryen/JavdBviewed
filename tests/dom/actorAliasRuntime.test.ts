@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { scheduleActorAliasesOverflowCheck, toggleActorAliasesExpansion } from '../../src/dashboard/tabs/actors/actorAliasRuntime';
+import { scheduleActorAliasesOverflowCheck, toggleActorAliasesExpansion } from '../../apps/extension/src/dashboard/tabs/actors/actorAliasRuntime';
 
 function renderAliases(aliasCount = 7) {
   document.body.innerHTML = `

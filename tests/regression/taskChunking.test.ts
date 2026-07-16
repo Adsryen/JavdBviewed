@@ -4,7 +4,7 @@
  * @module tests/regression
  */
 import { describe, expect, it } from 'vitest';
-import { runChunkedWork } from '../../src/platform/tasks/chunking';
+import { runChunkedWork } from '../../apps/extension/src/platform/tasks/chunking';
 
 describe('task chunking regression behavior', () => {
   it('processes items in configured batches', async () => {

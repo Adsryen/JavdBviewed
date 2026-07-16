@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createNewWorksSubscriptionActionsRuntime } from '../../src/dashboard/tabs/newWorksSubscriptionActionsRuntime';
-import type { ActorRecord, ActorSubscription } from '../../src/types';
+import { createNewWorksSubscriptionActionsRuntime } from '../../apps/extension/src/dashboard/tabs/newWorksSubscriptionActionsRuntime';
+import type { ActorRecord, ActorSubscription } from '../../apps/extension/src/types';
 
 describe('new works subscription actions runtime', () => {
   it('opens actor selector with subscribed ids and adds selected actors', async () => {

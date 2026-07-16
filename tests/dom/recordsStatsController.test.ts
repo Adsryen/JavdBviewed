@@ -4,9 +4,9 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsStatsController } from '../../src/dashboard/tabs/records/statsController';
-import type { VideoRecord } from '../../src/types';
-import type { RecordsAdvancedCondition } from '../../src/dashboard/tabs/records/advancedConditionModel';
+import { createRecordsStatsController } from '../../apps/extension/src/dashboard/tabs/records/statsController';
+import type { VideoRecord } from '../../apps/extension/src/types';
+import type { RecordsAdvancedCondition } from '../../apps/extension/src/dashboard/tabs/records/advancedConditionModel';
 
 function createRecord(partial: Partial<VideoRecord>): VideoRecord {
   return {

@@ -9,9 +9,9 @@ import {
   findSettingsResults,
   mountSettingsSearch,
   resolveSettingsTarget,
-} from '../../src/features/settingsSearch';
-import { DEFAULT_ONLINE_AVAILABILITY_SITES } from '../../src/features/onlineAvailability';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
+} from '../../apps/extension/src/features/settingsSearch';
+import { DEFAULT_ONLINE_AVAILABILITY_SITES } from '../../apps/extension/src/features/onlineAvailability';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -199,7 +199,7 @@ describe('settings search feature', () => {
   });
 
   it('indexes real enhancement page toggles that were missed by id-only controls', () => {
-    const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8');
+    const html = fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8');
     const index = buildSettingsSearchIndex([
       {
         pageId: 'enhancement-settings',
@@ -225,7 +225,7 @@ describe('settings search feature', () => {
   });
 
   it('uses the nearest parent enhancement feature as result context', () => {
-    const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8');
+    const html = fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8');
     const index = buildSettingsSearchIndex([
       {
         pageId: 'enhancement-settings',
@@ -248,7 +248,7 @@ describe('settings search feature', () => {
   });
 
   it('keeps select control titles clean when labels wrap the control', () => {
-    const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-emby.html'), 'utf8');
+    const html = fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-emby.html'), 'utf8');
     const index = buildSettingsSearchIndex([
       {
         pageId: 'emby-settings',
@@ -269,7 +269,7 @@ describe('settings search feature', () => {
   });
 
   it('matches common user aliases for insights and magnet source settings', () => {
-    const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-insights.html'), 'utf8');
+    const html = fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-insights.html'), 'utf8');
     const index = buildSettingsSearchIndex([
       {
         pageId: 'insights-settings',
@@ -282,7 +282,7 @@ describe('settings search feature', () => {
         pageId: 'enhancement-settings',
         pageTitle: '功能增强设置',
         hash: '#tab-settings/enhancement-settings',
-        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
+        html: fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
       },
     ]);
 
@@ -302,13 +302,13 @@ describe('settings search feature', () => {
         pageId: 'search-engine-settings',
         pageTitle: '搜索引擎设置',
         hash: '#tab-settings/search-engine-settings',
-        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8'),
+        html: fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8'),
       },
       {
         pageId: 'enhancement-settings',
         pageTitle: '功能增强设置',
         hash: '#tab-settings/enhancement-settings',
-        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
+        html: fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
       },
     ]);
 
@@ -344,13 +344,13 @@ describe('settings search feature', () => {
         pageId: 'search-engine-settings',
         pageTitle: '搜索引擎设置',
         hash: '#tab-settings/search-engine-settings',
-        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8'),
+        html: fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8'),
       },
       {
         pageId: 'enhancement-settings',
         pageTitle: '功能增强设置',
         hash: '#tab-settings/enhancement-settings',
-        html: fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
+        html: fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-enhancement.html'), 'utf8'),
       },
     ]);
 
@@ -374,7 +374,7 @@ describe('settings search feature', () => {
   });
 
   it('indexes search-engine static settings labels', () => {
-    const html = fs.readFileSync(path.resolve(process.cwd(), 'src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8');
+    const html = fs.readFileSync(path.resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/settings-search-engine.html'), 'utf8');
     const index = buildSettingsSearchIndex([
       {
         pageId: 'search-engine-settings',
@@ -417,7 +417,7 @@ describe('settings search feature', () => {
   });
 
   it('stores target before navigation and highlights it after page mount', async () => {
-    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../src/features/settingsSearch');
+    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../apps/extension/src/features/settingsSearch');
     const scrollIntoView = vi.fn();
 
     document.body.innerHTML = `
@@ -449,7 +449,7 @@ describe('settings search feature', () => {
   });
 
   it('highlights dynamic setting row containers when the matched element is nested', async () => {
-    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../src/features/settingsSearch');
+    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../apps/extension/src/features/settingsSearch');
     const scrollIntoView = vi.fn();
 
     document.body.innerHTML = `
@@ -482,7 +482,7 @@ describe('settings search feature', () => {
   });
 
   it('prefers the form container over a data-targeted control for ordinary settings', async () => {
-    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../src/features/settingsSearch');
+    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../apps/extension/src/features/settingsSearch');
     const scrollIntoView = vi.fn();
 
     document.body.innerHTML = `
@@ -513,7 +513,7 @@ describe('settings search feature', () => {
   });
 
   it('reveals enhancement cards inside hidden subtabs and collapsed sub-settings', async () => {
-    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../src/features/settingsSearch');
+    const { storeSettingsSearchTarget, revealStoredSettingsSearchTarget } = await import('../../apps/extension/src/features/settingsSearch');
     const scrollIntoView = vi.fn();
 
     document.body.innerHTML = `
@@ -638,7 +638,7 @@ describe('settings search feature', () => {
   });
 
   it('keeps hidden result panels visually hidden in dashboard css', () => {
-    const cssPath = path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/settings.css');
+    const cssPath = path.resolve(process.cwd(), 'apps/extension/src/dashboard/styles/05-pages/settings/settings.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toContain('.jdb-settings-search-results[hidden]');
@@ -649,7 +649,7 @@ describe('settings search feature', () => {
   });
 
   it('uses a two-cycle theme-aware pulse for jumped search targets', () => {
-    const cssPath = path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/settings.css');
+    const cssPath = path.resolve(process.cwd(), 'apps/extension/src/dashboard/styles/05-pages/settings/settings.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toContain('--settings-search-pulse-ring: #f59e0b');
@@ -665,11 +665,11 @@ describe('settings search feature', () => {
 
   it('styles dynamic row search highlights across settings layouts', () => {
     const searchEngineCss = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/searchEngine.css'),
+      path.resolve(process.cwd(), 'apps/extension/src/dashboard/styles/05-pages/settings/searchEngine.css'),
       'utf8',
     );
     const enhancementCss = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/dashboard/styles/05-pages/settings/enhancement.css'),
+      path.resolve(process.cwd(), 'apps/extension/src/dashboard/styles/05-pages/settings/enhancement.css'),
       'utf8',
     );
 

@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsViewToolbarController } from '../../src/dashboard/tabs/records/viewToolbarController';
+import { createRecordsViewToolbarController } from '../../apps/extension/src/dashboard/tabs/records/viewToolbarController';
 
 function setupDom() {
   document.body.innerHTML = `

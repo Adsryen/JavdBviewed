@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it } from 'vitest';
-import { createRecordsSearchResultCountController } from '../../src/dashboard/tabs/records/searchResultCountController';
+import { createRecordsSearchResultCountController } from '../../apps/extension/src/dashboard/tabs/records/searchResultCountController';
 
 function setupDom() {
   document.body.innerHTML = `

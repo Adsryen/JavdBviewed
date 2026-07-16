@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsActionButtons } from '../../src/dashboard/tabs/records/actionButtonsController';
-import type { VideoRecord } from '../../src/types';
+import { createRecordsActionButtons } from '../../apps/extension/src/dashboard/tabs/records/actionButtonsController';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function createRecord(overrides: Partial<VideoRecord> = {}): VideoRecord {
   return {

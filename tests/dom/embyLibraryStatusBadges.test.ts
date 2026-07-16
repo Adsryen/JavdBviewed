@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { STATE } from '../../src/features/contentState';
-import { renderDetailLibraryStatus } from '../../src/features/embyLibrary/content/statusBadges';
+import { STATE } from '../../apps/extension/src/features/contentState';
+import { renderDetailLibraryStatus } from '../../apps/extension/src/features/embyLibrary/content/statusBadges';
 
 describe('Emby library status badges', () => {
   beforeEach(() => {

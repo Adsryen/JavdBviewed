@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebDAVRestoreFilePreviewController } from '../../src/dashboard/webdavRestore/restoreFilePreviewController';
+import { WebDAVRestoreFilePreviewController } from '../../apps/extension/src/dashboard/webdavRestore/restoreFilePreviewController';
 
 function mountRestoreFilePreviewDom(): void {
   document.body.innerHTML = `

@@ -4,12 +4,12 @@
  * @module tests/dom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SearchEngineSettings } from '../../src/dashboard/tabs/settings/searchEngine/SearchEngineSettings';
-import { STATE } from '../../src/dashboard/state';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
-import { mergeSearchEngineTemplates } from '../../src/utils/storage';
+import { SearchEngineSettings } from '../../apps/extension/src/dashboard/tabs/settings/searchEngine/SearchEngineSettings';
+import { STATE } from '../../apps/extension/src/dashboard/state';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
+import { mergeSearchEngineTemplates } from '../../apps/extension/src/utils/storage';
 
-vi.mock('../../src/dashboard/logger', () => ({
+vi.mock('../../apps/extension/src/dashboard/logger', () => ({
   logAsync: vi.fn(),
 }));
 

@@ -1,9 +1,10 @@
 {
-  "name": "javdb-extension",
+  "name": "javdbviewed",
+  "private": true,
   "type": "module",
   "version": "1.21.5",
   "license": "AGPL-3.0-only",
-  "description": "Jav 助手",
+  "description": "JavdBviewed monorepo — browser extension + multi-end sync packages",
   "scripts": {
     "vitepress:dev": "vitepress dev vitepress --host 127.0.0.1 --port 5174",
     "vitepress:build": "vitepress build vitepress",
@@ -12,13 +13,14 @@
     "docs:build": "pnpm run vitepress:build",
     "docs:preview": "pnpm run vitepress:preview",
     "build": "rimraf dist-zip && node --import tsx scripts/build.ts",
-    "typecheck": "tsc --noEmit",
+    "build:extension": "pnpm --filter @javdb/extension build",
+    "typecheck": "tsc --noEmit -p tsconfig.json && pnpm --filter @javdb/sync-protocol typecheck && pnpm --filter @javdb/sync-client typecheck",
     "test": "pnpm run test:unit && pnpm run test:regression && pnpm run test:extension",
     "test:unit": "vitest run --config vitest.unit.config.cjs",
     "test:regression": "vitest run --config vitest.regression.config.cjs",
     "test:dom": "vitest run --config vitest.dom.config.cjs",
     "test:extension": "vitest run --config vitest.extension.config.cjs",
-    "test:style-contract": "vitest run --config vitest.unit.config.cjs src/ui/tokens/themeTokens.test.ts scripts/assert-css-isolation.test.ts src/ui/primitives/Button/Button.test.tsx src/ui/primitives/Input/Input.test.tsx src/ui/primitives/Toggle/Toggle.test.tsx src/ui/primitives/Modal/Modal.test.tsx src/ui/primitives/MediaCover/MediaCover.test.tsx src/ui/primitives/Card/Card.test.tsx src/ui/primitives/Tabs/Tabs.test.tsx src/ui/primitives/Toast/Toast.test.tsx src/ui/patterns/PageHeader/PageHeader.test.tsx src/ui/patterns/EmptyState/EmptyState.test.tsx src/ui/patterns/FilterChip/FilterChip.test.tsx src/ui/patterns/SettingSection/SettingSection.test.tsx src/ui/patterns/SettingToggleRow/SettingToggleRow.test.tsx src/ui/patterns/SettingField/SettingField.test.tsx src/ui/patterns/SettingSelect/SettingSelect.test.tsx && node scripts/assert-css-isolation.cjs",
+    "test:style-contract": "vitest run --config vitest.unit.config.cjs apps/extension/src/ui/tokens/themeTokens.test.ts scripts/assert-css-isolation.test.ts apps/extension/src/ui/primitives/Button/Button.test.tsx apps/extension/src/ui/primitives/Input/Input.test.tsx apps/extension/src/ui/primitives/Toggle/Toggle.test.tsx apps/extension/src/ui/primitives/Modal/Modal.test.tsx apps/extension/src/ui/primitives/MediaCover/MediaCover.test.tsx apps/extension/src/ui/primitives/Card/Card.test.tsx apps/extension/src/ui/primitives/Tabs/Tabs.test.tsx apps/extension/src/ui/primitives/Toast/Toast.test.tsx apps/extension/src/ui/patterns/PageHeader/PageHeader.test.tsx apps/extension/src/ui/patterns/EmptyState/EmptyState.test.tsx apps/extension/src/ui/patterns/FilterChip/FilterChip.test.tsx apps/extension/src/ui/patterns/SettingSection/SettingSection.test.tsx apps/extension/src/ui/patterns/SettingToggleRow/SettingToggleRow.test.tsx apps/extension/src/ui/patterns/SettingField/SettingField.test.tsx apps/extension/src/ui/patterns/SettingSelect/SettingSelect.test.tsx && node scripts/assert-css-isolation.cjs",
     "test:visual": "playwright test",
     "test:visual:layout": "playwright test tests/visual/mediaGridLayout.visual.spec.ts",
     "test:visual:update": "playwright test --update-snapshots",
@@ -35,6 +37,8 @@
     "version:build": "pnpm tsx scripts/version.ts"
   },
   "dependencies": {
+    "@javdb/sync-client": "workspace:*",
+    "@javdb/sync-protocol": "workspace:*",
     "fs-extra": "^10.1.0",
     "idb": "^7.1.1",
     "jszip": "^3.10.1",

@@ -8,10 +8,10 @@ import {
   createListPreviewVideoElement,
   fetchListPreviewSources,
   getListPreviewSourceOrder,
-} from '../../src/features/previews/listPreviewLoader';
+} from '../../apps/extension/src/features/previews/listPreviewLoader';
 import {
   parsePreviewCacheEntry,
-} from '../../src/features/previews/previewSourceRules';
+} from '../../apps/extension/src/features/previews/previewSourceRules';
 
 describe('list preview loader', () => {
   beforeEach(() => {

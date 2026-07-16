@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachNewWorksHelpTooltip } from '../../src/dashboard/tabs/newWorksHelpTooltipRuntime';
+import { attachNewWorksHelpTooltip } from '../../apps/extension/src/dashboard/tabs/newWorksHelpTooltipRuntime';
 
 describe('new works help tooltip runtime', () => {
   beforeEach(() => {

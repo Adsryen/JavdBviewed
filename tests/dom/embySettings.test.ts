@@ -7,11 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { STATE } from '../../src/dashboard/state';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
-import { EmbySettings } from '../../src/dashboard/tabs/settings/emby/EmbySettings';
+import { STATE } from '../../apps/extension/src/dashboard/state';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
+import { EmbySettings } from '../../apps/extension/src/dashboard/tabs/settings/emby/EmbySettings';
 
-vi.mock('../../src/utils/storage', () => ({
+vi.mock('../../apps/extension/src/utils/storage', () => ({
   getValue: vi.fn(async (_key: string, fallback: unknown) => fallback),
   setValue: vi.fn(async () => undefined),
   getSettings: vi.fn(async () => STATE.settings),
@@ -29,7 +29,7 @@ function createSettings(): any {
 }
 
 function setEmbySettingsHtml(): void {
-  const htmlPath = path.resolve(root, 'src/dashboard/partials/tabs/settings-emby.html');
+  const htmlPath = path.resolve(root, 'apps/extension/src/dashboard/partials/tabs/settings-emby.html');
   document.body.innerHTML = `<div id="messageContainer"></div>${fs.readFileSync(htmlPath, 'utf8')}`;
 }
 
@@ -49,7 +49,7 @@ describe('Emby settings', () => {
   });
 
   it('places media server settings directly after the page toggle section', () => {
-    const htmlPath = path.resolve(root, 'src/dashboard/partials/tabs/settings-emby.html');
+    const htmlPath = path.resolve(root, 'apps/extension/src/dashboard/partials/tabs/settings-emby.html');
     const html = fs.readFileSync(htmlPath, 'utf8');
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const sectionTitles = Array.from(doc.querySelectorAll('.settings-page-body > .settings-card h4'))

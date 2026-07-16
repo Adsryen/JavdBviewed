@@ -4,11 +4,11 @@
  * @module scripts
  */
 import assert from 'node:assert/strict';
-import type { ListRecord } from '../src/types';
+import type { ListRecord } from '../apps/extension/src/types';
 import {
   buildListSourceUrl,
   renderListSourceLinkButton,
-} from '../src/dashboard/tabs/listsSourceLinks';
+} from '../apps/extension/src/dashboard/tabs/listsSourceLinks';
 
 const now = Date.now();
 

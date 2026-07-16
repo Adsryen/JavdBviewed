@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { bindRecordsPageLifecycle } from '../../src/dashboard/tabs/records/pageLifecycleController';
+import { bindRecordsPageLifecycle } from '../../apps/extension/src/dashboard/tabs/records/pageLifecycleController';
 
 function setupDom() {
   document.body.innerHTML = `

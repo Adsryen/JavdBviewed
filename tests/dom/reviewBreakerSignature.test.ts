@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ReviewBreakerService } from '../../src/features/reviewUnlock';
+import { ReviewBreakerService } from '../../apps/extension/src/features/reviewUnlock';
 
 const SIGNATURE_KEY = 'jhs_jdsignature';
 const FIXED_NOW_SECONDS = 1783440000;

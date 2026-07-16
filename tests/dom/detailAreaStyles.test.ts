@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { VideoDetailEnhancer } from '../../src/features/videoDetail';
-import { MagnetSearchManager, type MagnetResult } from '../../src/features/magnets';
+import { VideoDetailEnhancer } from '../../apps/extension/src/features/videoDetail';
+import { MagnetSearchManager, type MagnetResult } from '../../apps/extension/src/features/magnets';
 
 function magnet(overrides: Partial<MagnetResult> = {}): MagnetResult {
   return {

@@ -10,7 +10,7 @@ import {
   setActorCardSelected,
   setCurrentActorCardsSelected,
   updateActorBatchUi,
-} from '../../src/dashboard/tabs/actors/batchOperationRuntime';
+} from '../../apps/extension/src/dashboard/tabs/actors/batchOperationRuntime';
 
 function renderBatchDom() {
   document.body.innerHTML = `

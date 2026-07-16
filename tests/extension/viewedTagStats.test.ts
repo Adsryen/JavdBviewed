@@ -8,7 +8,7 @@ import { setChromeStorage } from '../setup/chrome';
 
 describe('viewed tag statistics', () => {
   it('collects tags from legacy and enriched record shapes', async () => {
-    const { buildViewedTagStats } = await import('../../src/features/records/tagStats');
+    const { buildViewedTagStats } = await import('../../apps/extension/src/features/records/tagStats');
 
     const stats = buildViewedTagStats([
       { tags: ['巨乳', '中出', '單體作品'] },
@@ -34,7 +34,7 @@ describe('viewed tag statistics', () => {
   });
 
   it('builds stats from multiple viewed record sources without double counting the same video', async () => {
-    const { buildViewedTagStatsFromSources } = await import('../../src/features/records/tagStats');
+    const { buildViewedTagStatsFromSources } = await import('../../apps/extension/src/features/records/tagStats');
 
     const stats = buildViewedTagStatsFromSources([
       [],
@@ -67,7 +67,7 @@ describe('viewed tag statistics', () => {
       },
     });
 
-    const { getLegacyViewedRecordsFromStorage } = await import('../../src/background/dbRouter');
+    const { getLegacyViewedRecordsFromStorage } = await import('../../apps/extension/src/background/dbRouter');
 
     await expect(getLegacyViewedRecordsFromStorage()).resolves.toEqual({
       'SSIS-101': { id: 'SSIS-101', tags: ['巨乳'] },
@@ -76,7 +76,7 @@ describe('viewed tag statistics', () => {
   });
 
   it('converts viewedByTag index rows into record-shaped tag sources', async () => {
-    const { buildViewedRecordSourceFromTagIndexRows, buildViewedTagStatsFromSources } = await import('../../src/features/records/tagStats');
+    const { buildViewedRecordSourceFromTagIndexRows, buildViewedTagStatsFromSources } = await import('../../apps/extension/src/features/records/tagStats');
     const indexedSource = buildViewedRecordSourceFromTagIndexRows([
       { key: '巨乳::SSIS-001', tag: '巨乳', videoId: 'SSIS-001' },
       { key: '中出::SSIS-001', tag: '中出', videoId: 'SSIS-001' },

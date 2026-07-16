@@ -4,11 +4,11 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ActorRecord } from '../../src/types';
+import type { ActorRecord } from '../../apps/extension/src/types';
 import {
   showActorEditModalRuntime,
   type ActorEditModalRuntimeHandlers,
-} from '../../src/dashboard/tabs/actors/actorEditModalRuntime';
+} from '../../apps/extension/src/dashboard/tabs/actors/actorEditModalRuntime';
 
 function actor(overrides: Partial<ActorRecord> = {}): ActorRecord {
   return {

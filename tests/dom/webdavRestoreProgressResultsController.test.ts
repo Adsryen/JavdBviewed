@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebDAVRestoreProgressResultsController } from '../../src/dashboard/webdavRestore/restoreProgressResultsController';
+import { WebDAVRestoreProgressResultsController } from '../../apps/extension/src/dashboard/webdavRestore/restoreProgressResultsController';
 
 function mountRestoreModal(): void {
   document.body.innerHTML = `

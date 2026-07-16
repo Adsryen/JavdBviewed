@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultHttpClient } from '../../src/platform/network/httpClient';
+import { defaultHttpClient } from '../../apps/extension/src/platform/network/httpClient';
 import {
   applyOnlineAvailabilitySitePreferences,
   buildOnlineAvailabilityUrl,
@@ -12,7 +12,7 @@ import {
   findOnlineAvailabilityInsertionTarget,
   OnlineAvailabilityManager,
   parseOnlineAvailabilityDocument,
-} from '../../src/features/onlineAvailability';
+} from '../../apps/extension/src/features/onlineAvailability';
 
 describe('online availability helpers', () => {
   afterEach(() => {

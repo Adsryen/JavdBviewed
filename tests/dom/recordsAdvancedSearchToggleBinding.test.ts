@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { bindAdvancedSearchToggleDelegation } from '../../src/dashboard/tabs/records/advancedSearchToggleBinding';
+import { bindAdvancedSearchToggleDelegation } from '../../apps/extension/src/dashboard/tabs/records/advancedSearchToggleBinding';
 
 describe('records advanced search toggle binding', () => {
   it('delegates advanced search toggle once and keeps panel visibility stable', () => {

@@ -7,7 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 describe('Recycle Bin UI Module', () => {
   it('should export initRecycleBinTab function', async () => {
-    const module = await import('../../src/dashboard/tabs/recycleBin');
+    const module = await import('../../apps/extension/src/dashboard/tabs/recycleBin');
     expect(module.initRecycleBinTab).toBeDefined();
     expect(typeof module.initRecycleBinTab).toBe('function');
   });

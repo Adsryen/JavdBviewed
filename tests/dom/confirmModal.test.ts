@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConfirmModal } from '../../src/dashboard/components/confirmModal';
+import { ConfirmModal } from '../../apps/extension/src/dashboard/components/confirmModal';
 
 describe('ConfirmModal', () => {
   beforeEach(() => {

@@ -4,16 +4,16 @@
  * @module tests/extension
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createManagedTaskDescriptor } from '../../src/content/taskRuntime';
+import { createManagedTaskDescriptor } from '../../apps/extension/src/content/taskRuntime';
 import {
   completeManagedTask,
   failManagedTask,
   progressManagedTask,
   registerManagedTask,
   requestTaskLease,
-} from '../../src/platform/tasks/runtimeMessaging';
-import { TASK_CENTER_MESSAGE } from '../../src/shared/taskCenterProtocol';
-import type { GlobalTaskDescriptor } from '../../src/shared/taskCenterTypes';
+} from '../../apps/extension/src/platform/tasks/runtimeMessaging';
+import { TASK_CENTER_MESSAGE } from '../../apps/extension/src/shared/taskCenterProtocol';
+import type { GlobalTaskDescriptor } from '../../apps/extension/src/shared/taskCenterTypes';
 import { getRuntimeMessages, resetChromeMock, setRuntimeMessageHandler } from '../setup/chrome';
 
 function makeDescriptor(overrides: Partial<GlobalTaskDescriptor> = {}): GlobalTaskDescriptor {

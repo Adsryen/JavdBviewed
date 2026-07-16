@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { ActorRecord } from '../../src/types';
-import { refreshActorMetadataWorkflow } from '../../src/dashboard/tabs/actors/metadataRefreshWorkflow';
+import type { ActorRecord } from '../../apps/extension/src/types';
+import { refreshActorMetadataWorkflow } from '../../apps/extension/src/dashboard/tabs/actors/metadataRefreshWorkflow';
 
 function actor(overrides: Partial<ActorRecord> = {}): ActorRecord {
   return {

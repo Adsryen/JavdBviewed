@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsBatchAddTagRuntime } from '../../src/dashboard/tabs/records/batchAddTagRuntime';
-import type { VideoRecord } from '../../src/types';
+import { createRecordsBatchAddTagRuntime } from '../../apps/extension/src/dashboard/tabs/records/batchAddTagRuntime';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function record(id: string): VideoRecord {
   return {

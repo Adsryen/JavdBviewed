@@ -4,11 +4,11 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { STATE } from '../../src/dashboard/state';
-import { bindEvents } from '../../src/dashboard/tabs/settings/enhancement/binding/enhancementBindEvents';
-import { doLoadSettings } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementLoad';
-import { doGetSettings } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsSync';
-import { mergeEnhancementSettingsForSave } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsMerge';
+import { STATE } from '../../apps/extension/src/dashboard/state';
+import { bindEvents } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/binding/enhancementBindEvents';
+import { doLoadSettings } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/settings/enhancementLoad';
+import { doGetSettings } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsSync';
+import { mergeEnhancementSettingsForSave } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsMerge';
 
 function checkbox(checked = false): HTMLInputElement {
   const input = document.createElement('input');

@@ -15,16 +15,16 @@ const navigationMocks = vi.hoisted(() => ({
   prefetchedTabs: new Set<string>(),
 }));
 
-vi.mock('../../src/dashboard/tabs/mount', () => ({
+vi.mock('../../apps/extension/src/dashboard/tabs/mount', () => ({
   mountTabIfNeeded: navigationMocks.mountTabIfNeeded,
 }));
 
-vi.mock('../../src/dashboard/tabs/registry', () => ({
+vi.mock('../../apps/extension/src/dashboard/tabs/registry', () => ({
   initializeTabById: navigationMocks.initializeTabById,
   prefetchModuleById: navigationMocks.prefetchModuleById,
 }));
 
-vi.mock('../../src/dashboard/tabs/resources', () => ({
+vi.mock('../../apps/extension/src/dashboard/tabs/resources', () => ({
   prefetchedTabs: navigationMocks.prefetchedTabs,
   prefetchTabResources: navigationMocks.prefetchTabResources,
 }));
@@ -51,7 +51,7 @@ describe('Dashboard 9C navigation runtime', () => {
       }
     }, { once: true });
 
-    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    const { initTabs } = await import('../../apps/extension/src/dashboard/tabs/navigation');
     await initTabs();
     await flushNavigationTasks();
 
@@ -94,7 +94,7 @@ describe('Dashboard 9C navigation runtime', () => {
   });
 
   it('keeps shell structure contract aligned with every dashboard tab container', async () => {
-    const { getDashboardShellStructure } = await import('../../src/apps/dashboard/shell/shellStructure');
+    const { getDashboardShellStructure } = await import('../../apps/extension/src/apps/dashboard/shell/shellStructure');
     const structure = getDashboardShellStructure();
     expect(structure.tabContentIds).toEqual(expect.arrayContaining([
       'tab-backup',
@@ -110,7 +110,7 @@ describe('Dashboard 9C navigation runtime', () => {
 
   it('keeps the production skeleton aligned with every dashboard tab container', () => {
     const skeletonHtml = readFileSync(
-      resolve(process.cwd(), 'src/dashboard/partials/layout/skeleton.html'),
+      resolve(process.cwd(), 'apps/extension/src/dashboard/partials/layout/skeleton.html'),
       'utf8',
     );
 
@@ -124,7 +124,7 @@ describe('Dashboard 9C navigation runtime', () => {
 
   it('uses the dashboard blue theme instead of the indigo 9C prototype colors', () => {
     const css = readFileSync(
-      resolve(process.cwd(), 'src/dashboard/styles/04-components/layout.css'),
+      resolve(process.cwd(), 'apps/extension/src/dashboard/styles/04-components/layout.css'),
       'utf8',
     );
 
@@ -138,7 +138,7 @@ describe('Dashboard 9C navigation runtime', () => {
   it('presents the media library as a browseable vault surface instead of a planning placeholder', () => {
     // 媒体库已迁 React 栈：partial 仅作遗留文件，契约看模型与 skipPartial
     const mediaHtml = readFileSync(
-      resolve(process.cwd(), 'src/dashboard/partials/tabs/media.html'),
+      resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/media.html'),
       'utf8',
     );
     // 遗留 HTML 可仍存在，但产品路径不再依赖「开发中」占位文案作为主体验
@@ -146,7 +146,7 @@ describe('Dashboard 9C navigation runtime', () => {
   });
 
   it('keeps a settings path for media server configuration from the media empty state', async () => {
-    const { getDashboardShellStructure } = await import('../../src/apps/dashboard/shell/shellStructure');
+    const { getDashboardShellStructure } = await import('../../apps/extension/src/apps/dashboard/shell/shellStructure');
     expect(getDashboardShellStructure().tabContentIds).toContain('tab-media');
     // 空态跳转目标仍为设置子页 hash（由 React 页 Button 触发）
     expect('#tab-settings/emby-settings').toContain('emby-settings');
@@ -155,7 +155,7 @@ describe('Dashboard 9C navigation runtime', () => {
   it('opens data sync as the default task group page with backup placed last', async () => {
     window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-home');
 
-    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    const { initTabs } = await import('../../apps/extension/src/dashboard/tabs/navigation');
     await initTabs();
     await flushNavigationTasks();
 
@@ -175,7 +175,7 @@ describe('Dashboard 9C navigation runtime', () => {
   it('renders the backup page with local and WebDAV backup controls', () => {
     const host = document.createElement('div');
     const backupHtml = readFileSync(
-      resolve(process.cwd(), 'src/dashboard/partials/tabs/backup.html'),
+      resolve(process.cwd(), 'apps/extension/src/dashboard/partials/tabs/backup.html'),
       'utf8',
     );
     host.innerHTML = backupHtml;
@@ -198,7 +198,7 @@ describe('Dashboard 9C navigation runtime', () => {
 
   it('keeps backup page action button colors scoped to the dashboard theme', () => {
     const backupCss = readFileSync(
-      resolve(process.cwd(), 'src/dashboard/styles/05-pages/backup.css'),
+      resolve(process.cwd(), 'apps/extension/src/dashboard/styles/05-pages/backup.css'),
       'utf8',
     );
 
@@ -211,7 +211,7 @@ describe('Dashboard 9C navigation runtime', () => {
 
   it('removes backup action blocks from the sidebar partial', () => {
     const sidebarHtml = readFileSync(
-      resolve(process.cwd(), 'src/dashboard/partials/layout/sidebar.html'),
+      resolve(process.cwd(), 'apps/extension/src/dashboard/partials/layout/sidebar.html'),
       'utf8',
     );
 
@@ -226,7 +226,7 @@ describe('Dashboard 9C navigation runtime', () => {
   it('hides the secondary menu for the single-entry home group', async () => {
     window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-home');
 
-    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    const { initTabs } = await import('../../apps/extension/src/dashboard/tabs/navigation');
     await initTabs();
     await flushNavigationTasks();
 
@@ -240,7 +240,7 @@ describe('Dashboard 9C navigation runtime', () => {
   it('opens media library as a single primary entry without secondary source tabs', async () => {
     window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-home');
 
-    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    const { initTabs } = await import('../../apps/extension/src/dashboard/tabs/navigation');
     await initTabs();
     await flushNavigationTasks();
 
@@ -259,7 +259,7 @@ describe('Dashboard 9C navigation runtime', () => {
   it('keeps legacy media source hashes on the media tab without showing secondary menus', async () => {
     window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-media/emby');
 
-    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    const { initTabs } = await import('../../apps/extension/src/dashboard/tabs/navigation');
     await initTabs();
     await flushNavigationTasks();
 
@@ -273,7 +273,7 @@ describe('Dashboard 9C navigation runtime', () => {
   it('keeps settings subpage hashes active under the settings group', async () => {
     window.history.replaceState({}, '', '/dashboard/dashboard.html#tab-settings/drive115-settings');
 
-    const { initTabs } = await import('../../src/dashboard/tabs/navigation');
+    const { initTabs } = await import('../../apps/extension/src/dashboard/tabs/navigation');
     await initTabs();
     await flushNavigationTasks();
 

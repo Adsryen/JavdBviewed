@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createInsightsLoadingStatusRuntime } from '../../src/dashboard/tabs/insights/loadingStatusRuntime';
+import { createInsightsLoadingStatusRuntime } from '../../apps/extension/src/dashboard/tabs/insights/loadingStatusRuntime';
 
 describe('insights loading status runtime', () => {
   beforeEach(() => {

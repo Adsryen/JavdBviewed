@@ -13,7 +13,7 @@ import {
   recordMagnetSourceSuccess,
   shouldSkipMagnetSource,
   type MagnetSourceBackoffState,
-} from '../../src/features/magnets/application/sourceBackoff';
+} from '../../apps/extension/src/features/magnets/application/sourceBackoff';
 
 describe('magnet source backoff', () => {
   it('skips a failed source until its retry time', () => {

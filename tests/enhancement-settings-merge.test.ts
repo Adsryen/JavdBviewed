@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { mergeEnhancementSettingsForSave } from '../src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsMerge.ts';
-import { DEFAULT_SETTINGS } from '../src/utils/config.ts';
+import { mergeEnhancementSettingsForSave } from '../apps/extension/src/dashboard/tabs/settings/enhancement/settings/enhancementSettingsMerge.ts';
+import { DEFAULT_SETTINGS } from '../apps/extension/src/utils/config.ts';
 
 describe('mergeEnhancementSettingsForSave', () => {
   it('preserves actor filter and preview volume fields', () => {

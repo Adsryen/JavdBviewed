@@ -15,8 +15,8 @@ function read(relativePath: string): string {
 
 describe('log settings theme styles', () => {
   it('uses theme variables for the suppress console output option', () => {
-    const markup = read('src/dashboard/partials/tabs/settings-log.html');
-    const styles = read('src/dashboard/styles/05-pages/settings/logs.css');
+    const markup = read('apps/extension/src/dashboard/partials/tabs/settings-log.html');
+    const styles = read('apps/extension/src/dashboard/styles/05-pages/settings/logs.css');
 
     const optionMarkup = markup.match(/<div class="form-group-checkbox suppress-console-output-setting"[\s\S]*?<p class="input-description">[\s\S]*?<\/p>\s*<\/div>/)?.[0] ?? '';
 

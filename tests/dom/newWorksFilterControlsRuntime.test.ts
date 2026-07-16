@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachNewWorksFilterControls } from '../../src/dashboard/tabs/newWorksFilterControlsRuntime';
-import type { NewWorksFilters } from '../../src/dashboard/tabs/newWorksFilterTypes';
+import { attachNewWorksFilterControls } from '../../apps/extension/src/dashboard/tabs/newWorksFilterControlsRuntime';
+import type { NewWorksFilters } from '../../apps/extension/src/dashboard/tabs/newWorksFilterTypes';
 
 function renderControls() {
   document.body.innerHTML = `

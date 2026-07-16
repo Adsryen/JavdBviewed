@@ -14,7 +14,7 @@ const userProfileMocks = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('../../src/dashboard/userProfile', () => ({
+vi.mock('../../apps/extension/src/dashboard/userProfile', () => ({
   initUserProfileSection: userProfileMocks.initUserProfileSection,
 }));
 
@@ -33,7 +33,7 @@ describe('Dashboard user menu', () => {
   });
 
   it('renders the trigger, popover and reused user profile section', async () => {
-    const { initDashboardUserMenu } = await import('../../src/dashboard/userMenu');
+    const { initDashboardUserMenu } = await import('../../apps/extension/src/dashboard/userMenu');
 
     initDashboardUserMenu();
 
@@ -45,7 +45,7 @@ describe('Dashboard user menu', () => {
   });
 
   it('toggles the popover from the avatar trigger and closes with Escape', async () => {
-    const { initDashboardUserMenu } = await import('../../src/dashboard/userMenu');
+    const { initDashboardUserMenu } = await import('../../apps/extension/src/dashboard/userMenu');
     initDashboardUserMenu();
 
     const trigger = document.getElementById('dashboard-user-menu-trigger') as HTMLButtonElement;
@@ -64,7 +64,7 @@ describe('Dashboard user menu', () => {
   });
 
   it('navigates to about settings and closes the menu', async () => {
-    const { initDashboardUserMenu } = await import('../../src/dashboard/userMenu');
+    const { initDashboardUserMenu } = await import('../../apps/extension/src/dashboard/userMenu');
     initDashboardUserMenu();
 
     const trigger = document.getElementById('dashboard-user-menu-trigger') as HTMLButtonElement;
@@ -80,7 +80,7 @@ describe('Dashboard user menu', () => {
   });
 
   it('keeps the menu open when an internal profile action updates its own DOM', async () => {
-    const { initDashboardUserMenu } = await import('../../src/dashboard/userMenu');
+    const { initDashboardUserMenu } = await import('../../apps/extension/src/dashboard/userMenu');
     initDashboardUserMenu();
 
     const trigger = document.getElementById('dashboard-user-menu-trigger') as HTMLButtonElement;
@@ -102,7 +102,7 @@ describe('Dashboard user menu', () => {
   });
 
   it('opens external help and project links in a new tab', async () => {
-    const { initDashboardUserMenu } = await import('../../src/dashboard/userMenu');
+    const { initDashboardUserMenu } = await import('../../apps/extension/src/dashboard/userMenu');
     initDashboardUserMenu();
 
     (document.querySelector('[data-user-menu-action="help"]') as HTMLButtonElement).click();

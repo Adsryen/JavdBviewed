@@ -11,7 +11,7 @@ import {
   markAnnouncementSeen,
   readReleaseAnnouncementState,
   resolveAnnouncement,
-} from '../../src/features/releaseAnnouncement';
+} from '../../apps/extension/src/features/releaseAnnouncement';
 import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';
 
 describe('release announcement state', () => {

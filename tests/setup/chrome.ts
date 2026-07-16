@@ -4,7 +4,7 @@
  * @module tests/setup
  */
 import { afterEach, beforeEach, vi } from 'vitest';
-import manifest from '../../src/manifest.json';
+import manifest from '../../apps/extension/src/manifest.json';
 
 type ChromeMessage = {
   type?: string;     // 消息类型标识

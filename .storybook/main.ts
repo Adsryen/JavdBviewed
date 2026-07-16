@@ -1,13 +1,13 @@
 /**
  * @file main.ts
- * @description Storybook 主配置：仅加载 src/ui 组件故事，使用独立 Vite 配置
+ * @description Storybook 主配置：仅加载 apps/extension/src/ui 组件故事，使用独立 Vite 配置
  * @module .storybook
  */
 import type { StorybookConfig } from '@storybook/react-vite';
 import path from 'node:path';
 
 const config: StorybookConfig = {
-  stories: ['../src/ui/**/*.stories.@(ts|tsx)'],
+  stories: ['../apps/extension/src/ui/**/*.stories.@(ts|tsx)'],
   addons: ['@storybook/addon-essentials', '@storybook/addon-themes'],
   framework: {
     name: '@storybook/react-vite',

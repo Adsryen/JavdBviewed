@@ -48,10 +48,13 @@ javdb-backup_*.json
 !tutorial/*.md
 !docs/*.md
 !docs/**/*.md
-!src/apps/**/README.md
-!src/features/**/README.md
-!src/platform/**/README.md
-!src/shared/**/README.md
+!apps/**/README.md
+!packages/**/README.md
+!apps/extension/src/apps/**/README.md
+!apps/extension/src/features/**/README.md
+!apps/extension/src/platform/**/README.md
+!apps/extension/src/shared/**/README.md
+!apps/extension/src/ui/**/README.md
 !vitepress/
 !vitepress/**
 !vitepress/.vitepress/

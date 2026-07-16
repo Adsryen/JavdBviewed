@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsBatchAddTagController } from '../../src/dashboard/tabs/records/batchAddTagController';
+import { createRecordsBatchAddTagController } from '../../apps/extension/src/dashboard/tabs/records/batchAddTagController';
 
 describe('records batch add tag controller', () => {
   it('opens a modal and submits trimmed tags', () => {

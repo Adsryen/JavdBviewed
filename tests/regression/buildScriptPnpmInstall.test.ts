@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import manifest from '../../src/manifest.json';
+import manifest from '../../apps/extension/src/manifest.json';
 
 const rootDir = resolve(__dirname, '../..');
 const buildScript = readFileSync(resolve(rootDir, 'build.sh'), 'utf8');

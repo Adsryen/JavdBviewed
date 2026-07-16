@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsCoverElement, insertRecordsCoverElement, observeRecordsCoverImage } from '../../src/dashboard/tabs/records/coverController';
+import { createRecordsCoverElement, insertRecordsCoverElement, observeRecordsCoverImage } from '../../apps/extension/src/dashboard/tabs/records/coverController';
 
 describe('records cover controller', () => {
   it('creates lazy cover element from enhanced cover url and binds tooltip', () => {

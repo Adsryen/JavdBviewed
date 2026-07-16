@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsBatchSelectionController } from '../../src/dashboard/tabs/records/batchSelectionController';
-import type { VideoRecord } from '../../src/types';
+import { createRecordsBatchSelectionController } from '../../apps/extension/src/dashboard/tabs/records/batchSelectionController';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function createRecord(id: string): VideoRecord {
   return {

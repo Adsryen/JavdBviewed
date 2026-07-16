@@ -4,16 +4,16 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FC2BreakerService, type FC2VideoInfo } from '../../src/features/fc2Breaker';
-import { MagnetSearchManager, type MagnetResult } from '../../src/features/magnets';
+import { FC2BreakerService, type FC2VideoInfo } from '../../apps/extension/src/features/fc2Breaker';
+import { MagnetSearchManager, type MagnetResult } from '../../apps/extension/src/features/magnets';
 
-vi.mock('../../src/platform/storage/dbRuntimeClient', () => ({
+vi.mock('../../apps/extension/src/platform/storage/dbRuntimeClient', () => ({
   dbViewedPut: vi.fn().mockResolvedValue(undefined),
   dbMagnetsQuery: vi.fn().mockResolvedValue({ items: [], total: 0 }),
   dbMagnetsUpsert: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../../src/features/drive115/content', () => ({
+vi.mock('../../apps/extension/src/features/drive115/content', () => ({
   handlePushToDrive115: vi.fn().mockResolvedValue(undefined),
 }));
 

@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createPreviewHoverController,
-} from '../../src/features/listEnhancement/ui/previewHoverController';
+} from '../../apps/extension/src/features/listEnhancement/ui/previewHoverController';
 
 function createCover(): HTMLElement {
   const cover = document.createElement('div');

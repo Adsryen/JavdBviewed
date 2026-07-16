@@ -8,11 +8,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const auditedFiles = [
-  'src/apps/dashboard/pages/media/MediaLibraryPage.tsx',
-  'src/dashboard/tabs/insights/samplePreviewModel.ts',
-  'src/dashboard/tabs/insights/reportExportModel.ts',
-  'src/dashboard/tabs/insights/reportGenerationModel.ts',
-  'src/dashboard/tabs/settings/sync/SyncSettings.ts',
+  'apps/extension/src/apps/dashboard/pages/media/MediaLibraryPage.tsx',
+  'apps/extension/src/dashboard/tabs/insights/samplePreviewModel.ts',
+  'apps/extension/src/dashboard/tabs/insights/reportExportModel.ts',
+  'apps/extension/src/dashboard/tabs/insights/reportGenerationModel.ts',
+  'apps/extension/src/dashboard/tabs/settings/sync/SyncSettings.ts',
 ];
 
 function readAuditedSource(): string {

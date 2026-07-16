@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebDAVRestoreUnifiedExecutorController } from '../../src/dashboard/webdavRestore/restoreUnifiedExecutorController';
+import { WebDAVRestoreUnifiedExecutorController } from '../../apps/extension/src/dashboard/webdavRestore/restoreUnifiedExecutorController';
 
 function mountUnifiedRestoreDom(): void {
   document.body.innerHTML = `

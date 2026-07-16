@@ -4,9 +4,9 @@
  * @module tests/extension
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { WebDAVClientProfile, WebDAVUploadIndexItem } from '../../src/features/webdavSync/domain/types';
+import type { WebDAVClientProfile, WebDAVUploadIndexItem } from '../../apps/extension/src/features/webdavSync/domain/types';
 import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';
-import { STORAGE_KEYS } from '../../src/utils/config';
+import { STORAGE_KEYS } from '../../apps/extension/src/utils/config';
 
 const sourceA = {
   configId: 'config-a',
@@ -33,7 +33,7 @@ function profile(clientId: string, deviceLabel: string, lastSeenAt: string): Web
 }
 
 async function sendWebDAVRuntimeMessage(message: Record<string, unknown>): Promise<any> {
-  const { registerWebDAVRouter } = await import('../../src/background/webdav');
+  const { registerWebDAVRouter } = await import('../../apps/extension/src/background/webdav');
   registerWebDAVRouter();
   const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls.at(-1)?.[0];
   expect(listener).toBeTypeOf('function');
@@ -59,13 +59,13 @@ function emptyPropfindXml(): string {
 
 describe('WebDAV known device registry', () => {
   it('exposes an empty knownDevices list in default WebDAV settings', async () => {
-    const { DEFAULT_SETTINGS } = await import('../../src/utils/config');
+    const { DEFAULT_SETTINGS } = await import('../../apps/extension/src/utils/config');
 
     expect(DEFAULT_SETTINGS.webdav.knownDevices).toEqual([]);
   });
 
   it('merges remote devices by clientId without deleting local-only devices', async () => {
-    const { mergeKnownDevices } = await import('../../src/features/webdavSync/application/deviceRegistry');
+    const { mergeKnownDevices } = await import('../../apps/extension/src/features/webdavSync/application/deviceRegistry');
 
     const result = mergeKnownDevices(
       [
@@ -97,7 +97,7 @@ describe('WebDAV known device registry', () => {
   });
 
   it('keeps local device label when older remote profile has a different label', async () => {
-    const { mergeKnownDevices } = await import('../../src/features/webdavSync/application/deviceRegistry');
+    const { mergeKnownDevices } = await import('../../apps/extension/src/features/webdavSync/application/deviceRegistry');
 
     const result = mergeKnownDevices(
       [
@@ -123,7 +123,7 @@ describe('WebDAV known device registry', () => {
   });
 
   it('always keeps the current local client profile in known devices', async () => {
-    const { mergeKnownDevices } = await import('../../src/features/webdavSync/application/deviceRegistry');
+    const { mergeKnownDevices } = await import('../../apps/extension/src/features/webdavSync/application/deviceRegistry');
 
     const currentProfile = profile('current-device', '当前设备', '2026-07-04T08:00:00.000Z');
     const result = mergeKnownDevices([], [], {
@@ -154,7 +154,7 @@ describe('WebDAV known device registry', () => {
       buildKnownDeviceInputsFromRemoteState,
       mergeKnownDevices,
       buildKnownDeviceViews,
-    } = await import('../../src/features/webdavSync/application/deviceRegistry');
+    } = await import('../../apps/extension/src/features/webdavSync/application/deviceRegistry');
 
     const uploadItems: WebDAVUploadIndexItem[] = [
       {
@@ -191,7 +191,7 @@ describe('WebDAV known device registry', () => {
   });
 
   it('plans remote client profile backfill only for missing client registry files', async () => {
-    const { buildMissingRemoteClientProfiles } = await import('../../src/features/webdavSync/application/deviceRegistry');
+    const { buildMissingRemoteClientProfiles } = await import('../../apps/extension/src/features/webdavSync/application/deviceRegistry');
     const knownDevices = [
       {
         ...profile('current-device', '当前设备', '2026-07-05T08:00:00.000Z'),
@@ -365,8 +365,8 @@ describe('WebDAV known device registry', () => {
   it('updates local known devices after a successful WebDAV upload', async () => {
     vi.useRealTimers();
     vi.resetModules();
-    vi.doMock('../../src/features/webdavSync/application/backupCollector', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/features/webdavSync/application/backupCollector')>();
+    vi.doMock('../../apps/extension/src/features/webdavSync/application/backupCollector', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/features/webdavSync/application/backupCollector')>();
       return {
         ...actual,
         collectBackupData: vi.fn().mockResolvedValue({
@@ -400,7 +400,7 @@ describe('WebDAV known device registry', () => {
       return new Response('', { status: 200 });
     }) as any;
 
-    const { performWebDAVUpload } = await import('../../src/features/webdavSync/application/uploadService');
+    const { performWebDAVUpload } = await import('../../apps/extension/src/features/webdavSync/application/uploadService');
     const result = await performWebDAVUpload({
       getSettings: async () => savedSettings.at(-1) || initialSettings,
       saveSettings: async (settings: any) => {
@@ -418,14 +418,14 @@ describe('WebDAV known device registry', () => {
     ]);
     expect(savedSettings.at(-1)?.webdav.knownDevices[0]?.lastUploadId).toBe(savedSettings.at(-1)?.webdav.clientLastUploadId);
 
-    vi.doUnmock('../../src/features/webdavSync/application/backupCollector');
+    vi.doUnmock('../../apps/extension/src/features/webdavSync/application/backupCollector');
   });
 
   it('uploads to the requested non-default WebDAV config without switching the default endpoint', async () => {
     vi.useRealTimers();
     vi.resetModules();
-    vi.doMock('../../src/features/webdavSync/application/backupCollector', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/features/webdavSync/application/backupCollector')>();
+    vi.doMock('../../apps/extension/src/features/webdavSync/application/backupCollector', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/features/webdavSync/application/backupCollector')>();
       return {
         ...actual,
         collectBackupData: vi.fn().mockResolvedValue({
@@ -484,7 +484,7 @@ describe('WebDAV known device registry', () => {
         },
       };
 
-      const { performWebDAVUpload } = await import('../../src/features/webdavSync/application/uploadService');
+      const { performWebDAVUpload } = await import('../../apps/extension/src/features/webdavSync/application/uploadService');
       const result = await performWebDAVUpload({
         getSettings: async () => structuredClone(savedSettings.at(-1) || initialSettings),
         saveSettings: async (settings: any) => {
@@ -515,15 +515,15 @@ describe('WebDAV known device registry', () => {
         }),
       ]);
     } finally {
-      vi.doUnmock('../../src/features/webdavSync/application/backupCollector');
+      vi.doUnmock('../../apps/extension/src/features/webdavSync/application/backupCollector');
     }
   });
 
   it('backs up to all WebDAV configs and keeps reporting partial failures', async () => {
     vi.useRealTimers();
     vi.resetModules();
-    vi.doMock('../../src/features/webdavSync/application/backupCollector', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('../../src/features/webdavSync/application/backupCollector')>();
+    vi.doMock('../../apps/extension/src/features/webdavSync/application/backupCollector', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/features/webdavSync/application/backupCollector')>();
       return {
         ...actual,
         collectBackupData: vi.fn().mockResolvedValue({
@@ -603,7 +603,7 @@ describe('WebDAV known device registry', () => {
       });
       expect(getChromeStorageSnapshot()[STORAGE_KEYS.SETTINGS].webdav.activeConfigId).toBe('config-a');
     } finally {
-      vi.doUnmock('../../src/features/webdavSync/application/backupCollector');
+      vi.doUnmock('../../apps/extension/src/features/webdavSync/application/backupCollector');
     }
   });
 

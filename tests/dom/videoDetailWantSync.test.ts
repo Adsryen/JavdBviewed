@@ -4,20 +4,20 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { initOrchestrator } from '../../src/apps/content/orchestrator';
-import { STATE, setCurrentFaviconState, setCurrentTitleStatus, setSuspendEarlyFaviconSync } from '../../src/features/contentState';
-import { handleVideoDetailPage } from '../../src/features/videoDetail/pageHandler';
-import { concurrencyManager, storageManager } from '../../src/features/records/content';
-import type { VideoRecord } from '../../src/types';
-import { DEFAULT_SETTINGS, VIDEO_STATUS } from '../../src/utils/config';
+import { initOrchestrator } from '../../apps/extension/src/apps/content/orchestrator';
+import { STATE, setCurrentFaviconState, setCurrentTitleStatus, setSuspendEarlyFaviconSync } from '../../apps/extension/src/features/contentState';
+import { handleVideoDetailPage } from '../../apps/extension/src/features/videoDetail/pageHandler';
+import { concurrencyManager, storageManager } from '../../apps/extension/src/features/records/content';
+import type { VideoRecord } from '../../apps/extension/src/types';
+import { DEFAULT_SETTINGS, VIDEO_STATUS } from '../../apps/extension/src/utils/config';
 
-vi.mock('../../src/apps/content/orchestrator', () => ({
+vi.mock('../../apps/extension/src/apps/content/orchestrator', () => ({
   initOrchestrator: {
     add: vi.fn(),
   },
 }));
 
-vi.mock('../../src/features/records/content', () => ({
+vi.mock('../../apps/extension/src/features/records/content', () => ({
   concurrencyManager: {
     startProcessingVideo: vi.fn(),
     finishProcessingVideo: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock('../../src/features/records/content', () => ({
   },
 }));
 
-vi.mock('../../src/platform/tasks', () => ({
+vi.mock('../../apps/extension/src/platform/tasks', () => ({
   createTaskTimeoutGuard: vi.fn((timeoutMs: number) => ({
     timeoutMs,
     isTimedOut: () => false,
@@ -48,23 +48,23 @@ vi.mock('../../src/platform/tasks', () => ({
   yieldToMainThread: vi.fn(async () => undefined),
 }));
 
-vi.mock('../../src/platform/browser/toast', () => ({
+vi.mock('../../apps/extension/src/platform/browser/toast', () => ({
   showToast: vi.fn(),
 }));
 
-vi.mock('../../src/platform/browser/enhancementLoadingIndicator', () => ({
+vi.mock('../../apps/extension/src/platform/browser/enhancementLoadingIndicator', () => ({
   showEnhancementLoading: vi.fn(),
 }));
 
-vi.mock('../../src/features/externalSearch', () => ({
+vi.mock('../../apps/extension/src/features/externalSearch', () => ({
   renderDetailSearchLinks: vi.fn(),
 }));
 
-vi.mock('../../src/features/embyLibrary/content/statusBadges', () => ({
+vi.mock('../../apps/extension/src/features/embyLibrary/content/statusBadges', () => ({
   renderDetailLibraryStatus: vi.fn(),
 }));
 
-vi.mock('../../src/features/videoDetail/enhancer', () => ({
+vi.mock('../../apps/extension/src/features/videoDetail/enhancer', () => ({
   videoDetailEnhancer: {
     initCore: vi.fn(),
     loadEnhancedData: vi.fn(),
@@ -79,26 +79,26 @@ vi.mock('../../src/features/videoDetail/enhancer', () => ({
   VideoDetailEnhancer: vi.fn(),
 }));
 
-vi.mock('../../src/features/videoDetail/favoriteRating', () => ({
+vi.mock('../../apps/extension/src/features/videoDetail/favoriteRating', () => ({
   videoFavoriteRatingEnhancer: {
     init: vi.fn(),
   },
 }));
 
-vi.mock('../../src/features/actors', () => ({
+vi.mock('../../apps/extension/src/features/actors', () => ({
   actorManager: {
     initialize: vi.fn(),
     getActorById: vi.fn(),
   },
 }));
 
-vi.mock('../../src/features/newWorks', () => ({
+vi.mock('../../apps/extension/src/features/newWorks', () => ({
   newWorksManager: {
     getSubscriptions: vi.fn(async () => []),
   },
 }));
 
-vi.mock('../../src/features/actorRemarks', () => ({
+vi.mock('../../apps/extension/src/features/actorRemarks', () => ({
   actorExtraInfoService: {
     getActorRemarks: vi.fn(),
   },

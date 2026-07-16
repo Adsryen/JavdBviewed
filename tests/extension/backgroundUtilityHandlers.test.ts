@@ -9,7 +9,7 @@ import {
   handlePrivacyLock,
   handleUpdateWatchedStatus,
   setupWebDAVSyncAlarm,
-} from '../../src/apps/background/utilityMessageHandlers';
+} from '../../apps/extension/src/apps/background/utilityMessageHandlers';
 
 describe('background utility message handlers', () => {
   it('applies scheduler concurrency settings with defaults', async () => {

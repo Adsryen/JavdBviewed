@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { bindRecordsImageTooltip } from '../../src/dashboard/tabs/records/imageTooltipController';
+import { bindRecordsImageTooltip } from '../../apps/extension/src/dashboard/tabs/records/imageTooltipController';
 
 function dispatchMouse(target: HTMLElement, type: string, x = 120, y = 80) {
   target.dispatchEvent(new MouseEvent(type, {

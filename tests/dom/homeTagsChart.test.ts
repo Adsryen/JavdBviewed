@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('home tags chart config', () => {
   it('builds readable G2Plot bar options for tag data', async () => {
-    const { buildHomeTagsBarData, buildHomeTagsBarOptions } = await import('../../src/dashboard/home/charts');
+    const { buildHomeTagsBarData, buildHomeTagsBarOptions } = await import('../../apps/extension/src/dashboard/home/charts');
 
     const data = buildHomeTagsBarData([
       { name: '巨乳', count: 12 },

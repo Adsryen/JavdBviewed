@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createListScrollStateController,
-} from '../../src/features/listEnhancement/ui/listScrollState';
+} from '../../apps/extension/src/features/listEnhancement/ui/listScrollState';
 
 describe('list scroll state controller', () => {
   afterEach(() => {

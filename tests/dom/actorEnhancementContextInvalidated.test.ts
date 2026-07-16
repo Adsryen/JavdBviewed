@@ -8,29 +8,29 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const getValueMock = vi.fn();
 const setValueMock = vi.fn();
 
-vi.mock('../../src/utils/storage', () => ({
+vi.mock('../../apps/extension/src/utils/storage', () => ({
   getValue: getValueMock,
   setValue: setValueMock,
   getSettings: vi.fn(() => Promise.resolve({})),
 }));
 
-vi.mock('../../src/platform/browser/toast', () => ({
+vi.mock('../../apps/extension/src/platform/browser/toast', () => ({
   showToast: vi.fn(),
 }));
 
-vi.mock('../../src/features/actors', () => ({
+vi.mock('../../apps/extension/src/features/actors', () => ({
   actorManager: {},
 }));
 
-vi.mock('../../src/features/newWorks', () => ({
+vi.mock('../../apps/extension/src/features/newWorks', () => ({
   newWorksManager: {},
 }));
 
-vi.mock('../../src/features/actorRemarks', () => ({
+vi.mock('../../apps/extension/src/features/actorRemarks', () => ({
   actorExtraInfoService: {},
 }));
 
-vi.mock('../../src/platform/tasks', () => ({
+vi.mock('../../apps/extension/src/platform/tasks', () => ({
   completeManagedTask: vi.fn(),
   createManagedTaskDescriptor: vi.fn(),
   ensureManagedTaskRegistered: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock('../../src/platform/tasks', () => ({
   untrackActiveManagedTask: vi.fn(),
 }));
 
-vi.mock('../../src/platform/browser/enhancementLoadingIndicator', () => ({
+vi.mock('../../apps/extension/src/platform/browser/enhancementLoadingIndicator', () => ({
   showEnhancementDone: vi.fn(),
   showEnhancementLoading: vi.fn(),
 }));
@@ -55,7 +55,7 @@ describe('actor enhancement context invalidated handling', () => {
   });
 
   it('does not log an error when saving tag filters after extension context invalidates', async () => {
-    const { actorEnhancementManager } = await import('../../src/features/actorEnhancement/actorEnhancementManager');
+    const { actorEnhancementManager } = await import('../../apps/extension/src/features/actorEnhancement/actorEnhancementManager');
     const managerState = actorEnhancementManager as unknown as {
       isActorPage: boolean;
       currentActorId: string;

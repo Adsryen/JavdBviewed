@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachNewWorksButtonEvents } from '../../src/dashboard/tabs/newWorksButtonEventsRuntime';
+import { attachNewWorksButtonEvents } from '../../apps/extension/src/dashboard/tabs/newWorksButtonEventsRuntime';
 
 function renderButtons() {
   document.body.innerHTML = `

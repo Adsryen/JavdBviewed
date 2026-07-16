@@ -10,8 +10,8 @@ import {
   renderNewWorksListRuntime,
   selectAllCurrentNewWorksPage,
   syncNewWorksBatchOperations,
-} from '../../src/dashboard/tabs/newWorksListRuntime';
-import type { NewWorkRecord } from '../../src/types';
+} from '../../apps/extension/src/dashboard/tabs/newWorksListRuntime';
+import type { NewWorkRecord } from '../../apps/extension/src/types';
 
 function work(overrides: Partial<NewWorkRecord> = {}): NewWorkRecord {
   return {

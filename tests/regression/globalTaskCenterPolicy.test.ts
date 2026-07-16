@@ -4,10 +4,10 @@
  * @module tests/regression
  */
 import { describe, expect, it } from 'vitest';
-import { computeTaskDisposition, getEffectiveBucketLimit } from '../../src/platform/tasks/taskCenterPolicyRuntime';
-import { GlobalTaskCenter } from '../../src/platform/tasks/globalTaskCenter';
-import type { GlobalTaskDescriptor } from '../../src/shared/taskCenterTypes';
-import { TASK_CENTER_MESSAGE } from '../../src/shared/taskCenterProtocol';
+import { computeTaskDisposition, getEffectiveBucketLimit } from '../../apps/extension/src/platform/tasks/taskCenterPolicyRuntime';
+import { GlobalTaskCenter } from '../../apps/extension/src/platform/tasks/globalTaskCenter';
+import type { GlobalTaskDescriptor } from '../../apps/extension/src/shared/taskCenterTypes';
+import { TASK_CENTER_MESSAGE } from '../../apps/extension/src/shared/taskCenterProtocol';
 
 function createDescriptor(overrides: Partial<GlobalTaskDescriptor> & Pick<GlobalTaskDescriptor, 'taskId' | 'label'>): GlobalTaskDescriptor {
   const now = Date.now();

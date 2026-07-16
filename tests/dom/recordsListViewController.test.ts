@@ -4,10 +4,10 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsListViewController } from '../../src/dashboard/tabs/records/listViewController';
-import type { CreateRecordsItemElementOptions } from '../../src/dashboard/tabs/records/itemController';
-import type { RenderRecordsListOptions } from '../../src/dashboard/tabs/records/listRenderer';
-import type { VideoRecord } from '../../src/types';
+import { createRecordsListViewController } from '../../apps/extension/src/dashboard/tabs/records/listViewController';
+import type { CreateRecordsItemElementOptions } from '../../apps/extension/src/dashboard/tabs/records/itemController';
+import type { RenderRecordsListOptions } from '../../apps/extension/src/dashboard/tabs/records/listRenderer';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function createRecord(id: string): VideoRecord {
   return { id, title: `title-${id}`, status: 'browsed' } as VideoRecord;

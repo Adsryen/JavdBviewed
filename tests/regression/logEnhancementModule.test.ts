@@ -15,11 +15,11 @@ function read(relativePath: string): string {
 
 describe('log enhancement module', () => {
   it('keeps feature enhancement logs independently controllable', () => {
-    const settingsMarkup = read('src/dashboard/partials/tabs/settings-log.html');
-    const loggingSettings = read('src/dashboard/tabs/settings/logging/LoggingSettings.ts');
-    const consoleProxy = read('src/platform/logging/consoleProxy.ts');
-    const dashboardConsoleBootstrap = read('src/apps/dashboard/consoleBootstrap.ts');
-    const defaultSettings = read('src/utils/config.ts');
+    const settingsMarkup = read('apps/extension/src/dashboard/partials/tabs/settings-log.html');
+    const loggingSettings = read('apps/extension/src/dashboard/tabs/settings/logging/LoggingSettings.ts');
+    const consoleProxy = read('apps/extension/src/platform/logging/consoleProxy.ts');
+    const dashboardConsoleBootstrap = read('apps/extension/src/apps/dashboard/consoleBootstrap.ts');
+    const defaultSettings = read('apps/extension/src/utils/config.ts');
 
     expect(settingsMarkup).toContain('id="logModuleEnhancement"');
     expect(settingsMarkup).toContain('功能增强');

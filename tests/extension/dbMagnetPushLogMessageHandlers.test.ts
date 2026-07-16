@@ -4,7 +4,7 @@
  * @module tests/extension
  */
 import { describe, expect, it, vi } from 'vitest';
-import { handleMagnetPushLogMessage } from '../../src/apps/background/dbMagnetPushLogMessageHandlers';
+import { handleMagnetPushLogMessage } from '../../apps/extension/src/apps/background/dbMagnetPushLogMessageHandlers';
 
 describe('db magnet push log message handlers', () => {
   it('adds one magnet push log entry and returns the inserted id', async () => {

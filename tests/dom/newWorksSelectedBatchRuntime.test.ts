@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   getSelectedBatchCurrentPageWork,
   setBatchOpenSelectedButtonLoading,
-} from '../../src/dashboard/tabs/newWorksSelectedBatchRuntime';
+} from '../../apps/extension/src/dashboard/tabs/newWorksSelectedBatchRuntime';
 
 describe('new works selected batch runtime', () => {
   afterEach(() => {

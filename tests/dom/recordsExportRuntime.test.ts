@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsExportRuntime } from '../../src/dashboard/tabs/records/exportRuntime';
-import type { VideoRecord } from '../../src/types';
+import { createRecordsExportRuntime } from '../../apps/extension/src/dashboard/tabs/records/exportRuntime';
+import type { VideoRecord } from '../../apps/extension/src/types';
 
 function record(id: string): VideoRecord {
   return { id, title: id, status: 'browsed' } as VideoRecord;

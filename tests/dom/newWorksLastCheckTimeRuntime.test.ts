@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   formatNewWorksLastCheckTime,
   updateNewWorksLastCheckTimeDisplay,
-} from '../../src/dashboard/tabs/newWorksLastCheckTimeRuntime';
+} from '../../apps/extension/src/dashboard/tabs/newWorksLastCheckTimeRuntime';
 
 describe('new works last check time runtime', () => {
   const now = new Date('2026-05-02T12:00:00+08:00').getTime();

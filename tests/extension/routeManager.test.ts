@@ -4,8 +4,8 @@
  * @module tests/extension
  */
 import { describe, expect, it, vi } from 'vitest';
-import manifest from '../../src/manifest.json';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
+import manifest from '../../apps/extension/src/manifest.json';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
 import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';
 
 describe('RouteManager remote config', () => {
@@ -64,7 +64,7 @@ describe('RouteManager remote config', () => {
       },
     });
 
-    const { SERVER_ENDPOINT_STATE_KEY } = await import('../../src/platform/network');
+    const { SERVER_ENDPOINT_STATE_KEY } = await import('../../apps/extension/src/platform/network');
     setChromeStorage({
       [SERVER_ENDPOINT_STATE_KEY]: {
         apiBaseUrl: 'https://resolved-api.example',
@@ -73,7 +73,7 @@ describe('RouteManager remote config', () => {
       },
     });
 
-    const { RouteManager } = await import('../../src/features/routeManagement');
+    const { RouteManager } = await import('../../apps/extension/src/features/routeManagement');
 
     await expect(RouteManager.getInstance().checkAndUpdateRoutes(true)).resolves.toBe(true);
 
@@ -133,7 +133,7 @@ describe('RouteManager remote config', () => {
       json: async () => tamperedConfig,
     });
     vi.stubGlobal('fetch', fetchMock);
-    const { SERVER_ENDPOINT_STATE_KEY } = await import('../../src/platform/network');
+    const { SERVER_ENDPOINT_STATE_KEY } = await import('../../apps/extension/src/platform/network');
     setChromeStorage({
       settings: DEFAULT_SETTINGS,
       [SERVER_ENDPOINT_STATE_KEY]: {
@@ -143,7 +143,7 @@ describe('RouteManager remote config', () => {
       },
     });
 
-    const { RouteManager } = await import('../../src/features/routeManagement');
+    const { RouteManager } = await import('../../apps/extension/src/features/routeManagement');
 
     await expect(RouteManager.getInstance().checkAndUpdateRoutes(true)).resolves.toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);

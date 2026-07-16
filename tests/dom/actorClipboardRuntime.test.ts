@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { copyActorNameRuntime, type ActorClipboardRuntimeHandlers } from '../../src/dashboard/tabs/actors/actorClipboardRuntime';
+import { copyActorNameRuntime, type ActorClipboardRuntimeHandlers } from '../../apps/extension/src/dashboard/tabs/actors/actorClipboardRuntime';
 
 function renderCopyTarget() {
   document.body.innerHTML = `

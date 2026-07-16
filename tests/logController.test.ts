@@ -4,7 +4,7 @@
  * @module tests/tests
  */
 import { describe, expect, it, vi } from 'vitest';
-import { LogController } from '../src/platform/logging/logController';
+import { LogController } from '../apps/extension/src/platform/logging/logController';
 
 function createConsoleSink() {
   return {

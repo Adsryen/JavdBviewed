@@ -5,8 +5,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { initEnhancementToggles } from '../../src/dashboard/tabs/settings/enhancement/settings/enhancementToggles';
-import { updateAllToggleStates } from '../../src/dashboard/tabs/settings/enhancement/ui/enhancementHover';
+import { initEnhancementToggles } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/settings/enhancementToggles';
+import { updateAllToggleStates } from '../../apps/extension/src/dashboard/tabs/settings/enhancement/ui/enhancementHover';
 
 function createHost() {
   return {

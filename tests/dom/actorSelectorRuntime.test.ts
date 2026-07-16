@@ -4,17 +4,17 @@
  * @module tests/dom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ActorSelector } from '../../src/dashboard/components/actorSelector';
-import { actorManager } from '../../src/features/actors';
-import type { ActorRecord } from '../../src/types';
+import { ActorSelector } from '../../apps/extension/src/dashboard/components/actorSelector';
+import { actorManager } from '../../apps/extension/src/features/actors';
+import type { ActorRecord } from '../../apps/extension/src/types';
 
-vi.mock('../../src/features/actors', () => ({
+vi.mock('../../apps/extension/src/features/actors', () => ({
   actorManager: {
     getAllActors: vi.fn(),
   },
 }));
 
-vi.mock('../../src/dashboard/ui/toast', () => ({
+vi.mock('../../apps/extension/src/dashboard/ui/toast', () => ({
   showMessage: vi.fn(),
 }));
 

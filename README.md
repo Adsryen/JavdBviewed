@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Jav 助手](src/assets/favicons/light/favicon-128x128.png)
+![Jav 助手](apps/extension/src/assets/favicons/light/favicon-128x128.png)
 
 **Jav 视频浏览助手**
 
@@ -11,6 +11,26 @@
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://github.com/lmixture/JavdBviewed/releases)
 
 </div>
+
+## 📦 仓库结构（monorepo）
+
+本仓为 **pnpm workspace** 多端骨架（Day-1）：
+
+| 路径 | 说明 |
+|------|------|
+| `apps/extension` | 浏览器扩展主产物（源码在 `apps/extension/src`） |
+| `apps/desktop` / `mobile` / `tv` | 多端占位骨架（无业务 UI） |
+| `packages/sync-protocol` | 同步协议契约（`@javdb/sync-protocol`） |
+| `packages/sync-client` | 同步客户端引擎边界（`@javdb/sync-client`） |
+
+```bash
+pnpm install
+pnpm build                 # 扩展 zip → dist-zip/
+pnpm --filter @javdb/extension build
+pnpm typecheck
+```
+
+发版 tag 规范：`extension-v{semver}`（根 `version.json` 仍表示扩展版本）。UI 仍在扩展内，**不**抽 `packages/ui`。
 
 ## 📖 简介
 

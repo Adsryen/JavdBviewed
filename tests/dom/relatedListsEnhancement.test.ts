@@ -4,8 +4,8 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoDetailEnhancer } from '../../src/features/videoDetail';
-import { relatedListsService } from '../../src/features/relatedLists';
+import { VideoDetailEnhancer } from '../../apps/extension/src/features/videoDetail';
+import { relatedListsService } from '../../apps/extension/src/features/relatedLists';
 
 describe('VideoDetailEnhancer related lists enhancement', () => {
   beforeEach(() => {

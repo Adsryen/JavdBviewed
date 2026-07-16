@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
-const DEFAULT_NOTES_PATH = path.join(rootDir, 'src/features/releaseAnnouncement/domain/releaseNotes.ts');
+const DEFAULT_NOTES_PATH = path.join(rootDir, 'apps/extension/src/features/releaseAnnouncement/domain/releaseNotes.ts');
 const PLACEHOLDER_PATTERN = /\b(todo|tbd|fixme|placeholder|changeme)\b|待补充|待完善|占位/i;  // 占位符检测正则
 const MIN_MAINTAINED_VERSION = '1.20.0';  // 最小受维护版本（低于此版本跳过检查）
 
@@ -158,7 +158,7 @@ function main() {
   const note = notes.find(item => item.version === version);
 
   if (!note) {
-    fail(`Release notes missing for ${version}. Please update src/features/releaseAnnouncement/domain/releaseNotes.ts before publishing.`);
+    fail(`Release notes missing for ${version}. Please update apps/extension/src/features/releaseAnnouncement/domain/releaseNotes.ts before publishing.`);
   }
 
   const validHighlights = note.highlights.filter(isUserFacingHighlight);

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   observeListItems,
   processExistingListItems,
-} from '../../src/features/listEnhancement/ui/listItemObserver';
+} from '../../apps/extension/src/features/listEnhancement/ui/listItemObserver';
 
 describe('list item observer', () => {
   afterEach(() => {

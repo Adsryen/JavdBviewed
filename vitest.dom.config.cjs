@@ -14,7 +14,7 @@ module.exports = defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: 'coverage/dom',
-      include: ['src/dashboard/components/**/*.ts', 'src/dashboard/ui/**/*.ts', 'src/components/**/*.ts'],
+      include: ['apps/extension/src/dashboard/components/**/*.ts', 'apps/extension/src/dashboard/ui/**/*.ts', 'apps/extension/src/components/**/*.ts'],
       exclude: ['**/*.test.ts'],
     },
   },

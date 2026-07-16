@@ -7,8 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   RELEASE_ANNOUNCEMENT_STORAGE_KEY,
   mountReleaseAnnouncementModal,
-} from '../../src/features/releaseAnnouncement';
-import { mountDashboardReleaseAnnouncement } from '../../src/apps/dashboard/releaseAnnouncementBootstrap';
+} from '../../apps/extension/src/features/releaseAnnouncement';
+import { mountDashboardReleaseAnnouncement } from '../../apps/extension/src/apps/dashboard/releaseAnnouncementBootstrap';
 
 const storageState: Record<string, any> = {};
 

@@ -8,7 +8,7 @@ import {
   handleDrive115Push,
   handleDrive115Verify,
   handleOpenTabBackground,
-} from '../../src/apps/background/tabMessageHandlers';
+} from '../../apps/extension/src/apps/background/tabMessageHandlers';
 import {
   getCreatedTabs,
   getTabsMessages,

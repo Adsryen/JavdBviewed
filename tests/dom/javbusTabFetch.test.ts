@@ -4,9 +4,9 @@
  * @module tests/dom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { javbusPageAjaxFetchScript } from '../../src/platform/browser/javbusTabFetch';
-import { fetchJavbusAjaxViaRuntime } from '../../src/platform/browser/javbusRuntimeClient';
-import { sendRuntimeMessage } from '../../src/platform/browser/runtimeMessages';
+import { javbusPageAjaxFetchScript } from '../../apps/extension/src/platform/browser/javbusTabFetch';
+import { fetchJavbusAjaxViaRuntime } from '../../apps/extension/src/platform/browser/javbusRuntimeClient';
+import { sendRuntimeMessage } from '../../apps/extension/src/platform/browser/runtimeMessages';
 
 describe('JAVBUS tab ajax fetch fallback', () => {
   const originalSendMessage = (globalThis as any).chrome.runtime.sendMessage;

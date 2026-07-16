@@ -4,7 +4,7 @@
  * @module tests/tests
  */
 import { describe, expect, it, vi } from 'vitest';
-import { RequestScheduler } from '../src/platform/network/requestScheduler';
+import { RequestScheduler } from '../apps/extension/src/platform/network/requestScheduler';
 
 describe('RequestScheduler', () => {
   it('deduplicates identical in-flight requests', async () => {

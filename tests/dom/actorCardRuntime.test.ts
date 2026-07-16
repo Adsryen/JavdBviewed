@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   setupActorCardRuntime,
   type ActorCardRuntimeHandlers,
-} from '../../src/dashboard/tabs/actors/actorCardRuntime';
+} from '../../apps/extension/src/dashboard/tabs/actors/actorCardRuntime';
 
 function renderActorCard() {
   document.body.innerHTML = `

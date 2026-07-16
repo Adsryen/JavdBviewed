@@ -4,9 +4,9 @@
  * @module tests/regression
  */
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../../src/utils/config';
-import { mergeSearchEngineTemplates } from '../../src/utils/storage';
-import { dedupeSearchEngines } from '../../src/utils/searchEngines';
+import { DEFAULT_SETTINGS } from '../../apps/extension/src/utils/config';
+import { mergeSearchEngineTemplates } from '../../apps/extension/src/utils/storage';
+import { dedupeSearchEngines } from '../../apps/extension/src/utils/searchEngines';
 
 describe('default search engine templates', () => {
   it('ships common JavdbBuddy-compatible search templates by default', () => {
@@ -158,7 +158,7 @@ describe('default search engine templates', () => {
   });
 
   it('builds search URLs from templates with flexible ID placeholders', async () => {
-    const { buildSearchEngineUrl } = await import('../../src/utils/searchEngines');
+    const { buildSearchEngineUrl } = await import('../../apps/extension/src/utils/searchEngines');
 
     expect(buildSearchEngineUrl('https://example.test/search/{{ id }}', 'FC2-123 456')).toBe(
       'https://example.test/search/FC2-123%20456',
@@ -166,7 +166,7 @@ describe('default search engine templates', () => {
   });
 
   it('builds FC2 portal URLs from numeric FC2 placeholders', async () => {
-    const { buildSearchEngineUrl } = await import('../../src/utils/searchEngines');
+    const { buildSearchEngineUrl } = await import('../../apps/extension/src/utils/searchEngines');
 
     expect(buildSearchEngineUrl('https://fc2ppvdb.com/articles/{{FC2_ID}}', 'FC2-4903984')).toBe(
       'https://fc2ppvdb.com/articles/4903984',
@@ -177,7 +177,7 @@ describe('default search engine templates', () => {
   });
 
   it('filters detail-only and FC2-only search engines by context and video id', async () => {
-    const { getSearchEnginesForVideo } = await import('../../src/utils/searchEngines');
+    const { getSearchEnginesForVideo } = await import('../../apps/extension/src/utils/searchEngines');
     const engines = [
       { id: 'javdb', name: 'JavDB', urlTemplate: 'https://javdb.com/search?q={{ID}}' },
       { id: 'subtitlecat', name: 'SubTitleCat', urlTemplate: 'https://subtitlecat.com/?search={{ID}}', category: 'subtitle', contexts: ['detail'] },
@@ -199,7 +199,7 @@ describe('default search engine templates', () => {
   });
 
   it('treats missing search engine enabled state as visible and filters disabled engines', async () => {
-    const { getSearchEnginesForVideo } = await import('../../src/utils/searchEngines');
+    const { getSearchEnginesForVideo } = await import('../../apps/extension/src/utils/searchEngines');
     const engines = [
       { id: 'javdb', name: 'JavDB', urlTemplate: 'https://javdb.com/search?q={{ID}}' },
       { id: 'javbus', name: 'JavBus', urlTemplate: 'https://javbus.com/search/{{ID}}', enabled: false },
@@ -217,7 +217,7 @@ describe('default search engine templates', () => {
       getSearchEngineCategory,
       getSearchEngineCategoryLabel,
       filterSearchEnginesByCategory,
-    } = await import('../../src/utils/searchEngines');
+    } = await import('../../apps/extension/src/utils/searchEngines');
     const engines = [
       { id: 'javdb', name: 'JavDB' },
       { id: 'missav', name: 'MISSAV' },

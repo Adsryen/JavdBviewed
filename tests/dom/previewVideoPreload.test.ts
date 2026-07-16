@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   activatePreviewVideoPreload,
   releasePreviewVideoMedia,
-} from '../../src/content/previewVideoPreload';
+} from '../../apps/extension/src/content/previewVideoPreload';
 
 describe('preview video preload lifecycle', () => {
   beforeEach(() => {

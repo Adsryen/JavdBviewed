@@ -21,8 +21,8 @@ describe('Recycle Bin - Storage Layer', () => {
   });
 
   afterEach(() => {
-    vi.doUnmock('../../src/platform/storage/indexedDbConnection');
-    vi.doUnmock('../../src/platform/storage/indexedDb');
+    vi.doUnmock('../../apps/extension/src/platform/storage/indexedDbConnection');
+    vi.doUnmock('../../apps/extension/src/platform/storage/indexedDb');
   });
 
   describe('viewedDelete (soft delete)', () => {
@@ -38,12 +38,12 @@ describe('Recycle Bin - Storage Layer', () => {
       mockDB.get.mockResolvedValue(existingRecord);
       mockDB.put.mockResolvedValue(undefined);
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { viewedDelete } = await import('../../src/platform/storage/indexedDb');
+      const { viewedDelete } = await import('../../apps/extension/src/platform/storage/indexedDb');
       await viewedDelete('SSIS-001');
 
       expect(mockDB.get).toHaveBeenCalledWith('viewedRecords', 'SSIS-001');
@@ -59,12 +59,12 @@ describe('Recycle Bin - Storage Layer', () => {
       mockDB.get.mockResolvedValue(undefined);
       mockDB.put.mockClear();
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { viewedDelete } = await import('../../src/platform/storage/indexedDb');
+      const { viewedDelete } = await import('../../apps/extension/src/platform/storage/indexedDb');
       await viewedDelete('NON-EXISTING');
 
       expect(mockDB.get).toHaveBeenCalledWith('viewedRecords', 'NON-EXISTING');
@@ -86,12 +86,12 @@ describe('Recycle Bin - Storage Layer', () => {
       mockDB.get.mockResolvedValue(trashedRecord);
       mockDB.put.mockResolvedValue(undefined);
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { viewedRestore } = await import('../../src/platform/storage/indexedDb');
+      const { viewedRestore } = await import('../../apps/extension/src/platform/storage/indexedDb');
       await viewedRestore('SSIS-001');
 
       expect(mockDB.put).toHaveBeenCalledWith('viewedRecords', expect.objectContaining({
@@ -114,12 +114,12 @@ describe('Recycle Bin - Storage Layer', () => {
 
       mockDB.getAll.mockResolvedValue(allRecords);
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { viewedQueryRecycleBin } = await import('../../src/platform/storage/indexedDb');
+      const { viewedQueryRecycleBin } = await import('../../apps/extension/src/platform/storage/indexedDb');
       const result = await viewedQueryRecycleBin();
 
       expect(result.items).toHaveLength(2);
@@ -135,12 +135,12 @@ describe('Recycle Bin - Storage Layer', () => {
 
       mockDB.getAll.mockResolvedValue(allRecords);
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { viewedQueryRecycleBin } = await import('../../src/platform/storage/indexedDb');
+      const { viewedQueryRecycleBin } = await import('../../apps/extension/src/platform/storage/indexedDb');
       const result = await viewedQueryRecycleBin();
 
       expect(result.items).toHaveLength(0);
@@ -193,12 +193,12 @@ describe('Recycle Bin - Storage Layer', () => {
         done: Promise.resolve(),
       });
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { viewedPut } = await import('../../src/platform/storage/indexedDb');
+      const { viewedPut } = await import('../../apps/extension/src/platform/storage/indexedDb');
       const result = await viewedPut({
         id: 'SSIS-001',
         title: 'New Title',
@@ -220,8 +220,8 @@ describe('Recycle Bin - Actors', () => {
   });
 
   afterEach(() => {
-    vi.doUnmock('../../src/platform/storage/indexedDbConnection');
-    vi.doUnmock('../../src/platform/storage/indexedDb');
+    vi.doUnmock('../../apps/extension/src/platform/storage/indexedDbConnection');
+    vi.doUnmock('../../apps/extension/src/platform/storage/indexedDb');
   });
 
   describe('actorsDelete (soft delete)', () => {
@@ -240,12 +240,12 @@ describe('Recycle Bin - Actors', () => {
       mockDB.get.mockResolvedValue(existingActor);
       mockDB.put.mockResolvedValue(undefined);
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { actorsDelete } = await import('../../src/platform/storage/indexedDb');
+      const { actorsDelete } = await import('../../apps/extension/src/platform/storage/indexedDb');
       await actorsDelete('actor-1');
 
       expect(mockDB.get).toHaveBeenCalledWith('actors', 'actor-1');
@@ -266,12 +266,12 @@ describe('Recycle Bin - Actors', () => {
 
       mockDB.getAll.mockResolvedValue(allActors);
 
-      vi.doMock('../../src/platform/storage/indexedDbConnection', () => ({
+      vi.doMock('../../apps/extension/src/platform/storage/indexedDbConnection', () => ({
         initDB: vi.fn(() => Promise.resolve(mockDB)),
         resetDBConnection: vi.fn(),
       }));
 
-      const { actorsQueryRecycleBin } = await import('../../src/platform/storage/indexedDb');
+      const { actorsQueryRecycleBin } = await import('../../apps/extension/src/platform/storage/indexedDb');
       const result = await actorsQueryRecycleBin();
 
       expect(result.items).toHaveLength(1);

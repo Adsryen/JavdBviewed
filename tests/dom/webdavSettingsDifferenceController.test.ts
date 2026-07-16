@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebDAVSettingsDifferenceController } from '../../src/dashboard/webdavRestore/settingsDifferenceController';
+import { WebDAVSettingsDifferenceController } from '../../apps/extension/src/dashboard/webdavRestore/settingsDifferenceController';
 
 describe('WebDAV settings difference controller', () => {
   beforeEach(() => {

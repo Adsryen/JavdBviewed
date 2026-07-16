@@ -85,13 +85,13 @@ install_dependencies() {
 }
 
 read_version() {
-  # Priority: version.json -> src/manifest.json -> package.json
+  # Priority: version.json -> apps/extension/src/manifest.json -> package.json
   local v=""
   if [[ -f "$root_dir/version.json" ]]; then
     v=$(node -e "console.log(JSON.parse(require('fs').readFileSync('version.json','utf8')).version||'')" 2>/dev/null || true)
   fi
-  if [[ -z "$v" && -f "$root_dir/src/manifest.json" ]]; then
-    v=$(node -e "console.log(JSON.parse(require('fs').readFileSync('src/manifest.json','utf8')).version||'')" 2>/dev/null || true)
+  if [[ -z "$v" && -f "$root_dir/apps/extension/src/manifest.json" ]]; then
+    v=$(node -e "console.log(JSON.parse(require('fs').readFileSync('apps/extension/src/manifest.json','utf8')).version||'')" 2>/dev/null || true)
   fi
   if [[ -z "$v" && -f "$root_dir/package.json" ]]; then
     v=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version||'')" 2>/dev/null || true)

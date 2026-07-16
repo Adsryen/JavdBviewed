@@ -13,24 +13,24 @@ const actionMocks = vi.hoisted(() => ({
   setValue: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock('../../src/dashboard/logger', () => ({
+vi.mock('../../apps/extension/src/dashboard/logger', () => ({
   logAsync: actionMocks.logAsync,
 }));
 
-vi.mock('../../src/dashboard/ui/toast', () => ({
+vi.mock('../../apps/extension/src/dashboard/ui/toast', () => ({
   showMessage: actionMocks.showMessage,
 }));
 
-vi.mock('../../src/dashboard/webdavRestore', () => ({
+vi.mock('../../apps/extension/src/dashboard/webdavRestore', () => ({
   showWebDAVRestoreModal: actionMocks.showWebDAVRestoreModal,
 }));
 
-vi.mock('../../src/utils/storage', () => ({
+vi.mock('../../apps/extension/src/utils/storage', () => ({
   getValue: actionMocks.getValue,
   setValue: actionMocks.setValue,
 }));
 
-vi.mock('../../src/dashboard/state', () => ({
+vi.mock('../../apps/extension/src/dashboard/state', () => ({
   STATE: {
     settings: {
       webdav: {
@@ -64,7 +64,7 @@ describe('backup page actions', () => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectUrl });
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
+    const { initBackupActions } = await import('../../apps/extension/src/dashboard/backup/actions');
     const exportButton = document.getElementById('exportBtn') as HTMLButtonElement;
     const originalHtml = exportButton.innerHTML;
 
@@ -86,7 +86,7 @@ describe('backup page actions', () => {
 
   it('uploads through the WebDAV runtime message and restores the icon button markup', async () => {
     const sendMessage = installChromeRuntimeResponse({ success: true });
-    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
+    const { initBackupActions } = await import('../../apps/extension/src/dashboard/backup/actions');
     const uploadButton = document.getElementById('syncNow') as HTMLButtonElement;
     const originalHtml = uploadButton.innerHTML;
 
@@ -106,7 +106,7 @@ describe('backup page actions', () => {
 
   it('shows the runtime port error and still restores the upload button markup', async () => {
     installChromeRuntimeResponse(undefined, 'The message port closed before a response was received.');
-    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
+    const { initBackupActions } = await import('../../apps/extension/src/dashboard/backup/actions');
     const uploadButton = document.getElementById('syncNow') as HTMLButtonElement;
     const originalHtml = uploadButton.innerHTML;
 
@@ -123,7 +123,7 @@ describe('backup page actions', () => {
   });
 
   it('opens the existing WebDAV restore modal from the backup page button', async () => {
-    const { initBackupActions } = await import('../../src/dashboard/backup/actions');
+    const { initBackupActions } = await import('../../apps/extension/src/dashboard/backup/actions');
 
     initBackupActions(document);
     document.getElementById('syncDown')?.click();

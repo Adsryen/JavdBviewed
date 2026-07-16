@@ -9,7 +9,7 @@ import {
   setCheckNowButtonLoading,
   setSyncStatusButtonLoading,
   updateBatchOpenUnreadButtonState,
-} from '../../src/dashboard/tabs/newWorksButtonStateRuntime';
+} from '../../apps/extension/src/dashboard/tabs/newWorksButtonStateRuntime';
 
 describe('new works button state runtime', () => {
   afterEach(() => {

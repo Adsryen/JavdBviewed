@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   handleExternalDataFetch,
   handleFetchExternalCover,
-} from '../../src/apps/background/networkMessageHandlers';
+} from '../../apps/extension/src/apps/background/networkMessageHandlers';
 
 describe('background network message handlers', () => {
   it('rejects external data fetch without URL', async () => {

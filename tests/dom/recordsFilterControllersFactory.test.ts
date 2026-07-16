@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createRecordsFilterControllers } from '../../src/dashboard/tabs/records/filterControllersFactory';
+import { createRecordsFilterControllers } from '../../apps/extension/src/dashboard/tabs/records/filterControllersFactory';
 
 function setupDom() {
   document.body.innerHTML = `

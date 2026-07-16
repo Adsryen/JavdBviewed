@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   applyListDisplayControl,
   processListDisplayContainers,
-} from '../../src/features/listEnhancement/ui/listDisplayControl';
+} from '../../apps/extension/src/features/listEnhancement/ui/listDisplayControl';
 
 function createWindowLocation(hostname: string, pathname = '/search'): Window {
   return {

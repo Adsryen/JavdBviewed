@@ -7,17 +7,17 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPopularityEffectAttributes,
   parseRatingStatsText,
-} from '../../src/features/listEnhancement/application/popularityEffects';
+} from '../../apps/extension/src/features/listEnhancement/application/popularityEffects';
 import {
   matchActorsFromTitle,
-} from '../../src/features/listEnhancement/application/actorMatching';
+} from '../../apps/extension/src/features/listEnhancement/application/actorMatching';
 import {
   decideActorHiding,
-} from '../../src/features/listEnhancement/application/actorHiding';
+} from '../../apps/extension/src/features/listEnhancement/application/actorHiding';
 import {
   buildListDisplayControlStyles,
-} from '../../src/features/listEnhancement/ui/styles';
-import type { ActorRecord } from '../../src/types';
+} from '../../apps/extension/src/features/listEnhancement/ui/styles';
+import type { ActorRecord } from '../../apps/extension/src/types';
 
 function createActor(id: string, name: string): ActorRecord {
   return {

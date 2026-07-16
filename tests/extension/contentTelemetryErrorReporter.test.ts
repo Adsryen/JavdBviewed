@@ -8,7 +8,7 @@ import { getRuntimeMessages } from '../setup/chrome';
 
 describe('content telemetry error reporter', () => {
   it('only accepts content errors from extension bundle URLs', async () => {
-    const { shouldReportContentTelemetryError } = await import('../../src/apps/content/errorReporter');
+    const { shouldReportContentTelemetryError } = await import('../../apps/extension/src/apps/content/errorReporter');
     const extensionError = new Error('extension failure');
     extensionError.stack = [
       'Error: extension failure',
@@ -25,7 +25,7 @@ describe('content telemetry error reporter', () => {
   });
 
   it('sends sanitized runtime messages for content errors', async () => {
-    const { sendContentTelemetryError } = await import('../../src/apps/content/errorReporter');
+    const { sendContentTelemetryError } = await import('../../apps/extension/src/apps/content/errorReporter');
     const error = new TypeError('failed https://javdb.com/v/ABC token=secret');
     error.stack = [
       'TypeError: failed https://javdb.com/v/ABC token=secret',

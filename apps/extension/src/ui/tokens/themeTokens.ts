@@ -29,7 +29,7 @@ const REQUIRED_THEME_VARS = [
  */
 export function loadDashboardThemeCss(rootDir: string = process.cwd()): string {
   return readFileSync(
-    resolve(rootDir, 'src/dashboard/styles/01-settings/variables.css'),
+    resolve(rootDir, 'apps/extension/src/dashboard/styles/01-settings/variables.css'),
     'utf8',
   );
 }

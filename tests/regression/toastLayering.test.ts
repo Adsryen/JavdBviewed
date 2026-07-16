@@ -8,9 +8,9 @@ function readProjectFile(path: string): string {
 
 describe('dashboard toast layering', () => {
   it('keeps dashboard and shared toasts above floating profile menus', () => {
-    const dashboardToastCss = readProjectFile('src/dashboard/styles/04-components/toast.css');
-    const sharedToastSource = readProjectFile('src/platform/browser/toast.ts');
-    const layoutCss = readProjectFile('src/dashboard/styles/04-components/layout.css');
+    const dashboardToastCss = readProjectFile('apps/extension/src/dashboard/styles/04-components/toast.css');
+    const sharedToastSource = readProjectFile('apps/extension/src/platform/browser/toast.ts');
+    const layoutCss = readProjectFile('apps/extension/src/dashboard/styles/04-components/layout.css');
 
     const popoverZ = Number(layoutCss.match(/\.dashboard-user-menu-popover\s*\{[\s\S]*?z-index:\s*(\d+)/)?.[1]);
     const dashboardToastZ = Number(dashboardToastCss.match(/#messageContainer\s*\{[\s\S]*?z-index:\s*(\d+)/)?.[1]);

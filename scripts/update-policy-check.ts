@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeReleaseVersion,
   shouldRunUpdateCheck,
-} from '../src/services/update/checker';
+} from '../apps/extension/src/services/update/checker';
 
 const now = Date.parse('2026-05-19T08:00:00.000Z');
 

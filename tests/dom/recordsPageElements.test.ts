@@ -4,7 +4,7 @@
  * @module tests/dom
  */
 import { describe, expect, it } from 'vitest';
-import { collectRecordsPageElements, ensureUntrackedStatusOption } from '../../src/dashboard/tabs/records/pageElements';
+import { collectRecordsPageElements, ensureUntrackedStatusOption } from '../../apps/extension/src/dashboard/tabs/records/pageElements';
 
 function setupRecordsDom() {
   document.body.innerHTML = `
