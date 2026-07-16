@@ -74,7 +74,8 @@ describe('Dashboard user menu', () => {
     trigger.click();
     aboutButton.click();
 
-    expect(window.location.hash).toBe('#tab-settings/about-settings');
+    // 「版本与关于」统一入口为 update-settings（about-settings 兼容旧路由）
+    expect(window.location.hash).toBe('#tab-settings/update-settings');
     expect(popover.hidden).toBe(true);
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });

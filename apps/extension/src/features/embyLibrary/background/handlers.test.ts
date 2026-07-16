@@ -60,7 +60,7 @@ describe('emby library background handlers', () => {
     await handleEmbyLibrarySync({ manual: true }, sendResponse, deps);
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'http://media.local:8096/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path%2CPrimaryImageAspectRatio%2CImageTags%2CUserData%2CRunTimeTicks&api_key=api-secret',
+      'http://media.local:8096/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path%2CPrimaryImageAspectRatio%2CImageTags%2CPrimaryImageTag%2CBackdropImageTags%2CUserData%2CRunTimeTicks&api_key=api-secret',
       expect.objectContaining({ method: 'GET' }),
     );
     expect(deps.saveState).toHaveBeenCalledWith(expect.objectContaining({
