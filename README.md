@@ -12,26 +12,6 @@
 
 </div>
 
-## 📦 仓库结构（monorepo）
-
-本仓为 **pnpm workspace** 多端骨架（Day-1）：
-
-| 路径 | 说明 |
-|------|------|
-| `apps/extension` | 浏览器扩展主产物（源码在 `apps/extension/src`） |
-| `apps/desktop` / `mobile` / `tv` | 多端占位骨架（无业务 UI） |
-| `packages/sync-protocol` | 同步协议契约（`@javdb/sync-protocol`） |
-| `packages/sync-client` | 同步客户端引擎边界（`@javdb/sync-client`） |
-
-```bash
-pnpm install
-pnpm build                 # 扩展 zip → dist-zip/
-pnpm --filter @javdb/extension build
-pnpm typecheck
-```
-
-发版 tag 规范：`extension-v{semver}`（根 `version.json` 仍表示扩展版本）。UI 仍在扩展内，**不**抽 `packages/ui`。
-
 ## 📖 简介
 
 Jav 助手是一个功能强大的浏览器扩展，专为 JavDB 等 Jav 视频网站设计。它能够在列表页和详情页标记视频的“已浏览”或“我看过”状态，并提供丰富的数据管理功能，包括 WebDAV 同步、数据导入导出、115 v2 离线下载集成等高级特性。
