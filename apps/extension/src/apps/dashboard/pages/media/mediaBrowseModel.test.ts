@@ -10,6 +10,7 @@ import {
   MEDIA_PREVIEW_ITEMS,
   readCoverViewMode,
   relativeCarouselPos,
+  resolveCoverImage,
   resolveCoverImageUrl,
   resumeMediaItems,
   subPathToFilter,
@@ -83,12 +84,20 @@ describe('mediaBrowseModel', () => {
     expect(resolveCoverImageUrl(item, 'thumb')).toBe('http://x/thumb');
     expect(resolveCoverImageUrl(item, 'backdrop')).toBe('http://x/backdrop');
     // 缺某种类型时回退
-    expect(resolveCoverImageUrl({ ...item, imageUrls: { Primary: 'http://x/primary' } }, 'thumb')).toBe(
-      'http://x/primary',
+    const thumbFallback = resolveCoverImage(
+      { ...item, imageUrls: { Primary: 'http://x/primary' } },
+      'thumb',
     );
+    expect(thumbFallback.url).toBe('http://x/primary');
+    expect(thumbFallback.fellBack).toBe(true);
+    expect(thumbFallback.usedType).toBe('Primary');
     expect(resolveCoverImageUrl({ ...item, imageUrls: undefined }, 'poster')).toBe(
       'http://x/primary-fallback',
     );
+    // 有 Thumb 时绝不误用 Primary
+    const strictThumb = resolveCoverImage(item, 'thumb');
+    expect(strictThumb.url).toBe('http://x/thumb');
+    expect(strictThumb.fellBack).toBe(false);
   });
 
   it('persists cover view mode in localStorage', () => {

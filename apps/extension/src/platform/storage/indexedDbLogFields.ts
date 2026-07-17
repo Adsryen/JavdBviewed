@@ -6,10 +6,11 @@
 import type { LogEntry } from '../../types';
 import { MAX_INDEX_NUMBER } from './indexedDbSchema';
 
-/** 从日志消息中派生来源（115 相关 vs 通用） */
-export function deriveLogSource(msg: string): 'DRIVE115' | 'GENERAL' {
+/** 从日志消息中派生来源（115 / 媒体库 vs 通用） */
+export function deriveLogSource(msg: string): 'DRIVE115' | 'MEDIA' | 'GENERAL' {
   const m = String(msg || '');
   if (/\[(?:115|115V2|Drive115)\]|\b115\b|Drive115/i.test(m)) return 'DRIVE115';
+  if (/\[(?:MEDIA|EMBY|PLAYER|MediaLibrary)\]|媒体库|Emby|Jellyfin/i.test(m)) return 'MEDIA';
   return 'GENERAL';
 }
 
@@ -19,9 +20,11 @@ export function deriveLogCategory(msg: string): string {
   if (match) {
     const normalized = match[1].toUpperCase();
     if (normalized === '115' || normalized === '115V2' || normalized === 'DRIVE115') return 'DRIVE115';
+    if (normalized === 'MEDIA' || normalized === 'EMBY' || normalized === 'PLAYER') return 'MEDIA';
     return normalized;
   }
   if (/\[(?:115|115V2|Drive115)\]|\b115\b|Drive115/i.test(m)) return 'DRIVE115';
+  if (/\[(?:MEDIA|EMBY|PLAYER)\]|媒体库|Emby|Jellyfin/i.test(m)) return 'MEDIA';
   if (/\bDB\b|database/i.test(m)) return 'DB';
   if (/\bBG\b|background/i.test(m)) return 'BG';
   return 'GENERAL';
@@ -36,7 +39,7 @@ function buildLogsTimestampRange(fromMs?: number, toMs?: number): IDBKeyRange | 
 
 export function buildLogsIndexedCursorSource(
   store: any,
-  params: { level?: LogEntry['level']; source?: 'ALL' | 'GENERAL' | 'DRIVE115'; category?: string; fromMs?: number; toMs?: number }
+  params: { level?: LogEntry['level']; source?: 'ALL' | 'GENERAL' | 'DRIVE115' | 'MEDIA'; category?: string; fromMs?: number; toMs?: number }
 ): { source: any; range?: IDBKeyRange; key: 'timestamp' | 'level' | 'source' | 'category' } {
   const { level, source, category, fromMs, toMs } = params;
   const min = fromMs ?? 0;

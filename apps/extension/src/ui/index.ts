@@ -51,4 +51,12 @@ export type { SettingFieldProps } from './patterns/SettingField/SettingField';
 export { SettingSelect } from './patterns/SettingSelect/SettingSelect';
 export type { SettingSelectOption, SettingSelectProps } from './patterns/SettingSelect/SettingSelect';
 
+export { MediaPlayer } from './patterns/MediaPlayer/MediaPlayer';
+export type { MediaPlayerProps } from './patterns/MediaPlayer/MediaPlayer';
+
 export { cn } from './lib/cn';
+
+export { OverlayShell } from './patterns/OverlayShell/OverlayShell';
+
+export { configureImageLoadGate, requestImageLoad } from './lib/imageLoadGate';
+export { LazyRemoteImage } from './patterns/LazyRemoteImage/LazyRemoteImage';

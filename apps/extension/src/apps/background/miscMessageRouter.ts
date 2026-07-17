@@ -31,7 +31,9 @@ import {
 } from './tabMessageHandlers';
 import {
   handleEmbyLibraryCheckCodes,
+  handleEmbyLibraryGetItemDetail,
   handleEmbyLibraryListFolders,
+  handleEmbyLibraryResolveStream,
   handleEmbyLibrarySetPlayed,
   handleEmbyLibrarySync,
   handleEmbyUserLogin,
@@ -184,6 +186,14 @@ export function registerMiscRouter(): void {
         }
         case 'EMBY_LIBRARY_SET_PLAYED': {
           handleEmbyLibrarySetPlayed(message, sendResponse);
+          return true;
+        }
+        case 'EMBY_LIBRARY_RESOLVE_STREAM': {
+          handleEmbyLibraryResolveStream(message, sendResponse);
+          return true;
+        }
+        case 'EMBY_LIBRARY_GET_ITEM_DETAIL': {
+          handleEmbyLibraryGetItemDetail(message, sendResponse);
           return true;
         }
         case 'EMBY_LIBRARY_LIST_FOLDERS': {

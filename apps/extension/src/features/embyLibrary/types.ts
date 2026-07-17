@@ -53,16 +53,52 @@ export interface EmbyRealtimeCheckSettings {
   cacheTtlMinutes: number;                            // 缓存有效期（分钟）
 }
 
+/** Emby 人员（演职员） */
+export interface EmbyPersonRef {
+  Id?: string;
+  Name?: string;
+  Role?: string;
+  Type?: string; // Actor / Director / ...
+  PrimaryImageTag?: string;
+}
+
+/** Emby 命名条目（类型/片商等） */
+export interface EmbyNamedRef {
+  Id?: string;
+  Name?: string;
+}
+
+/** Emby Chapter 字段（Items.Fields=Chapters） */
+export interface EmbyChapterInfo {
+  StartPositionTicks?: number;
+  Name?: string;
+  ImageTag?: string;
+  MarkerType?: string;
+  ChapterIndex?: number;
+}
+
 /** Emby/Jellyfin API 返回的媒体条目 */
 export interface EmbyMediaItem {
   Id?: string;
   Name?: string;
   Path?: string;
   ServerId?: string;
+  Type?: string;
+  Overview?: string;
+  Taglines?: string[];
+  CommunityRating?: number;
+  CriticRating?: number;
+  OfficialRating?: string;
+  Genres?: string[];
+  Studios?: EmbyNamedRef[];
+  Tags?: string[];
+  People?: EmbyPersonRef[];
   ImageTags?: Record<string, string>;
   PrimaryImageTag?: string;
   BackdropImageTags?: string[];
   ParentThumbImageTag?: string;
+  /** 父级略缩图所属条目 Id（与 ParentThumbImageTag 成对） */
+  ParentThumbItemId?: string;
   ParentPrimaryImageItemId?: string;
   SeriesPrimaryImageTag?: string;
   RunTimeTicks?: number;
@@ -70,6 +106,87 @@ export interface EmbyMediaItem {
   DateCreated?: string;
   PremiereDate?: string;
   ProductionYear?: number;
+  Chapters?: EmbyChapterInfo[];
+  MediaSources?: Array<{
+    Id?: string;
+    Path?: string;
+    Container?: string;
+    Size?: number;
+    Bitrate?: number;
+    MediaStreams?: Array<{
+      Type?: string;
+      Codec?: string;
+      Language?: string;
+      DisplayTitle?: string;
+      Height?: number;
+      Width?: number;
+      BitRate?: number;
+      Channels?: number;
+      IsDefault?: boolean;
+      Index?: number;
+    }>;
+  }>;
+}
+
+/** 详情章节视图 */
+export interface EmbyItemChapterView {
+  index: number;
+  name: string;
+  startPositionTicks: number;
+  /** 秒，便于播放器 seek */
+  startTimeSeconds: number;
+  imageUrl?: string;
+}
+
+/** 相似 / 合集卡片 */
+export interface EmbyRelatedItemView {
+  itemId: string;
+  name: string;
+  year?: number;
+  overview?: string;
+  primaryImageUrl?: string;
+  type?: string;
+}
+
+/** 媒体流摘要行 */
+export interface EmbyMediaStreamLine {
+  type: string;
+  title: string;
+}
+
+/** 扩展内详情弹窗用的完整条目视图（API 拉取） */
+export interface EmbyItemDetailView {
+  itemId: string;
+  serverUrl: string;
+  serverType: EmbyServerType;
+  serverId?: string;
+  name: string;
+  overview?: string;
+  tagline?: string;
+  year?: number;
+  premiereDate?: string;
+  runtimeTicks?: number;
+  communityRating?: number;
+  criticRating?: number;
+  officialRating?: string;
+  genres: string[];
+  studios: string[];
+  tags: string[];
+  people: Array<{ id?: string; name: string; role?: string; type?: string; imageUrl?: string }>;
+  primaryImageUrl?: string;
+  backdropImageUrl?: string;
+  path?: string;
+  container?: string;
+  sizeBytes?: number;
+  mediaSourceId?: string;
+  videoSummary?: string;
+  audioSummary?: string;
+  /** 全部媒体流（视频/音频/字幕） */
+  mediaStreams: EmbyMediaStreamLine[];
+  chapters: EmbyItemChapterView[];
+  similar: EmbyRelatedItemView[];
+  collections: EmbyRelatedItemView[];
+  userData?: EmbyWatchUserData;
 }
 
 /** Emby/Jellyfin UserData 原始字段（同步时节选） */

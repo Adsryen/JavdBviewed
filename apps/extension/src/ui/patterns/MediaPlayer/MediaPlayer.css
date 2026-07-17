@@ -1,0 +1,123 @@
+/**
+ * @file MediaPlayer.css
+ * @module ui/patterns/MediaPlayer
+ */
+
+.ui-media-player {
+  display: grid;
+  gap: 8px;
+  background: #0b1220;
+  color: #e2e8f0;
+  min-height: 0;
+}
+
+.ui-media-player__stage {
+  position: relative;
+  background: #000;
+  min-height: 220px;
+}
+
+.ui-media-player__video {
+  display: block;
+  width: 100%;
+  max-height: min(58vh, 560px);
+  background: #000;
+  cursor: pointer;
+}
+
+.ui-media-player__meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+}
+
+.ui-media-player__title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ui-media-player__subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.ui-media-player__text-btn,
+.ui-media-player__icon-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.75);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ui-media-player__error {
+  margin: 0 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.18);
+  color: #fecaca;
+  font-size: 12.5px;
+}
+
+.ui-media-player__controls {
+  display: grid;
+  gap: 8px;
+  padding: 4px 12px 12px;
+}
+
+.ui-media-player__seek {
+  width: 100%;
+  accent-color: var(--color-primary, #3b82f6);
+}
+
+.ui-media-player__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ui-media-player__time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+  min-width: 88px;
+}
+
+.ui-media-player__volume {
+  width: 88px;
+  accent-color: var(--color-primary, #3b82f6);
+}
+
+.ui-media-player__rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ui-media-player__rate select {
+  min-height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.9);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 12px;
+}
+
+.ui-media-player__hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: #64748b;
+  line-height: 1.4;
+}

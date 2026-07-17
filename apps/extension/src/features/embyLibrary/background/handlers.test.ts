@@ -127,6 +127,7 @@ describe('emby library background handlers', () => {
       success: false,
       synced: 0,
       failed: 1,
+      error: 'API Key 错误',
       serverResults: [
         expect.objectContaining({ serverId: 'main', success: false, error: 'API Key 错误' }),
       ],
@@ -144,6 +145,7 @@ describe('emby library background handlers', () => {
       success: false,
       synced: 0,
       failed: 1,
+      error: 'API Key 错误',
       serverResults: [
         expect.objectContaining({
           serverId: 'main',
@@ -187,6 +189,7 @@ describe('emby library background handlers', () => {
       success: false,
       synced: 0,
       failed: 1,
+      error: '连接失败 (500)',
       serverResults: [
         expect.objectContaining({ serverId: 'main', success: false, error: '连接失败 (500)' }),
       ],
@@ -218,7 +221,7 @@ describe('emby library background handlers', () => {
       const deps = createDeps(fetchImpl, previousState);
 
       const syncPromise = handleEmbyLibrarySync({ manual: true }, sendResponse, deps);
-      await vi.advanceTimersByTimeAsync(15000);
+      await vi.advanceTimersByTimeAsync(45000);
       await syncPromise;
 
       expect(deps.saveState).toHaveBeenCalledWith(expect.objectContaining({
@@ -232,6 +235,7 @@ describe('emby library background handlers', () => {
         success: false,
         synced: 0,
         failed: 1,
+        error: '连接超时',
         serverResults: [
           expect.objectContaining({ serverId: 'main', success: false, error: '连接超时' }),
         ],

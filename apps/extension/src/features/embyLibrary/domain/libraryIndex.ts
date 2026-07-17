@@ -104,12 +104,17 @@ export function buildMediaItemImageUrl(
   server: Pick<EmbyMediaServer, 'url' | 'apiKey' | 'accessToken'>,
   item: Pick<
     EmbyMediaItem,
-    'Id' | 'ImageTags' | 'PrimaryImageTag' | 'BackdropImageTags' | 'ParentThumbImageTag'
+    | 'Id'
+    | 'ImageTags'
+    | 'PrimaryImageTag'
+    | 'BackdropImageTags'
+    | 'ParentThumbImageTag'
+    | 'ParentThumbItemId'
   >,
   imageType: EmbyImageType = 'Primary',
   opts?: { maxWidth?: number; maxHeight?: number; quality?: number },
 ): string | undefined {
-  const itemId = String(item.Id || '').trim();
+  let itemId = String(item.Id || '').trim();
   if (!itemId) return undefined;
 
   const serverUrl = normalizeServerUrl(server.url);
@@ -120,7 +125,16 @@ export function buildMediaItemImageUrl(
   if (imageType === 'Primary') {
     tag = String(tags.Primary || item.PrimaryImageTag || '').trim();
   } else if (imageType === 'Thumb') {
-    tag = String(tags.Thumb || item.ParentThumbImageTag || '').trim();
+    // 本条目标题略缩图优先；没有则回退父级（剧集/文件夹）Thumb
+    tag = String(tags.Thumb || '').trim();
+    if (!tag) {
+      const parentTag = String(item.ParentThumbImageTag || '').trim();
+      const parentId = String(item.ParentThumbItemId || '').trim();
+      if (parentTag && parentId) {
+        tag = parentTag;
+        itemId = parentId;
+      }
+    }
   } else if (imageType === 'Backdrop') {
     const bt = item.BackdropImageTags;
     tag = Array.isArray(bt) && bt[0] ? String(bt[0]).trim() : String(tags.Backdrop || '').trim();
@@ -133,10 +147,6 @@ export function buildMediaItemImageUrl(
 
   const params = new URLSearchParams();
   if (tag) params.set('tag', tag);
-  if (imageType === 'Backdrop' && Array.isArray(item.BackdropImageTags) && item.BackdropImageTags.length) {
-    // Backdrop 有时用 index
-    // 保持默认 index=0
-  }
 
   const maxH = opts?.maxHeight ?? (imageType === 'Primary' ? 720 : 480);
   const maxW = opts?.maxWidth ?? (imageType === 'Primary' ? 480 : 720);
@@ -148,7 +158,9 @@ export function buildMediaItemImageUrl(
   const auth = String(server.apiKey || server.accessToken || '').trim();
   if (auth) params.set('api_key', auth);
 
-  return `${serverUrl}/Items/${encodeURIComponent(itemId)}/Images/${imageType}?${params.toString()}`;
+  // Thumb 路径：若用了父级 Id，仍请求 Images/Thumb
+  const pathType = imageType;
+  return `${serverUrl}/Items/${encodeURIComponent(itemId)}/Images/${pathType}?${params.toString()}`;
 }
 
 /**
@@ -244,6 +256,10 @@ export function findLibraryMatches(index: EmbyLibraryIndex | null | undefined, v
   return [...(index.entries[code] || [])];
 }
 
+/**
+ * 打开官方网页「条目详情」（可从页内点播放）。
+ * Emby: #!/item?id=…  Jellyfin: #!/details?id=…
+ */
 export function buildMediaItemUrl(
   entry: Pick<EmbyLibraryIndexEntry, 'serverUrl' | 'itemId' | 'serverType'> & Partial<Pick<EmbyLibraryIndexEntry, 'serverId'>>,
 ): string {
@@ -253,20 +269,16 @@ export function buildMediaItemUrl(
 }
 
 /**
- * 优先打开官方网页「播放」路由；失败回退时仍可用 buildMediaItemUrl 详情页。
- * Emby: #!/video?id=…  Jellyfin: #!/details?id=…（详情内可播，兼容性更好）
+ * 打开官方网页「尽量可播」的深链（仅作回退；真正播放优先走 resolveEmbyStreamUrl）。
+ *
+ * 重要：
+ * - 设置页里的 AccessToken **不会**自动变成浏览器 Emby 网页登录态。
+ * - `#!/video?id=` / 猜测的 `videoosd` 在多版本上不可靠；回退统一进 **详情页**，用户可在官方页点播放。
+ * - 扩展内播放请用 API：PlaybackInfo + /Videos/{id}/stream（见 embyPlayback.ts）。
  */
 export function buildMediaPlaybackUrl(
   entry: Pick<EmbyLibraryIndexEntry, 'serverUrl' | 'itemId' | 'serverType'> & Partial<Pick<EmbyLibraryIndexEntry, 'serverId'>>,
 ): string {
-  const base = normalizeServerUrl(entry.serverUrl);
-  const id = encodeURIComponent(entry.itemId);
-  const serverIdParam = entry.serverId ? `&serverId=${encodeURIComponent(entry.serverId)}` : '';
-
-  if (entry.serverType === 'jellyfin') {
-    // Jellyfin 各版 video 路由不一致，详情页最稳
-    return `${base}/web/index.html#!/details?id=${id}${serverIdParam}`;
-  }
-  // Emby 网页客户端播放路由
-  return `${base}/web/index.html#!/video?id=${id}${serverIdParam}`;
+  // 与详情相同：可靠落地；真正起播走扩展内 token 取流
+  return buildMediaItemUrl(entry);
 }

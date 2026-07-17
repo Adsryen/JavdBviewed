@@ -13,16 +13,16 @@ export type MediaWatchFilter = 'all' | 'in_progress' | 'watched' | 'not_watched'
 
 /**
  * 封面视图模式（对应 Emby 图片类型）
- * - poster: Primary 竖版海报 2:3 contain
- * - thumb: Thumb 横版略缩图 16:9 cover（默认）
- * - backdrop: Backdrop 横版背景 16:9 cover
+ * - thumb: Thumb 横版框 16:9，object-fit:contain 完整显示（默认）
+ * - poster: Primary 竖版框 2:3，object-fit:contain 完整显示
+ * - backdrop: Backdrop 横版框 16:9，object-fit:cover 铺满（背景氛围）
  */
 export type MediaCoverViewMode = 'poster' | 'thumb' | 'backdrop';
 
 export const MEDIA_COVER_VIEW_MODES: { id: MediaCoverViewMode; label: string; hint: string }[] = [
-  { id: 'thumb', label: '略缩图', hint: '横版 Thumb，铺满 16:9（默认）' },
-  { id: 'poster', label: '海报', hint: '竖版 Primary，完整显示 2:3' },
-  { id: 'backdrop', label: '背景图', hint: '横版 Backdrop，铺满 16:9' },
+  { id: 'thumb', label: '略缩图', hint: '横版 Thumb · 完整显示不裁切' },
+  { id: 'poster', label: '海报', hint: '竖版 Primary · 完整显示不裁切' },
+  { id: 'backdrop', label: '背景图', hint: '横版 Backdrop · 铺满裁边' },
 ];
 
 export type MediaBrowseItem = {
@@ -61,25 +61,106 @@ export function coverGradient(item: MediaBrowseItem): string {
   return `linear-gradient(125deg, hsl(${h} 48% 48%), hsl(${(h + 36) % 360} 42% 28%) 50%, hsl(${(h + 18) % 360} 28% 14%))`;
 }
 
+export type ResolvedCoverImage = {
+  url?: string;
+  /** 实际用到的 Emby 图类型（回退后可能与 mode 不一致） */
+  usedType?: 'Primary' | 'Thumb' | 'Backdrop' | 'cover';
+  /** 是否因缺图回退到了其它类型 */
+  fellBack: boolean;
+  /** img 加载失败时的次选 URL */
+  fallbackUrl?: string;
+};
+
+/**
+ * 按封面模式解析 URL。
+ * - poster → Primary
+ * - thumb → Thumb（无则 Backdrop，再无才 Primary，并标记 fellBack）
+ * - backdrop → Backdrop（无则 Thumb → Primary）
+ */
+export function resolveCoverImage(
+  item: MediaBrowseItem,
+  mode: MediaCoverViewMode = 'thumb',
+): ResolvedCoverImage {
+  const map = item.imageUrls || {};
+  const primary = map.Primary || item.coverImageUrl;
+  const thumb = map.Thumb;
+  const backdrop = map.Backdrop;
+
+  if (mode === 'poster') {
+    const url = primary || thumb || backdrop;
+    const usedType: ResolvedCoverImage['usedType'] = primary
+      ? 'Primary'
+      : thumb
+        ? 'Thumb'
+        : backdrop
+          ? 'Backdrop'
+          : undefined;
+    return {
+      url,
+      usedType,
+      fellBack: Boolean(url && !primary),
+      fallbackUrl: primary && url !== primary ? primary : thumb || backdrop,
+    };
+  }
+
+  if (mode === 'backdrop') {
+    const url = backdrop || thumb || primary;
+    const usedType: ResolvedCoverImage['usedType'] = backdrop
+      ? 'Backdrop'
+      : thumb
+        ? 'Thumb'
+        : primary
+          ? 'Primary'
+          : undefined;
+    return {
+      url,
+      usedType,
+      fellBack: Boolean(url && !backdrop),
+      fallbackUrl: backdrop && url !== backdrop ? backdrop : thumb || primary,
+    };
+  }
+
+  // thumb（略缩图）：必须优先真 Thumb，禁止默默用 Primary 冒充
+  if (thumb) {
+    return {
+      url: thumb,
+      usedType: 'Thumb',
+      fellBack: false,
+      fallbackUrl: backdrop || primary,
+    };
+  }
+  if (backdrop) {
+    return {
+      url: backdrop,
+      usedType: 'Backdrop',
+      fellBack: true,
+      fallbackUrl: primary,
+    };
+  }
+  if (primary) {
+    return {
+      url: primary,
+      usedType: 'Primary',
+      fellBack: true,
+      fallbackUrl: undefined,
+    };
+  }
+  return { fellBack: false };
+}
+
+/** @deprecated 优先用 resolveCoverImage；保留给兼容调用 */
 export function resolveCoverImageUrl(
   item: MediaBrowseItem,
   mode: MediaCoverViewMode = 'thumb',
 ): string | undefined {
-  const map = item.imageUrls || {};
-  if (mode === 'poster') {
-    return map.Primary || item.coverImageUrl || map.Thumb || map.Backdrop;
-  }
-  if (mode === 'backdrop') {
-    return map.Backdrop || map.Thumb || map.Primary || item.coverImageUrl;
-  }
-  return map.Thumb || map.Backdrop || map.Primary || item.coverImageUrl;
+  return resolveCoverImage(item, mode).url;
 }
 
 export function coverArtStyle(
   item: MediaBrowseItem,
   mode: MediaCoverViewMode = 'thumb',
 ): { backgroundImage?: string; background: string } {
-  const url = resolveCoverImageUrl(item, mode);
+  const url = resolveCoverImage(item, mode).url;
   if (url) {
     const safeUrl = url.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return {

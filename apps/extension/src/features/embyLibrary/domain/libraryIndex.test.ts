@@ -144,14 +144,15 @@ describe('emby library index', () => {
   });
 
   it('builds playback-oriented web links for emby and jellyfin', () => {
-    expect(
-      buildMediaPlaybackUrl({
-        serverType: 'emby',
-        serverUrl: 'http://192.168.1.10:8096/',
-        itemId: 'abc123',
-        serverId: 'emby-server',
-      }),
-    ).toContain('#!/video?id=abc123');
+    // 网页深链不可靠起播：playback 回退与详情相同；真正播放走 API 取流
+    const embyPlay = buildMediaPlaybackUrl({
+      serverType: 'emby',
+      serverUrl: 'http://192.168.1.10:8096/',
+      itemId: 'abc123',
+      serverId: 'emby-server',
+    });
+    expect(embyPlay).toContain('#!/item?id=abc123');
+    expect(embyPlay).not.toContain('#!/video?');
 
     expect(
       buildMediaPlaybackUrl({
@@ -207,6 +208,22 @@ describe('emby library index', () => {
     expect(map.Thumb).toContain('/Images/Thumb?');
     expect(map.Backdrop).toContain('/Images/Backdrop?');
     expect(map.Logo).toBeUndefined();
+  });
+
+  it('uses parent thumb item id when self has no Thumb tag', () => {
+    const url = buildMediaItemImageUrl(
+      embyServer,
+      {
+        Id: 'child-1',
+        Name: 'ABC-011',
+        ImageTags: { Primary: 'p1' },
+        ParentThumbImageTag: 'parent-thumb',
+        ParentThumbItemId: 'parent-99',
+      },
+      'Thumb',
+    );
+    expect(url).toContain('/Items/parent-99/Images/Thumb?');
+    expect(url).toContain('tag=parent-thumb');
   });
 
   it('stores cover + imageUrls with api_key in library index entries', () => {

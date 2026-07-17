@@ -14,6 +14,9 @@ import {
   normalizeServerUrl,
   normalizeVideoCode,
 } from '../domain/libraryIndex';
+import { resolveEmbyStreamUrl } from '../domain/embyPlayback';
+import { fetchEmbyItemDetail } from '../domain/embyItemDetail';
+import { embyLog, mediaLog, playerLog } from '../mediaLibraryLogger';
 import type {
   EmbyLibraryFolderOption,
   EmbyLibraryIndexEntry,
@@ -34,7 +37,8 @@ export interface EmbyLibraryHandlerDeps {
 }
 
 const DEFAULT_STATE: EmbyLibraryState = { entries: {}, updatedAt: 0 };
-const DEFAULT_LIBRARY_REQUEST_TIMEOUT_MS = 15000;
+/** 大库 / 穿透代理时 15s 偏紧；同步失败常见于超时被当成泛化「连接失败」 */
+const DEFAULT_LIBRARY_REQUEST_TIMEOUT_MS = 45000;
 
 function defaultDeps(): EmbyLibraryHandlerDeps {
   return {
@@ -109,7 +113,7 @@ async function fetchAllMediaItems(
   const params = new URLSearchParams({
     Recursive: 'true',
     IncludeItemTypes: 'Movie',
-    // UserData：真实观看进度；RunTimeTicks：推算百分比
+    // 仅请求官方稳定 Fields；ParentThumb* 若服务端有会自带，不强制写入 Fields 以免部分版本 4xx
     Fields: 'Path,PrimaryImageAspectRatio,ImageTags,PrimaryImageTag,BackdropImageTags,UserData,RunTimeTicks',
   });
   // 有用户会话时带 UserId，UserData 更完整
@@ -151,6 +155,10 @@ async function fetchAllMediaItems(
 
   if (response.status === 401) {
     throw new Error(server.accessToken ? '用户令牌无效，请重新登录' : 'API Key 错误');
+  }
+
+  if (response.status === 502 || response.status === 503 || response.status === 504) {
+    throw new Error(`媒体服务器暂时不可用 (${response.status})，请检查 Emby/JF 或反向代理`);
   }
 
   if (!response.ok) {
@@ -306,6 +314,10 @@ export async function handleEmbyLibrarySync(
       return;
     }
 
+    mediaLog.info('开始媒体库同步', {
+      manual: message?.manual === true,
+      servers: servers.map((s) => ({ id: s.id, type: s.type, name: s.name })),
+    });
     const now = deps.now();
     const syncIntervalMinutes = Number(settings?.emby?.syncIntervalMinutes ?? 60);
     const elapsedMs = now - Number(previousState.updatedAt || 0);
@@ -366,8 +378,17 @@ export async function handleEmbyLibrarySync(
 
     const synced = serverResults.filter((result) => result.success).length;
     const failed = serverResults.filter((result) => !result.success).length;
-    sendResponse({ success: synced > 0, synced, failed, serverResults });
+    const firstError = serverResults.find((result) => !result.success)?.error;
+    mediaLog.info('媒体库同步结束', { synced, failed, firstError: firstError || null });
+    sendResponse({
+      success: synced > 0,
+      synced,
+      failed,
+      serverResults,
+      ...(synced === 0 && firstError ? { error: firstError } : {}),
+    });
   } catch (error) {
+    mediaLog.error('媒体库同步异常', { error: sanitizeError(error) });
     sendResponse({ success: false, error: sanitizeError(error) });
   }
 }
@@ -607,6 +628,118 @@ export async function handleEmbyLibraryListFolders(
     sendResponse({ success: true, libraries });
   } catch (error) {
     sendResponse({ success: false, error: sanitizeError(error), libraries: [] });
+  }
+}
+
+/**
+ * 拉取单条影片详情（扩展内详情弹窗，Emby 信息布局数据源）
+ * message: { itemId, serverUrl, serverId? }
+ */
+export async function handleEmbyLibraryGetItemDetail(
+  message: any,
+  sendResponse: SendResponse,
+  deps: EmbyLibraryHandlerDeps = defaultDeps(),
+): Promise<void> {
+  try {
+    const itemId = String(message?.itemId || '').trim();
+    const serverUrlRaw = String(message?.serverUrl || '').trim();
+    if (!itemId || !serverUrlRaw) {
+      sendResponse({ success: false, error: '缺少 itemId 或 serverUrl' });
+      return;
+    }
+    const settings = await deps.getSettings();
+    const servers = getEnabledServers(settings);
+    const serverUrl = normalizeServerUrl(serverUrlRaw);
+    const server = servers.find((s) => normalizeServerUrl(s.url) === serverUrl)
+      || servers.find((s) => s.id === String(message?.serverId || ''));
+    if (!server) {
+      sendResponse({ success: false, error: '未找到匹配的已启用媒体服务器' });
+      return;
+    }
+    embyLog.info('GET_ITEM_DETAIL', { itemId, serverUrl: server.url, userId: server.userId || null });
+    const ret = await fetchEmbyItemDetail({
+      server,
+      itemId,
+      fetchImpl: deps.fetchImpl,
+    });
+    if (!ret.success || !ret.detail) {
+      embyLog.warn('GET_ITEM_DETAIL 失败', { itemId, error: ret.error });
+      sendResponse({ success: false, error: ret.error || '拉取详情失败' });
+      return;
+    }
+    sendResponse({ success: true, detail: ret.detail });
+  } catch (error) {
+    embyLog.error('GET_ITEM_DETAIL 异常', { error: sanitizeError(error) });
+    sendResponse({ success: false, error: sanitizeError(error) });
+  }
+}
+
+/**
+ * 解析 Emby/JF 扩展内可播直链（用设置里已存的 AccessToken/ApiKey，不依赖浏览器网页登录）
+ * message: { itemId, serverUrl, serverId? }
+ */
+export async function handleEmbyLibraryResolveStream(
+  message: any,
+  sendResponse: SendResponse,
+  deps: EmbyLibraryHandlerDeps = defaultDeps(),
+): Promise<void> {
+  try {
+    const itemId = String(message?.itemId || '').trim();
+    const serverUrlRaw = String(message?.serverUrl || '').trim();
+    if (!itemId || !serverUrlRaw) {
+      sendResponse({ success: false, error: '缺少 itemId 或 serverUrl' });
+      return;
+    }
+
+    const settings = await deps.getSettings();
+    const servers = getEnabledServers(settings);
+    const serverUrl = normalizeServerUrl(serverUrlRaw);
+    const server = servers.find((s) => normalizeServerUrl(s.url) === serverUrl)
+      || servers.find((s) => s.id === String(message?.serverId || ''));
+
+    if (!server) {
+      sendResponse({ success: false, error: '未找到匹配的已启用媒体服务器' });
+      return;
+    }
+
+    playerLog.info('解析播放流', { itemId, serverUrl: server.url });
+    const resolved = await resolveEmbyStreamUrl({
+      server,
+      itemId,
+      serverId: message?.serverId ? String(message.serverId) : server.id,
+      fetchImpl: deps.fetchImpl,
+    });
+
+    if (!resolved.success || !resolved.streamUrl) {
+      playerLog.warn('解析播放流失败', { itemId, error: resolved.message });
+      sendResponse({
+        success: false,
+        error: resolved.message || '无法解析播放地址',
+        detailUrl: resolved.detailUrl,
+      });
+      return;
+    }
+
+    playerLog.info('解析播放流成功', {
+      itemId,
+      container: resolved.container,
+      static: resolved.static,
+      usedUserSession: hasEmbyUserSession(server),
+    });
+    sendResponse({
+      success: true,
+      streamUrl: resolved.streamUrl,
+      detailUrl: resolved.detailUrl,
+      mediaSourceId: resolved.mediaSourceId,
+      playSessionId: resolved.playSessionId,
+      container: resolved.container,
+      static: resolved.static,
+      message: resolved.message,
+      usedUserSession: hasEmbyUserSession(server),
+    });
+  } catch (error) {
+    playerLog.error('解析播放流异常', { error: sanitizeError(error) });
+    sendResponse({ success: false, error: sanitizeError(error) });
   }
 }
 

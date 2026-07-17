@@ -1060,7 +1060,7 @@ export interface LogsQueryParams {
   order?: 'asc' | 'desc';
   query?: string;
   hasDataOnly?: boolean;
-  source?: 'ALL' | 'GENERAL' | 'DRIVE115';
+  source?: 'ALL' | 'GENERAL' | 'DRIVE115' | 'MEDIA';
   category?: string; // 新增：日志类别筛选（如 DB、BG、CONTENT等）
 }
 

@@ -9,8 +9,9 @@ import { Button } from '../../../../ui/primitives/Button/Button';
 import { Input } from '../../../../ui/primitives/Input/Input';
 import { MediaCover } from '../../../../ui/primitives/MediaCover/MediaCover';
 import { EmptyState } from '../../../../ui/patterns/EmptyState/EmptyState';
-import { FilterChip } from '../../../../ui/patterns/FilterChip/FilterChip';
-import { PageHeader } from '../../../../ui/patterns/PageHeader/PageHeader';
+import { MediaPlayer } from '../../../../ui/patterns/MediaPlayer/MediaPlayer';
+import { OverlayShell } from '../../../../ui/patterns/OverlayShell/OverlayShell';
+import { LazyRemoteImage } from '../../../../ui/patterns/LazyRemoteImage/LazyRemoteImage';
 import { resolveDashboardNavState } from '../../../../dashboard/tabs/navModel';
 import type { EmbyLibraryState } from '../../../../features/embyLibrary/types';
 import { STORAGE_KEYS } from '../../../../utils/config';
@@ -22,6 +23,7 @@ import {
   MEDIA_COVER_VIEW_MODES,
   MEDIA_PREVIEW_ITEMS,
   readCoverViewMode,
+  resolveCoverImage,
   resolveCoverImageUrl,
   resumeMediaItems,
   type MediaBrowseItem,
@@ -34,8 +36,6 @@ import {
   writeCoverViewMode,
 } from './mediaBrowseModel';
 import {
-  buildServerOpenUrl,
-  buildServerPlayUrl,
   formatWatchPercent,
   hasLibraryIndex,
   mapLibraryStateToBrowseItems,
@@ -44,6 +44,7 @@ import {
 } from './mediaLibraryIndexAdapter';
 import { Media115PlayPanel } from './Media115PlayPanel';
 import { Media115CleanupPanel } from './Media115CleanupPanel';
+import { MediaItemDetailPanel } from './MediaItemDetailPanel';
 import { enqueueWatchedForCleanup } from '../../../../features/drive115/v2/drive115CleanupActions';
 import { loadWatchEvidenceMap } from '../../../../features/media/mediaWatchEvidence';
 import './mediaPage.css';
@@ -83,6 +84,14 @@ export function MediaLibraryPage() {
   const [play115Query, setPlay115Query] = useState('');
   const [showCleanupPanel, setShowCleanupPanel] = useState(false);
   const [cleanupRefreshKey, setCleanupRefreshKey] = useState(0);
+  /** Emby/JF 扩展内播放：用设置里 token 取流，不依赖浏览器网页登录 */
+  const [embyStream, setEmbyStream] = useState<{
+    code: string;
+    title: string;
+    streamUrl: string;
+    startTimeSeconds?: number;
+  } | null>(null);
+  const [detailItem, setDetailItem] = useState<MediaBrowseItem | null>(null);
 
   // 兼容旧 hash 子路径
   useEffect(() => {
@@ -143,6 +152,66 @@ export function MediaLibraryPage() {
   }, [query]);
 
   /**
+   * Emby/JF：用设置页 token 解析流并在扩展内播放（不依赖网页登录）
+   * opts.startTimeSeconds：章节起播（MediaPlayer seek）
+   */
+  const playEmbyItem = async (
+    it: {
+      code: string;
+      title: string;
+      itemId?: string;
+      serverUrl?: string;
+      serverId?: string;
+    },
+    opts?: { startTimeSeconds?: number },
+  ) => {
+    if (!it.itemId || !it.serverUrl) return;
+    setSyncMessage('正在解析播放地址…');
+    try {
+      const resp = await new Promise<{
+        success?: boolean;
+        streamUrl?: string;
+        error?: string;
+      }>((resolve, reject) => {
+        try {
+          chrome.runtime.sendMessage(
+            {
+              type: 'EMBY_LIBRARY_RESOLVE_STREAM',
+              itemId: it.itemId,
+              serverUrl: it.serverUrl,
+              serverId: it.serverId,
+            },
+            (r) => {
+              const err = chrome.runtime.lastError;
+              if (err) {
+                reject(new Error(err.message));
+                return;
+              }
+              resolve(r || {});
+            },
+          );
+        } catch (e) {
+          reject(e);
+        }
+      });
+      if (!resp.success || !resp.streamUrl) {
+        setSyncMessage(resp.error || '解析播放地址失败');
+        return;
+      }
+      const start = Number(opts?.startTimeSeconds) || 0;
+      setEmbyStream({
+        code: it.code,
+        title: it.title,
+        streamUrl: resp.streamUrl,
+        ...(start > 0 ? { startTimeSeconds: start } : {}),
+      });
+      setSyncMessage('');
+    } catch (e) {
+      setSyncMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  /**
    * 触发后台媒体库同步后刷新本地目录
    */
   const handleSyncLibrary = async () => {
@@ -155,6 +224,13 @@ export function MediaLibraryPage() {
         synced?: number;
         failed?: number;
         error?: string;
+        serverResults?: Array<{
+          serverName?: string;
+          success?: boolean;
+          error?: string;
+          itemCount?: number;
+          indexedCount?: number;
+        }>;
       }>((resolve, reject) => {
         try {
           chrome.runtime.sendMessage(
@@ -178,9 +254,25 @@ export function MediaLibraryPage() {
       if (response.success) {
         const synced = Number(response.synced || 0);
         const failed = Number(response.failed || 0);
-        setSyncMessage(`同步完成：成功 ${synced} 台，失败 ${failed} 台`);
+        const parts = [`同步完成：成功 ${synced} 台`];
+        if (failed > 0) parts.push(`失败 ${failed} 台`);
+        const failDetail = (response.serverResults || [])
+          .filter((r) => !r.success && r.error)
+          .map((r) => `${r.serverName || '服务器'}: ${r.error}`)
+          .slice(0, 2)
+          .join('；');
+        setSyncMessage(failDetail ? `${parts.join('，')}（${failDetail}）` : parts.join('，'));
       } else {
-        setSyncMessage(response.error || '同步失败，请到 Emby/Jellyfin 设置查看诊断');
+        const failDetail = (response.serverResults || [])
+          .filter((r) => !r.success && r.error)
+          .map((r) => `${r.serverName || '服务器'}: ${r.error}`)
+          .slice(0, 3)
+          .join('；');
+        setSyncMessage(
+          failDetail
+          || response.error
+          || '同步失败，请到「设置 → Emby/Jellyfin」查看诊断（常见：服务器 502/超时/Key 错误）',
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -215,114 +307,16 @@ export function MediaLibraryPage() {
     setHeroIndex(((next % heroes.length) + heroes.length) % heroes.length);
   };
 
-  const statusLabel = loadingIndex
-    ? '正在读取本地索引…'
+  const lastSyncLabel = indexUpdatedAt
+    ? `更新于 ${new Date(indexUpdatedAt).toLocaleString()}`
     : usingPreview
-      ? '当前为预览数据（尚未同步到 Emby/Jellyfin 索引）'
-      : `本地索引 · ${catalog.length} 部${indexUpdatedAt ? ` · 更新于 ${new Date(indexUpdatedAt).toLocaleString()}` : ''}`;
+      ? '尚未同步'
+      : loadingIndex
+        ? '读取索引中…'
+        : '暂无同步时间';
 
   return (
     <div className="ml-page" data-media-page data-media-stack="react" data-cover-view={coverView}>
-      <div className="ml-toolbar">
-        <PageHeader
-          className="ml-page-header"
-          title="媒体库"
-          description={
-            <>
-              {statusLabel}
-              {syncMessage ? (
-                <>
-                  <br />
-                  <span className="ml-sync-msg">{syncMessage}</span>
-                </>
-              ) : null}
-            </>
-          }
-        />
-        <div className="ml-filters">
-          {FILTERS.map((f) => (
-            <FilterChip
-              key={f.id}
-              active={filter === f.id}
-              data-media-filter={f.id}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-            </FilterChip>
-          ))}
-          {WATCH_FILTERS.map((f) => (
-            <FilterChip
-              key={`w-${f.id}`}
-              active={watchFilter === f.id}
-              data-media-watch-filter={f.id}
-              onClick={() => setWatchFilter(f.id)}
-            >
-              {f.label}
-            </FilterChip>
-          ))}
-          <span className="ml-filter-sep" aria-hidden="true" />
-          {MEDIA_COVER_VIEW_MODES.map((m) => (
-            <FilterChip
-              key={`c-${m.id}`}
-              active={coverView === m.id}
-              data-media-cover-view={m.id}
-              title={m.hint}
-              onClick={() => {
-                setCoverView(m.id);
-                writeCoverViewMode(m.id);
-              }}
-            >
-              {m.label}
-            </FilterChip>
-          ))}
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={syncing}
-            onClick={() => {
-              void handleSyncLibrary();
-            }}
-          >
-            {syncing ? '同步中…' : '同步媒体库'}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={loadingIndex || syncing}
-            onClick={() => {
-              void reloadCatalogFromStorage();
-            }}
-          >
-            刷新列表
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              setPlay115Query(query.trim());
-              setShow115Panel(true);
-            }}
-          >
-            115 播放
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setShowCleanupPanel((v) => !v)}
-          >
-            115 清理清单
-          </Button>
-          <div className="ml-search">
-            <Input
-              type="search"
-              value={query}
-              placeholder="搜索番号 / 标题 / 服务器"
-              onChange={(e) => setQuery(e.currentTarget.value)}
-              aria-label="搜索媒体库"
-            />
-          </div>
-        </div>
-      </div>
 
       {heroes.length > 0 ? (
         <section className="ml-hero" aria-label="推荐轮播">
@@ -330,12 +324,14 @@ export function MediaLibraryPage() {
             {heroes.map((item, i) => {
               const pos = relativeCarouselPos(i, heroIndex, heroes.length);
               const posAttr = pos >= -2 && pos <= 2 ? String(pos) : 'hide';
+              const heroCover = resolveCoverImage(item, coverView);
               return (
                 <button
                   key={item.code}
                   type="button"
                   className="ml-hero-card"
                   data-pos={posAttr}
+                  data-cover-mode={coverView}
                   onClick={() => {
                     if (i !== heroIndex) goHero(i);
                   }}
@@ -344,8 +340,9 @@ export function MediaLibraryPage() {
                     hoverZoom={false}
                     showPlayHint={false}
                     fit="cover"
-                    imageUrl={resolveCoverImageUrl(item, coverView === 'poster' ? 'thumb' : coverView)}
-                    artStyle={coverArtStyle(item, coverView === 'poster' ? 'thumb' : coverView)}
+                    imageUrl={heroCover.url}
+                    fallbackImageUrl={heroCover.fallbackUrl}
+                    artStyle={coverArtStyle(item, coverView)}
                     alt={item.code}
                     footer={
                       <>
@@ -357,6 +354,7 @@ export function MediaLibraryPage() {
                             {item.year ? ` · ${item.year}` : ''}
                             {item.serverName ? ` · ${item.serverName}` : ''}
                             {usingPreview ? ' · 预览' : ''}
+                            {heroCover.fellBack && coverView === 'thumb' ? ' · 无略缩图' : ''}
                           </div>
                         ) : null}
                       </>
@@ -386,40 +384,181 @@ export function MediaLibraryPage() {
         </section>
       ) : null}
 
+      <div className="ml-toolbar" role="region" aria-label="媒体库工具栏">
+        <div className="ml-view-bar" role="toolbar" aria-label="媒体库视图设置">
+          <div className="ml-view-count" aria-live="polite">
+            共 {list.length} 项
+            {!usingPreview && catalog.length !== list.length ? (
+              <span className="ml-view-count-sub"> / 索引 {catalog.length}</span>
+            ) : null}
+          </div>
+
+          <label className="ml-select-wrap">
+            <span className="ml-select-label">来源</span>
+            <select
+              className="ml-select"
+              value={filter}
+              data-media-filter={filter}
+              aria-label="来源筛选"
+              onChange={(e) => setFilter(e.currentTarget.value as MediaBrowseSource)}
+            >
+              {FILTERS.map((f) => (
+                <option key={f.id} value={f.id}>{f.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="ml-select-wrap">
+            <span className="ml-select-label">状态</span>
+            <select
+              className="ml-select"
+              value={watchFilter}
+              data-media-watch-filter={watchFilter}
+              aria-label="观看状态筛选"
+              onChange={(e) => setWatchFilter(e.currentTarget.value as MediaWatchFilter)}
+            >
+              {WATCH_FILTERS.map((f) => (
+                <option key={f.id} value={f.id}>{f.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="ml-select-wrap">
+            <span className="ml-select-label">封面</span>
+            <select
+              className="ml-select"
+              value={coverView}
+              data-media-cover-view={coverView}
+              aria-label="封面视图"
+              title={MEDIA_COVER_VIEW_MODES.find((m) => m.id === coverView)?.hint}
+              onChange={(e) => {
+                const next = e.currentTarget.value as MediaCoverViewMode;
+                setCoverView(next);
+                writeCoverViewMode(next);
+              }}
+            >
+              {MEDIA_COVER_VIEW_MODES.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <span className="ml-view-sep" aria-hidden="true" />
+
+          <div className="ml-view-actions">
+            <div className="ml-sync-cluster">
+              <span className="ml-help-wrap">
+                <button
+                  type="button"
+                  className="ml-help-btn"
+                  aria-label="同步帮助"
+                  title="同步帮助"
+                >
+                  ?
+                </button>
+                <div className="ml-help-pop" role="tooltip">
+                  <div className="ml-help-pop-title">媒体库同步说明</div>
+                  <ul className="ml-help-pop-list">
+                    <li>从已启用的 Emby/Jellyfin 拉取影片索引到本扩展本地。</li>
+                    <li>请先在「设置 → Emby/Jellyfin」配置服务器、API Key，并登录用户账号。</li>
+                    <li>同步写入本地索引；封面按视口懒加载并限流，减轻服务器压力。</li>
+                    <li>问题排查：打开日志设置中的「媒体库」模块，查看 [MEDIA]/[EMBY] 日志。</li>
+                  </ul>
+                </div>
+              </span>
+              <button
+                type="button"
+                className="ml-view-btn ml-view-btn-primary ml-sync-btn"
+                disabled={syncing}
+                title="同步 Emby/Jellyfin 媒体库"
+                onClick={() => {
+                  void handleSyncLibrary();
+                }}
+              >
+                {syncing ? '同步中…' : '同步'}
+                <span className="ml-sync-meta">（{lastSyncLabel}）</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              className="ml-view-btn"
+              disabled={loadingIndex || syncing}
+              title="从本地索引刷新列表"
+              onClick={() => {
+                void reloadCatalogFromStorage();
+              }}
+            >
+              刷新
+            </button>
+            <button
+              type="button"
+              className="ml-view-btn"
+              title="打开 115 播放面板"
+              onClick={() => {
+                setPlay115Query(query.trim());
+                setShow115Panel(true);
+              }}
+            >
+              115
+            </button>
+            <button
+              type="button"
+              className={`ml-view-btn${showCleanupPanel ? ' is-active' : ''}`}
+              title="打开/关闭 115 清理清单"
+              onClick={() => setShowCleanupPanel((v) => !v)}
+            >
+              清理
+            </button>
+          </div>
+
+          {syncMessage ? <span className="ml-sync-msg ml-sync-msg-inline">{syncMessage}</span> : null}
+
+          <div className="ml-view-search">
+            <Input
+              type="search"
+              value={query}
+              placeholder="搜索番号 / 标题 / 服务器"
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              aria-label="搜索媒体库"
+            />
+          </div>
+        </div>
+      </div>
+
       {!usingPreview && resumeList.length > 0 ? (
         <section className="ml-resume" aria-label="继续观看">
           <div className="ml-section-head">
             <h3>继续观看</h3>
-            <span>{resumeList.length} 部 · 在服务器网页续看</span>
+            <span>{resumeList.length} 部 · 扩展内续播</span>
           </div>
           <div className="ml-resume-row">
             {resumeList.map((item) => {
-              const playUrl = buildServerPlayUrl(item) || buildServerOpenUrl(item);
               const pct = formatWatchPercent(item.userData);
-              // 继续观看条始终用横图，避免竖图裁切难看
               const resumeCover = resolveCoverImageUrl(item, 'thumb') || item.coverImageUrl;
+              const canPlay = Boolean(item.itemId && item.serverUrl);
               return (
-                <a
+                <button
                   key={`resume-${item.code}`}
+                  type="button"
                   className="ml-resume-card"
-                  href={playUrl || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={playUrl ? '在服务器网页续看' : item.title}
-                  onClick={(e) => {
-                    if (!playUrl) e.preventDefault();
+                  title={canPlay ? '扩展内续播' : item.title}
+                  disabled={!canPlay}
+                  onClick={() => {
+                    if (!canPlay) return;
+                    void playEmbyItem({
+                      code: item.code,
+                      title: item.title,
+                      itemId: item.itemId,
+                      serverUrl: item.serverUrl,
+                      serverId: item.serverId,
+                    });
                   }}
                 >
-                  <div
+                  <LazyRemoteImage
                     className="ml-resume-cover"
-                    style={
-                      resumeCover
-                        ? {
-                            backgroundImage: `url("${String(resumeCover).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`,
-                            backgroundColor: '#0f172a',
-                          }
-                        : coverArtStyle(item, 'thumb')
-                    }
+                    url={resumeCover}
+                    asBackground
+                    alt={item.code}
                   />
                   <div className="ml-resume-body">
                     <div className="ml-resume-code">{item.code}</div>
@@ -429,7 +568,7 @@ export function MediaLibraryPage() {
                       {pct ? ` · ${pct}` : ''}
                     </div>
                   </div>
-                </a>
+                </button>
               );
             })}
           </div>
@@ -450,11 +589,57 @@ export function MediaLibraryPage() {
         />
       ) : null}
 
+
+      <OverlayShell
+        open={Boolean(embyStream)}
+        title={embyStream ? `播放 · ${embyStream.code}` : '播放'}
+        size="full"
+        onClose={() => setEmbyStream(null)}
+      >
+        {embyStream ? (
+          <MediaPlayer
+            title={embyStream.code}
+            subtitle={embyStream.title}
+            src={embyStream.streamUrl}
+            startTimeSeconds={embyStream.startTimeSeconds}
+            onClose={() => setEmbyStream(null)}
+          />
+        ) : null}
+      </OverlayShell>
+
+      <OverlayShell
+        open={Boolean(detailItem)}
+        title={detailItem ? `${detailItem.code} · 详情` : '详情'}
+        size="xl"
+        onClose={() => setDetailItem(null)}
+      >
+        {detailItem ? (
+          <MediaItemDetailPanel
+            item={detailItem}
+            onPlay={(opts) => {
+              const it = detailItem;
+              setDetailItem(null);
+              void playEmbyItem(it, opts);
+            }}
+            onOpenItem={(next) => setDetailItem(next)}
+            onWatchChanged={() => {
+              void reloadCatalogFromStorage();
+            }}
+            onClose={() => setDetailItem(null)}
+          />
+        ) : null}
+      </OverlayShell>
+
       <section className="ml-catalog" aria-label="片库条目">
         <div className="ml-section-head">
           <h3>片库条目</h3>
           <span>
-            {list.length} 部 · {coverView === 'poster' ? '海报竖版' : coverView === 'backdrop' ? '背景横图' : '略缩图横版'}
+            {list.length} 部 ·{' '}
+            {coverView === 'poster'
+              ? '海报竖版 · 铺满'
+              : coverView === 'backdrop'
+                ? '背景横图 · 铺满'
+                : '略缩图横版 · 铺满'}
           </span>
         </div>
 
@@ -494,6 +679,8 @@ export function MediaLibraryPage() {
                   setShowCleanupPanel(true);
                   setCleanupRefreshKey((k) => k + 1);
                 }}
+                onPlayEmby={(it) => { void playEmbyItem(it); }}
+                onOpenDetail={(it) => setDetailItem(it)}
               />
             ))}
           </div>
@@ -503,14 +690,14 @@ export function MediaLibraryPage() {
       <div className="ml-note" role="note">
         {usingPreview
           ? '当前展示预览数据。完成 Emby/Jellyfin 媒体库同步后，将自动改用本地索引。'
-          : '当前展示本地媒体库索引。Emby/Jellyfin 请在服务器网页播放；115 扩展内播放后续迭代。'}
+          : '当前展示本地媒体库索引。点卡片打开扩展内详情，点播放在弹窗播放器中播放（令牌取流）。'}
       </div>
     </div>
   );
 }
 
 /**
- * 片库网格卡片：有服务器链接时整卡可外开；预览数据不可点进服务器
+ * 片库网格卡片：封面点详情外链；播放钮走扩展内 token 取流
  */
 function MediaCard({
   item,
@@ -518,21 +705,18 @@ function MediaCard({
   coverView,
   onWatchChanged,
   onEnqueuedCleanup,
+  onPlayEmby,
+  onOpenDetail,
 }: {
   item: MediaBrowseItem;
   usingPreview: boolean;
   coverView: MediaCoverViewMode;
   onWatchChanged?: () => void;
   onEnqueuedCleanup?: () => void;
+  onPlayEmby?: (item: MediaBrowseItem) => void;
+  onOpenDetail?: (item: MediaBrowseItem) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const detailUrl = usingPreview ? null : buildServerOpenUrl(item);
-  const playUrl = usingPreview ? null : buildServerPlayUrl(item) || detailUrl;
-  const openOnServer = (url: string | null) => {
-    if (!url) return;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
   const watchState = item.watchState;
   const watchLabel = watchState && watchState !== 'none' ? watchStateLabel(watchState) : '';
   const percentLabel = formatWatchPercent(item.userData);
@@ -545,7 +729,8 @@ function MediaCard({
           ? { tone: 'warning' as const, text: '预览' }
           : { tone: 'success' as const, text: '已入库' };
 
-  const canTogglePlayed = Boolean(detailUrl && item.itemId && item.serverUrl && !usingPreview);
+  const coverResolved = resolveCoverImage(item, coverView);
+  const canTogglePlayed = Boolean(item.itemId && item.serverUrl && !usingPreview);
   const isWatched = watchState === 'watched';
 
   const setPlayed = async (played: boolean) => {
@@ -596,22 +781,18 @@ function MediaCard({
   return (
     <article className="ml-card" data-code={item.code} data-layout-card="1" data-watch-state={watchState || 'none'}>
       <div className="ml-card-cover">
+        {/* 点封面 → 详情外链；点播放钮 → 扩展内取流（互不抢事件） */}
         <button
           type="button"
           className="ml-card-hit"
-          onClick={() => openOnServer(playUrl || detailUrl)}
-          disabled={!playUrl && !detailUrl}
-          title={
-            playUrl
-              ? `在服务器网页播放${watchLabel ? ` · ${watchLabel}` : ''}`
-              : usingPreview
-                ? '预览数据，无服务器链接'
-                : '缺少服务器链接'
-          }
+          onClick={() => onOpenDetail?.(item)}
+          title={`查看详情${watchLabel ? ` · ${watchLabel}` : ''}`}
         >
           <MediaCover
-            fit={coverView === 'poster' ? 'contain' : 'cover'}
-            imageUrl={resolveCoverImageUrl(item, coverView)}
+            // 列表统一 cover 铺满，避免框内黑边；框比仍由 data-cover-view 控制
+            fit="cover"
+            imageUrl={coverResolved.url}
+            fallbackImageUrl={coverResolved.fallbackUrl}
             artStyle={coverArtStyle(item, coverView)}
             alt={item.code}
             badges={
@@ -620,6 +801,9 @@ function MediaCard({
                   {sourceLabel(item.source)}
                 </Badge>
                 <Badge tone={watchBadge.tone}>{watchBadge.text}</Badge>
+                {coverView === 'thumb' && coverResolved.fellBack ? (
+                  <Badge tone="neutral">无略缩图</Badge>
+                ) : null}
               </>
             }
             footer={
@@ -628,40 +812,62 @@ function MediaCard({
                 <div className="ml-card-title">{item.title}</div>
               </>
             }
-            showPlayHint={Boolean(playUrl || detailUrl)}
+            showPlayHint={false}
           />
         </button>
+        {/* 播放：Emby/JF 用设置页 token 取流；115 走 115 面板 */}
+        {(item.source === 'emby' || item.source === 'jellyfin') && item.itemId && item.serverUrl && !usingPreview ? (
+          <button
+            type="button"
+            className="ml-card-play"
+            title="使用已登录令牌在扩展内播放"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onPlayEmby?.(item);
+            }}
+          >
+            <span aria-hidden="true">▶</span>
+            <span className="ml-card-play-text">播放</span>
+          </button>
+        ) : item.source === '115' || usingPreview ? (
+          <button
+            type="button"
+            className="ml-card-play"
+            title="115 播放"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.dispatchEvent(
+                new CustomEvent('media-open-115-play', { detail: { query: item.code } }),
+              );
+            }}
+          >
+            <span aria-hidden="true">▶</span>
+            <span className="ml-card-play-text">播放</span>
+          </button>
+        ) : null}
       </div>
-      <div className="ml-meta">
+            <div className="ml-meta">
         <span>{item.serverName || sourceLabel(item.source)}</span>
-        {detailUrl || playUrl ? (
-          <span className="ml-link-group">
-            {playUrl ? (
-              <a
-                className="ml-open-link"
-                href={playUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                播放
-              </a>
-            ) : null}
-            {detailUrl ? (
-              <a
-                className="ml-open-link ml-open-link-secondary"
-                href={detailUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                详情
-              </a>
-            ) : null}
-          </span>
-        ) : (
-          <span>{item.year || '—'}</span>
-        )}
+        <span className="ml-link-group">
+          {(item.source === 'emby' || item.source === 'jellyfin') && item.itemId && !usingPreview ? (
+            <button
+              type="button"
+              className="ml-open-link"
+              onClick={() => onPlayEmby?.(item)}
+            >
+              播放
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="ml-open-link ml-open-link-secondary"
+            onClick={() => onOpenDetail?.(item)}
+          >
+            详情
+          </button>
+        </span>
       </div>
       {canTogglePlayed ? (
         <div className="ml-card-actions">

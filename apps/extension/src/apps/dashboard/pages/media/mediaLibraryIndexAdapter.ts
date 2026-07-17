@@ -3,7 +3,7 @@
  * @description 将 Emby/Jellyfin 本地索引状态适配为媒体库浏览条目
  * @module apps/dashboard/pages/media
  */
-import { buildMediaItemUrl, buildMediaPlaybackUrl } from '../../../../features/embyLibrary/domain/libraryIndex';
+import { buildMediaItemUrl } from '../../../../features/embyLibrary/domain/libraryIndex';
 import {
   computeWatchState,
   formatWatchPercent,
@@ -49,19 +49,14 @@ export function buildServerOpenUrl(
 }
 
 /**
- * 生成服务器网页端播放链接（Emby video 路由 / JF 详情页）
+ * 兼容旧「播放外链」API：不再生成 `#!/video` 深链，统一回退详情页。
+ * 真正播放请走 `EMBY_LIBRARY_RESOLVE_STREAM` + MediaPlayer。
  */
 export function buildServerPlayUrl(
   item: Pick<MediaBrowseItem, 'serverUrl' | 'itemId' | 'source' | 'serverId'>,
 ): string | null {
-  if (!item.serverUrl || !item.itemId) return null;
-  if (item.source !== 'emby' && item.source !== 'jellyfin') return null;
-  return buildMediaPlaybackUrl({
-    serverUrl: item.serverUrl,
-    itemId: item.itemId,
-    serverType: item.source,
-    serverId: item.serverId,
-  });
+  // 与详情相同；保留函数名以免旧测试/调用断裂
+  return buildServerOpenUrl(item);
 }
 
 /**

@@ -108,6 +108,12 @@ function buildDefaultCategories(): Record<string, CategoryRule> {
       label: '115',
       color: '#d35400',
     },
+    media: {
+      enabled: false,
+      match: /\[(MEDIA|EMBY|PLAYER|MediaLibrary|EmbyLibrary)\]|媒体库|Emby|Jellyfin|MEDIA/i,
+      label: 'MEDIA',
+      color: '#16a085',
+    },
     privacy: {
       enabled: false,
       match: /\[(Privacy|PrivacyManager|LockScreen)\]|隐私|Privacy|Lock/i,

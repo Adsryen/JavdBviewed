@@ -1,0 +1,313 @@
+/**
+ * @file mediaItemDetail.css
+ * @description Emby 风格详情弹窗布局
+ * @module apps/dashboard/pages/media
+ */
+
+.ml-detail {
+  position: relative;
+  color: var(--color-fg, var(--text-primary));
+  min-height: 320px;
+}
+
+.ml-detail-backdrop {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 220px;
+  background-size: cover;
+  background-position: center top;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.ml-detail-main {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: 18px;
+  padding: 18px 16px 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .ml-detail-main {
+    grid-template-columns: 1fr;
+  }
+  .ml-detail-cover {
+    max-width: 180px;
+  }
+}
+
+.ml-detail-cover {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background-color: #0f172a;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.ml-detail-code {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #93c5fd;
+  background: rgba(8, 12, 20, 0.75);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+.ml-detail-title {
+  margin: 10px 0 10px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.ml-detail-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ml-detail-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--color-surface-2, var(--surface-secondary));
+  border: 1px solid var(--color-border, var(--border-primary));
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ml-detail-btn {
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface-2, var(--surface-secondary));
+  color: var(--color-fg, var(--text-primary));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ml-detail-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ml-detail-btn-primary {
+  border-color: transparent;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #3b82f6),
+    var(--color-info, #14b8a6)
+  );
+  color: #fff;
+}
+
+.ml-detail-btn-active {
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.ml-detail-status,
+.ml-detail-error {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+}
+
+.ml-detail-error {
+  color: #fca5a5;
+}
+
+.ml-detail-tagline {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-detail-overview {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.ml-detail-line {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ml-detail-k {
+  display: inline-block;
+  min-width: 3em;
+  margin-right: 8px;
+  font-weight: 800;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-detail-media {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface-2, var(--surface-secondary));
+  border: 1px solid var(--color-border, var(--border-primary));
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.ml-detail-media h4,
+.ml-detail-people h4,
+.ml-detail-section h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ml-detail-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  word-break: break-all;
+}
+
+.ml-detail-people,
+.ml-detail-section {
+  margin-top: 14px;
+}
+
+.ml-detail-people-row,
+.ml-detail-hscroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.ml-detail-person {
+  flex: 0 0 88px;
+  width: 88px;
+}
+
+.ml-detail-person-avatar {
+  width: 88px;
+  height: 120px;
+  border-radius: 10px;
+  background-color: #0f172a;
+  border: 1px solid var(--color-border, var(--border-primary));
+}
+
+.ml-detail-person-name {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ml-detail-person-role {
+  font-size: 11px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-detail-chapter {
+  flex: 0 0 168px;
+  width: 168px;
+  padding: 0;
+  border: 1px solid var(--color-border, var(--border-primary));
+  border-radius: 10px;
+  background: var(--color-surface-2, var(--surface-secondary));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  font: inherit;
+}
+
+.ml-detail-chapter:hover {
+  border-color: var(--color-primary, #3b82f6);
+}
+
+.ml-detail-chapter-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #0f172a;
+}
+
+.ml-detail-chapter-meta {
+  padding: 8px 10px 10px;
+}
+
+.ml-detail-chapter-name {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ml-detail-chapter-time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}
+
+.ml-detail-related {
+  flex: 0 0 104px;
+  width: 104px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ml-detail-related-img {
+  width: 104px;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background-color: #0f172a;
+}
+
+.ml-detail-related:hover .ml-detail-related-img {
+  border-color: var(--color-primary, #3b82f6);
+}
+
+.ml-detail-related-name {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ml-detail-related-year {
+  font-size: 11px;
+  color: var(--color-fg-muted, var(--text-secondary));
+}

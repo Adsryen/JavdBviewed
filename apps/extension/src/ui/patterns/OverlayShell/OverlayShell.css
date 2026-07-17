@@ -1,0 +1,103 @@
+/**
+ * @file OverlayShell.css
+ * @module ui/patterns/OverlayShell
+ */
+
+.ui-overlay-shell {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 1000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.ui-overlay-shell__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: color-mix(in srgb, #020617 72%, transparent);
+}
+
+.ui-overlay-shell__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: min(92vh, 920px);
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface, var(--surface-primary));
+  color: var(--color-fg, var(--text-primary));
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+}
+
+.ui-overlay-shell__panel--lg {
+  max-width: 720px;
+}
+
+.ui-overlay-shell__panel--xl {
+  max-width: 960px;
+}
+
+.ui-overlay-shell__panel--full {
+  max-width: min(1120px, 96vw);
+  max-height: 96vh;
+  height: 96vh;
+}
+
+.ui-overlay-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border, var(--border-primary));
+}
+
+.ui-overlay-shell__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-overlay-shell__close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, var(--border-primary));
+  background: var(--color-surface-2, var(--surface-secondary));
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ui-overlay-shell__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+}
+
+.ui-overlay-shell__footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--color-border, var(--border-primary));
+}

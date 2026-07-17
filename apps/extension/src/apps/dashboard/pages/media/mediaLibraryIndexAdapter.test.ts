@@ -88,7 +88,9 @@ describe('mediaLibraryIndexAdapter', () => {
       itemId: '42',
       serverId: 'abc',
     });
-    expect(play).toContain('#!/video?id=42');
+    // 外链回退为详情；真正播放由 EMBY_LIBRARY_RESOLVE_STREAM 取直链
+    expect(play).toContain('#!/item?id=42');
+    expect(play).toContain('serverId=abc');
   });
 
   it('produces stable hue for a code', () => {
