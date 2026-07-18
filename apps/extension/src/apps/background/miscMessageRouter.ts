@@ -33,6 +33,7 @@ import {
   handleEmbyLibraryCheckCodes,
   handleEmbyLibraryGetItemDetail,
   handleEmbyLibraryListFolders,
+  handleEmbyLibraryReportProgress,
   handleEmbyLibraryResolveStream,
   handleEmbyLibrarySetPlayed,
   handleEmbyLibrarySync,
@@ -190,6 +191,10 @@ export function registerMiscRouter(): void {
         }
         case 'EMBY_LIBRARY_RESOLVE_STREAM': {
           handleEmbyLibraryResolveStream(message, sendResponse);
+          return true;
+        }
+        case 'EMBY_LIBRARY_REPORT_PROGRESS': {
+          handleEmbyLibraryReportProgress(message, sendResponse);
           return true;
         }
         case 'EMBY_LIBRARY_GET_ITEM_DETAIL': {

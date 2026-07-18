@@ -15,6 +15,7 @@ import {
   normalizeVideoCode,
 } from '../domain/libraryIndex';
 import { resolveEmbyStreamUrl } from '../domain/embyPlayback';
+import { reportEmbyPlaybackProgress } from '../domain/embyPlaystate';
 import { fetchEmbyItemDetail } from '../domain/embyItemDetail';
 import { embyLog, mediaLog, playerLog } from '../mediaLibraryLogger';
 import type {
@@ -724,21 +725,166 @@ export async function handleEmbyLibraryResolveStream(
       itemId,
       container: resolved.container,
       static: resolved.static,
+      streamType: resolved.streamType,
+      subtitles: resolved.subtitles?.length || 0,
+      qualities: resolved.qualities?.length || 0,
       usedUserSession: hasEmbyUserSession(server),
     });
     sendResponse({
       success: true,
       streamUrl: resolved.streamUrl,
+      streamType: resolved.streamType || 'auto',
       detailUrl: resolved.detailUrl,
       mediaSourceId: resolved.mediaSourceId,
       playSessionId: resolved.playSessionId,
       container: resolved.container,
       static: resolved.static,
       message: resolved.message,
+      subtitles: resolved.subtitles || [],
+      qualities: resolved.qualities || [],
       usedUserSession: hasEmbyUserSession(server),
     });
   } catch (error) {
     playerLog.error('解析播放流异常', { error: sanitizeError(error) });
+    sendResponse({ success: false, error: sanitizeError(error) });
+  }
+}
+
+/**
+ * 写回播放进度
+ * message: { itemId, serverUrl, serverId?, positionSeconds, isCompleted?, mediaSourceId?, playSessionId? }
+ */
+export async function handleEmbyLibraryReportProgress(
+  message: any,
+  sendResponse: SendResponse,
+  deps: EmbyLibraryHandlerDeps = defaultDeps(),
+): Promise<void> {
+  try {
+    const itemId = String(message?.itemId || '').trim();
+    const serverUrlRaw = String(message?.serverUrl || '').trim();
+    const positionSeconds = Number(message?.positionSeconds);
+    const isCompleted = message?.isCompleted === true;
+    if (!itemId || !serverUrlRaw) {
+      sendResponse({ success: false, error: '缺少 itemId 或 serverUrl' });
+      return;
+    }
+    if (!Number.isFinite(positionSeconds) || positionSeconds < 0) {
+      sendResponse({ success: false, error: 'positionSeconds 无效' });
+      return;
+    }
+
+    const settings = await deps.getSettings();
+    const servers = getEnabledServers(settings);
+    const serverUrl = normalizeServerUrl(serverUrlRaw);
+    const server = servers.find((s) => normalizeServerUrl(s.url) === serverUrl)
+      || servers.find((s) => s.id === String(message?.serverId || ''));
+    if (!server) {
+      sendResponse({ success: false, error: '未找到匹配的已启用媒体服务器' });
+      return;
+    }
+
+    const durationSeconds = Number(message?.durationSeconds);
+    const isStopped = message?.isStopped === true || isCompleted;
+    const ret = await reportEmbyPlaybackProgress({
+      server,
+      itemId,
+      positionSeconds,
+      durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined,
+      isCompleted,
+      isStopped,
+      mediaSourceId: message?.mediaSourceId ? String(message.mediaSourceId) : undefined,
+      playSessionId: message?.playSessionId ? String(message.playSessionId) : undefined,
+      fetchImpl: deps.fetchImpl,
+    });
+
+    // 无论远端是否成功，都尽量写本地索引，保证「继续观看」立刻可见
+    const state = await deps.getState();
+    const now = deps.now();
+    let updated = false;
+    const nextEntries: Record<string, EmbyLibraryIndexEntry[]> = {};
+    const positionTicks = ret.positionTicks != null
+      ? ret.positionTicks
+      : Math.round(Math.max(0, positionSeconds) * 10_000_000);
+    const durationTicks = ret.runtimeTicks
+      || (Number.isFinite(durationSeconds) && durationSeconds > 0
+        ? Math.round(durationSeconds * 10_000_000)
+        : 0);
+
+    for (const [code, entries] of Object.entries(state.entries || {})) {
+      nextEntries[code] = entries.map((entry) => {
+        const sameItem = entry.itemId === itemId
+          && normalizeServerUrl(entry.serverUrl) === serverUrl;
+        if (!sameItem) return entry;
+        updated = true;
+        const runtimeTicks = durationTicks > 0
+          ? durationTicks
+          : (entry.userData?.runtimeTicks || 0);
+        const percent = isCompleted
+          ? 100
+          : runtimeTicks > 0
+            ? Math.min(99, Math.max(1, Math.round((positionTicks / runtimeTicks) * 100)))
+            : (positionTicks > 0 ? Math.max(1, entry.userData?.percent || 5) : 0);
+        return {
+          ...entry,
+          userData: {
+            played: isCompleted ? true : Boolean(entry.userData?.played),
+            positionTicks: isCompleted ? 0 : positionTicks,
+            runtimeTicks,
+            percent,
+            lastPlayedAt: now,
+          },
+          updatedAt: now,
+        };
+      });
+    }
+    if (updated) {
+      await deps.saveState({
+        ...state,
+        entries: nextEntries,
+        updatedAt: state.updatedAt || now,
+      });
+    }
+
+    if (!ret.success && !updated) {
+      playerLog.warn('进度写回失败', { itemId, error: ret.message, method: ret.method });
+      sendResponse({ success: false, error: ret.message || '进度写回失败', method: ret.method });
+      return;
+    }
+
+    if (!ret.success && updated) {
+      playerLog.warn('远端进度写回失败，已更新本地续看', {
+        itemId,
+        error: ret.message,
+        method: ret.method,
+        positionTicks,
+      });
+      sendResponse({
+        success: true,
+        method: 'local_only',
+        positionTicks,
+        localIndexUpdated: true,
+        remoteError: ret.message,
+        usedUserSession: hasEmbyUserSession(server),
+      });
+      return;
+    }
+
+    playerLog.info('进度写回成功', {
+      itemId,
+      method: ret.method,
+      positionTicks,
+      isCompleted,
+      localIndexUpdated: updated,
+    });
+    sendResponse({
+      success: true,
+      method: ret.method,
+      positionTicks,
+      localIndexUpdated: updated,
+      usedUserSession: hasEmbyUserSession(server),
+    });
+  } catch (error) {
+    playerLog.error('进度写回异常', { error: sanitizeError(error) });
     sendResponse({ success: false, error: sanitizeError(error) });
   }
 }

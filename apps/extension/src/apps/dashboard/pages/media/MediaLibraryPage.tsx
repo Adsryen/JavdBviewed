@@ -3,7 +3,7 @@
  * @description 媒体库浏览页：筛选 + 堆叠轮播 + 网格；优先展示本地 Emby/Jellyfin 索引
  * @module apps/dashboard/pages/media
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '../../../../ui/primitives/Badge/Badge';
 import { Button } from '../../../../ui/primitives/Button/Button';
 import { Input } from '../../../../ui/primitives/Input/Input';
@@ -40,6 +40,7 @@ import {
   hasLibraryIndex,
   mapLibraryStateToBrowseItems,
   mergeLocalWatchEvidence,
+  resolveWatchProgressPercent,
   watchStateLabel,
 } from './mediaLibraryIndexAdapter';
 import { Media115PlayPanel } from './Media115PlayPanel';
@@ -89,8 +90,21 @@ export function MediaLibraryPage() {
     code: string;
     title: string;
     streamUrl: string;
+    streamType?: 'mp4' | 'm3u8' | 'auto';
+    itemId: string;
+    serverUrl: string;
+    serverId?: string;
+    mediaSourceId?: string;
+    playSessionId?: string;
     startTimeSeconds?: number;
+    highlights?: Array<{ time: number; text: string }>;
+    subtitles?: Array<{ label: string; url: string; type?: 'vtt' | 'srt'; default?: boolean; language?: string }>;
+    qualities?: Array<{ html: string; url: string; streamType?: 'mp4' | 'm3u8' | 'auto'; default?: boolean }>;
   } | null>(null);
+  const embyStreamRef = useRef(embyStream);
+  embyStreamRef.current = embyStream;
+  const lastProgressReportRef = useRef(0);
+  const lastProgressPosRef = useRef(0);
   const [detailItem, setDetailItem] = useState<MediaBrowseItem | null>(null);
 
   // 兼容旧 hash 子路径
@@ -151,9 +165,119 @@ export function MediaLibraryPage() {
     return () => window.removeEventListener('media-open-115-play', onOpen as EventListener);
   }, [query]);
 
+  const lastProgressDurationRef = useRef(0);
+
+  const reportEmbyProgress = useCallback(async (opts: {
+    positionSeconds: number;
+    durationSeconds?: number;
+    isCompleted?: boolean;
+    /** 关闭播放器：清 Emby Now Playing，避免后台仍显示播放中 */
+    isStopped?: boolean;
+    force?: boolean;
+  }) => {
+    const cur = embyStreamRef.current;
+    if (!cur?.itemId || !cur.serverUrl) return false;
+    const pos = Math.max(0, Number(opts.positionSeconds) || 0);
+    const duration = Math.max(
+      0,
+      Number(opts.durationSeconds) || lastProgressDurationRef.current || 0,
+    );
+    if (duration > 0) lastProgressDurationRef.current = duration;
+    const now = Date.now();
+    // 节流：默认 8s 或位移 >12s 才上报；force/ended/stop 立即
+    if (!opts.force && !opts.isCompleted && !opts.isStopped) {
+      if (now - lastProgressReportRef.current < 8000
+        && Math.abs(pos - lastProgressPosRef.current) < 12) {
+        lastProgressPosRef.current = pos;
+        return true;
+      }
+    }
+    lastProgressReportRef.current = now;
+    lastProgressPosRef.current = pos;
+    try {
+      const ok = await new Promise<boolean>((resolve) => {
+        try {
+          chrome.runtime.sendMessage(
+            {
+              type: 'EMBY_LIBRARY_REPORT_PROGRESS',
+              itemId: cur.itemId,
+              serverUrl: cur.serverUrl,
+              serverId: cur.serverId,
+              positionSeconds: pos,
+              durationSeconds: duration > 0 ? duration : undefined,
+              isCompleted: Boolean(opts.isCompleted),
+              isStopped: Boolean(opts.isStopped),
+              mediaSourceId: cur.mediaSourceId,
+              playSessionId: cur.playSessionId,
+            },
+            (resp) => {
+              const err = chrome.runtime.lastError;
+              if (err) {
+                resolve(false);
+                return;
+              }
+              resolve(Boolean(resp?.success));
+            },
+          );
+        } catch {
+          resolve(false);
+        }
+      });
+      return ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const closeEmbyPlayer = useCallback(() => {
+    const pos = lastProgressPosRef.current;
+    const duration = lastProgressDurationRef.current;
+    // 先快照再清 UI，避免 re-render 清空 ref 后 Stop 发不出去
+    const streamSnap = embyStreamRef.current;
+    setEmbyStream(null);
+    void (async () => {
+      // 即使进度 <1s 也要 Stop，否则会话靠超时才清（常几十秒）
+      if (streamSnap?.itemId && streamSnap.serverUrl) {
+        try {
+          await new Promise<boolean>((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  type: 'EMBY_LIBRARY_REPORT_PROGRESS',
+                  itemId: streamSnap.itemId,
+                  serverUrl: streamSnap.serverUrl,
+                  serverId: streamSnap.serverId,
+                  positionSeconds: pos,
+                  durationSeconds: duration > 0 ? duration : undefined,
+                  isStopped: true,
+                  mediaSourceId: streamSnap.mediaSourceId,
+                  playSessionId: streamSnap.playSessionId,
+                },
+                (resp) => {
+                  const err = chrome.runtime.lastError;
+                  if (err) {
+                    resolve(false);
+                    return;
+                  }
+                  resolve(Boolean(resp?.success));
+                },
+              );
+            } catch {
+              resolve(false);
+            }
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+      await reloadCatalogFromStorage();
+    })();
+  }, []);
+
   /**
    * Emby/JF：用设置页 token 解析流并在扩展内播放（不依赖网页登录）
-   * opts.startTimeSeconds：章节起播（MediaPlayer seek）
+   * opts.startTimeSeconds：章节起播 / 续看 seek
+   * opts.highlights：详情章节映射到进度条
    */
   const playEmbyItem = async (
     it: {
@@ -162,8 +286,13 @@ export function MediaLibraryPage() {
       itemId?: string;
       serverUrl?: string;
       serverId?: string;
+      /** 本地已知进度（秒），用于续看 */
+      resumePositionSeconds?: number;
     },
-    opts?: { startTimeSeconds?: number },
+    opts?: {
+      startTimeSeconds?: number;
+      highlights?: Array<{ time: number; text: string }>;
+    },
   ) => {
     if (!it.itemId || !it.serverUrl) return;
     setSyncMessage('正在解析播放地址…');
@@ -171,6 +300,11 @@ export function MediaLibraryPage() {
       const resp = await new Promise<{
         success?: boolean;
         streamUrl?: string;
+        streamType?: 'mp4' | 'm3u8' | 'auto';
+        mediaSourceId?: string;
+        playSessionId?: string;
+        subtitles?: Array<{ label: string; url: string; type?: 'vtt' | 'srt'; default?: boolean; language?: string }>;
+        qualities?: Array<{ html: string; url: string; streamType?: 'mp4' | 'm3u8' | 'auto'; default?: boolean }>;
         error?: string;
       }>((resolve, reject) => {
         try {
@@ -198,14 +332,40 @@ export function MediaLibraryPage() {
         setSyncMessage(resp.error || '解析播放地址失败');
         return;
       }
-      const start = Number(opts?.startTimeSeconds) || 0;
+      // 续看起点：显式 opts > 条目 resumePositionSeconds
+      const start = Math.max(
+        0,
+        Number(opts?.startTimeSeconds)
+          || Number(it.resumePositionSeconds)
+          || 0,
+      );
+      lastProgressReportRef.current = 0;
+      lastProgressPosRef.current = start;
+      lastProgressDurationRef.current = 0;
+      const subCount = resp.subtitles?.length || 0;
+      const qCount = resp.qualities?.length || 0;
       setEmbyStream({
         code: it.code,
         title: it.title,
         streamUrl: resp.streamUrl,
+        streamType: resp.streamType || 'auto',
+        itemId: it.itemId,
+        serverUrl: it.serverUrl,
+        serverId: it.serverId,
+        mediaSourceId: resp.mediaSourceId,
+        playSessionId: resp.playSessionId,
         ...(start > 0 ? { startTimeSeconds: start } : {}),
+        ...(opts?.highlights?.length ? { highlights: opts.highlights } : {}),
+        ...(subCount ? { subtitles: resp.subtitles } : {}),
+        ...(qCount ? { qualities: resp.qualities } : {}),
       });
-      setSyncMessage('');
+      const bits = [
+        start > 0 ? `续播 ${Math.floor(start / 60)}:${String(Math.floor(start % 60)).padStart(2, '0')}` : '',
+        resp.streamType === 'm3u8' ? 'HLS' : '',
+        subCount ? `${subCount} 条字幕` : '',
+        qCount > 1 ? `${qCount} 档清晰度` : '',
+      ].filter(Boolean);
+      setSyncMessage(bits.length ? bits.join(' · ') : '');
     } catch (e) {
       setSyncMessage(e instanceof Error ? e.message : String(e));
     }
@@ -533,7 +693,10 @@ export function MediaLibraryPage() {
           </div>
           <div className="ml-resume-row">
             {resumeList.map((item) => {
-              const pct = formatWatchPercent(item.userData);
+              const pctNum = resolveWatchProgressPercent(item.userData);
+              // 在看列表里即便 percent 暂为 0，也给可见进度条（避免“有续看却无条”）
+              const barPct = pctNum > 0 ? pctNum : 5;
+              const pct = pctNum > 0 ? `${pctNum}%` : '';
               const resumeCover = resolveCoverImageUrl(item, 'thumb') || item.coverImageUrl;
               const canPlay = Boolean(item.itemId && item.serverUrl);
               return (
@@ -545,27 +708,53 @@ export function MediaLibraryPage() {
                   disabled={!canPlay}
                   onClick={() => {
                     if (!canPlay) return;
-                    void playEmbyItem({
-                      code: item.code,
-                      title: item.title,
-                      itemId: item.itemId,
-                      serverUrl: item.serverUrl,
-                      serverId: item.serverId,
-                    });
+                    // 续看：从本地 positionTicks 起播（秒）
+                    const resumeSec = Math.max(
+                      0,
+                      (Number(item.userData?.positionTicks) || 0) / 10_000_000,
+                    );
+                    void playEmbyItem(
+                      {
+                        code: item.code,
+                        title: item.title,
+                        itemId: item.itemId,
+                        serverUrl: item.serverUrl,
+                        serverId: item.serverId,
+                        resumePositionSeconds: resumeSec > 2 ? resumeSec : 0,
+                      },
+                      {
+                        startTimeSeconds: resumeSec > 2 ? resumeSec : undefined,
+                      },
+                    );
                   }}
                 >
-                  <LazyRemoteImage
-                    className="ml-resume-cover"
-                    url={resumeCover}
-                    asBackground
-                    alt={item.code}
-                  />
+                  <div className="ml-resume-cover-wrap">
+                    <LazyRemoteImage
+                      className="ml-resume-cover"
+                      url={resumeCover}
+                      asBackground
+                      alt={item.code}
+                    />
+                    <div
+                      className="ml-resume-progress"
+                      role="progressbar"
+                      aria-valuenow={barPct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={pctNum > 0 ? `已播放 ${pctNum}%` : '继续观看'}
+                    >
+                      <span
+                        className="ml-resume-progress-fill"
+                        style={{ width: `${barPct}%` }}
+                      />
+                    </div>
+                  </div>
                   <div className="ml-resume-body">
                     <div className="ml-resume-code">{item.code}</div>
                     <div className="ml-resume-title">{item.title}</div>
                     <div className="ml-resume-meta">
                       {sourceLabel(item.source)}
-                      {pct ? ` · ${pct}` : ''}
+                      {pct ? ` · ${pct}` : ' · 在看'}
                     </div>
                   </div>
                 </button>
@@ -594,15 +783,39 @@ export function MediaLibraryPage() {
         open={Boolean(embyStream)}
         title={embyStream ? `播放 · ${embyStream.code}` : '播放'}
         size="full"
-        onClose={() => setEmbyStream(null)}
+        hideHeader
+        closeOnBackdrop={false}
+        onClose={closeEmbyPlayer}
       >
         {embyStream ? (
           <MediaPlayer
             title={embyStream.code}
             subtitle={embyStream.title}
             src={embyStream.streamUrl}
+            streamType={embyStream.streamType}
             startTimeSeconds={embyStream.startTimeSeconds}
-            onClose={() => setEmbyStream(null)}
+            highlights={embyStream.highlights}
+            subtitles={embyStream.subtitles}
+            qualities={embyStream.qualities}
+            onClose={closeEmbyPlayer}
+            onProgress={(info) => {
+              lastProgressPosRef.current = info.currentTime || 0;
+              if (info.duration > 0) lastProgressDurationRef.current = info.duration;
+              if (info.ended) {
+                void reportEmbyProgress({
+                  positionSeconds: info.currentTime || 0,
+                  durationSeconds: info.duration || lastProgressDurationRef.current,
+                  isCompleted: true,
+                  isStopped: true,
+                  force: true,
+                });
+                return;
+              }
+              void reportEmbyProgress({
+                positionSeconds: info.currentTime || 0,
+                durationSeconds: info.duration || lastProgressDurationRef.current,
+              });
+            }}
           />
         ) : null}
       </OverlayShell>
@@ -611,6 +824,7 @@ export function MediaLibraryPage() {
         open={Boolean(detailItem)}
         title={detailItem ? `${detailItem.code} · 详情` : '详情'}
         size="xl"
+        windowControls
         onClose={() => setDetailItem(null)}
       >
         {detailItem ? (
@@ -618,8 +832,12 @@ export function MediaLibraryPage() {
             item={detailItem}
             onPlay={(opts) => {
               const it = detailItem;
+              const highlights = (opts as any)?.highlights as Array<{ time: number; text: string }> | undefined;
               setDetailItem(null);
-              void playEmbyItem(it, opts);
+              void playEmbyItem(it, {
+                startTimeSeconds: opts?.startTimeSeconds,
+                highlights,
+              });
             }}
             onOpenItem={(next) => setDetailItem(next)}
             onWatchChanged={() => {

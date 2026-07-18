@@ -12,10 +12,17 @@ import {
 
 describe('embyUserAuth', () => {
   it('builds MediaBrowser auth header', () => {
-    const h = buildMediaBrowserAuthHeader({ token: 'abc', deviceName: 'Test' });
+    const h = buildMediaBrowserAuthHeader({ token: 'abc', deviceName: 'Test', version: '1.21.5' });
     expect(h).toContain('MediaBrowser');
     expect(h).toContain('Token="abc"');
     expect(h).toContain('DeviceId="Test"');
+    expect(h).toContain('Version="1.21.5"');
+  });
+
+  it('does not hardcode client version to 1.0.0 when version is provided', () => {
+    const h = buildMediaBrowserAuthHeader({ version: '9.8.7' });
+    expect(h).toContain('Version="9.8.7"');
+    expect(h).not.toContain('Version="1.0.0"');
   });
 
   it('detects user session', () => {

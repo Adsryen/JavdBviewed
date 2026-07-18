@@ -88,7 +88,32 @@ export async function authenticateEmbyUser(params: {
 }
 
 /**
+ * 扩展客户端版本（给 Emby/JF 会话显示用）。
+ * 优先 manifest，其次 Vite 注入的 VITE_APP_VERSION。
+ */
+export function resolveEmbyClientVersion(): string {
+  try {
+    const manifestVersion = chrome?.runtime?.getManifest?.()?.version;
+    if (manifestVersion) {
+      // Emby 侧展示通常只要 x.y.z
+      const m = String(manifestVersion).match(/^(\d+\.\d+\.\d+)/);
+      return m?.[1] || String(manifestVersion);
+    }
+  } catch {
+    /* ignore — 非扩展上下文 */
+  }
+  try {
+    const envVersion = (import.meta as any)?.env?.VITE_APP_VERSION;
+    if (envVersion) return String(envVersion);
+  } catch {
+    /* ignore */
+  }
+  return '0.0.0';
+}
+
+/**
  * MediaBrowser 鉴权头（Emby/JF 通用）
+ * Version 会出现在 Emby 后台「设备 / 正在播放」里，禁止写死 1.0.0
  */
 export function buildMediaBrowserAuthHeader(opts: {
   token?: string;
@@ -100,7 +125,7 @@ export function buildMediaBrowserAuthHeader(opts: {
   const client = opts.client || 'JavdBviewed';
   const device = opts.device || 'ChromeExtension';
   const deviceName = opts.deviceName || 'Dashboard';
-  const version = opts.version || '1.0.0';
+  const version = opts.version || resolveEmbyClientVersion();
   const token = opts.token ? `, Token="${opts.token}"` : '';
   return `MediaBrowser Client="${client}", Device="${device}", DeviceId="${deviceName}", Version="${version}"${token}`;
 }
