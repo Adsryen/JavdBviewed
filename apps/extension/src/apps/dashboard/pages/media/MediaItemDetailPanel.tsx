@@ -18,11 +18,15 @@ import { LazyRemoteImage } from '../../../../ui/patterns/LazyRemoteImage/LazyRem
 import type { MediaBrowseItem } from './mediaBrowseModel';
 import { resolveCoverImage, sourceLabel } from './mediaBrowseModel';
 import { formatWatchPercent, watchStateLabel } from './mediaLibraryIndexAdapter';
+import { HorizontalScroller } from './HorizontalScroller';
 import './mediaItemDetail.css';
 
 export type MediaItemDetailPanelProps = {
   item: MediaBrowseItem;
-  onPlay?: (opts?: { startTimeSeconds?: number }) => void;
+  onPlay?: (opts?: {
+    startTimeSeconds?: number;
+    highlights?: Array<{ time: number; text: string }>;
+  }) => void;
   onClose?: () => void;
   /** 点击相似 / 合集卡片时打开另一条目详情 */
   onOpenItem?: (next: MediaBrowseItem) => void;
@@ -166,7 +170,22 @@ export function MediaItemDetailPanel({
   };
 
   const playChapter = (ch: EmbyItemChapterView) => {
-    onPlay?.({ startTimeSeconds: ch.startTimeSeconds || 0 });
+    onPlay?.({
+      startTimeSeconds: ch.startTimeSeconds || 0,
+      highlights: chapters.map((c) => ({
+        time: c.startTimeSeconds || 0,
+        text: c.name || `章节 ${c.index + 1}`,
+      })),
+    });
+  };
+
+  const playMain = () => {
+    onPlay?.({
+      highlights: chapters.map((c) => ({
+        time: c.startTimeSeconds || 0,
+        text: c.name || `章节 ${c.index + 1}`,
+      })),
+    });
   };
 
   return (
@@ -176,13 +195,15 @@ export function MediaItemDetailPanel({
         style={
           backdrop
             ? {
-                backgroundImage: `linear-gradient(to top, var(--color-surface, #0f172a) 8%, transparent 55%), url("${backdrop.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`,
+                // 渐变遮罩交给 CSS ::after，这里只铺全幅背景图
+                backgroundImage: `url("${backdrop.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`,
               }
             : undefined
         }
       />
 
-      <div className="ml-detail-main">
+      {/* 顶部：封面 + 主信息横排，不占满整列高度 */}
+      <div className="ml-detail-hero">
         <LazyRemoteImage
           className="ml-detail-cover"
           url={primary}
@@ -191,7 +212,7 @@ export function MediaItemDetailPanel({
           alt={item.code}
         />
 
-        <div className="ml-detail-body">
+        <div className="ml-detail-hero-info">
           <div className="ml-detail-code">{item.code}</div>
           <h3 className="ml-detail-title">{title}</h3>
 
@@ -223,7 +244,7 @@ export function MediaItemDetailPanel({
 
           <div className="ml-detail-actions">
             {onPlay ? (
-              <button type="button" className="ml-detail-btn ml-detail-btn-primary" onClick={() => onPlay()}>
+              <button type="button" className="ml-detail-btn ml-detail-btn-primary" onClick={() => playMain()}>
                 ▶ 播放
               </button>
             ) : null}
@@ -250,173 +271,180 @@ export function MediaItemDetailPanel({
           {error ? <p className="ml-detail-error">{error}（仍可播放）</p> : null}
 
           {detail?.tagline ? <p className="ml-detail-tagline">{detail.tagline}</p> : null}
-          {detail?.overview ? <p className="ml-detail-overview">{detail.overview}</p> : null}
+        </div>
+      </div>
 
-          {people.filter((p) => /director/i.test(p.type || '')).length > 0 ? (
-            <p className="ml-detail-line">
-              <span className="ml-detail-k">导演</span>
-              {people
-                .filter((p) => /director/i.test(p.type || ''))
-                .map((d) => d.name)
-                .join('、')}
-            </p>
-          ) : null}
+      {/* 下方区块使用完整弹窗宽度 */}
+      <div className="ml-detail-content">
+        {detail?.overview ? <p className="ml-detail-overview">{detail.overview}</p> : null}
 
-          {detail?.genres?.length ? (
-            <p className="ml-detail-line">
-              <span className="ml-detail-k">类型</span>
-              {detail.genres.join('、')}
-            </p>
-          ) : null}
+        {people.filter((p) => /director/i.test(p.type || '')).length > 0 ? (
+          <p className="ml-detail-line">
+            <span className="ml-detail-k">导演</span>
+            {people
+              .filter((p) => /director/i.test(p.type || ''))
+              .map((d) => d.name)
+              .join('、')}
+          </p>
+        ) : null}
 
-          {detail?.studios?.length ? (
-            <p className="ml-detail-line">
-              <span className="ml-detail-k">片商</span>
-              {detail.studios.join('、')}
-            </p>
-          ) : null}
+        {detail?.genres?.length ? (
+          <p className="ml-detail-line">
+            <span className="ml-detail-k">类型</span>
+            {detail.genres.join('、')}
+          </p>
+        ) : null}
 
-          {detail?.tags?.length ? (
-            <p className="ml-detail-line">
-              <span className="ml-detail-k">标签</span>
-              {detail.tags.slice(0, 16).join('、')}
-              {detail.tags.length > 16 ? '…' : ''}
-            </p>
-          ) : null}
+        {detail?.studios?.length ? (
+          <p className="ml-detail-line">
+            <span className="ml-detail-k">片商</span>
+            {detail.studios.join('、')}
+          </p>
+        ) : null}
 
-          {(mediaStreams.length > 0
-            || detail?.videoSummary
-            || detail?.audioSummary
-            || detail?.container
-            || detail?.sizeBytes) ? (
-            <div className="ml-detail-media">
-              <h4>媒体信息</h4>
-              {mediaStreams.length > 0
-                ? mediaStreams.map((s, i) => (
-                    <div key={`${s.type}-${i}`}>
-                      {s.type} · {s.title}
-                    </div>
-                  ))
-                : (
-                  <>
-                    {detail?.videoSummary ? <div>视频 · {detail.videoSummary}</div> : null}
-                    {detail?.audioSummary ? <div>音频 · {detail.audioSummary}</div> : null}
-                  </>
-                  )}
-              {detail?.container ? <div>容器 · {detail.container.toUpperCase()}</div> : null}
-              {formatBytes(detail?.sizeBytes) ? <div>大小 · {formatBytes(detail?.sizeBytes)}</div> : null}
-              {detail?.path ? <div className="ml-detail-mono">路径 · {detail.path}</div> : null}
-            </div>
-          ) : null}
+        {detail?.tags?.length ? (
+          <p className="ml-detail-line">
+            <span className="ml-detail-k">标签</span>
+            {detail.tags.slice(0, 16).join('、')}
+            {detail.tags.length > 16 ? '…' : ''}
+          </p>
+        ) : null}
 
-          {people.length > 0 ? (
-            <div className="ml-detail-people">
-              <h4>演职人员</h4>
-              <div className="ml-detail-people-row">
-                {people.map((p) => (
-                  <div key={`${p.id || p.name}-${p.type || ''}-${p.role || ''}`} className="ml-detail-person">
-                    <LazyRemoteImage
-                      className="ml-detail-person-avatar"
-                      url={p.imageUrl}
-                      asBackground
-                      lazy
-                      alt={p.name}
-                    />
-                    <div className="ml-detail-person-name">{p.name}</div>
-                    <div className="ml-detail-person-role">
-                      {[p.type, p.role].filter(Boolean).join(' · ') || '—'}
+        {(mediaStreams.length > 0
+          || detail?.videoSummary
+          || detail?.audioSummary
+          || detail?.container
+          || detail?.sizeBytes) ? (
+          <div className="ml-detail-media">
+            <h4>媒体信息</h4>
+            {mediaStreams.length > 0
+              ? mediaStreams.map((s, i) => (
+                  <div key={`${s.type}-${i}`}>
+                    {s.type} · {s.title}
+                  </div>
+                ))
+              : (
+                <>
+                  {detail?.videoSummary ? <div>视频 · {detail.videoSummary}</div> : null}
+                  {detail?.audioSummary ? <div>音频 · {detail.audioSummary}</div> : null}
+                </>
+                )}
+            {detail?.container ? <div>容器 · {detail.container.toUpperCase()}</div> : null}
+            {formatBytes(detail?.sizeBytes) ? <div>大小 · {formatBytes(detail?.sizeBytes)}</div> : null}
+            {detail?.path ? <div className="ml-detail-mono">路径 · {detail.path}</div> : null}
+          </div>
+        ) : null}
+
+        {people.length > 0 ? (
+          <div className="ml-detail-people">
+            <h4>演职人员</h4>
+            <HorizontalScroller className="ml-detail-hscroll ml-detail-people-row" aria-label="演职人员">
+              {people.map((p) => (
+                <div key={`${p.id || p.name}-${p.type || ''}-${p.role || ''}`} className="ml-detail-person">
+                  <LazyRemoteImage
+                    className="ml-detail-person-avatar"
+                    url={p.imageUrl}
+                    asBackground
+                    lazy
+                    alt={p.name}
+                  />
+                  <div className="ml-detail-person-name" title={p.name}>{p.name}</div>
+                  <div
+                    className="ml-detail-person-role"
+                    title={[p.type, p.role].filter(Boolean).join(' · ') || undefined}
+                  >
+                    {[p.type, p.role].filter(Boolean).join(' · ') || '—'}
+                  </div>
+                </div>
+              ))}
+            </HorizontalScroller>
+          </div>
+        ) : null}
+
+        {chapters.length > 0 ? (
+          <div className="ml-detail-section">
+            <h4>章节</h4>
+            <HorizontalScroller className="ml-detail-hscroll" aria-label="章节">
+              {chapters.map((ch) => (
+                <button
+                  key={`ch-${ch.index}-${ch.startPositionTicks}`}
+                  type="button"
+                  className="ml-detail-chapter"
+                  title={`从 ${formatChapterTime(ch.startPositionTicks)} 播放`}
+                  onClick={() => playChapter(ch)}
+                >
+                  <LazyRemoteImage
+                    className="ml-detail-chapter-img"
+                    url={ch.imageUrl}
+                    asBackground
+                    lazy
+                    alt={ch.name}
+                  />
+                  <div className="ml-detail-chapter-meta">
+                    <div className="ml-detail-chapter-name" title={ch.name}>{ch.name}</div>
+                    <div className="ml-detail-chapter-time">
+                      {formatChapterTime(ch.startPositionTicks)}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+                </button>
+              ))}
+            </HorizontalScroller>
+          </div>
+        ) : null}
 
-          {chapters.length > 0 ? (
-            <div className="ml-detail-section">
-              <h4>章节</h4>
-              <div className="ml-detail-hscroll">
-                {chapters.map((ch) => (
-                  <button
-                    key={`ch-${ch.index}-${ch.startPositionTicks}`}
-                    type="button"
-                    className="ml-detail-chapter"
-                    title={`从 ${formatChapterTime(ch.startPositionTicks)} 播放`}
-                    onClick={() => playChapter(ch)}
-                  >
-                    <LazyRemoteImage
-                      className="ml-detail-chapter-img"
-                      url={ch.imageUrl}
-                      asBackground
-                      lazy
-                      alt={ch.name}
-                    />
-                    <div className="ml-detail-chapter-meta">
-                      <div className="ml-detail-chapter-name">{ch.name}</div>
-                      <div className="ml-detail-chapter-time">
-                        {formatChapterTime(ch.startPositionTicks)}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+        {collections.length > 0 ? (
+          <div className="ml-detail-section">
+            <h4>出现在合集</h4>
+            <HorizontalScroller className="ml-detail-hscroll" aria-label="合集">
+              {collections.map((c) => (
+                <button
+                  key={`col-${c.itemId}`}
+                  type="button"
+                  className="ml-detail-related"
+                  onClick={() => openRelated(c)}
+                  title={c.overview || c.name}
+                >
+                  <LazyRemoteImage
+                    className="ml-detail-related-img"
+                    url={c.primaryImageUrl}
+                    asBackground
+                    lazy
+                    alt={c.name}
+                  />
+                  <div className="ml-detail-related-name" title={c.name}>{c.name}</div>
+                  {c.year ? <div className="ml-detail-related-year">{c.year}</div> : null}
+                </button>
+              ))}
+            </HorizontalScroller>
+          </div>
+        ) : null}
 
-          {collections.length > 0 ? (
-            <div className="ml-detail-section">
-              <h4>出现在合集</h4>
-              <div className="ml-detail-hscroll">
-                {collections.map((c) => (
-                  <button
-                    key={`col-${c.itemId}`}
-                    type="button"
-                    className="ml-detail-related"
-                    onClick={() => openRelated(c)}
-                    title={c.overview || c.name}
-                  >
-                    <LazyRemoteImage
-                      className="ml-detail-related-img"
-                      url={c.primaryImageUrl}
-                      asBackground
-                      lazy
-                      alt={c.name}
-                    />
-                    <div className="ml-detail-related-name">{c.name}</div>
-                    {c.year ? <div className="ml-detail-related-year">{c.year}</div> : null}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {similar.length > 0 ? (
-            <div className="ml-detail-section">
-              <h4>相似内容</h4>
-              <div className="ml-detail-hscroll">
-                {similar.map((s) => (
-                  <button
-                    key={`sim-${s.itemId}`}
-                    type="button"
-                    className="ml-detail-related"
-                    onClick={() => openRelated(s)}
-                    title={s.overview || s.name}
-                  >
-                    <LazyRemoteImage
-                      className="ml-detail-related-img"
-                      url={s.primaryImageUrl}
-                      asBackground
-                      lazy
-                      alt={s.name}
-                    />
-                    <div className="ml-detail-related-name">{s.name}</div>
-                    {s.year ? <div className="ml-detail-related-year">{s.year}</div> : null}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
+        {similar.length > 0 ? (
+          <div className="ml-detail-section">
+            <h4>相似内容</h4>
+            <HorizontalScroller className="ml-detail-hscroll" aria-label="相似内容">
+              {similar.map((s) => (
+                <button
+                  key={`sim-${s.itemId}`}
+                  type="button"
+                  className="ml-detail-related"
+                  onClick={() => openRelated(s)}
+                  title={s.overview || s.name}
+                >
+                  <LazyRemoteImage
+                    className="ml-detail-related-img"
+                    url={s.primaryImageUrl}
+                    asBackground
+                    lazy
+                    alt={s.name}
+                  />
+                  <div className="ml-detail-related-name" title={s.name}>{s.name}</div>
+                  {s.year ? <div className="ml-detail-related-year">{s.year}</div> : null}
+                </button>
+              ))}
+            </HorizontalScroller>
+          </div>
+        ) : null}
       </div>
     </div>
   );

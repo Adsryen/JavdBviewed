@@ -4,7 +4,7 @@
  * @module features/embyLibrary
  */
 import { describe, expect, it } from 'vitest';
-import { buildStaticStreamUrl, resolveEmbyStreamUrl } from './embyPlayback';
+import { buildStaticStreamUrl, detectEmbyStreamType, resolveEmbyStreamUrl } from './embyPlayback';
 
 describe('embyPlayback', () => {
   it('builds static stream urls with token and media source', () => {
@@ -21,6 +21,12 @@ describe('embyPlayback', () => {
     expect(url).toContain('MediaSourceId=ms-1');
     expect(url).toContain('PlaySessionId=ps-1');
     expect(url).toContain('api_key=tok');
+  });
+
+  it('detects m3u8 stream type from url and hints', () => {
+    expect(detectEmbyStreamType('http://x/master.m3u8')).toBe('m3u8');
+    expect(detectEmbyStreamType('http://x/stream', { transcodingSubProtocol: 'hls' })).toBe('m3u8');
+    expect(detectEmbyStreamType('http://x/stream.mp4?Static=true', { container: 'mp4' })).toBe('mp4');
   });
 
   it('resolves stream from PlaybackInfo DirectStreamUrl', async () => {
@@ -55,8 +61,104 @@ describe('embyPlayback', () => {
     expect(ret.success).toBe(true);
     expect(ret.streamUrl).toContain('http://emby.local:8096/Videos/1/stream.mkv');
     expect(ret.streamUrl).toContain('api_key=user-token');
+    expect(ret.streamType).toBeTruthy();
     expect(ret.detailUrl).toContain('#!/item?id=1');
     expect(ret.detailUrl).not.toContain('#!/video');
+  });
+
+  it('prefers TranscodingUrl as m3u8 when no direct stream', async () => {
+    const fetchImpl = async () =>
+      new Response(
+        JSON.stringify({
+          PlaySessionId: 'ps2',
+          MediaSources: [
+            {
+              Id: 'src2',
+              Container: 'mkv',
+              SupportsTranscoding: true,
+              TranscodingSubProtocol: 'hls',
+              TranscodingContainer: 'ts',
+              TranscodingUrl: '/videos/2/master.m3u8?MediaSourceId=src2',
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+
+    const ret = await resolveEmbyStreamUrl({
+      server: {
+        url: 'http://emby.local:8096/',
+        apiKey: 'k',
+        type: 'emby',
+      },
+      itemId: '2',
+      fetchImpl: fetchImpl as any,
+    });
+
+    expect(ret.success).toBe(true);
+    expect(ret.streamUrl).toContain('master.m3u8');
+    expect(ret.streamType).toBe('m3u8');
+    expect(ret.static).toBe(false);
+  });
+
+  it('extracts subtitle tracks and quality options from PlaybackInfo', async () => {
+    const fetchImpl = async () =>
+      new Response(
+        JSON.stringify({
+          PlaySessionId: 'ps3',
+          MediaSources: [
+            {
+              Id: 'src3',
+              Container: 'mp4',
+              Height: 1080,
+              Bitrate: 8_000_000,
+              SupportsDirectStream: true,
+              DirectStreamUrl: '/Videos/3/stream.mp4?Static=true&MediaSourceId=src3',
+              TranscodingUrl: '/Videos/3/master.m3u8?MediaSourceId=src3',
+              TranscodingSubProtocol: 'hls',
+              MediaStreams: [
+                {
+                  Type: 'Subtitle',
+                  Index: 2,
+                  Language: 'chi',
+                  DisplayTitle: 'Chinese',
+                  IsDefault: true,
+                  IsTextSubtitleStream: true,
+                },
+                {
+                  Type: 'Subtitle',
+                  Index: 3,
+                  Language: 'eng',
+                  DisplayTitle: 'English',
+                  IsTextSubtitleStream: true,
+                },
+                {
+                  Type: 'Video',
+                  Index: 0,
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+
+    const ret = await resolveEmbyStreamUrl({
+      server: {
+        url: 'http://emby.local:8096/',
+        apiKey: 'k',
+        type: 'emby',
+      },
+      itemId: '3',
+      fetchImpl: fetchImpl as any,
+    });
+
+    expect(ret.success).toBe(true);
+    expect(ret.subtitles?.length).toBe(2);
+    expect(ret.subtitles?.[0].url).toContain('/Videos/3/src3/Subtitles/2/Stream.vtt');
+    expect(ret.subtitles?.[0].url).toContain('api_key=k');
+    expect(ret.qualities?.length).toBeGreaterThanOrEqual(2);
+    expect(ret.qualities?.some((q) => q.url.includes('m3u8'))).toBe(true);
   });
 
   it('fails clearly when token is missing', async () => {

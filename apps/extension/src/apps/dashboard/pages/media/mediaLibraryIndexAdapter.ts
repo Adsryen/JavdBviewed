@@ -7,6 +7,7 @@ import { buildMediaItemUrl } from '../../../../features/embyLibrary/domain/libra
 import {
   computeWatchState,
   formatWatchPercent,
+  resolveWatchProgressPercent,
   watchStateLabel,
   type MediaWatchState,
 } from '../../../../features/embyLibrary/domain/watchState';
@@ -67,7 +68,7 @@ export function resolveItemWatchState(entry: EmbyLibraryIndexEntry | null | unde
   return computeWatchState(entry.userData);
 }
 
-export { formatWatchPercent, watchStateLabel };
+export { formatWatchPercent, resolveWatchProgressPercent, watchStateLabel };
 export type { MediaWatchState };
 
 /**

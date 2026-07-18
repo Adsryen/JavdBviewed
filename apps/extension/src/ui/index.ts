@@ -57,6 +57,7 @@ export type { MediaPlayerProps } from './patterns/MediaPlayer/MediaPlayer';
 export { cn } from './lib/cn';
 
 export { OverlayShell } from './patterns/OverlayShell/OverlayShell';
+export type { OverlayShellProps, OverlayShellSize, OverlayWindowState } from './patterns/OverlayShell/OverlayShell';
 
 export { configureImageLoadGate, requestImageLoad } from './lib/imageLoadGate';
 export { LazyRemoteImage } from './patterns/LazyRemoteImage/LazyRemoteImage';

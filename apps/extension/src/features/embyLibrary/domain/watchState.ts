@@ -106,10 +106,35 @@ export function watchStateLabel(state: MediaWatchState): string {
 
 /**
  * 进度展示（如 37%）
+ * 优先用 percent；若 percent 为 0 但有 position/runtime ticks，则现场推算
+ */
+export function resolveWatchProgressPercent(
+  userData: EmbyWatchUserData | null | undefined,
+): number {
+  if (!userData) return 0;
+  let p = Number(userData.percent);
+  if (!Number.isFinite(p) || p <= 0) {
+    const pos = Number(userData.positionTicks) || 0;
+    const runtime = Number(userData.runtimeTicks) || 0;
+    if (pos > 0 && runtime > 0) {
+      p = (pos / runtime) * 100;
+    } else if (pos > 0) {
+      // 无 runtime 时至少给一个可见进度（续看条），避免 0 条
+      // 约等于「有进度但未知总长」
+      p = 5;
+    } else {
+      p = 0;
+    }
+  }
+  if (!Number.isFinite(p) || p <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round(p)));
+}
+
+/**
+ * 进度展示（如 37%）
  */
 export function formatWatchPercent(userData: EmbyWatchUserData | null | undefined): string {
-  if (!userData) return '';
-  const p = Math.round(userData.percent);
-  if (!Number.isFinite(p) || p <= 0) return '';
-  return `${Math.min(100, p)}%`;
+  const p = resolveWatchProgressPercent(userData);
+  if (p <= 0) return '';
+  return `${p}%`;
 }

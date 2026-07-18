@@ -479,8 +479,8 @@
 
 .ml-grid {
   display: grid !important;
-  /* 默认略缩图/背景：横卡列宽（相对原 220px 约 +15% → 253） */
-  grid-template-columns: repeat(auto-fill, minmax(253px, 1fr)) !important;
+  /* 默认略缩图/背景：横卡列宽（253 * 1.2 ≈ 304） */
+  grid-template-columns: repeat(auto-fill, minmax(304px, 1fr)) !important;
   grid-auto-rows: auto !important;
   grid-auto-flow: row !important;
   gap: 20px 16px !important;
@@ -781,10 +781,27 @@
 .ml-resume-row {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(200px, 240px);
+  grid-auto-columns: minmax(220px, 260px);
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-fg-muted, #94a3b8) 55%, transparent)
+    color-mix(in srgb, var(--color-surface-2, #1e293b) 70%, transparent);
+}
+
+.ml-resume-row::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ml-resume-row::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-surface-2, #1e293b) 70%, transparent);
+  border-radius: 999px;
+}
+
+.ml-resume-row::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-fg-muted, #94a3b8) 55%, transparent);
+  border-radius: 999px;
 }
 
 button.ml-resume-card {
@@ -795,11 +812,10 @@ button.ml-resume-card {
 }
 
 .ml-resume-card {
-
   display: flex;
   gap: 10px;
   align-items: stretch;
-  min-height: 72px;
+  min-height: 88px;
   padding: 8px;
   border-radius: 12px;
   border: 1px solid var(--color-border, var(--border-primary));
@@ -816,13 +832,53 @@ button.ml-resume-card {
   );
 }
 
-.ml-resume-cover {
-  width: 96px;
-  flex: 0 0 96px;
+.ml-resume-cover-wrap {
+  position: relative;
+  width: 120px;
+  flex: 0 0 120px;
+  min-height: 72px;
   border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-surface-2, var(--surface-secondary, #0f172a));
+  isolation: isolate;
+}
+
+.ml-resume-cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 72px;
+  border-radius: 0 !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
+}
+
+/* 封面底部播放进度条（始终渲染轨道，fill 宽度由 percent 控制） */
+.ml-resume-progress {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: color-mix(in srgb, #020617 55%, transparent);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ml-resume-progress-fill {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary, #3b82f6),
+    var(--color-info, #14b8a6)
+  );
+  border-radius: 0 2px 2px 0;
+  min-width: 0;
+  transition: width 0.2s ease;
 }
 
 .ml-resume-body {

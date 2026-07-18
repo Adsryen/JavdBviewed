@@ -1,51 +1,90 @@
 /**
  * @file mediaItemDetail.css
- * @description Emby 风格详情弹窗布局
+ * @description Emby 风格详情弹窗：顶栏横排 + 全宽内容 + 主题化横滑条
  * @module apps/dashboard/pages/media
  */
 
 .ml-detail {
   position: relative;
   color: var(--color-fg, var(--text-primary));
-  min-height: 320px;
+  min-height: 100%;
+  isolation: isolate;
 }
 
+/* 背景铺满整个详情内容区 */
 .ml-detail-backdrop {
   position: absolute;
-  inset: 0 0 auto 0;
-  height: 220px;
+  inset: 0;
+  z-index: 0;
   background-size: cover;
   background-position: center top;
-  opacity: 0.45;
+  background-repeat: no-repeat;
+  opacity: 0.38;
   pointer-events: none;
 }
 
-.ml-detail-main {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(140px, 200px) 1fr;
-  gap: 18px;
-  padding: 18px 16px 16px;
-  align-items: start;
+.ml-detail-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-surface, #0f172a) 35%, transparent) 0%,
+      color-mix(in srgb, var(--color-surface, #0f172a) 78%, transparent) 42%,
+      var(--color-surface, #0f172a) 78%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-surface, #0f172a) 55%, transparent) 0%,
+      transparent 45%
+    );
 }
 
-@media (max-width: 720px) {
-  .ml-detail-main {
-    grid-template-columns: 1fr;
-  }
-  .ml-detail-cover {
-    max-width: 180px;
-  }
+/* 顶部：封面 + 主信息横排，封面不拉满整列 */
+.ml-detail-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 22px 20px 8px;
 }
 
 .ml-detail-cover {
-  width: 100%;
-  aspect-ratio: 2 / 3;
+  flex: 0 0 168px;
+  width: 168px;
+  height: 252px;
   border-radius: 12px;
   border: 1px solid var(--color-border, var(--border-primary));
   background-color: #0f172a;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background-size: cover;
+  background-position: center top;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+}
+
+.ml-detail-hero-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 下方区块：完整弹窗宽度 */
+.ml-detail-content {
+  position: relative;
+  z-index: 1;
+  padding: 8px 20px 24px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .ml-detail-hero {
+    flex-direction: column;
+  }
+  .ml-detail-cover {
+    width: 140px;
+    height: 210px;
+    flex-basis: 140px;
+  }
 }
 
 .ml-detail-code {
@@ -61,7 +100,7 @@
 
 .ml-detail-title {
   margin: 10px 0 10px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   line-height: 1.3;
 }
@@ -81,9 +120,10 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  background: var(--color-surface-2, var(--surface-secondary));
+  background: color-mix(in srgb, var(--color-surface-2, #1e293b) 88%, transparent);
   border: 1px solid var(--color-border, var(--border-primary));
   color: var(--color-fg-muted, var(--text-secondary));
+  backdrop-filter: blur(6px);
 }
 
 .ml-detail-actions {
@@ -98,12 +138,13 @@
   padding: 0 16px;
   border-radius: 999px;
   border: 1px solid var(--color-border, var(--border-primary));
-  background: var(--color-surface-2, var(--surface-secondary));
+  background: color-mix(in srgb, var(--color-surface-2, #1e293b) 90%, transparent);
   color: var(--color-fg, var(--text-primary));
   font: inherit;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+  backdrop-filter: blur(6px);
 }
 
 .ml-detail-btn:disabled {
@@ -169,10 +210,11 @@
   margin: 12px 0;
   padding: 10px 12px;
   border-radius: 10px;
-  background: var(--color-surface-2, var(--surface-secondary));
+  background: color-mix(in srgb, var(--color-surface-2, #1e293b) 88%, transparent);
   border: 1px solid var(--color-border, var(--border-primary));
   font-size: 12.5px;
   line-height: 1.55;
+  backdrop-filter: blur(6px);
 }
 
 .ml-detail-media h4,
@@ -191,55 +233,152 @@
 
 .ml-detail-people,
 .ml-detail-section {
-  margin-top: 14px;
+  margin-top: 16px;
+  min-width: 0;
 }
 
+/* 横向滚动行：主题化滚动条；仅溢出时抓手/横滑 */
 .ml-detail-people-row,
 .ml-detail-hscroll {
+  --ml-hscroll-thumb: color-mix(in srgb, var(--color-fg-muted, #94a3b8) 55%, transparent);
+  --ml-hscroll-thumb-hover: color-mix(in srgb, var(--color-primary, #3b82f6) 55%, var(--color-fg-muted, #94a3b8));
+  --ml-hscroll-track: color-mix(in srgb, var(--color-surface-2, #1e293b) 70%, transparent);
+
   display: flex;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 12px;
   overflow-x: auto;
-  padding-bottom: 6px;
+  overflow-y: hidden;
+  padding: 2px 2px 14px;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+  align-items: flex-start;
+  /* 默认：内容未溢出 — 不要抓手，不要看起来像可拖滚动条 */
+  cursor: default;
+  scroll-snap-type: none;
+  /* Firefox */
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
 
+/* 仅当确实溢出时：可拖、显示滚动条；普通上下滚轮不拦截（见 useHorizontalScroller） */
+.ml-detail-hscroll.is-overflowing {
+  cursor: grab;
+  scroll-snap-type: x proximity;
+  scrollbar-color: var(--ml-hscroll-thumb) var(--ml-hscroll-track);
+  /* 提示：可用拖拽或 Shift+滚轮横滑 */
+  touch-action: pan-y;
+}
+
+.ml-detail-hscroll.is-fit {
+  /* 未溢出时隐藏滚动条轨道，避免整行看起来像可滚区域 */
+  scrollbar-width: none;
+}
+
+.ml-detail-hscroll.is-fit::-webkit-scrollbar {
+  height: 0;
+  display: none;
+}
+
+/* Chromium / WebKit — 仅溢出时显示 */
+.ml-detail-hscroll.is-overflowing::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ml-detail-hscroll.is-overflowing::-webkit-scrollbar-track {
+  background: var(--ml-hscroll-track);
+  border-radius: 999px;
+}
+
+.ml-detail-hscroll.is-overflowing::-webkit-scrollbar-thumb {
+  background: var(--ml-hscroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.ml-detail-hscroll.is-overflowing::-webkit-scrollbar-thumb:hover {
+  background: var(--ml-hscroll-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.ml-detail-hscroll.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+  user-select: none;
+}
+
+.ml-detail-hscroll.is-dragging * {
+  cursor: grabbing;
+}
+
+/* 演职 */
 .ml-detail-person {
-  flex: 0 0 88px;
-  width: 88px;
+  flex: 0 0 96px;
+  width: 96px;
+  height: 176px;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+  min-width: 96px;
+  max-width: 96px;
 }
 
 .ml-detail-person-avatar {
-  width: 88px;
-  height: 120px;
+  flex: 0 0 auto;
+  width: 96px;
+  height: 126px;
   border-radius: 10px;
   background-color: #0f172a;
+  background-size: cover;
+  background-position: center top;
   border: 1px solid var(--color-border, var(--border-primary));
 }
 
 .ml-detail-person-name {
   margin-top: 6px;
+  flex: 0 0 auto;
+  height: 16px;
   font-size: 12px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ml-detail-person-role {
+  flex: 0 0 auto;
+  height: 15px;
   font-size: 11px;
+  line-height: 15px;
   color: var(--color-fg-muted, var(--text-secondary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* 章节 */
 .ml-detail-chapter {
-  flex: 0 0 168px;
-  width: 168px;
+  flex: 0 0 188px;
+  width: 188px;
+  min-width: 188px;
+  max-width: 188px;
+  height: 164px;
+  display: flex;
+  flex-direction: column;
   padding: 0;
   border: 1px solid var(--color-border, var(--border-primary));
   border-radius: 10px;
-  background: var(--color-surface-2, var(--surface-secondary));
+  background: color-mix(in srgb, var(--color-surface-2, #1e293b) 92%, transparent);
   color: inherit;
   text-align: left;
   cursor: pointer;
   overflow: hidden;
   font: inherit;
+  scroll-snap-align: start;
 }
 
 .ml-detail-chapter:hover {
@@ -247,19 +386,28 @@
 }
 
 .ml-detail-chapter-img {
+  flex: 0 0 auto;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 106px;
   background-color: #0f172a;
+  background-size: cover;
+  background-position: center;
 }
 
 .ml-detail-chapter-meta {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .ml-detail-chapter-name {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
+  max-height: 2.6em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -272,9 +420,15 @@
   color: var(--color-fg-muted, var(--text-secondary));
 }
 
+/* 相似/合集：小圆角 + 两行标题省略 */
 .ml-detail-related {
-  flex: 0 0 104px;
-  width: 104px;
+  flex: 0 0 148px;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
+  height: 268px;
+  display: flex;
+  flex-direction: column;
   padding: 0;
   border: 0;
   background: transparent;
@@ -282,14 +436,22 @@
   text-align: left;
   cursor: pointer;
   font: inherit;
+  scroll-snap-align: start;
+  overflow: hidden;
+  border-radius: 0;
 }
 
 .ml-detail-related-img {
-  width: 104px;
-  aspect-ratio: 2 / 3;
-  border-radius: 10px;
+  flex: 0 0 auto;
+  width: 148px;
+  height: 212px;
+  /* 用户反馈 8px 仍偏大：压到 4px，接近直角卡片 */
+  border-radius: 4px !important;
   border: 1px solid var(--color-border, var(--border-primary));
   background-color: #0f172a;
+  background-size: cover !important;
+  background-position: center top !important;
+  overflow: hidden;
 }
 
 .ml-detail-related:hover .ml-detail-related-img {
@@ -297,17 +459,29 @@
 }
 
 .ml-detail-related-name {
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top: 8px;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 2.6em;
+  max-height: 2.6em;
+  font-size: 12.5px;
   font-weight: 700;
   line-height: 1.3;
+  overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .ml-detail-related-year {
+  flex: 0 0 auto;
+  height: 15px;
   font-size: 11px;
+  line-height: 15px;
   color: var(--color-fg-muted, var(--text-secondary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

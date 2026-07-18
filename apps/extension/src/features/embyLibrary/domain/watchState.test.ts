@@ -8,6 +8,7 @@ import {
   computeWatchState,
   formatWatchPercent,
   parseEmbyUserData,
+  resolveWatchProgressPercent,
   watchStateLabel,
 } from './watchState';
 
@@ -66,5 +67,27 @@ describe('watchState', () => {
     expect(formatWatchPercent({ played: false, positionTicks: 0, runtimeTicks: 0, percent: 37.2, lastPlayedAt: 0 })).toBe(
       '37%',
     );
+  });
+
+  it('resolves progress from ticks when percent is zero', () => {
+    expect(
+      resolveWatchProgressPercent({
+        played: false,
+        positionTicks: 300_000_000,
+        runtimeTicks: 1_000_000_000,
+        percent: 0,
+        lastPlayedAt: 1,
+      }),
+    ).toBe(30);
+    // 有 position 无 runtime：给可见占位，避免续看条空白
+    expect(
+      resolveWatchProgressPercent({
+        played: false,
+        positionTicks: 10,
+        runtimeTicks: 0,
+        percent: 0,
+        lastPlayedAt: 1,
+      }),
+    ).toBe(5);
   });
 });
