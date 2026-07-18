@@ -1,6 +1,7 @@
 /**
  * @file syncEngine.ts
- * @description Pull/push loop over CloudApi + local entity buffer (no chrome).
+ * @description Sync loop over CloudApi + local entity buffer (no chrome).
+ * Prefer syncSession (server-authoritative); syncNow keeps pull/push compatibility.
  * @module @javdb/sync-client
  */
 
@@ -9,12 +10,17 @@ import {
   type ProtocolVersion,
   type SyncCursorMap,
   type SyncEntity,
+  type SyncSessionResponse,
 } from '@javdb/sync-protocol';
 import type { ApiClient } from './apiClient';
 import { advanceCursors, mergeEntityBatches } from './conflictPolicy';
 
 export interface LocalEntityStore {
   listAll(): Promise<SyncEntity[]>;
+  /**
+   * Upsert remote/session entities by type+id.
+   * Must NOT clear local entities absent from the batch (incremental apply).
+   */
   applyRemote(entities: SyncEntity[]): Promise<void>;
   /** Pending local changes not yet acknowledged by server. */
   listPending(): Promise<SyncEntity[]>;
@@ -27,8 +33,24 @@ export interface CursorStore {
   set(cursors: SyncCursorMap): Promise<void>;
 }
 
+export interface SyncSessionEngineResult {
+  response: SyncSessionResponse;
+  /** Convenience mirrors of response.stats for callers. */
+  pulled: number;
+  pushed: number;
+  cursors: SyncCursorMap;
+}
+
 export interface SyncEngine {
   readonly protocolVersion: ProtocolVersion;
+  /**
+   * Server-authoritative path: POST /v1/sync/session.
+   * Applies `apply` as-is (no local LWW); clears accepted/merged pending.
+   */
+  syncSession(deviceId: string): Promise<SyncSessionEngineResult>;
+  /**
+   * @deprecated Prefer syncSession. Legacy pull → local merge → push.
+   */
   syncNow(): Promise<{ pulled: number; pushed: number; cursors: SyncCursorMap }>;
 }
 
@@ -42,6 +64,39 @@ export function createSyncEngine(opts: {
 
   return {
     protocolVersion,
+
+    async syncSession(deviceId: string) {
+      const cursors = await opts.cursors.get();
+      const pending = await opts.local.listPending();
+      const response = await opts.api.session({
+        protocolVersion,
+        deviceId,
+        cursors,
+        changes: pending,
+      });
+
+      if (response.apply.length) {
+        // Trust server apply only — do not mergeEntityBatches locally.
+        await opts.local.applyRemote(response.apply);
+      }
+
+      const done: Array<{ type: string; id: string }> = [];
+      for (const r of response.results) {
+        if (r.status === 'accepted' || r.status === 'merged') {
+          done.push({ type: r.type, id: r.id });
+        }
+      }
+      if (done.length) await opts.local.clearPending(done);
+
+      await opts.cursors.set(response.cursors);
+
+      return {
+        response,
+        pulled: response.stats.downloaded,
+        pushed: response.stats.uploaded,
+        cursors: response.cursors,
+      };
+    },
 
     async syncNow() {
       let cursors = await opts.cursors.get();
@@ -85,23 +140,25 @@ export function createSyncEngine(opts: {
   };
 }
 
-/** In-memory local store for unit tests. */
+/** In-memory local store for unit tests (applyRemote = upsert by type+id). */
 export function createMemoryLocalStore(seed: SyncEntity[] = []): LocalEntityStore {
-  let entities = [...seed];
+  const map = new Map<string, SyncEntity>();
+  const ek = (e: SyncEntity) => `${e.type}\0${e.id}`;
+  for (const e of seed) map.set(ek(e), e);
   let pending: SyncEntity[] = [];
   return {
     async listAll() {
-      return [...entities];
+      return [...map.values()];
     },
     async applyRemote(next) {
-      entities = [...next];
+      for (const e of next) map.set(ek(e), e);
     },
     async listPending() {
       return [...pending];
     },
     async clearPending(keys) {
       const drop = new Set(keys.map((k) => `${k.type}\0${k.id}`));
-      pending = pending.filter((e) => !drop.has(`${e.type}\0${e.id}`));
+      pending = pending.filter((e) => !drop.has(ek(e)));
     },
     // test helper not on interface — attach via cast in tests
     ...({

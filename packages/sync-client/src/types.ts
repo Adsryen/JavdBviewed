@@ -18,6 +18,8 @@ import type {
   SyncPullResponse,
   SyncPushRequest,
   SyncPushResponse,
+  SyncSessionRequest,
+  SyncSessionResponse,
   VaultItem,
   VaultListResponse,
   VaultPutRequest,
@@ -59,6 +61,8 @@ export interface CloudApi {
   revokeDevice(deviceId: string): Promise<void>;
   pull(body: SyncPullRequest): Promise<SyncPullResponse>;
   push(body: SyncPushRequest): Promise<SyncPushResponse>;
+  /** Server-authoritative one-shot sync (preferred). */
+  session(body: SyncSessionRequest): Promise<SyncSessionResponse>;
   listVault(): Promise<VaultListResponse>;
   putVault(id: string, body: VaultPutRequest): Promise<VaultItem>;
   deleteVault(id: string): Promise<void>;

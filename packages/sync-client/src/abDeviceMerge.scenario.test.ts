@@ -104,9 +104,10 @@ describe('A-full then B-subset device join', () => {
       local: storeA,
       cursors: createMemoryCursorStore(),
     });
-    const resA = await engineA.syncNow();
+    const resA = await engineA.syncSession('device-A');
     expect(resA.pushed).toBe(aLocal.length);
-    expect(resA.pulled).toBe(0);
+    expect(resA.response.stats.uploaded).toBe(aLocal.length);
+    expect(resA.response.code).toBe('SYNC_OK');
 
     // --- B: subset + B-only ---
     const bLocal = [
@@ -139,10 +140,12 @@ describe('A-full then B-subset device join', () => {
       local: storeB,
       cursors: createMemoryCursorStore(),
     });
-    const resB = await engineB.syncNow();
+    const resB = await engineB.syncSession('device-B');
 
-    // B 应从云拉到 A 推上去的数据
-    expect(resB.pulled).toBeGreaterThan(0);
+    // B 应从云拉到 A 推上去的数据（服务端 stats 权威）
+    expect(resB.response.stats.downloaded).toBeGreaterThan(0);
+    expect(resB.pulled).toBe(resB.response.stats.downloaded);
+    expect(resB.response.message).toBeTruthy();
 
     const after = storeB.dump();
     const videoIds = storeB.ids('video');

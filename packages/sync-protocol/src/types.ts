@@ -132,6 +132,60 @@ export interface SyncPushResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Sync session (server-authoritative; preferred over pull+push)
+// ---------------------------------------------------------------------------
+
+/**
+ * One-shot authoritative sync: client sends pending changes + cursors;
+ * server merges, returns entities to apply and user-facing stats/message.
+ */
+export interface SyncSessionRequest {
+  protocolVersion: ProtocolVersion;
+  deviceId: string;
+  cursors: SyncCursorMap;
+  /** Local pending changes; may be empty. */
+  changes: SyncEntity[];
+}
+
+export type SyncSessionItemResult =
+  | { id: string; type: string; status: 'accepted'; revision: number }
+  | { id: string; type: string; status: 'merged'; entity: SyncEntity; reason?: string }
+  | { id: string; type: string; status: 'rejected'; reason: string; server?: SyncEntity };
+
+/** Server-authoritative counters for UI and tests. */
+export interface SyncSessionStats {
+  /** accepted + merged count from client changes. */
+  uploaded: number;
+  /** apply.length */
+  downloaded: number;
+  merged: number;
+  rejected: number;
+  /** Counts of apply entities by type. */
+  byType: Record<string, number>;
+}
+
+/** Stable machine codes; `message` is server Chinese summary for UI. */
+export type SyncSessionCode =
+  | 'SYNC_OK'
+  | 'SYNC_EMPTY'
+  | 'SYNC_PARTIAL'
+  | 'SYNC_PROTOCOL'
+  | string;
+
+export interface SyncSessionResponse {
+  protocolVersion: ProtocolVersion;
+  /** Authoritative entities the client must upsert (incremental, not full replace). */
+  apply: SyncEntity[];
+  results: SyncSessionItemResult[];
+  stats: SyncSessionStats;
+  code: SyncSessionCode;
+  /** Server Chinese summary, e.g. 同步完成：上传 12，下载 3 */
+  message: string;
+  cursors: SyncCursorMap;
+  hasMore?: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Vault (account secrets; whole-item LWW)
 // ---------------------------------------------------------------------------
 

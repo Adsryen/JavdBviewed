@@ -259,11 +259,9 @@ export function CloudSettingsPage() {
         const result = await runCloudSyncNow();
         const report: SyncReport = { ...result, finishedAt: Date.now() };
         setSyncReport(report);
-        const summary =
-          result.pulled === 0 && result.pushed > 0
-            ? `首传完成：已上传 ${result.pushed} 条到云端，本地未改动`
-            : `同步完成：拉取 ${result.pulled} · 推送 ${result.pushed}`;
-        setStatus(summary, 'ok');
+        // 权威文案来自服务端 message；失败码用 err 色
+        const tone: StatusTone = result.code === 'SYNC_PARTIAL' ? 'ok' : 'ok';
+        setStatus(result.message || `同步完成：↑${result.pushed} ↓${result.pulled}`, tone);
         try {
           const { api } = await createExtensionCloudClient();
           setDevices(await api.listDevices());
@@ -641,32 +639,42 @@ function StatusCard(props: {
 }
 
 function SyncResultPanel({ report }: { report: SyncReport }) {
-  const byType: TypeCountMap =
-    report.enqueuedNow > 0 || report.pushed > 0
-      ? report.pendingByType
-      : report.localByType;
+  // 权威类型分布：服务端 apply byType；本地库快照仅作辅助
+  const serverByType: TypeCountMap = report.stats?.byType ?? {};
+  const hasServerTypes = Object.keys(serverByType).length > 0;
 
   return (
     <div className="mx-2 mt-3 mb-2 rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-bg-muted,#f4f5f7)] p-3">
       <div className="mb-2 text-[13px] font-semibold text-[var(--color-fg)]">同步结果明细</div>
+      {report.message ? (
+        <p className="mt-0 mb-2 text-[12.5px] leading-relaxed text-[var(--color-fg)]">
+          {report.message}
+          {report.code ? (
+            <span className="ml-2 font-mono text-[11px] text-[var(--color-fg-muted)]">
+              ({report.code})
+            </span>
+          ) : null}
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Metric label="上传(推送)" value={String(report.pushed)} />
-        <Metric label="下载(拉取)" value={String(report.pulled)} />
-        <Metric label="本地实体" value={String(report.localEntityCount)} />
-        <Metric
-          label="首推入队"
-          value={report.enqueuedNow ? String(report.enqueuedNow) : '—'}
-        />
+        <Metric label="上传" value={String(report.stats?.uploaded ?? report.pushed)} />
+        <Metric label="下载" value={String(report.stats?.downloaded ?? report.pulled)} />
+        <Metric label="合并" value={String(report.stats?.merged ?? 0)} />
+        <Metric label="拒绝" value={String(report.stats?.rejected ?? 0)} />
       </div>
       <p className="mt-2 mb-0 text-[12px] leading-relaxed text-[var(--color-fg-muted)]">
-        <span className="font-medium text-[var(--color-fg)]">类型分布：</span>
-        {formatTypeCounts(byType)}
+        <span className="font-medium text-[var(--color-fg)]">下载类型（服务端）：</span>
+        {hasServerTypes ? formatTypeCounts(serverByType) : '无'}
+      </p>
+      <p className="mt-1 mb-0 text-[12px] leading-relaxed text-[var(--color-fg-muted)]">
+        <span className="font-medium text-[var(--color-fg)]">本地库快照：</span>
+        {formatTypeCounts(report.localByType)}
+        <span className="ml-1">（非权威）</span>
       </p>
       <p className="mt-1 mb-0 text-[11px] text-[var(--color-fg-muted)]">
         {formatTime(report.finishedAt)}
-        {report.pulled === 0 && report.pushed > 0
-          ? ' · 本次以本地上传为主（云端先前无更新）'
-          : null}
+        {report.pendingBefore ? ` · 同步前 pending ${report.pendingBefore}` : null}
+        {report.enqueuedNow ? ` · 本次入队 ${report.enqueuedNow}` : null}
       </p>
     </div>
   );

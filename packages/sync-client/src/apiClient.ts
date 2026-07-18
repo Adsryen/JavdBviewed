@@ -17,6 +17,8 @@ import {
   type SyncPullResponse,
   type SyncPushRequest,
   type SyncPushResponse,
+  type SyncSessionRequest,
+  type SyncSessionResponse,
   type VaultItem,
   type VaultListResponse,
   type VaultPutRequest,
@@ -116,6 +118,12 @@ export function createApiClient(config: SyncClientConfig): ApiClient {
     push(body: SyncPushRequest) {
       return withAuthRetry(() =>
         raw<SyncPushResponse>('POST', '/v1/sync/push', body, true),
+      );
+    },
+
+    session(body: SyncSessionRequest) {
+      return withAuthRetry(() =>
+        raw<SyncSessionResponse>('POST', '/v1/sync/session', body, true),
       );
     },
 

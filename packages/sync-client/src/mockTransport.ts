@@ -16,6 +16,9 @@ import {
   type SyncPullResponse,
   type SyncPushRequest,
   type SyncPushResponse,
+  type SyncSessionRequest,
+  type SyncSessionResponse,
+  type SyncSessionItemResult,
   type VaultItem,
 } from '@javdb/sync-protocol';
 import { SyncHttpError } from './fetchTransport';
@@ -215,6 +218,104 @@ export function createMockCloudTransport(): {
           protocolVersion: PROTOCOL_VERSION,
           results,
           cursors,
+        };
+        return res as T;
+      }
+
+      // Server-authoritative: push then pull since request cursors (matches Cloud design).
+      if (m === 'POST' && path === '/v1/sync/session') {
+        if (!authUser(token)) throw new SyncHttpError(401, 'unauthorized');
+        const b = body as SyncSessionRequest;
+        const results: SyncSessionItemResult[] = [];
+        for (const incoming of b.changes ?? []) {
+          if (!incoming.id || !incoming.type) {
+            results.push({
+              id: incoming.id,
+              type: incoming.type,
+              status: 'rejected',
+              reason: 'missing id/type',
+            });
+            continue;
+          }
+          const k = key(incoming.type, incoming.id);
+          const existing = state.entities.get(k);
+          let stored: SyncEntity;
+          if (!existing) {
+            stored = { ...incoming, revision: Math.max(1, incoming.revision) };
+            state.entities.set(k, stored);
+            results.push({
+              id: incoming.id,
+              type: incoming.type,
+              status: 'accepted',
+              revision: stored.revision,
+            });
+          } else {
+            stored = mergeSyncEntity(existing, {
+              ...incoming,
+              revision: Math.max(existing.revision + 1, incoming.revision),
+            });
+            if (stored.revision <= existing.revision) {
+              stored = { ...stored, revision: existing.revision + 1 };
+            }
+            state.entities.set(k, stored);
+            results.push({
+              id: incoming.id,
+              type: incoming.type,
+              status: 'merged',
+              entity: stored,
+            });
+          }
+        }
+
+        const apply: SyncEntity[] = [];
+        const cursors = { ...(b.cursors ?? {}) };
+        for (const ent of state.entities.values()) {
+          const cur = b.cursors?.[ent.type] ?? 0;
+          if (ent.revision > cur) {
+            apply.push(ent);
+            cursors[ent.type] = Math.max(cursors[ent.type] ?? 0, ent.revision);
+          }
+        }
+
+        let accepted = 0;
+        let merged = 0;
+        let rejected = 0;
+        for (const r of results) {
+          if (r.status === 'accepted') accepted += 1;
+          else if (r.status === 'merged') merged += 1;
+          else rejected += 1;
+        }
+        const byType: Record<string, number> = {};
+        for (const e of apply) {
+          byType[e.type] = (byType[e.type] ?? 0) + 1;
+        }
+        const uploaded = accepted + merged;
+        const downloaded = apply.length;
+        let code: SyncSessionResponse['code'] = 'SYNC_OK';
+        let message = `同步完成：上传 ${uploaded}，下载 ${downloaded}`;
+        if (rejected > 0) {
+          code = 'SYNC_PARTIAL';
+          message = `同步部分成功：上传 ${uploaded}，下载 ${downloaded}，拒绝 ${rejected}`;
+        } else if (uploaded === 0 && downloaded === 0) {
+          code = 'SYNC_EMPTY';
+          message = '同步完成（无变更）';
+        }
+
+        const res: SyncSessionResponse = {
+          protocolVersion: PROTOCOL_VERSION,
+          apply,
+          results,
+          stats: {
+            uploaded,
+            downloaded,
+            merged,
+            rejected,
+            byType,
+          },
+          code,
+          message,
+          cursors,
+          hasMore: false,
         };
         return res as T;
       }

@@ -225,7 +225,7 @@ export function createExtensionEntityStore(): LocalEntityStore {
       return collectLocalSyncEntities();
     },
     async applyRemote(entities) {
-      // entities 已是 merge 后的全集：按 type 分组 bulk 写入更高效
+      // 增量 upsert：只 put 本 batch 中的实体，从不 clear 未出现的本地 id（session apply 权威路径）
       const videos: VideoRecord[] = [];
       const actors: ActorRecord[] = [];
       const lists: ListRecord[] = [];

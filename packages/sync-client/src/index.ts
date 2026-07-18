@@ -30,6 +30,7 @@ export {
   createMemoryLocalStore,
   createMemoryCursorStore,
   type SyncEngine,
+  type SyncSessionEngineResult,
   type LocalEntityStore,
   type CursorStore,
 } from './syncEngine';
