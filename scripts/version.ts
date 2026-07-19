@@ -12,7 +12,8 @@ import { formatArtifactVersion } from './versioning';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const versionFilePath = path.join(__dirname, '..', 'version.json');
 const packageFilePath = path.join(__dirname, '..', 'package.json');
-const manifestFilePath = path.join(__dirname, '..', 'src', 'manifest.json');
+const manifestFilePath = path.join(__dirname, '..', 'apps', 'extension', 'src', 'manifest.json');
+const extensionPackageFilePath = path.join(__dirname, '..', 'apps', 'extension', 'package.json');
 const viteEnvFilePath = path.join(__dirname, '..', '.env.local');
 
 interface VersionData {
@@ -82,6 +83,12 @@ function syncVersionArtifacts(versionData: VersionData) {
         const packageJson = JSON.parse(fs.readFileSync(packageFilePath, 'utf8'));
         packageJson.version = versionData.version;
         writeJsonFile(packageFilePath, packageJson);
+    }
+
+    if (fs.existsSync(extensionPackageFilePath)) {
+        const extensionPackageJson = JSON.parse(fs.readFileSync(extensionPackageFilePath, 'utf8'));
+        extensionPackageJson.version = versionData.version;
+        writeJsonFile(extensionPackageFilePath, extensionPackageJson);
     }
 
     if (fs.existsSync(manifestFilePath)) {

@@ -121,15 +121,6 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@24.10.9)(jsdom@29.1.1)
 
-  apps/desktop:
-    dependencies:
-      '@javdb/sync-client':
-        specifier: workspace:*
-        version: link:../../packages/sync-client
-      '@javdb/sync-protocol':
-        specifier: workspace:*
-        version: link:../../packages/sync-protocol
-
   apps/extension:
     dependencies:
       '@javdb/sync-client':
@@ -181,24 +172,6 @@ importers:
       vite:
         specifier: ^5.0.0
         version: 5.4.21(@types/node@24.10.9)
-
-  apps/mobile:
-    dependencies:
-      '@javdb/sync-client':
-        specifier: workspace:*
-        version: link:../../packages/sync-client
-      '@javdb/sync-protocol':
-        specifier: workspace:*
-        version: link:../../packages/sync-protocol
-
-  apps/tv:
-    dependencies:
-      '@javdb/sync-client':
-        specifier: workspace:*
-        version: link:../../packages/sync-client
-      '@javdb/sync-protocol':
-        specifier: workspace:*
-        version: link:../../packages/sync-protocol
 
   packages/sync-client:
     dependencies:
@@ -3635,7 +3608,7 @@ snapshots:
 
   '@babel/parser@7.29.3':
     dependencies:
-      '@babel/types': 7.29.0
+      '@babel/types': 7.29.7
 
   '@babel/parser@7.29.7':
     dependencies:
@@ -4366,16 +4339,16 @@ snapshots:
 
   '@types/babel__generator@7.27.0':
     dependencies:
-      '@babel/types': 7.29.0
+      '@babel/types': 7.29.7
 
   '@types/babel__template@7.4.4':
     dependencies:
-      '@babel/parser': 7.29.3
-      '@babel/types': 7.29.0
+      '@babel/parser': 7.29.7
+      '@babel/types': 7.29.7
 
   '@types/babel__traverse@7.28.0':
     dependencies:
-      '@babel/types': 7.29.0
+      '@babel/types': 7.29.7
 
   '@types/chrome@0.1.36':
     dependencies:
@@ -4652,7 +4625,7 @@ snapshots:
 
   '@vue/compiler-core@3.5.34':
     dependencies:
-      '@babel/parser': 7.29.3
+      '@babel/parser': 7.29.7
       '@vue/shared': 3.5.34
       entities: 7.0.1
       estree-walker: 2.0.2
@@ -4665,7 +4638,7 @@ snapshots:
 
   '@vue/compiler-sfc@3.5.34':
     dependencies:
-      '@babel/parser': 7.29.3
+      '@babel/parser': 7.29.7
       '@vue/compiler-core': 3.5.34
       '@vue/compiler-dom': 3.5.34
       '@vue/compiler-ssr': 3.5.34
