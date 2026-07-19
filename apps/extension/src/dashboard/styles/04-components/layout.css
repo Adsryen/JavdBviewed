@@ -593,77 +593,7 @@
     border-color: var(--primary);
 }
 
-.dashboard-main-tab,
-.dashboard-sub-tab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 32px;
-    padding: 6px 14px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: transparent;
-    color: #334155;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.4;
-    white-space: nowrap;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.dashboard-main-tab:hover,
-.dashboard-sub-tab:hover {
-    background: #f8fafc;
-    color: #0f172a;
-}
-
-.dashboard-main-tab.active,
-.dashboard-sub-tab.active {
-    border-color: var(--primary);
-    background: var(--primary-light);
-    color: var(--primary-active);
-    box-shadow: none;
-}
-
-.dashboard-section-nav {
-    display: flex;
-    align-items: center;
-    min-height: 40px;
-    margin: 0 0 16px;
-    padding: 0 0 12px;
-    border-bottom: 1px solid var(--border-primary);
-}
-
-.dashboard-section-nav[hidden] {
-    display: none;
-}
-
-.dashboard-sub-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
-    margin: 0;
-}
-
-[data-theme="dark"] .dashboard-main-tab,
-[data-theme="dark"] .dashboard-sub-tab {
-    color: var(--text-secondary);
-}
-
-[data-theme="dark"] .dashboard-main-tab:hover,
-[data-theme="dark"] .dashboard-sub-tab:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] .dashboard-main-tab.active,
-[data-theme="dark"] .dashboard-sub-tab.active {
-    background: rgba(96, 165, 250, 0.16);
-    border-color: rgba(147, 197, 253, 0.42);
-    color: var(--primary);
-}
+/* 主菜单 / 二级导航视觉：仅保留下方 D baseline（勿在此再写 13px/700 旧轨） */
 
 @media (max-width: 640px) {
     .dashboard-nav-shell {
@@ -673,12 +603,6 @@
     .dashboard-nav-head {
         align-items: flex-start;
         flex-direction: column;
-    }
-
-    .dashboard-main-tab,
-    .dashboard-sub-tab {
-        padding: 6px 10px;
-        font-size: 13px;
     }
 }
 
@@ -1376,7 +1300,8 @@
 }
 
 
-/* Dashboard D baseline navigation */
+/* Dashboard D baseline navigation（唯一主菜单样式轨） */
+/* 字体与 base.css body 对齐，显式锁定，避免 inherit body 被晚到的 globals 改写 */
 .topbar {
     min-height: 64px;
     gap: 16px;
@@ -1413,7 +1338,8 @@
 .dashboard-sub-tab {
     appearance: none;
     box-shadow: none;
-    font-family: inherit;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
 }
 
 .dashboard-main-tab {
@@ -1429,7 +1355,7 @@
     color: var(--text-secondary);
     cursor: pointer;
     font-size: 15px;
-    font-weight: 850;
+    font-weight: 700;
     line-height: 1.35;
     white-space: nowrap;
     transition: background var(--transition-fast) var(--ease-out),
@@ -1507,7 +1433,7 @@
     color: var(--text-secondary);
     cursor: pointer;
     font-size: 14px;
-    font-weight: 820;
+    font-weight: 700;
     line-height: 1.15;
     white-space: nowrap;
     transition: color var(--transition-fast) var(--ease-out),

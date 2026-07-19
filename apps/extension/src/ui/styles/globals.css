@@ -12,6 +12,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * 与 dashboard base.css 使用同一系统字体栈。
+ * 禁止在此声明与 base 不同的 body font-family：globals 会在媒体库/设置等
+ * React 页晚注入，若改写 body 会连带顶栏主导航（曾 inherit）整排闪变。
+ * 不引入网络 Inter webfont；后续若产品统一 Inter，须首屏同步加载另开任务。
+ */
 html,
 body,
 #storybook-root {
@@ -19,5 +25,6 @@ body,
   min-height: 100%;
   background: var(--color-bg, var(--bg-primary));
   color: var(--color-fg, var(--text-primary));
-  font-family: Inter, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }

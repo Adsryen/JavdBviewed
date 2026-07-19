@@ -25,7 +25,6 @@ import { initDashboardLastPageResume } from '../../dashboard/lastPage';
 // import { initDataSyncSection } from './dataSync';
 import '../../dashboard/ui/dataViewModal'; // 确保 dataViewModal 被初始化
 import { ensureMounted } from '../../dashboard/loaders/partialsLoader';
-import { ensureStylesLoaded } from '../../dashboard/loaders/stylesLoader';
 import { bindInsightsListeners } from '../../dashboard/listeners/insights';
 import { initTopbarIcons } from '../../dashboard/topbar/icons';
 import { initVersionBadge } from '../../dashboard/topbar/versionChecker';
@@ -96,11 +95,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initializeDashboardThemeForDom();
 
     // W2: React shell owns chrome layout (topbar + tab hosts). Less dual-track than skeleton partials.
+    // layout.css 已由 dashboard.css @import，勿再 ensureStylesLoaded 二次注入（会改变 cascade / 加重闪变）。
     try {
         mountDashboardShell('#app-root');
-        await ensureStylesLoaded([
-            './styles/04-components/layout.css',
-        ]);
         console.log('[Dashboard] React shell mounted');
     } catch (error) {
         console.error('[Dashboard] React shell mount failed, falling back to HTML skeleton', error);
@@ -108,7 +105,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             await ensureMounted('#app-root', 'layout/skeleton.html');
             await ensureMounted('#layout-topbar-root', 'layout/topbar.html');
             await ensureMounted('#layout-tabs-nav-root', 'layout/tabs-nav.html');
-            await ensureStylesLoaded(['./styles/04-components/layout.css']);
         } catch {}
     }
 
