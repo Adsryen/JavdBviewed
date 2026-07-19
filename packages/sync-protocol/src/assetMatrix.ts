@@ -98,6 +98,103 @@ export const ASSET_MATRIX: readonly AssetMatrixRow[] = [
     conflict: 'LWW-record',
     webdavAlign: true,
   },
+  {
+    asset: 'magnets',
+    storage: 'IDB magnets',
+    cloudClass: 'account',
+    entityType: 'magnet',
+    conflict: 'LWW-record',
+    webdavAlign: true,
+  },
+  {
+    asset: 'insights_views',
+    storage: 'IDB insightsViews',
+    cloudClass: 'account',
+    entityType: 'insights_view',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
+  {
+    asset: 'insights_reports',
+    storage: 'IDB insightsReports',
+    cloudClass: 'account',
+    entityType: 'insights_report',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
+  {
+    asset: 'new_works_daily_stats',
+    storage: 'IDB newWorksDailyStats',
+    cloudClass: 'account',
+    entityType: 'new_work_daily_stat',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
+  {
+    asset: 'storage_items',
+    storage: 'chrome.storage.local non-log keys not covered by structured entities',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: 'partial',
+    notes: 'generic fallback for all recoverable storage keys except logs and device-local sync state',
+  },
+  {
+    asset: 'emby_library_state',
+    storage: 'emby_library_state',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
+  {
+    asset: 'media_watch_evidence',
+    storage: 'media_watch_evidence',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
+  {
+    asset: 'dashboard_last_page',
+    storage: 'dashboard_last_page',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
+  {
+    asset: 'last_import_stats',
+    storage: 'last_import_stats',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: true,
+  },
+  {
+    asset: 'restore_backup',
+    storage: 'restore_backup / webdav_last_selected_backup',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: true,
+  },
+  {
+    asset: 'privacy_state',
+    storage: 'privacy_state',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
+  {
+    asset: 'media_115_cleanup_list',
+    storage: 'media_115_cleanup_list',
+    cloudClass: 'account',
+    entityType: 'storage_item',
+    conflict: 'LWW-record',
+    webdavAlign: false,
+  },
   // ----- vault -----
   {
     asset: 'webdav_credentials',
@@ -146,55 +243,6 @@ export const ASSET_MATRIX: readonly AssetMatrixRow[] = [
     webdavAlign: false,
     notes: 'rebuild from videos.listIds + lists',
   },
-  {
-    asset: 'magnets',
-    storage: 'IDB magnets',
-    cloudClass: 'rebuildable',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
-  {
-    asset: 'insightsViews',
-    storage: 'IDB insightsViews',
-    cloudClass: 'rebuildable',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
-  {
-    asset: 'insightsReports',
-    storage: 'IDB insightsReports',
-    cloudClass: 'rebuildable',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
-  {
-    asset: 'newWorksDailyStats',
-    storage: 'IDB newWorksDailyStats',
-    cloudClass: 'rebuildable',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
-  {
-    asset: 'last_import_stats',
-    storage: 'last_import_stats',
-    cloudClass: 'rebuildable',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-    notes: 'default rebuildable unless product promotes to account',
-  },
-  {
-    asset: 'restore_backup',
-    storage: 'restore_backup / webdav_last_selected_backup',
-    cloudClass: 'rebuildable',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
   // ----- local -----
   {
     asset: 'telemetry_client_state',
@@ -205,16 +253,8 @@ export const ASSET_MATRIX: readonly AssetMatrixRow[] = [
     webdavAlign: false,
   },
   {
-    asset: 'emby_library_state',
-    storage: 'emby_library_state',
-    cloudClass: 'local',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
-  {
     asset: 'privacy_session',
-    storage: 'privacy_state / privacy_session',
+    storage: 'privacy_session',
     cloudClass: 'local',
     entityType: '-',
     conflict: 'n/a',
@@ -229,24 +269,8 @@ export const ASSET_MATRIX: readonly AssetMatrixRow[] = [
     webdavAlign: false,
   },
   {
-    asset: 'dashboard_last_page',
-    storage: 'dashboard_last_page',
-    cloudClass: 'local',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
-  {
     asset: 'idb_migration_flags',
     storage: 'idb_*_migrated',
-    cloudClass: 'local',
-    entityType: '-',
-    conflict: 'n/a',
-    webdavAlign: false,
-  },
-  {
-    asset: 'media_115_cleanup_list',
-    storage: 'media_115_cleanup_list',
     cloudClass: 'local',
     entityType: '-',
     conflict: 'n/a',
@@ -332,7 +356,7 @@ export function classifySettingsPath(path: string): SettingsPathClass {
     || p.includes('endpoint')
     || p.endsWith('url') && (p.includes('server') || p.includes('base'))
   ) {
-    // connection configs: credentials → vault; bare URL may still be secret-adjacent
+    // 连接配置：凭据进入 vault；裸 URL 仍可能接近敏感信息
     if (p.includes('password') || p.includes('token') || p.includes('user')) {
       return 'secret';
     }
@@ -341,8 +365,6 @@ export function classifySettingsPath(path: string): SettingsPathClass {
     p.includes('path')
     || p.includes('session')
     || p.includes('window')
-    || p.includes('lastpage')
-    || p.includes('last_page')
     || p.includes('device')
     || p.includes('telemetry')
   ) {

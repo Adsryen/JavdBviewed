@@ -19,6 +19,15 @@ describe('assetMatrix', () => {
     expect(ACCOUNT_ENTITY_TYPES).toEqual([...SYNC_ENTITY_TYPES]);
     assertAccountEntityTypesComplete();
     expect(accountEntityTypesFromMatrix().sort()).toEqual([...SYNC_ENTITY_TYPES].sort());
+    expect([...SYNC_ENTITY_TYPES]).toEqual(
+      expect.arrayContaining([
+        'magnet',
+        'insights_view',
+        'insights_report',
+        'new_work_daily_stat',
+        'storage_item',
+      ]),
+    );
   });
 
   it('has account, vault, rebuildable, and local rows', () => {
@@ -38,9 +47,30 @@ describe('assetMatrix', () => {
 
   it('marks emby and telemetry as local', () => {
     const localAssets = new Set(assetsByClass('local').map((r) => r.asset));
-    expect(localAssets.has('emby_library_state')).toBe(true);
     expect(localAssets.has('telemetry_client_state')).toBe(true);
     expect(localAssets.has('cloud_device_tokens')).toBe(true);
+  });
+
+  it('syncs all non-log persisted extension assets through account entities', () => {
+    const accountAssets = new Set(assetsByClass('account').map((r) => r.asset));
+    expect([...accountAssets]).toEqual(
+      expect.arrayContaining([
+        'magnets',
+        'insights_views',
+        'insights_reports',
+        'new_works_daily_stats',
+        'storage_items',
+        'emby_library_state',
+        'media_watch_evidence',
+        'dashboard_last_page',
+        'restore_backup',
+      ]),
+    );
+
+    const localAssets = new Set(assetsByClass('local').map((r) => r.asset));
+    expect(localAssets.has('logs')).toBe(true);
+    expect(localAssets.has('cloud_device_tokens')).toBe(true);
+    expect(localAssets.has('idb_migration_flags')).toBe(true);
   });
 });
 
@@ -52,7 +82,7 @@ describe('classifySettingsPath', () => {
   });
 
   it('classifies local runtime paths', () => {
-    expect(classifySettingsPath('dashboard_last_page')).toBe('local');
+    expect(classifySettingsPath('dashboard_last_page')).toBe('syncable');
     expect(classifySettingsPath('privacy.session')).toBe('local');
   });
 

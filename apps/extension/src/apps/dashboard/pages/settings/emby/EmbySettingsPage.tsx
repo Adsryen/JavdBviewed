@@ -17,6 +17,7 @@ import {
   useDebouncedSettingsSave,
 } from '../shared/settingsPersist';
 import {
+  getLibrarySyncDiagnosis,
   loginEmbyUser,
   persistEmbyForm,
   runLibraryCheck,

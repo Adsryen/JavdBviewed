@@ -7,7 +7,7 @@
 import type { ClientProductId, ProtocolVersion } from './version';
 
 // ---------------------------------------------------------------------------
-// Entity envelope (all account-scoped business records)
+// 实体信封：所有账号级业务记录共用
 // ---------------------------------------------------------------------------
 
 /**
@@ -31,7 +31,7 @@ export type SyncEntityEnvelope<T = unknown> = SyncEntity<T>;
 export type SyncCursorMap = Record<string, number>;
 
 // ---------------------------------------------------------------------------
-// Entity type ids (must stay aligned with assetMatrix ACCOUNT_ENTITY_TYPES)
+// 实体类型 id：必须与 assetMatrix 的 ACCOUNT_ENTITY_TYPES 保持一致
 // ---------------------------------------------------------------------------
 
 export const SYNC_ENTITY_TYPES = [
@@ -43,12 +43,17 @@ export const SYNC_ENTITY_TYPES = [
   'user_profile',
   'preference',
   'search_preset',
+  'magnet',
+  'insights_view',
+  'insights_report',
+  'new_work_daily_stat',
+  'storage_item',
 ] as const;
 
 export type SyncEntityType = (typeof SYNC_ENTITY_TYPES)[number];
 
 // ---------------------------------------------------------------------------
-// Auth + device
+// 认证与设备
 // ---------------------------------------------------------------------------
 
 export interface DeviceRegistration {
@@ -98,7 +103,7 @@ export interface DeviceInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Sync pull / push
+// 同步拉取 / 推送
 // ---------------------------------------------------------------------------
 
 export interface SyncPullRequest {
@@ -132,7 +137,7 @@ export interface SyncPushResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Sync session (server-authoritative; preferred over pull+push)
+// 同步会话：服务端权威，优先于单独 pull / push
 // ---------------------------------------------------------------------------
 
 /**
@@ -186,7 +191,7 @@ export interface SyncSessionResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Vault (account secrets; whole-item LWW)
+// 密钥库：账号密钥，整项 LWW
 // ---------------------------------------------------------------------------
 
 export type VaultItemKind = 'webdav' | 'drive115' | string;

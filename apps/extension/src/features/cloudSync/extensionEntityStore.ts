@@ -6,6 +6,7 @@
 import type { LocalEntityStore } from '@javdb/sync-client';
 import type { SyncEntity } from '@javdb/sync-protocol';
 import type { ActorRecord, ListRecord, NewWorkRecord, VideoRecord } from '../../types';
+import type { ReportMonthly, ViewsDaily } from '../../types/insights';
 import { STORAGE_KEYS } from '../../utils/config';
 import { getSettings, getValue, setValue } from '../../utils/storage';
 import {
@@ -18,6 +19,8 @@ import {
   newWorksGet,
   viewedBulkPut,
   viewedGet,
+  type MagnetCacheRecord,
+  type NewWorksDailyStat,
 } from '../../platform/storage/indexedDb';
 import {
   clearCloudPending,
@@ -27,6 +30,26 @@ import {
 
 function asRecord(payload: unknown): Record<string, unknown> {
   return payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+}
+
+function ownValue(record: Record<string, unknown>, key: string): unknown {
+  return Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined;
+}
+
+function stringField(record: Record<string, unknown>, key: string): string {
+  const value = ownValue(record, key);
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function timestampFromPayload(payload: unknown, fields: readonly string[]): number {
+  const record = asRecord(payload);
+  for (const field of fields) {
+    const value = ownValue(record, field);
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return Date.now();
 }
 
 function toEntity(type: string, id: string, payload: unknown, updatedAt?: number): SyncEntity {
@@ -44,6 +67,62 @@ function toEntity(type: string, id: string, payload: unknown, updatedAt?: number
   };
 }
 
+const STORAGE_ITEM_TYPE = 'storage_item';
+const TELEMETRY_CLIENT_STATE_KEY = 'telemetry_client_state';
+const MAGNET_PUSH_LOGS_BACKUP_KEY = 'magnetPushLogs_backup';
+
+const LOCAL_ONLY_STORAGE_KEYS = new Set<string>([
+  STORAGE_KEYS.LOGS,
+  STORAGE_KEYS.IDB_MIGRATED,
+  STORAGE_KEYS.IDB_LOGS_MIGRATED,
+  STORAGE_KEYS.IDB_ACTORS_MIGRATED,
+  STORAGE_KEYS.PRIVACY_SESSION,
+  TELEMETRY_CLIENT_STATE_KEY,
+  MAGNET_PUSH_LOGS_BACKUP_KEY,
+  'cloud_auto_sync_settings_v1',
+]);
+
+const STRUCTURED_STORAGE_KEYS = new Set<string>([
+  STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS,
+  STORAGE_KEYS.USER_PROFILE,
+  STORAGE_KEYS.ADV_SEARCH_PRESETS,
+]);
+
+function shouldSyncStorageItemKey(key: string): boolean {
+  if (!key) return false;
+  if (LOCAL_ONLY_STORAGE_KEYS.has(key)) return false;
+  if (STRUCTURED_STORAGE_KEYS.has(key)) return false;
+  if (key.startsWith('cloud_sync_')) return false;
+  return true;
+}
+
+function isSettingsStorageItem(entity: SyncEntity): boolean {
+  if (entity.type !== STORAGE_ITEM_TYPE) return false;
+  const body = asRecord(entity.payload);
+  const key = stringField(body, 'key') || entity.id;
+  return key === STORAGE_KEYS.SETTINGS;
+}
+
+function readAllChromeStorage(): Promise<Record<string, unknown>> {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get(null, (res) => resolve(res || {}));
+    } catch {
+      resolve({});
+    }
+  });
+}
+
+function removeChromeStorageKey(key: string): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.remove([key], () => resolve());
+    } catch {
+      resolve();
+    }
+  });
+}
+
 /**
  * 从本地库采集 account 级实体快照（全量）。
  */
@@ -58,7 +137,7 @@ export async function collectLocalSyncEntities(): Promise<SyncEntity[]> {
       out.push(toEntity('video', String(v.id), v, Number(v.updatedAt) || Number(v.createdAt) || Date.now()));
     }
   } catch {
-    // ignore store missing
+    // 忽略：本地库可能缺少该表
   }
 
   try {
@@ -68,7 +147,7 @@ export async function collectLocalSyncEntities(): Promise<SyncEntity[]> {
       out.push(toEntity('actor', String(a.id), a, Number(a.updatedAt) || Number(a.createdAt) || Date.now()));
     }
   } catch {
-    // ignore
+    // 忽略：本地资产缺失不阻断全量同步
   }
 
   try {
@@ -78,18 +157,60 @@ export async function collectLocalSyncEntities(): Promise<SyncEntity[]> {
       out.push(toEntity('list', String(l.id), l, Number(l.updatedAt) || Number(l.createdAt) || Date.now()));
     }
   } catch {
-    // ignore
+    // 忽略：本地资产缺失不阻断全量同步
   }
 
   try {
     const works = (await db.getAll('newWorks')) as NewWorkRecord[];
     for (const w of works) {
       if (!w?.id) continue;
-      const ts = Number((w as any).updatedAt) || Number((w as any).discoveredAt) || Date.now();
+      const ts = Number((w as { updatedAt?: number }).updatedAt) || Number((w as { discoveredAt?: number }).discoveredAt) || Date.now();
       out.push(toEntity('new_work', String(w.id), w, ts));
     }
   } catch {
-    // ignore
+    // 忽略：本地资产缺失不阻断全量同步
+  }
+
+  try {
+    const magnets = (await db.getAll('magnets')) as MagnetCacheRecord[];
+    for (const m of magnets) {
+      if (!m?.key) continue;
+      out.push(toEntity('magnet', String(m.key), m, Number(m.createdAt) || Date.now()));
+    }
+  } catch {
+    // 忽略：本地资产缺失不阻断全量同步
+  }
+
+  try {
+    const views = (await db.getAll('insightsViews')) as ViewsDaily[];
+    for (const v of views) {
+      const id = stringField(asRecord(v), 'date');
+      if (!id) continue;
+      out.push(toEntity('insights_view', id, v, timestampFromPayload(v, ['updatedAt', 'createdAt'])));
+    }
+  } catch {
+    // 忽略：本地资产缺失不阻断全量同步
+  }
+
+  try {
+    const reports = (await db.getAll('insightsReports')) as ReportMonthly[];
+    for (const r of reports) {
+      const id = stringField(asRecord(r), 'month');
+      if (!id) continue;
+      out.push(toEntity('insights_report', id, r, timestampFromPayload(r, ['updatedAt', 'createdAt'])));
+    }
+  } catch {
+    // 忽略：本地资产缺失不阻断全量同步
+  }
+
+  try {
+    const stats = (await db.getAll('newWorksDailyStats')) as NewWorksDailyStat[];
+    for (const s of stats) {
+      if (!s?.date) continue;
+      out.push(toEntity('new_work_daily_stat', String(s.date), s, timestampFromPayload(s, ['updatedAt', 'createdAt'])));
+    }
+  } catch {
+    // 忽略：本地资产缺失不阻断全量同步
   }
 
   try {
@@ -98,7 +219,7 @@ export async function collectLocalSyncEntities(): Promise<SyncEntity[]> {
       out.push(toEntity('new_work_subscription', id, payload, Date.now()));
     }
   } catch {
-    // ignore
+    // 忽略：本地资产缺失不阻断全量同步
   }
 
   try {
@@ -107,7 +228,7 @@ export async function collectLocalSyncEntities(): Promise<SyncEntity[]> {
       out.push(toEntity('user_profile', 'default', profile, Date.now()));
     }
   } catch {
-    // ignore
+    // 忽略：本地资产缺失不阻断全量同步
   }
 
   try {
@@ -123,22 +244,24 @@ export async function collectLocalSyncEntities(): Promise<SyncEntity[]> {
       }
     }
   } catch {
-    // ignore
+    // 忽略：搜索方案读取失败不阻断全量同步
   }
 
-  // preference：仅同步安全白名单顶层键（禁止 secrets / 设备态）
   try {
-    const settings = await getSettings();
-    const whitelist = ['display', 'dataSync', 'actorLibrary'] as const;
-    for (const key of whitelist) {
-      const value = (settings as any)?.[key];
-      if (value === undefined) continue;
+    const allStorage = await readAllChromeStorage();
+    for (const [key, value] of Object.entries(allStorage)) {
+      if (!shouldSyncStorageItemKey(key)) continue;
       out.push(
-        toEntity('preference', key, { key, value }, Date.now()),
+        toEntity(
+          STORAGE_ITEM_TYPE,
+          key,
+          { key, value },
+          timestampFromPayload(value, ['updatedAt', 'createdAt', 'savedAt']),
+        ),
       );
     }
   } catch {
-    // ignore
+    // 忽略：Chrome Storage 读取失败不阻断全量同步
   }
 
   return out;
@@ -150,7 +273,7 @@ async function applyOne(entity: SyncEntity): Promise<void> {
     case 'video': {
       const rec = { ...(asRecord(payload) as unknown as VideoRecord), id: entity.id };
       if (entity.deletedAt) {
-        // soft-delete: keep record with deletedAt if present on payload; else patch
+        // 软删除：保留记录并补上远端墓碑时间
         (rec as any).deletedAt = entity.deletedAt;
       }
       await viewedBulkPut([rec]);
@@ -170,6 +293,30 @@ async function applyOne(entity: SyncEntity): Promise<void> {
     case 'new_work': {
       const rec = { ...(asRecord(payload) as unknown as NewWorkRecord), id: entity.id };
       await newWorksBulkPut([rec]);
+      return;
+    }
+    case 'magnet': {
+      const db = await initDB();
+      const rec = { ...(asRecord(payload) as unknown as MagnetCacheRecord), key: entity.id };
+      await db.put('magnets', rec);
+      return;
+    }
+    case 'insights_view': {
+      const db = await initDB();
+      const rec = { ...(asRecord(payload) as unknown as ViewsDaily), date: entity.id };
+      await db.put('insightsViews', rec);
+      return;
+    }
+    case 'insights_report': {
+      const db = await initDB();
+      const rec = { ...(asRecord(payload) as unknown as ReportMonthly), month: entity.id };
+      await db.put('insightsReports', rec);
+      return;
+    }
+    case 'new_work_daily_stat': {
+      const db = await initDB();
+      const rec = { ...(asRecord(payload) as unknown as NewWorksDailyStat), date: entity.id };
+      await db.put('newWorksDailyStats', rec);
       return;
     }
     case 'new_work_subscription': {
@@ -204,11 +351,23 @@ async function applyOne(entity: SyncEntity): Promise<void> {
       const body = asRecord(payload);
       const key = String(body.key || entity.id);
       if (!key || entity.deletedAt) return;
-      // 只写白名单
+      // 旧客户端兼容：新版本用 storage_item/settings 同步完整设置
       if (!['display', 'dataSync', 'actorLibrary'].includes(key)) return;
       const settings = await getSettings();
       const next = { ...settings, [key]: body.value } as any;
       await setValue(STORAGE_KEYS.SETTINGS, next);
+      return;
+    }
+    case STORAGE_ITEM_TYPE: {
+      const body = asRecord(payload);
+      const key = stringField(body, 'key') || entity.id;
+      if (!shouldSyncStorageItemKey(key)) return;
+      if (entity.deletedAt) {
+        await removeChromeStorageKey(key);
+        return;
+      }
+      const value = ownValue(body, 'value');
+      await setValue(key, value);
       return;
     }
     default:
@@ -226,6 +385,7 @@ export function createExtensionEntityStore(): LocalEntityStore {
     },
     async applyRemote(entities) {
       // 增量 upsert：只 put 本 batch 中的实体，从不 clear 未出现的本地 id（session apply 权威路径）
+      const hasSettingsStorageItem = entities.some(isSettingsStorageItem);
       const videos: VideoRecord[] = [];
       const actors: ActorRecord[] = [];
       const lists: ListRecord[] = [];
@@ -241,6 +401,8 @@ export function createExtensionEntityStore(): LocalEntityStore {
           lists.push({ ...(asRecord(e.payload) as unknown as ListRecord), id: e.id });
         } else if (e.type === 'new_work') {
           works.push({ ...(asRecord(e.payload) as unknown as NewWorkRecord), id: e.id });
+        } else if (e.type === 'preference' && hasSettingsStorageItem) {
+          continue;
         } else {
           others.push(e);
         }
@@ -261,7 +423,7 @@ export function createExtensionEntityStore(): LocalEntityStore {
         if (lists[0]?.id) await listsGet(lists[0].id);
         if (works[0]?.id) await newWorksGet(works[0].id);
       } catch {
-        // ignore
+        // 忽略：探测失败不阻断远端应用
       }
     },
     async listPending() {

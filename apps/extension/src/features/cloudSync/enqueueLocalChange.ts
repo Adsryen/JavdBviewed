@@ -5,12 +5,19 @@
  */
 import type { SyncEntity } from '@javdb/sync-protocol';
 import type { ActorRecord, ListRecord, NewWorkRecord, VideoRecord } from '../../types';
+import type { ReportMonthly, ViewsDaily } from '../../types/insights';
+import type { MagnetCacheRecord, NewWorksDailyStat } from '../../platform/storage/indexedDb';
 import { upsertCloudPending } from './chromePendingStore';
 import {
   actorToSyncEntity,
+  insightsReportToSyncEntity,
+  insightsViewToSyncEntity,
   listToSyncEntity,
+  magnetToSyncEntity,
+  newWorkDailyStatToSyncEntity,
   newWorkToSyncEntity,
   preferenceToSyncEntity,
+  storageItemToSyncEntity,
   toSyncEntity,
   videoToSyncEntity,
   CLOUD_PREFERENCE_KEYS,
@@ -79,6 +86,36 @@ export async function enqueueSearchPresetChange(id: string, payload: unknown): P
   await upsertCloudPending([toSyncEntity('search_preset', id, payload, Date.now())]);
 }
 
+export async function enqueueMagnetChanges(records: MagnetCacheRecord[]): Promise<void> {
+  const list = records.map(magnetToSyncEntity).filter(Boolean) as SyncEntity[];
+  if (list.length) await upsertCloudPending(list);
+}
+
+export async function enqueueInsightsViewChange(view: ViewsDaily): Promise<void> {
+  const e = insightsViewToSyncEntity(view);
+  if (e) await upsertCloudPending([e]);
+}
+
+export async function enqueueInsightsViews(views: ViewsDaily[]): Promise<void> {
+  const list = views.map(insightsViewToSyncEntity).filter(Boolean) as SyncEntity[];
+  if (list.length) await upsertCloudPending(list);
+}
+
+export async function enqueueInsightsReportChange(report: ReportMonthly): Promise<void> {
+  const e = insightsReportToSyncEntity(report);
+  if (e) await upsertCloudPending([e]);
+}
+
+export async function enqueueNewWorkDailyStatChange(stat: NewWorksDailyStat): Promise<void> {
+  const e = newWorkDailyStatToSyncEntity(stat);
+  if (e) await upsertCloudPending([e]);
+}
+
+export async function enqueueStorageItemChange(key: string, value: unknown): Promise<void> {
+  const e = storageItemToSyncEntity(key, value, Date.now());
+  if (e) await upsertCloudPending([e]);
+}
+
 export async function enqueuePreferenceChange(key: string, value: unknown): Promise<void> {
   if (!(CLOUD_PREFERENCE_KEYS as readonly string[]).includes(key)) return;
   await upsertCloudPending([preferenceToSyncEntity(key, value)]);
@@ -89,6 +126,6 @@ export function scheduleEnqueue(task: () => Promise<void>): void {
   try {
     void task().catch(() => {});
   } catch {
-    // ignore
+    // 忽略：Cloud 入队失败不阻断主写入路径
   }
 }

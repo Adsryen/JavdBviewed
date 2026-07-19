@@ -48,6 +48,12 @@ export {
   enqueueListChanges,
   enqueueNewWorkChange,
   enqueueNewWorkChanges,
+  enqueueMagnetChanges,
+  enqueueInsightsViewChange,
+  enqueueInsightsViews,
+  enqueueInsightsReportChange,
+  enqueueNewWorkDailyStatChange,
+  enqueueStorageItemChange,
   scheduleEnqueue,
 } from './enqueueLocalChange';
 export {

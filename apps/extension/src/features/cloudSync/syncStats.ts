@@ -15,6 +15,11 @@ export const SYNC_TYPE_LABELS: Record<string, string> = {
   user_profile: '用户资料',
   search_preset: '搜索方案',
   preference: '跨端偏好',
+  magnet: '磁力缓存',
+  insights_view: 'Insights 日统计',
+  insights_report: 'Insights 月报',
+  new_work_daily_stat: '新作品每日统计',
+  storage_item: '扩展存储',
 };
 
 export type TypeCountMap = Record<string, number>;

@@ -188,6 +188,10 @@ export async function newWorksDailyStatGet(date: string): Promise<NewWorksDailyS
 export async function newWorksDailyStatPut(stat: NewWorksDailyStat): Promise<void> {
   const db = await initDB();
   await db.put('newWorksDailyStats', stat);
+  try {
+    const { scheduleEnqueue, enqueueNewWorkDailyStatChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueNewWorkDailyStatChange(stat));
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function newWorksDailyStatsRange(startDate: string, endDate: string): Promise<NewWorksDailyStat[]> {
@@ -225,6 +229,10 @@ export async function newWorksDailyStatRefreshToday(): Promise<void> {
       unread: Math.max(liveUnread, existing?.unread ?? 0),
     };
     await db.put('newWorksDailyStats', stat);
+    try {
+      const { scheduleEnqueue, enqueueNewWorkDailyStatChange } = await import('../../features/cloudSync/enqueueLocalChange');
+      scheduleEnqueue(() => enqueueNewWorkDailyStatChange(stat));
+    } catch { /* Cloud 可选 */ }
   } catch {}
 }
 
@@ -546,7 +554,7 @@ export async function listsPut(record: ListRecord): Promise<void> {
   try {
     const { scheduleEnqueue, enqueueListChange } = await import('../../features/cloudSync/enqueueLocalChange');
     scheduleEnqueue(() => enqueueListChange(record));
-  } catch { /* cloud optional */ }
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function listsBulkPut(records: ListRecord[]): Promise<void> {
@@ -565,7 +573,7 @@ export async function listsBulkPut(records: ListRecord[]): Promise<void> {
   try {
     const { scheduleEnqueue, enqueueListChanges } = await import('../../features/cloudSync/enqueueLocalChange');
     scheduleEnqueue(() => enqueueListChanges(records));
-  } catch { /* cloud optional */ }
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function listsGet(id: string): Promise<ListRecord | undefined> {
@@ -710,7 +718,7 @@ export async function viewedPut(record: VideoRecord): Promise<ViewedPutResult> {
   try {
     const { scheduleEnqueue, enqueueVideoChange } = await import('../../features/cloudSync/enqueueLocalChange');
     scheduleEnqueue(() => enqueueVideoChange(normalized as VideoRecord));
-  } catch { /* cloud optional */ }
+  } catch { /* Cloud 可选 */ }
   return { success: true };
 }
 
@@ -739,7 +747,7 @@ export async function viewedBulkPut(records: VideoRecord[]): Promise<void> {
     try {
       const { scheduleEnqueue, enqueueVideoChanges } = await import('../../features/cloudSync/enqueueLocalChange');
       scheduleEnqueue(() => enqueueVideoChanges(written));
-    } catch { /* cloud optional */ }
+    } catch { /* Cloud 可选 */ }
   }
 }
 
@@ -1394,6 +1402,10 @@ export async function magnetsUpsertMany(records: MagnetCacheRecord[]): Promise<v
     try { await tx.done; } catch {}
     throw e;
   }
+  try {
+    const { scheduleEnqueue, enqueueMagnetChanges } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueMagnetChanges(records));
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function magnetsQuery(params: MagnetsQueryParams): Promise<{ items: MagnetCacheRecord[]; total: number; }> {
@@ -1464,6 +1476,10 @@ export async function magnetsClearExpired(beforeMs?: number): Promise<number> {
 export async function insViewsPut(view: ViewsDaily): Promise<void> {
   const db = await initDB();
   await db.put('insightsViews', view);
+  try {
+    const { scheduleEnqueue, enqueueInsightsViewChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueInsightsViewChange(view));
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function insViewsBulkPut(views: ViewsDaily[]): Promise<void> {
@@ -1479,6 +1495,10 @@ export async function insViewsBulkPut(views: ViewsDaily[]): Promise<void> {
     try { await tx.done; } catch {}
     throw e;
   }
+  try {
+    const { scheduleEnqueue, enqueueInsightsViews } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueInsightsViews(views));
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function insViewsRange(startDate: string, endDate: string): Promise<ViewsDaily[]> {
@@ -1497,6 +1517,10 @@ export async function insViewsRange(startDate: string, endDate: string): Promise
 export async function insReportsPut(report: ReportMonthly): Promise<void> {
   const db = await initDB();
   await db.put('insightsReports', report);
+  try {
+    const { scheduleEnqueue, enqueueInsightsReportChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueInsightsReportChange(report));
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function insReportsGet(month: string): Promise<ReportMonthly | undefined> {
@@ -1543,14 +1567,14 @@ export async function insReportsImportJSON(json: string): Promise<number> {
       const createdAt = (r as any)?.createdAt;
       const status = (r as any)?.status;
       const origin = (r as any)?.origin;
-      // basic validation
+      // 基础校验
       if (typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) continue;
       if (typeof period?.start !== 'string' || typeof period?.end !== 'string') continue;
       if (typeof html !== 'string' || html.length === 0) continue;
       if (typeof createdAt !== 'number') continue;
       if (status !== 'final' && status !== 'draft') continue;
       if (origin !== 'auto' && origin !== 'manual') continue;
-      // stats shape (soft check)
+      // 统计结构软校验
       const okStats = stats && Array.isArray(stats.tagsTop) && Array.isArray(stats.trend) && stats.changes && Array.isArray(stats.changes.newTags);
       if (!okStats) continue;
       await tx.store.put({ ...r, month } as any);
@@ -1567,7 +1591,7 @@ export async function insReportsImportJSON(json: string): Promise<number> {
 // ----- actors API -----
 
 export interface ActorsQueryParams {
-  query?: string; // search in name or aliases (substring)
+  query?: string; // 在名称或别名中做子串搜索
   gender?: 'female' | 'male' | 'unknown';
   category?: 'censored' | 'uncensored' | 'western' | 'unknown';
   blacklist?: 'all' | 'exclude' | 'only';
@@ -1586,7 +1610,7 @@ export async function actorsPut(record: ActorRecord): Promise<void> {
   try {
     const { scheduleEnqueue, enqueueActorChange } = await import('../../features/cloudSync/enqueueLocalChange');
     scheduleEnqueue(() => enqueueActorChange(record));
-  } catch { /* cloud optional */ }
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function actorsBulkPut(records: ActorRecord[]): Promise<void> {
@@ -1611,7 +1635,7 @@ export async function actorsBulkPut(records: ActorRecord[]): Promise<void> {
     try {
       const { scheduleEnqueue, enqueueActorChanges } = await import('../../features/cloudSync/enqueueLocalChange');
       scheduleEnqueue(() => enqueueActorChanges(written));
-    } catch { /* cloud optional */ }
+    } catch { /* Cloud 可选 */ }
   }
 }
 
@@ -1806,7 +1830,7 @@ export async function newWorksPut(record: NewWorkRecord): Promise<void> {
   try {
     const { scheduleEnqueue, enqueueNewWorkChange } = await import('../../features/cloudSync/enqueueLocalChange');
     scheduleEnqueue(() => enqueueNewWorkChange(record));
-  } catch { /* cloud optional */ }
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
@@ -1834,7 +1858,7 @@ export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
   try {
     const { scheduleEnqueue, enqueueNewWorkChanges } = await import('../../features/cloudSync/enqueueLocalChange');
     scheduleEnqueue(() => enqueueNewWorkChanges(records));
-  } catch { /* cloud optional */ }
+  } catch { /* Cloud 可选 */ }
 }
 
 export async function newWorksDelete(id: string): Promise<void> {
