@@ -116,6 +116,17 @@ export async function enqueueStorageItemChange(key: string, value: unknown): Pro
   if (e) await upsertCloudPending([e]);
 }
 
+export async function enqueueStorageItemDeletion(key: string): Promise<void> {
+  if (!key) return;
+  const deletedAt = Date.now();
+  await upsertCloudPending([
+    {
+      ...toSyncEntity('storage_item', key, { key }, deletedAt),
+      deletedAt,
+    },
+  ]);
+}
+
 export async function enqueuePreferenceChange(key: string, value: unknown): Promise<void> {
   if (!(CLOUD_PREFERENCE_KEYS as readonly string[]).includes(key)) return;
   await upsertCloudPending([preferenceToSyncEntity(key, value)]);

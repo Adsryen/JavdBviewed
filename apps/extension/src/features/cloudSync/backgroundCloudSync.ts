@@ -5,7 +5,14 @@
  */
 import { loadCloudSession } from './chromeTokenStore';
 import { loadCloudAutoSyncSettings } from './autoSyncSettings';
+import {
+  enqueueStorageItemChange,
+  enqueueStorageItemDeletion,
+  scheduleEnqueue,
+} from './enqueueLocalChange';
+import { shouldSuppressCloudStorageChange } from './storageChangeGate';
 import { runCloudSyncNow } from './runCloudSyncNow';
+import { shouldSyncStorageItemKey } from './storageItemPolicy';
 
 export const CLOUD_AUTO_SYNC_ALARM = 'cloud-auto-sync';
 
@@ -103,6 +110,22 @@ export function registerCloudSyncStorageListener(): void {
         changes.cloud_sync_settings_v1
       ) {
         void setupCloudAutoSyncAlarm();
+      }
+      const storageChanges = Object.entries(changes).filter(
+        ([key, change]) =>
+          shouldSyncStorageItemKey(key) &&
+          !shouldSuppressCloudStorageChange(key, change),
+      );
+      if (storageChanges.length) {
+        scheduleEnqueue(async () => {
+          for (const [key, change] of storageChanges) {
+            if (Object.prototype.hasOwnProperty.call(change, 'newValue')) {
+              await enqueueStorageItemChange(key, change.newValue);
+            } else {
+              await enqueueStorageItemDeletion(key);
+            }
+          }
+        });
       }
     });
   } catch {

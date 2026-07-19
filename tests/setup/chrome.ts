@@ -137,8 +137,15 @@ function createChromeMock(): typeof chrome {
           return finishChromeCall(undefined, callback);
         }),
         remove: vi.fn((keys: string | string[], callback?: () => void) => {
+          const changes: { [key: string]: chrome.storage.StorageChange } = {};
           for (const key of Array.isArray(keys) ? keys : [keys]) {
+            if (Object.prototype.hasOwnProperty.call(storageState, key)) {
+              changes[key] = { oldValue: clone(storageState[key]) };
+            }
             delete storageState[key];
+          }
+          if (Object.keys(changes).length) {
+            storageChangedEvent.dispatch(changes, 'local');
           }
           return finishChromeCall(undefined, callback);
         }),
