@@ -9,6 +9,7 @@ export const STORAGE_ITEM_TYPE = 'storage_item';
 
 const TELEMETRY_CLIENT_STATE_KEY = 'telemetry_client_state';
 const MAGNET_PUSH_LOGS_BACKUP_KEY = 'magnetPushLogs_backup';
+const DRIVE115_LOGS_KEY = 'drive115_logs';
 
 const LOCAL_ONLY_STORAGE_KEYS = new Set<string>([
   STORAGE_KEYS.LOGS,
@@ -18,6 +19,7 @@ const LOCAL_ONLY_STORAGE_KEYS = new Set<string>([
   STORAGE_KEYS.PRIVACY_SESSION,
   TELEMETRY_CLIENT_STATE_KEY,
   MAGNET_PUSH_LOGS_BACKUP_KEY,
+  DRIVE115_LOGS_KEY,
   'cloud_auto_sync_settings_v1',
 ]);
 
@@ -27,10 +29,15 @@ const STRUCTURED_STORAGE_KEYS = new Set<string>([
   STORAGE_KEYS.ADV_SEARCH_PRESETS,
 ]);
 
+function isIdbMigrationFlag(key: string): boolean {
+  return key.startsWith('idb_') && key.endsWith('_migrated');
+}
+
 export function shouldSyncStorageItemKey(key: string): boolean {
   if (!key) return false;
   if (LOCAL_ONLY_STORAGE_KEYS.has(key)) return false;
   if (STRUCTURED_STORAGE_KEYS.has(key)) return false;
+  if (isIdbMigrationFlag(key)) return false;
   if (key.startsWith('cloud_sync_')) return false;
   return true;
 }

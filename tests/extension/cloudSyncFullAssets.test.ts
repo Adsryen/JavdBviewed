@@ -89,6 +89,7 @@ describe('Cloud 全量资产同步', () => {
       [STORAGE_KEYS.USER_PROFILE]: { email: 'u@example.com' },
       [STORAGE_KEYS.ADV_SEARCH_PRESETS]: { presetA: { name: 'Preset A' } },
       [STORAGE_KEYS.LOGS]: [{ message: 'no cloud' }],
+      drive115_logs: [{ message: 'no cloud' }],
       magnetPushLogs_backup: [{ message: 'no cloud' }],
       cloud_sync_session_v1: { accessToken: 'secret' },
       cloud_sync_pending_v1: [{ id: 'pending' }],
@@ -98,6 +99,7 @@ describe('Cloud 全量资产同步', () => {
       [STORAGE_KEYS.IDB_MIGRATED]: true,
       [STORAGE_KEYS.IDB_LOGS_MIGRATED]: true,
       [STORAGE_KEYS.IDB_ACTORS_MIGRATED]: true,
+      idb_magnet_push_logs_migrated: true,
       telemetry_client_state: { installId: 'install-1' },
       [STORAGE_KEYS.PRIVACY_SESSION]: { unlocked: true },
       [STORAGE_KEYS.PRIVACY_STATE]: { screenshotMode: true },
@@ -131,6 +133,7 @@ describe('Cloud 全量资产同步', () => {
       ]),
     );
     expect(keys.has(`storage_item/${STORAGE_KEYS.LOGS}`)).toBe(false);
+    expect(keys.has('storage_item/drive115_logs')).toBe(false);
     expect(keys.has('storage_item/magnetPushLogs_backup')).toBe(false);
     expect(keys.has('storage_item/cloud_sync_session_v1')).toBe(false);
     expect(keys.has('storage_item/cloud_sync_pending_v1')).toBe(false);
@@ -138,6 +141,7 @@ describe('Cloud 全量资产同步', () => {
     expect(keys.has('storage_item/cloud_sync_settings_v1')).toBe(false);
     expect(keys.has('storage_item/cloud_auto_sync_settings_v1')).toBe(false);
     expect(keys.has(`storage_item/${STORAGE_KEYS.IDB_MIGRATED}`)).toBe(false);
+    expect(keys.has('storage_item/idb_magnet_push_logs_migrated')).toBe(false);
     expect(keys.has('storage_item/telemetry_client_state')).toBe(false);
     expect(keys.has(`storage_item/${STORAGE_KEYS.PRIVACY_SESSION}`)).toBe(false);
     expect(keys.has('preference/display')).toBe(false);

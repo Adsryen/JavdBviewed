@@ -61,6 +61,7 @@ describe('Cloud 同步 storage 监听', () => {
 
     await chrome.storage.local.set({
       [STORAGE_KEYS.LOGS]: [{ message: 'local only' }],
+      drive115_logs: [{ message: 'local only' }],
       cloud_sync_session_v1: { accessToken: 'secret' },
       cloud_sync_cursors_v1: { video: 3 },
       cloud_sync_pending_v1: [],
