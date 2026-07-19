@@ -17,7 +17,7 @@ import {
   useDebouncedSettingsSave,
 } from '../shared/settingsPersist';
 import {
-  getLibrarySyncDiagnosis,
+  loginEmbyUser,
   persistEmbyForm,
   runLibraryCheck,
   runManualLibrarySync,
@@ -28,6 +28,7 @@ import {
 import {
   addMatchUrl,
   addMediaServer,
+  clearMediaServerUserSession,
   createEmptyMediaServerDraft,
   DEFAULT_EMBY_SETTINGS_FORM,
   LINK_BEHAVIOR_OPTIONS,
@@ -182,6 +183,37 @@ export function EmbySettingsPage() {
     }));
   };
 
+  const onServerLoginSuccess = (
+    index: number,
+    patch: Partial<EmbyMediaServer>,
+  ) => {
+    setFormAndSchedule(
+      (prev) => ({
+        ...prev,
+        mediaServers: updateMediaServerAt(prev.mediaServers, index, patch),
+      }),
+      true,
+    );
+  };
+
+  const onServerLogout = (index: number) => {
+    setFormAndSchedule(
+      (prev) => {
+        const current = prev.mediaServers[index];
+        if (!current) return prev;
+        return {
+          ...prev,
+          mediaServers: updateMediaServerAt(
+            prev.mediaServers,
+            index,
+            clearMediaServerUserSession(current),
+          ),
+        };
+      },
+      true,
+    );
+  };
+
   const onAddMatchUrl = () => {
     setFormAndSchedule((prev) => ({
       ...prev,
@@ -278,12 +310,12 @@ export function EmbySettingsPage() {
 
           <SettingSection
             title="媒体服务器"
-            description="配置 Emby/Jellyfin 服务器地址和 API Key。"
+            description="配置 Emby/Jellyfin 服务器地址、API Key，以及用户登录令牌。"
           >
             <div
               id="emby-media-server-list"
               className="flex flex-col gap-3 px-2 py-2"
-              data-settings-search-keywords="媒体服务器 Emby Jellyfin API Key"
+              data-settings-search-keywords="媒体服务器 Emby Jellyfin API Key 登录 AccessToken"
             >
               {form.mediaServers.length === 0 && !serverDraft ? (
                 <p className="m-0 text-[13px] text-[var(--color-fg-muted)]">
@@ -299,6 +331,8 @@ export function EmbySettingsPage() {
                   disabled={!enabled}
                   onChange={(patch) => onServerField(index, patch)}
                   onRemove={() => onRemoveServer(index)}
+                  onLoginSuccess={(patch) => onServerLoginSuccess(index, patch)}
+                  onLogout={() => onServerLogout(index)}
                 />
               ))}
 
@@ -564,10 +598,106 @@ type MediaServerRowProps = {
   disabled?: boolean;
   onChange: (patch: Partial<EmbyMediaServer>) => void;
   onRemove: () => void;
+  onLoginSuccess: (patch: Partial<EmbyMediaServer>) => void;
+  onLogout: () => void;
 };
 
-function MediaServerRow({ server, index, disabled, onChange, onRemove }: MediaServerRowProps) {
+function SecretField({
+  id,
+  label,
+  value,
+  disabled,
+  placeholder,
+  autoComplete,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  disabled?: boolean;
+  placeholder?: string;
+  autoComplete?: string;
+  onChange: (value: string) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <SettingField id={id} label={label}>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          className="min-w-0 flex-1"
+          type={visible ? 'text' : 'password'}
+          disabled={disabled}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(e) => onChange(e.currentTarget.value)}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          disabled={disabled}
+          aria-label={visible ? `隐藏${label}` : `显示${label}`}
+          title={visible ? `隐藏${label}` : `显示${label}`}
+          onClick={() => setVisible((v) => !v)}
+        >
+          {visible ? '隐藏' : '显示'}
+        </Button>
+      </div>
+    </SettingField>
+  );
+}
+
+function MediaServerRow({
+  server,
+  index,
+  disabled,
+  onChange,
+  onRemove,
+  onLoginSuccess,
+  onLogout,
+}: MediaServerRowProps) {
   const idBase = `emby-server-${server.id || index}`;
+  const [loginUsername, setLoginUsername] = useState(server.username || '');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const userLoggedIn = Boolean(server.accessToken && server.userId);
+  const sessionLabel = userLoggedIn
+    ? `已登录：${server.userDisplayName || server.username || server.userId || ''}`
+    : '未登录用户（写回「真实已看」通常需要登录）';
+
+  useEffect(() => {
+    setLoginUsername(server.username || '');
+  }, [server.id, server.username]);
+
+  const onLogin = async () => {
+    if (loggingIn) return;
+    setLoggingIn(true);
+    try {
+      const result = await loginEmbyUser({
+        serverUrl: server.url,
+        username: loginUsername,
+        password: loginPassword,
+      });
+      if (!result.ok) {
+        await toast(`登录失败：${result.error}`, 'error');
+        return;
+      }
+      setLoginPassword('');
+      onLoginSuccess({
+        username: result.username,
+        accessToken: result.accessToken,
+        userId: result.userId,
+        userDisplayName: result.userName || result.username,
+        tokenObtainedAt: result.tokenObtainedAt,
+      });
+      await toast('用户登录成功，已保存访问令牌（可用于写回真实已看）', 'success');
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
   return (
     <div
       className="emby-media-server-item grid gap-2 rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 md:grid-cols-2"
@@ -604,17 +734,15 @@ function MediaServerRow({ server, index, disabled, onChange, onRemove }: MediaSe
           onChange={(e) => onChange({ url: e.currentTarget.value })}
         />
       </SettingField>
-      <SettingField id={`${idBase}-api-key`} label="API Key">
-        <Input
-          id={`${idBase}-api-key`}
-          className="emby-server-api-key"
-          type="password"
-          disabled={disabled}
-          placeholder="媒体服务器 API Key"
-          value={server.apiKey}
-          onChange={(e) => onChange({ apiKey: e.currentTarget.value })}
-        />
-      </SettingField>
+      <SecretField
+        id={`${idBase}-api-key`}
+        label="API Key"
+        disabled={disabled}
+        placeholder="扫库/只读用 API Key"
+        autoComplete="off"
+        value={server.apiKey}
+        onChange={(value) => onChange({ apiKey: value })}
+      />
       <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
         <SettingToggleRow
           id={`${idBase}-enabled`}
@@ -632,6 +760,70 @@ function MediaServerRow({ server, index, disabled, onChange, onRemove }: MediaSe
         >
           删除
         </Button>
+      </div>
+
+      <div className="emby-server-user-auth md:col-span-2 rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[13px] font-semibold text-[var(--color-fg)]">
+            用户登录（写回观看状态 / 更完整 UserData）
+          </span>
+          <span
+            className={
+              userLoggedIn
+                ? 'text-[12px] font-medium text-[var(--color-success, #16a34a)]'
+                : 'text-[12px] text-[var(--color-fg-muted)]'
+            }
+          >
+            {sessionLabel}
+          </span>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          <SettingField id={`${idBase}-username`} label="用户名">
+            <Input
+              id={`${idBase}-username`}
+              className="emby-server-username"
+              disabled={disabled || loggingIn}
+              placeholder="媒体服务器用户名"
+              autoComplete="username"
+              value={loginUsername}
+              onChange={(e) => {
+                const value = e.currentTarget.value;
+                setLoginUsername(value);
+                onChange({ username: value });
+              }}
+            />
+          </SettingField>
+          <SecretField
+            id={`${idBase}-password`}
+            label="密码"
+            disabled={disabled || loggingIn}
+            placeholder="仅用于本次登录，不会写入设置"
+            autoComplete="current-password"
+            value={loginPassword}
+            onChange={setLoginPassword}
+          />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button
+            variant="primary"
+            className="emby-user-login-btn"
+            disabled={disabled || loggingIn}
+            onClick={() => void onLogin()}
+          >
+            {loggingIn ? '登录中…' : '登录并保存令牌'}
+          </Button>
+          <Button
+            variant="secondary"
+            className="emby-user-logout-btn"
+            disabled={disabled || !userLoggedIn || loggingIn}
+            onClick={onLogout}
+          >
+            退出登录
+          </Button>
+        </div>
+        <p className="m-0 mt-2 text-[12px] leading-5 text-[var(--color-fg-muted)]">
+          API Key 负责扫库；用户登录后的 AccessToken 用于标记真实已看。密码仅用于本次登录请求，不会写入设置。
+        </p>
       </div>
     </div>
   );
@@ -703,26 +895,15 @@ function MediaServerCreateRow({
           }}
         />
       </SettingField>
-      <SettingField id="emby-create-server-api-key" label="API Key">
-        <Input
-          id="emby-create-server-api-key"
-          className="emby-create-server-api-key"
-          type="password"
-          disabled={disabled}
-          placeholder="媒体服务器 API Key"
-          value={draft.apiKey}
-          onChange={(e) => onChange({ ...draft, apiKey: e.currentTarget.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              onConfirm();
-            } else if (e.key === 'Escape') {
-              e.preventDefault();
-              onCancel();
-            }
-          }}
-        />
-      </SettingField>
+      <SecretField
+        id="emby-create-server-api-key"
+        label="API Key"
+        disabled={disabled}
+        placeholder="媒体服务器 API Key"
+        autoComplete="off"
+        value={draft.apiKey}
+        onChange={(value) => onChange({ ...draft, apiKey: value })}
+      />
       <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
         <SettingToggleRow
           id="emby-create-server-enabled"

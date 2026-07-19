@@ -127,6 +127,65 @@ export function sendRuntimeMessage<TResponse = unknown>(message: unknown): Promi
   });
 }
 
+export type EmbyUserLoginResult =
+  | {
+      ok: true;
+      accessToken: string;
+      userId: string;
+      userName?: string;
+      username: string;
+      tokenObtainedAt: number;
+    }
+  | { ok: false; error: string };
+
+/**
+ * 用户登录媒体服务器：密码仅用于本次请求，返回的 AccessToken 由调用方写入设置
+ */
+export async function loginEmbyUser(params: {
+  serverUrl: string;
+  username: string;
+  password: string;
+}): Promise<EmbyUserLoginResult> {
+  const serverUrl = String(params.serverUrl || '').trim().replace(/\/+$/, '');
+  const username = String(params.username || '').trim();
+  const password = String(params.password || '');
+  if (!serverUrl) return { ok: false, error: '请先填写服务器地址' };
+  if (!username || !password) return { ok: false, error: '请填写用户名和密码' };
+
+  try {
+    const response = await sendRuntimeMessage<{
+      success?: boolean;
+      accessToken?: string;
+      userId?: string;
+      userName?: string;
+      username?: string;
+      tokenObtainedAt?: number;
+      error?: string;
+    }>({
+      type: 'EMBY_USER_LOGIN',
+      serverUrl,
+      username,
+      password,
+    });
+    if (!response?.success || !response.accessToken || !response.userId) {
+      return { ok: false, error: response?.error || '登录失败' };
+    }
+    return {
+      ok: true,
+      accessToken: response.accessToken,
+      userId: response.userId,
+      userName: response.userName,
+      username: response.username || username,
+      tokenObtainedAt: Number(response.tokenObtainedAt) || Date.now(),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : '登录请求失败',
+    };
+  }
+}
+
 /**
  * 持久化 Emby 表单（含校验、STATE 同步、tabs 通知）
  */

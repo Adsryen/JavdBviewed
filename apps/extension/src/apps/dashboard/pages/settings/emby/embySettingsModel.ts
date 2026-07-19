@@ -98,12 +98,43 @@ export function createMediaServerId(): string {
   return `media-server-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function normalizeLibraryIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((id) => String(id || '').trim()).filter(Boolean);
+}
+
+function normalizeLibraryOptions(
+  raw: unknown,
+): NonNullable<EmbyMediaServer['libraryOptions']> | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const options = raw
+    .map((item) => {
+      const opt = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+      const id = String(opt.id || '').trim();
+      if (!id) return null;
+      return {
+        id,
+        name: String(opt.name || id).trim(),
+        collectionType: opt.collectionType ? String(opt.collectionType) : undefined,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  return options.length > 0 ? options : undefined;
+}
+
 /**
- * 规范化单台媒体服务器
+ * 规范化单台媒体服务器（保留登录会话与媒体库选择，勿只落 url/apiKey）
  */
 export function normalizeMediaServer(raw: unknown, index = 0): EmbyMediaServer {
   const server = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const type: EmbyServerType = server.type === 'jellyfin' ? 'jellyfin' : 'emby';
+  const libraryIds = normalizeLibraryIds(server.libraryIds);
+  const libraryOptions = normalizeLibraryOptions(server.libraryOptions);
+  const username = String(server.username || '').trim();
+  const accessToken = String(server.accessToken || '').trim();
+  const userId = String(server.userId || '').trim();
+  const userDisplayName = String(server.userDisplayName || '').trim();
+  const tokenObtainedAt = Number(server.tokenObtainedAt);
   return {
     id: String(server.id || `media-server-${Date.now()}-${index}`),
     type,
@@ -111,6 +142,15 @@ export function normalizeMediaServer(raw: unknown, index = 0): EmbyMediaServer {
     url: String(server.url || '').trim().replace(/\/+$/, ''),
     apiKey: String(server.apiKey || '').trim(),
     enabled: server.enabled !== false,
+    ...(libraryIds.length > 0 ? { libraryIds } : {}),
+    ...(libraryOptions ? { libraryOptions } : {}),
+    ...(username ? { username } : {}),
+    ...(accessToken ? { accessToken } : {}),
+    ...(userId ? { userId } : {}),
+    ...(userDisplayName ? { userDisplayName } : {}),
+    ...(Number.isFinite(tokenObtainedAt) && tokenObtainedAt > 0
+      ? { tokenObtainedAt }
+      : {}),
   };
 }
 
@@ -121,7 +161,7 @@ export function normalizeMediaServers(raw: unknown): EmbyMediaServer[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((item, index) => normalizeMediaServer(item, index))
-    .filter((server) => server.url || server.apiKey);
+    .filter((server) => server.url || server.apiKey || server.accessToken);
 }
 
 /**
@@ -336,7 +376,7 @@ export function validateMediaServerInput(server: Pick<EmbyMediaServer, 'url' | '
 }
 
 /**
- * 更新某一服务器字段
+ * 更新某一服务器字段（会话字段可被 patch 覆盖/清空）
  */
 export function updateMediaServerAt(
   servers: EmbyMediaServer[],
@@ -348,7 +388,7 @@ export function updateMediaServerAt(
   const current = next[index];
   const type: EmbyServerType =
     patch.type === 'jellyfin' || patch.type === 'emby' ? patch.type : current.type;
-  next[index] = {
+  const merged: EmbyMediaServer = {
     ...current,
     ...patch,
     id: current.id,
@@ -364,6 +404,7 @@ export function updateMediaServerAt(
     apiKey: patch.apiKey !== undefined ? String(patch.apiKey) : current.apiKey,
     enabled: patch.enabled !== undefined ? patch.enabled !== false : current.enabled,
   };
+  next[index] = normalizeMediaServer(merged, index);
   return next;
 }
 
@@ -390,6 +431,7 @@ export function addMediaServer(
   const type: EmbyServerType = input.type === 'jellyfin' ? 'jellyfin' : 'emby';
   const server = normalizeMediaServer(
     {
+      ...input,
       id: input.id || createMediaServerId(),
       type,
       name: input.name || (type === 'jellyfin' ? 'Jellyfin' : 'Emby'),
@@ -400,6 +442,20 @@ export function addMediaServer(
     servers.length,
   );
   return [...servers, server];
+}
+
+/**
+ * 清除用户登录会话（保留用户名，便于重新登录）
+ */
+export function clearMediaServerUserSession(server: EmbyMediaServer): EmbyMediaServer {
+  const {
+    accessToken: _a,
+    userId: _u,
+    userDisplayName: _d,
+    tokenObtainedAt: _t,
+    ...rest
+  } = server;
+  return normalizeMediaServer(rest);
 }
 
 /**
