@@ -21,6 +21,9 @@ describe('syncStats', () => {
 
   it('humanizes network and auth errors', () => {
     expect(humanizeCloudError({ status: 401, message: 'unauthorized' })).toMatch(/登录/);
+    expect(humanizeCloudError({ status: 401, message: 'invalid credentials' })).toMatch(
+      /账号或密码错误/,
+    );
     expect(humanizeCloudError({ message: 'Failed to fetch' })).toMatch(/无法连接/);
     expect(humanizeCloudError({ status: 409, message: 'user exists' })).toMatch(/已存在/);
   });

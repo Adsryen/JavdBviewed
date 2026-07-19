@@ -56,7 +56,7 @@ export function renderDashboardVersionInfo(containerId: string = 'aboutVersionIn
     ? `
         <div class="info-item">
             <span class="info-label">Device ID:</span>
-            <span class="info-value" title="当前 WebDAV 客户端设备 ID">${deviceId}</span>
+            <span class="info-value" title="本机设备 ID（WebDAV / Cloud 同步共用）">${deviceId}</span>
         </div>`
     : '';
 

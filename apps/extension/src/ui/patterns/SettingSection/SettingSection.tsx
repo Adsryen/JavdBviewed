@@ -35,6 +35,9 @@ export function SettingSection({
       className={cn(
         'rounded-[var(--radius-3)] border border-[var(--color-border)] bg-[var(--color-surface)]',
         'shadow-[var(--shadow-1)] text-[var(--color-fg)]',
+        'transition-[transform,box-shadow,border-color] duration-200 ease-out',
+        'hover:-translate-y-0.5 hover:border-[var(--color-border-strong,var(--color-border))]',
+        'hover:shadow-[var(--shadow-2,0_12px_28px_rgba(15,23,42,0.1))]',
         className,
       )}
       data-ui-pattern="setting-section"

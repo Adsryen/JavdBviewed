@@ -45,7 +45,11 @@ export function humanizeCloudError(err: unknown): string {
   const status = anyErr.status;
   const raw = String(anyErr.message || err);
 
-  if (status === 401 || /unauthorized|invalid credentials|invalid refresh/i.test(raw)) {
+  // 密码错误 vs 会话过期要分开，避免误导用户去「重新登录」却仍输错密
+  if (/invalid credentials/i.test(raw)) {
+    return '账号或密码错误（默认引导多为 admin / javdbviewed；若改过 CLOUD_ADMIN_PASSWORD 或旧数据卷，以实际配置为准）';
+  }
+  if (status === 401 || /unauthorized|invalid refresh/i.test(raw)) {
     return '未授权或登录已过期，请重新登录';
   }
   if (status === 409 || /user exists/i.test(raw)) {

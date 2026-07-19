@@ -3,15 +3,20 @@
  * @description Cloud 连接配置（baseUrl / 设备名）本地持久化
  * @module features/cloudSync
  */
+import { getSettings } from '../../utils/storage';
 
 export const CLOUD_SETTINGS_STORAGE_KEY = 'cloud_sync_settings_v1';
 
 export type CloudConnectionSettings = {
-  /** Cloud 根地址，如 http://127.0.0.1:8080 */
+  /** Cloud 根地址，如 http://127.0.0.1:18080 */
   baseUrl: string;
   /** 本机设备显示名 */
   deviceLabel: string;
-  /** 稳定设备 id（本机生成一次） */
+  /**
+   * 稳定设备 id。
+   * 优先复用 WebDAV `settings.webdav.clientId`（关于页 Device ID），
+   * 避免 Cloud / WebDAV / 关于页出现两套身份。
+   */
   deviceId: string;
   updatedAt: number;
 };
@@ -27,38 +32,72 @@ function randomId(): string {
   return `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function createDefaultCloudSettings(): CloudConnectionSettings {
+/** 与关于页 / WebDAV 共用的本机设备 ID（若尚未生成则返回空） */
+export async function getSharedDeviceId(): Promise<string> {
+  try {
+    const settings = await getSettings();
+    const id = String((settings as { webdav?: { clientId?: string } })?.webdav?.clientId || '').trim();
+    return id;
+  } catch {
+    return '';
+  }
+}
+
+export function createDefaultCloudSettings(sharedDeviceId?: string): CloudConnectionSettings {
   return {
-    baseUrl: 'http://127.0.0.1:8080',
+    // 本机 Docker 在 Windows 上常因 8080 被保留而映射到 18080；仍可手改
+    baseUrl: 'http://127.0.0.1:18080',
     deviceLabel: '浏览器扩展',
-    deviceId: randomId(),
+    deviceId: sharedDeviceId?.trim() || randomId(),
     updatedAt: Date.now(),
   };
 }
 
 export async function loadCloudSettings(): Promise<CloudConnectionSettings> {
+  const sharedDeviceId = await getSharedDeviceId();
+
   return new Promise((resolve) => {
     try {
       chrome.storage.local.get([CLOUD_SETTINGS_STORAGE_KEY], (res) => {
         const v = res?.[CLOUD_SETTINGS_STORAGE_KEY] as Partial<CloudConnectionSettings> | undefined;
-        const defaults = createDefaultCloudSettings();
+        const defaults = createDefaultCloudSettings(sharedDeviceId);
+
         if (!v || typeof v !== 'object') {
+          // 首次：直接落盘共享 deviceId，避免下次又 random
+          void chrome.storage.local.set({ [CLOUD_SETTINGS_STORAGE_KEY]: defaults });
           resolve(defaults);
           return;
         }
-        resolve({
-          baseUrl: typeof v.baseUrl === 'string' && v.baseUrl.trim() ? v.baseUrl.trim() : defaults.baseUrl,
+
+        const storedId =
+          typeof v.deviceId === 'string' && v.deviceId.trim() ? v.deviceId.trim() : '';
+        // 若已有 WebDAV clientId，优先对齐到共享 id
+        const deviceId = sharedDeviceId || storedId || defaults.deviceId;
+
+        const next: CloudConnectionSettings = {
+          baseUrl:
+            typeof v.baseUrl === 'string' && v.baseUrl.trim() ? v.baseUrl.trim() : defaults.baseUrl,
           deviceLabel:
             typeof v.deviceLabel === 'string' && v.deviceLabel.trim()
               ? v.deviceLabel.trim()
               : defaults.deviceLabel,
-          deviceId:
-            typeof v.deviceId === 'string' && v.deviceId.trim() ? v.deviceId.trim() : defaults.deviceId,
+          deviceId,
           updatedAt: typeof v.updatedAt === 'number' ? v.updatedAt : Date.now(),
-        });
+        };
+
+        // 后台纠正 deviceId 漂移（不阻塞 UI）
+        if (sharedDeviceId && storedId && sharedDeviceId !== storedId) {
+          void chrome.storage.local.set({
+            [CLOUD_SETTINGS_STORAGE_KEY]: { ...next, updatedAt: Date.now() },
+          });
+        } else if (!storedId) {
+          void chrome.storage.local.set({ [CLOUD_SETTINGS_STORAGE_KEY]: next });
+        }
+
+        resolve(next);
       });
     } catch {
-      resolve(createDefaultCloudSettings());
+      resolve(createDefaultCloudSettings(sharedDeviceId));
     }
   });
 }
@@ -67,12 +106,19 @@ export async function saveCloudSettings(
   patch: Partial<CloudConnectionSettings>,
 ): Promise<CloudConnectionSettings> {
   const current = await loadCloudSettings();
+  // 禁止调用方随意改写已有 deviceId（保持与 WebDAV 对齐）
+  const nextDeviceId =
+    current.deviceId ||
+    (typeof patch.deviceId === 'string' ? patch.deviceId.trim() : '') ||
+    (await getSharedDeviceId()) ||
+    randomId();
+
   const next: CloudConnectionSettings = {
     ...current,
     ...patch,
-    baseUrl: (patch.baseUrl ?? current.baseUrl).trim().replace(/\/+$/, ''),
+    baseUrl: normalizeCloudBaseUrl(patch.baseUrl ?? current.baseUrl),
     deviceLabel: (patch.deviceLabel ?? current.deviceLabel).trim() || current.deviceLabel,
-    deviceId: (patch.deviceId ?? current.deviceId).trim() || current.deviceId,
+    deviceId: nextDeviceId,
     updatedAt: Date.now(),
   };
   return new Promise((resolve) => {
@@ -90,7 +136,10 @@ export function normalizeCloudBaseUrl(input: string): string {
   if (!t) return '';
   try {
     const u = new URL(t.includes('://') ? t : `http://${t}`);
-    return `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, '')}` || `${u.protocol}//${u.host}`;
+    const path = u.pathname.replace(/\/+$/, '');
+    return path && path !== '/'
+      ? `${u.protocol}//${u.host}${path}`
+      : `${u.protocol}//${u.host}`;
   } catch {
     return t.replace(/\/+$/, '');
   }
