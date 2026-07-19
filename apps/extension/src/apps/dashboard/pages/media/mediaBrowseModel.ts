@@ -216,8 +216,49 @@ export function relativeCarouselPos(index: number, active: number, len: number):
   return d;
 }
 
-export function heroItems(items: MediaBrowseItem[]): MediaBrowseItem[] {
-  return items.slice(0, 5);
+/** 推荐轮播：随机候选池上限 */
+export const MEDIA_HERO_CANDIDATE_LIMIT = 15;
+/** 推荐轮播：实际滚动展示数量（圆点 / 自动轮播长度） */
+export const MEDIA_HERO_LIMIT = 7;
+/**
+ * 堆叠可视半径：中心 ±N，共 2N+1 张同时露出。
+ * N=3 → 同时露出 7 张，与 MEDIA_HERO_LIMIT 对齐。
+ */
+export const MEDIA_HERO_VISIBLE_RADIUS = 3;
+
+/**
+ * 从目录随机抽取轮播条目：先打乱后取候选池（默认 15），再截为滚动条（默认 7）。
+ * 堆叠可视位 data-pos=±MEDIA_HERO_VISIBLE_RADIUS（默认同时露出 7 张）。
+ * @param random 可注入 [0,1) 随机源，便于单测
+ */
+export function heroItems(
+  items: MediaBrowseItem[],
+  options?: {
+    limit?: number;
+    candidateLimit?: number;
+    random?: () => number;
+  },
+): MediaBrowseItem[] {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  const limit = Math.max(0, options?.limit ?? MEDIA_HERO_LIMIT);
+  const candidateLimit = Math.max(
+    limit,
+    options?.candidateLimit ?? MEDIA_HERO_CANDIDATE_LIMIT,
+  );
+  const random = options?.random ?? Math.random;
+  if (limit === 0) return [];
+
+  const pool = items.slice();
+  // 部分 Fisher–Yates：只保证前 candidateLimit 位置均匀随机
+  const n = pool.length;
+  const top = Math.min(candidateLimit, n);
+  for (let i = 0; i < top; i += 1) {
+    const j = i + Math.floor(random() * (n - i));
+    const tmp = pool[i];
+    pool[i] = pool[j];
+    pool[j] = tmp;
+  }
+  return pool.slice(0, Math.min(limit, top));
 }
 
 export function subPathToFilter(subPath?: string): MediaBrowseSource {

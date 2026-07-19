@@ -335,10 +335,12 @@
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
   padding: 0 !important;
   margin: 0 !important;
-  background: transparent !important;
+  /* 实底，避免前后叠卡时后景颜色透过封面 */
+  background: var(--color-surface, var(--surface-primary, #0f172a)) !important;
   color: inherit;
   text-align: left;
   will-change: transform, opacity;
+  isolation: isolate;
 }
 
 .ml-hero-hit {
@@ -379,40 +381,57 @@
 .ml-hero-card:active,
 .ml-hero-card:focus-visible {
   outline: none;
-  background: transparent !important;
+}
+
+/* 可视 7 张：中心 ±3；越外侧越小、越暗 */
+.ml-hero-card[data-pos='-3'] {
+  transform: translate3d(-50%, -50%, 0) translateX(-124%) scale(0.72) !important;
+  opacity: 0.78;
+  z-index: 1;
+  filter: saturate(0.82) brightness(0.88);
 }
 
 .ml-hero-card[data-pos='-2'] {
-  transform: translate3d(-50%, -50%, 0) translateX(-92%) scale(0.82) !important;
-  opacity: 0.48;
-  z-index: 1;
-  filter: saturate(0.78) brightness(0.88);
+  transform: translate3d(-50%, -50%, 0) translateX(-86%) scale(0.82) !important;
+  opacity: 0.9;
+  z-index: 2;
+  filter: saturate(0.9) brightness(0.94);
 }
 
 .ml-hero-card[data-pos='-1'] {
-  transform: translate3d(-50%, -50%, 0) translateX(-52%) scale(0.92) !important;
-  opacity: 0.78;
-  z-index: 2;
+  transform: translate3d(-50%, -50%, 0) translateX(-48%) scale(0.92) !important;
+  opacity: 0.96;
+  z-index: 3;
+  filter: saturate(0.96) brightness(0.98);
 }
 
 .ml-hero-card[data-pos='0'] {
   transform: translate3d(-50%, -50%, 0) scale(1) !important;
   opacity: 1;
   z-index: 5;
+  filter: none;
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28), 0 0 0 1px color-mix(in srgb, var(--color-primary, var(--primary)) 35%, transparent);
 }
 
 .ml-hero-card[data-pos='1'] {
-  transform: translate3d(-50%, -50%, 0) translateX(52%) scale(0.92) !important;
-  opacity: 0.78;
-  z-index: 2;
+  transform: translate3d(-50%, -50%, 0) translateX(48%) scale(0.92) !important;
+  opacity: 0.96;
+  z-index: 3;
+  filter: saturate(0.96) brightness(0.98);
 }
 
 .ml-hero-card[data-pos='2'] {
-  transform: translate3d(-50%, -50%, 0) translateX(92%) scale(0.82) !important;
-  opacity: 0.48;
+  transform: translate3d(-50%, -50%, 0) translateX(86%) scale(0.82) !important;
+  opacity: 0.9;
+  z-index: 2;
+  filter: saturate(0.9) brightness(0.94);
+}
+
+.ml-hero-card[data-pos='3'] {
+  transform: translate3d(-50%, -50%, 0) translateX(124%) scale(0.72) !important;
+  opacity: 0.78;
   z-index: 1;
-  filter: saturate(0.78) brightness(0.88);
+  filter: saturate(0.82) brightness(0.88);
 }
 
 .ml-hero-card[data-pos='hide'] {
@@ -1271,6 +1290,9 @@ button.ml-resume-card {
     width: var(--ml-hero-w) !important;
     height: calc(var(--ml-hero-w) * 9 / 16) !important;
   }
+  /* 小屏只露中心 ±1，外侧隐藏避免挤爆 */
+  .ml-hero-card[data-pos='-3'],
+  .ml-hero-card[data-pos='3'],
   .ml-hero-card[data-pos='-2'],
   .ml-hero-card[data-pos='2'] {
     opacity: 0;

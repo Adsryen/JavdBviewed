@@ -63,11 +63,51 @@ describe('mediaBrowseModel', () => {
     expect(relativeCarouselPos(0, 0, 5)).toBe(0);
     expect(relativeCarouselPos(4, 0, 5)).toBe(-1);
     expect(relativeCarouselPos(1, 0, 5)).toBe(1);
+    // 7 卡：相对 active=0，两侧最外为 ±3
+    expect(relativeCarouselPos(3, 0, 7)).toBe(3);
+    expect(relativeCarouselPos(4, 0, 7)).toBe(-3);
   });
 
   it('exposes a non-empty hero strip from a catalog', () => {
     expect(heroItems(MEDIA_PREVIEW_ITEMS).length).toBeGreaterThan(0);
+    expect(heroItems(MEDIA_PREVIEW_ITEMS).length).toBeLessThanOrEqual(7);
     expect(MEDIA_PREVIEW_ITEMS.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('samples hero items randomly instead of always taking the catalog head', () => {
+    // random→1：尽量换到靠后的元素，使结果偏离 slice(0,7)
+    const random = () => 0.999;
+    const picked = heroItems(MEDIA_PREVIEW_ITEMS, {
+      limit: 7,
+      candidateLimit: 15,
+      random,
+    });
+    expect(picked).toHaveLength(Math.min(7, MEDIA_PREVIEW_ITEMS.length));
+    const headCodes = MEDIA_PREVIEW_ITEMS.slice(0, 7).map((i) => i.code);
+    const pickedCodes = picked.map((i) => i.code);
+    if (MEDIA_PREVIEW_ITEMS.length > 7) {
+      expect(pickedCodes.join('|')).not.toBe(headCodes.join('|'));
+    }
+    for (const code of pickedCodes) {
+      expect(MEDIA_PREVIEW_ITEMS.some((i) => i.code === code)).toBe(true);
+    }
+  });
+
+  it('respects hero candidate and display limits', () => {
+    const seq = Array.from({ length: 20 }, (_, i) => ({
+      ...MEDIA_PREVIEW_ITEMS[i % MEDIA_PREVIEW_ITEMS.length],
+      code: `CODE-${i}`,
+    }));
+    // random=0 → 每次 j=i，等价于保持原序，便于断言截断
+    const picked = heroItems(seq, {
+      limit: 7,
+      candidateLimit: 15,
+      random: () => 0,
+    });
+    expect(picked).toHaveLength(7);
+    expect(picked.map((i) => i.code)).toEqual(
+      seq.slice(0, 7).map((i) => i.code),
+    );
   });
 
   it('resolves cover image by view mode with fallbacks', () => {

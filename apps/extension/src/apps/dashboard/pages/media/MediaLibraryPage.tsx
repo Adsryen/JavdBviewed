@@ -20,6 +20,7 @@ import {
   coverArtStyle,
   filterMediaItems,
   heroItems,
+  MEDIA_HERO_VISIBLE_RADIUS,
   MEDIA_COVER_VIEW_MODES,
   MEDIA_PREVIEW_ITEMS,
   readCoverViewMode,
@@ -483,7 +484,10 @@ export function MediaLibraryPage() {
           <div className="ml-hero-track">
             {heroes.map((item, i) => {
               const pos = relativeCarouselPos(i, heroIndex, heroes.length);
-              const posAttr = pos >= -2 && pos <= 2 ? String(pos) : 'hide';
+              const posAttr =
+                pos >= -MEDIA_HERO_VISIBLE_RADIUS && pos <= MEDIA_HERO_VISIBLE_RADIUS
+                  ? String(pos)
+                  : 'hide';
               const isActive = pos === 0;
               const heroCover = resolveCoverImage(item, coverView);
               const canPlayEmby =
