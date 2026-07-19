@@ -484,43 +484,108 @@ export function MediaLibraryPage() {
             {heroes.map((item, i) => {
               const pos = relativeCarouselPos(i, heroIndex, heroes.length);
               const posAttr = pos >= -2 && pos <= 2 ? String(pos) : 'hide';
+              const isActive = pos === 0;
               const heroCover = resolveCoverImage(item, coverView);
+              const canPlayEmby =
+                (item.source === 'emby' || item.source === 'jellyfin')
+                && Boolean(item.itemId && item.serverUrl)
+                && !usingPreview;
+              const canPlay115 = item.source === '115' || usingPreview;
               return (
-                <button
+                <div
                   key={item.code}
-                  type="button"
                   className="ml-hero-card"
                   data-pos={posAttr}
                   data-cover-mode={coverView}
-                  onClick={() => {
-                    if (i !== heroIndex) goHero(i);
-                  }}
+                  data-active={isActive ? '1' : '0'}
                 >
-                  <MediaCover
-                    hoverZoom={false}
-                    showPlayHint={false}
-                    fit="cover"
-                    imageUrl={heroCover.url}
-                    fallbackImageUrl={heroCover.fallbackUrl}
-                    artStyle={coverArtStyle(item, coverView)}
-                    alt={item.code}
-                    footer={
-                      <>
-                        <span className="ml-code">{item.code}</span>
-                        <div className="ml-card-title">{item.title}</div>
-                        {pos === 0 ? (
-                          <div className="ml-hero-meta-inline">
-                            {sourceLabel(item.source)}
-                            {item.year ? ` · ${item.year}` : ''}
-                            {item.serverName ? ` · ${item.serverName}` : ''}
-                            {usingPreview ? ' · 预览' : ''}
-                            {heroCover.fellBack && coverView === 'thumb' ? ' · 无略缩图' : ''}
-                          </div>
-                        ) : null}
-                      </>
-                    }
-                  />
-                </button>
+                  <button
+                    type="button"
+                    className="ml-hero-hit"
+                    title={isActive ? `查看详情 · ${item.code}` : `切换到 ${item.code}`}
+                    onClick={() => {
+                      if (!isActive) {
+                        goHero(i);
+                        return;
+                      }
+                      setDetailItem(item);
+                    }}
+                  >
+                    <MediaCover
+                      hoverZoom={false}
+                      showPlayHint={false}
+                      fit="cover"
+                      imageUrl={heroCover.url}
+                      fallbackImageUrl={heroCover.fallbackUrl}
+                      artStyle={coverArtStyle(item, coverView)}
+                      alt={item.code}
+                      footer={
+                        <>
+                          <span className="ml-code">{item.code}</span>
+                          <div className="ml-card-title">{item.title}</div>
+                          {isActive ? (
+                            <div className="ml-hero-meta-inline">
+                              {sourceLabel(item.source)}
+                              {item.year ? ` · ${item.year}` : ''}
+                              {item.serverName ? ` · ${item.serverName}` : ''}
+                              {usingPreview ? ' · 预览' : ''}
+                              {heroCover.fellBack && coverView === 'thumb' ? ' · 无略缩图' : ''}
+                            </div>
+                          ) : null}
+                        </>
+                      }
+                    />
+                  </button>
+                  {isActive ? (
+                    <div className="ml-hero-actions">
+                      {canPlayEmby ? (
+                        <button
+                          type="button"
+                          className="ml-hero-play"
+                          title="使用已登录令牌在扩展内播放"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void playEmbyItem(item);
+                          }}
+                        >
+                          <span aria-hidden="true">▶</span>
+                          <span>播放</span>
+                        </button>
+                      ) : canPlay115 ? (
+                        <button
+                          type="button"
+                          className="ml-hero-play"
+                          title="115 播放"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.dispatchEvent(
+                              new CustomEvent('media-open-115-play', {
+                                detail: { query: item.code },
+                              }),
+                            );
+                          }}
+                        >
+                          <span aria-hidden="true">▶</span>
+                          <span>播放</span>
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="ml-hero-detail"
+                        title={`查看详情 · ${item.code}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDetailItem(item);
+                        }}
+                      >
+                        详情
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
           </div>
