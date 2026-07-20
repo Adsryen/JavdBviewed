@@ -8,6 +8,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TELEMETRY_CLIENT_STATE_KEY } from '../../apps/extension/src/features/telemetry';
 import { STORAGE_KEYS } from '../../apps/extension/src/utils/config';
+import { getChromeStorageSnapshot, setChromeStorage } from '../setup/chrome';
 
 const root = process.cwd();
 
@@ -311,6 +312,68 @@ describe('WebDAV backup and restore baseline', () => {
     expect(snapshot.stats.idb.lists.count).toBe(3);
   });
 
+  it('backs up registry-selected storage keys and all restorable IndexedDB stores', async () => {
+    vi.resetModules();
+    const idbStores = new Map<string, any[]>([
+      ['viewedRecords', [{ id: 'AAA-001' }]],
+      ['actors', [{ id: 'actor-1' }]],
+      ['newWorks', [{ id: 'work-1' }]],
+      ['magnets', [{ key: 'sukebei:AAA-001:hash' }]],
+      ['lists', [{ id: 'list-1' }]],
+      ['insightsViews', [{ date: '2026-07-20', total: 1 }]],
+      ['insightsReports', [{ month: '2026-07', html: '<p>report</p>' }]],
+      ['newWorksDailyStats', [{ date: '2026-07-20', total: 2, unread: 1 }]],
+    ]);
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn(async (storeName: string) => idbStores.get(storeName) || []),
+    });
+
+    setChromeStorage({
+      [STORAGE_KEYS.SETTINGS]: { theme: 'dark' },
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { entries: { 'AAA-001': [{ itemId: 'movie-1' }] } },
+      [STORAGE_KEYS.PRIVACY_STATE]: { screenshotMode: { enabled: true } },
+      [STORAGE_KEYS.MEDIA_WATCH_EVIDENCE]: { 'AAA-001': { progress: 80 } },
+      [STORAGE_KEYS.MEDIA_115_CLEANUP_LIST]: { items: ['AAA-001'] },
+      [STORAGE_KEYS.DASHBOARD_LAST_PAGE]: '#/records',
+      cloud_sync_settings_v1: { baseUrl: 'https://cloud.example.com', deviceId: 'local-device' },
+      'taskCenter:snapshot': { running: true },
+      cache_actor_ABC: { value: 'cached' },
+      [TELEMETRY_CLIENT_STATE_KEY]: { installId: 'local-only' },
+    });
+
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        logsGetAll: vi.fn().mockResolvedValue([{ id: 1, message: 'log', timestampMs: 1784678400000 }]),
+        magnetPushLogsGetAll: vi.fn().mockResolvedValue([{ id: 1, videoId: 'AAA-001', message: 'push', timestampMs: 1784678400000 }]),
+      };
+    });
+
+    const { collectBackupData } = await import('../../apps/extension/src/features/webdavSync/application/backupCollector');
+
+    const snapshot = await collectBackupData();
+
+    expect(snapshot.storageAll).toMatchObject({
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { entries: { 'AAA-001': [{ itemId: 'movie-1' }] } },
+      [STORAGE_KEYS.PRIVACY_STATE]: { screenshotMode: { enabled: true } },
+      [STORAGE_KEYS.MEDIA_WATCH_EVIDENCE]: { 'AAA-001': { progress: 80 } },
+      [STORAGE_KEYS.MEDIA_115_CLEANUP_LIST]: { items: ['AAA-001'] },
+      [STORAGE_KEYS.DASHBOARD_LAST_PAGE]: '#/records',
+      cloud_sync_settings_v1: { baseUrl: 'https://cloud.example.com', deviceId: 'local-device' },
+    });
+    expect(snapshot.storageAll['taskCenter:snapshot']).toBeUndefined();
+    expect(snapshot.storageAll.cache_actor_ABC).toBeUndefined();
+    expect(snapshot.storageAll[TELEMETRY_CLIENT_STATE_KEY]).toBeUndefined();
+    expect(snapshot.idb.insightsViews).toEqual([{ date: '2026-07-20', total: 1 }]);
+    expect(snapshot.idb.insightsReports).toEqual([{ month: '2026-07', html: '<p>report</p>' }]);
+    expect(snapshot.idb.newWorksDailyStats).toEqual([{ date: '2026-07-20', total: 2, unread: 1 }]);
+    expect(snapshot.stats.idb.insightsViews.count).toBe(1);
+    expect(snapshot.stats.idb.insightsReports.count).toBe(1);
+    expect(snapshot.stats.idb.newWorksDailyStats.count).toBe(1);
+  });
+
   it('restores list, series, and label records by default', async () => {
     vi.resetModules();
     const put = vi.fn().mockResolvedValue(undefined);
@@ -347,6 +410,83 @@ describe('WebDAV backup and restore baseline', () => {
     expect(fakeTx.objectStore).toHaveBeenCalledWith('lists');
     expect(put).toHaveBeenCalledTimes(3);
     expect(result.summary?.categories?.lists).toMatchObject({ cleared: true, written: 3 });
+  });
+
+  it('restores registry-managed insights IndexedDB stores from WebDAV backups', async () => {
+    vi.resetModules();
+    const putCalls: Array<{ store: string; record: any }> = [];
+    const fakeStore = {
+      clear: vi.fn().mockResolvedValue(undefined),
+      put: vi.fn(async (record: any) => {
+        putCalls.push({ store: currentStoreName, record });
+      }),
+    };
+    let currentStoreName = '';
+    const fakeTx = {
+      objectStore: vi.fn((storeName: string) => {
+        currentStoreName = storeName;
+        return fakeStore;
+      }),
+      complete: Promise.resolve(),
+    };
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn(async (storeName: string) => {
+        if (storeName === 'insightsViews') return [{ date: '2026-07-19', total: 1 }];
+        if (storeName === 'insightsReports') return [{ month: '2026-06', html: '<p>old</p>', updatedAt: 1 }];
+        if (storeName === 'newWorksDailyStats') return [{ date: '2026-07-19', total: 1, unread: 1 }];
+        return [];
+      }),
+      transaction: vi.fn(() => fakeTx),
+    });
+
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedReplaceAll: vi.fn().mockResolvedValue(0),
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
+
+    const result = await applyImportDataDirect(
+      {
+        idb: {
+          insightsViews: [{ date: '2026-07-20', total: 2 }],
+          insightsReports: [{ month: '2026-07', html: '<p>new</p>', updatedAt: 2 }],
+          newWorksDailyStats: [{ date: '2026-07-20', total: 3, unread: 2 }],
+        },
+      },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: false,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: false,
+          importStats: false,
+          lists: false,
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(putCalls).toEqual(
+      expect.arrayContaining([
+        { store: 'insightsViews', record: expect.objectContaining({ date: '2026-07-20', total: 2 }) },
+        { store: 'insightsReports', record: expect.objectContaining({ month: '2026-07', html: '<p>new</p>' }) },
+        { store: 'newWorksDailyStats', record: expect.objectContaining({ date: '2026-07-20', total: 3, unread: 2 }) },
+      ]),
+    );
+    expect(result.summary?.categories?.idbRegistry).toMatchObject({
+      insightsViews: expect.objectContaining({ written: 2 }),
+      insightsReports: expect.objectContaining({ written: 2 }),
+      newWorksDailyStats: expect.objectContaining({ written: 2 }),
+    });
   });
 
   it('restores viewed records through the IndexedDB viewed facade', async () => {
@@ -949,7 +1089,7 @@ describe('WebDAV backup and restore baseline', () => {
     });
   });
 
-  it('sanitizes imported settings and local-only storage keys', async () => {
+  it('sanitizes imported settings and registry-excluded storage keys', async () => {
     const {
       omitLocalOnlyStorageKeys,
       sanitizeImportedSettings,
@@ -1025,8 +1165,123 @@ describe('WebDAV backup and restore baseline', () => {
         },
         updatedAt: 1760000000000,
       },
+      'taskCenter:snapshot': { running: true },
+      cache_actor_ABC: { value: 'cached' },
     })).toEqual({
       settings: { theme: 'dark' },
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: {
+        entries: {
+          'SSIS-001': [{ serverName: 'Home Jellyfin', itemId: 'movie-1' }],
+        },
+        updatedAt: 1760000000000,
+      },
+    });
+  });
+
+  it('restores registry-selected storageAll keys and keeps runtime/cache excluded', async () => {
+    vi.resetModules();
+    const initDB = vi.fn().mockResolvedValue({
+      getAll: vi.fn().mockResolvedValue([]),
+      transaction: vi.fn(() => ({
+        objectStore: vi.fn(() => ({
+          clear: vi.fn().mockResolvedValue(undefined),
+          put: vi.fn().mockResolvedValue(undefined),
+        })),
+        complete: Promise.resolve(),
+      })),
+    });
+    setChromeStorage({
+      cloud_sync_settings_v1: {
+        baseUrl: 'https://local.example.com',
+        deviceLabel: 'Local',
+        deviceId: 'local-device',
+        updatedAt: 10,
+      },
+    });
+
+    vi.doMock('../../apps/extension/src/platform/storage/indexedDb', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('../../apps/extension/src/platform/storage/indexedDb')>();
+      return {
+        ...actual,
+        initDB,
+        viewedReplaceAll: vi.fn().mockResolvedValue(0),
+      };
+    });
+
+    const { applyImportDataDirect } = await import('../../apps/extension/src/features/webdavSync/application/restoreService');
+
+    const result = await applyImportDataDirect(
+      {
+        storageAll: {
+          [STORAGE_KEYS.PRIVACY_STATE]: { screenshotMode: { enabled: true } },
+          [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { entries: { 'AAA-001': [{ itemId: 'movie-1' }] } },
+          [STORAGE_KEYS.MEDIA_WATCH_EVIDENCE]: { 'AAA-001': { progress: 80 } },
+          [STORAGE_KEYS.MEDIA_115_CLEANUP_LIST]: { items: ['AAA-001'] },
+          [STORAGE_KEYS.DASHBOARD_LAST_PAGE]: '#/cloud',
+          [STORAGE_KEYS.ADV_SEARCH_PRESETS]: { presetA: { name: 'A' } },
+          cloud_sync_settings_v1: {
+            baseUrl: 'https://remote.example.com',
+            deviceLabel: 'Remote Label',
+            deviceId: 'remote-device',
+            updatedAt: 20,
+          },
+          cloud_auto_sync_settings_v1: { enabled: true },
+          'taskCenter:snapshot': { running: true },
+          cache_actor_ABC: { value: 'cached' },
+          [TELEMETRY_CLIENT_STATE_KEY]: { installId: 'remote' },
+        },
+      },
+      {
+        categories: {
+          settings: false,
+          userProfile: false,
+          viewed: false,
+          actors: false,
+          newWorks: false,
+          magnets: false,
+          logs: false,
+          magnetPushLogs: false,
+          importStats: false,
+          lists: false,
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(getChromeStorageSnapshot()).toMatchObject({
+      [STORAGE_KEYS.PRIVACY_STATE]: { screenshotMode: { enabled: true } },
+      [STORAGE_KEYS.EMBY_LIBRARY_STATE]: { entries: { 'AAA-001': [{ itemId: 'movie-1' }] } },
+      [STORAGE_KEYS.MEDIA_WATCH_EVIDENCE]: { 'AAA-001': { progress: 80 } },
+      [STORAGE_KEYS.MEDIA_115_CLEANUP_LIST]: { items: ['AAA-001'] },
+      [STORAGE_KEYS.DASHBOARD_LAST_PAGE]: '#/cloud',
+      [STORAGE_KEYS.ADV_SEARCH_PRESETS]: { presetA: { name: 'A' } },
+      cloud_sync_settings_v1: {
+        baseUrl: 'https://remote.example.com',
+        deviceLabel: 'Remote Label',
+        deviceId: 'local-device',
+        updatedAt: 20,
+      },
+      cloud_auto_sync_settings_v1: { enabled: true },
+    });
+    expect(getChromeStorageSnapshot()['taskCenter:snapshot']).toBeUndefined();
+    expect(getChromeStorageSnapshot().cache_actor_ABC).toBeUndefined();
+    expect(getChromeStorageSnapshot()[TELEMETRY_CLIENT_STATE_KEY]).toBeUndefined();
+    expect(result.summary?.categories?.storageAll).toMatchObject({
+      restored: expect.arrayContaining([
+        STORAGE_KEYS.PRIVACY_STATE,
+        STORAGE_KEYS.EMBY_LIBRARY_STATE,
+        STORAGE_KEYS.MEDIA_WATCH_EVIDENCE,
+        STORAGE_KEYS.MEDIA_115_CLEANUP_LIST,
+        STORAGE_KEYS.DASHBOARD_LAST_PAGE,
+        STORAGE_KEYS.ADV_SEARCH_PRESETS,
+        'cloud_sync_settings_v1',
+        'cloud_auto_sync_settings_v1',
+      ]),
+      skipped: expect.arrayContaining([
+        'taskCenter:snapshot',
+        'cache_actor_ABC',
+        TELEMETRY_CLIENT_STATE_KEY,
+      ]),
     });
   });
 

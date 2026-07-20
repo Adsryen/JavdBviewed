@@ -4,15 +4,10 @@
  * @module features/webdavSync
  */
 import { logsGetAll as idbLogsGetAll, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, initDB } from '../../../platform/storage/indexedDb';
+import { resolveChromeStorageAssetPolicy } from '../../../shared/dataAssets/assetRegistry';
 import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings, getValue } from '../../../utils/storage';
-import { TELEMETRY_CLIENT_STATE_KEY } from '../../telemetry';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
-
-const LOCAL_ONLY_STORAGE_KEYS = [
-  TELEMETRY_CLIENT_STATE_KEY,
-  STORAGE_KEYS.EMBY_LIBRARY_STATE,
-] as const;
 
 export interface WebDAVBackupCollectorOptions {
   logger?: WebDAVClientLog;
@@ -29,8 +24,10 @@ export function byteSizeOf(value: any): number {
 
 export function omitLocalOnlyStorageKeys(value: Record<string, any>): Record<string, any> {
   const next = { ...(value || {}) };
-  for (const key of LOCAL_ONLY_STORAGE_KEYS) {
-    delete next[key];
+  for (const key of Object.keys(next)) {
+    if (resolveChromeStorageAssetPolicy(key)?.webdav.backup !== true) {
+      delete next[key];
+    }
   }
   return next;
 }
@@ -64,6 +61,9 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
   let idbNewWorks: any[] = [];
   let idbMagnets: any[] = [];
   let idbLists: any[] = [];
+  let idbInsightsViews: any[] = [];
+  let idbInsightsReports: any[] = [];
+  let idbNewWorksDailyStats: any[] = [];
   try {
     const db = await initDB();
     try { idbViewed = await db.getAll('viewedRecords'); } catch {}
@@ -71,6 +71,9 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
     try { idbNewWorks = await db.getAll('newWorks'); } catch {}
     try { idbMagnets = await db.getAll('magnets'); } catch {}
     try { idbLists = await db.getAll('lists'); } catch {}
+    try { idbInsightsViews = await db.getAll('insightsViews'); } catch {}
+    try { idbInsightsReports = await db.getAll('insightsReports'); } catch {}
+    try { idbNewWorksDailyStats = await db.getAll('newWorksDailyStats'); } catch {}
   } catch {}
 
   let storageKeysCount = 0;
@@ -115,6 +118,9 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
       newWorks: { count: Array.isArray(idbNewWorks) ? idbNewWorks.length : 0 },
       magnets: { count: Array.isArray(idbMagnets) ? idbMagnets.length : 0 },
       lists: { count: Array.isArray(idbLists) ? idbLists.length : 0 },
+      insightsViews: { count: Array.isArray(idbInsightsViews) ? idbInsightsViews.length : 0 },
+      insightsReports: { count: Array.isArray(idbInsightsReports) ? idbInsightsReports.length : 0 },
+      newWorksDailyStats: { count: Array.isArray(idbNewWorksDailyStats) ? idbNewWorksDailyStats.length : 0 },
       logs: { count: Array.isArray(logs) ? logs.length : 0 },
       magnetPushLogs: { count: Array.isArray(magnetPushLogs) ? magnetPushLogs.length : 0 },
     },
@@ -143,6 +149,9 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
       newWorks: idbNewWorks,
       magnets: idbMagnets,
       lists: idbLists,
+      insightsViews: idbInsightsViews,
+      insightsReports: idbInsightsReports,
+      newWorksDailyStats: idbNewWorksDailyStats,
       logs,
       magnetPushLogs,
     },
@@ -158,6 +167,9 @@ export async function collectBackupData(options: WebDAVBackupCollectorOptions = 
     idbNewWorksCount: stats.idb.newWorks.count,
     idbMagnetsCount: stats.idb.magnets.count,
     idbListsCount: stats.idb.lists.count,
+    idbInsightsViewsCount: stats.idb.insightsViews.count,
+    idbInsightsReportsCount: stats.idb.insightsReports.count,
+    idbNewWorksDailyStatsCount: stats.idb.newWorksDailyStats.count,
     logsCount: stats.idb.logs.count,
     magnetPushLogsCount: stats.idb.magnetPushLogs.count,
     storageKeys: stats.storage.keys,

@@ -13,6 +13,11 @@ import {
   viewedGetAll as idbViewedGetAll,
   viewedReplaceAll as idbViewedReplaceAll,
 } from '../../../platform/storage/indexedDb';
+import {
+  CLOUD_SETTINGS_STORAGE_KEY,
+  getWebDAVRestorableIdbStoreNames,
+  resolveChromeStorageAssetPolicy,
+} from '../../../shared/dataAssets/assetRegistry';
 import { STORAGE_KEYS } from '../../../utils/config';
 import { getSettings, getValue, saveSettings, setValue } from '../../../utils/storage';
 import type { WebDAVClientLog } from '../infrastructure/webdavClient';
@@ -93,6 +98,25 @@ const DEFAULT_RESTORE_MODES: Record<RestoreCategoryKey, RestoreCategoryMode> = {
   logs: 'merge',
   magnetPushLogs: 'merge',
   importStats: 'replace',
+};
+
+const EXPLICIT_RESTORE_STORAGE_KEYS = new Set<string>([
+  STORAGE_KEYS.SETTINGS,
+  STORAGE_KEYS.USER_PROFILE,
+  STORAGE_KEYS.VIEWED_RECORDS,
+  STORAGE_KEYS.ACTOR_RECORDS,
+  STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS,
+  STORAGE_KEYS.NEW_WORKS_RECORDS,
+  STORAGE_KEYS.NEW_WORKS_CONFIG,
+  STORAGE_KEYS.LAST_IMPORT_STATS,
+  STORAGE_KEYS.LOGS,
+  'magnetPushLogs_backup',
+]);
+
+const GENERIC_IDB_RESTORE_KEY_FIELDS: Record<string, string> = {
+  insightsViews: 'date',
+  insightsReports: 'month',
+  newWorksDailyStats: 'date',
 };
 
 async function getCurrentSettingsWithIdentity(): Promise<any> {
@@ -376,6 +400,9 @@ export async function applyImportDataDirect(importData: any, options?: RestoreAp
       });
     }
 
+    await restoreRegisteredStorageAll(importData, summary);
+    await restoreRegisteredIdbStores(importData, db, summary, logger);
+
     summary.totalDurationMs = Date.now() - tStart;
     emit?.({ stage: 'apply', status: 'done', message: '恢复数据写入完成' });
     return { success: true, summary };
@@ -519,6 +546,92 @@ async function getValueSafe(key: string, fallback: any): Promise<any> {
   } catch {
     return fallback;
   }
+}
+
+async function restoreRegisteredStorageAll(importData: any, summary: any): Promise<void> {
+  const storageAll = importData?.storageAll;
+  if (!storageAll || typeof storageAll !== 'object' || Array.isArray(storageAll)) {
+    return;
+  }
+
+  const restored: string[] = [];
+  const skipped: string[] = [];
+  for (const [key, value] of Object.entries(storageAll as Record<string, unknown>)) {
+    const policy = resolveChromeStorageAssetPolicy(key);
+    if (!policy?.webdav.restore || EXPLICIT_RESTORE_STORAGE_KEYS.has(key)) {
+      skipped.push(key);
+      continue;
+    }
+
+    if (key === CLOUD_SETTINGS_STORAGE_KEY) {
+      await setValue(key, await mergeCloudSettingsForRestore(value));
+    } else {
+      await setValue(key, value);
+    }
+    restored.push(key);
+  }
+
+  if (restored.length > 0 || skipped.length > 0) {
+    summary.categories.storageAll = {
+      restored: restored.sort(),
+      skipped: skipped.sort(),
+    };
+  }
+}
+
+async function restoreRegisteredIdbStores(
+  importData: any,
+  db: any,
+  summary: any,
+  logger?: WebDAVClientLog,
+): Promise<void> {
+  const idbData = importData?.idb;
+  if (!idbData || typeof idbData !== 'object' || Array.isArray(idbData)) {
+    return;
+  }
+
+  const restorableStores = new Set(getWebDAVRestorableIdbStoreNames());
+  const storeSummary: Record<string, any> = {};
+  for (const [storeName, keyField] of Object.entries(GENERIC_IDB_RESTORE_KEY_FIELDS)) {
+    if (!restorableStores.has(storeName)) continue;
+    const cloudItems = Array.isArray(idbData[storeName]) ? idbData[storeName] : [];
+    if (cloudItems.length === 0) continue;
+
+    const localItems = await safeGetAll(() => db.getAll(storeName));
+    const merged = mergeRecordsByKey(localItems, cloudItems, { key: keyField });
+    const written = await replaceStoreRecords(db, storeName, merged.records, logger);
+    storeSummary[storeName] = {
+      mode: 'merge',
+      cleared: true,
+      written,
+      ...merged.summary,
+    };
+  }
+
+  if (Object.keys(storeSummary).length > 0) {
+    summary.categories.idbRegistry = storeSummary;
+  }
+}
+
+async function mergeCloudSettingsForRestore(remoteValue: unknown): Promise<Record<string, unknown>> {
+  const remote = remoteValue && typeof remoteValue === 'object'
+    ? { ...(remoteValue as Record<string, unknown>) }
+    : {};
+  const local = await getValueSafe(CLOUD_SETTINGS_STORAGE_KEY, {});
+  const localRecord = local && typeof local === 'object' ? local as Record<string, unknown> : {};
+  const localDeviceId =
+    typeof localRecord.deviceId === 'string' && localRecord.deviceId.trim()
+      ? localRecord.deviceId.trim()
+      : '';
+  const remoteDeviceId =
+    typeof remote.deviceId === 'string' && remote.deviceId.trim()
+      ? remote.deviceId.trim()
+      : '';
+
+  return {
+    ...remote,
+    deviceId: localDeviceId || remoteDeviceId,
+  };
 }
 
 async function replaceStoreRecords(
