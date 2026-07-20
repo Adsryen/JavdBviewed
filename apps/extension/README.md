@@ -1,6 +1,6 @@
 # @javdb/extension
 
-浏览器扩展主产物。源码在 `src/`；构建产物默认输出到仓库根 `dist/` / `dist-zip/`。
+浏览器扩展主产物。源码在 `apps/extension/src/`；构建产物默认输出到仓库根 `dist/` / `dist-zip/`。
 
 ## 命令（从仓库根）
 
@@ -10,4 +10,10 @@ pnpm --filter @javdb/extension build
 pnpm build
 ```
 
-版本源：仓库根 `version.json`（语义仍 = extension）。发版 tag 规范：`extension-v{semver}`。
+## 版本
+
+| 项 | 约定 |
+|----|------|
+| 版本源 | 仓库根 `version.json` |
+| Git tag | **`v{semver}`**（与历史一致，如 `v1.21.5`） |
+| 安装包文件名 | `javdb-extension-v{semver}[-build-N].zip`（产物名，不是 git tag） |

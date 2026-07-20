@@ -4,7 +4,7 @@
   "type": "module",
   "version": "2.0.0",
   "license": "AGPL-3.0-only",
-  "description": "JavdBviewed monorepo — browser extension + multi-end sync packages",
+  "description": "JavdBviewed monorepo — browser extension + shared sync packages",
   "scripts": {
     "vitepress:dev": "vitepress dev vitepress --host 127.0.0.1 --port 5174",
     "vitepress:build": "vitepress build vitepress",
