@@ -12,7 +12,9 @@ import {
   actorToSyncEntity,
   insightsReportToSyncEntity,
   insightsViewToSyncEntity,
+  logToSyncEntity,
   listToSyncEntity,
+  magnetPushLogToSyncEntity,
   magnetToSyncEntity,
   newWorkDailyStatToSyncEntity,
   newWorkToSyncEntity,
@@ -109,6 +111,26 @@ export async function enqueueInsightsReportChange(report: ReportMonthly): Promis
 export async function enqueueNewWorkDailyStatChange(stat: NewWorksDailyStat): Promise<void> {
   const e = newWorkDailyStatToSyncEntity(stat);
   if (e) await upsertCloudPending([e]);
+}
+
+export async function enqueueLogChange(entry: Record<string, unknown>): Promise<void> {
+  const e = logToSyncEntity(entry);
+  if (e) await upsertCloudPending([e]);
+}
+
+export async function enqueueLogChanges(entries: Array<Record<string, unknown>>): Promise<void> {
+  const list = entries.map(logToSyncEntity).filter(Boolean) as SyncEntity[];
+  if (list.length) await upsertCloudPending(list);
+}
+
+export async function enqueueMagnetPushLogChange(entry: Record<string, unknown>): Promise<void> {
+  const e = magnetPushLogToSyncEntity(entry);
+  if (e) await upsertCloudPending([e]);
+}
+
+export async function enqueueMagnetPushLogChanges(entries: Array<Record<string, unknown>>): Promise<void> {
+  const list = entries.map(magnetPushLogToSyncEntity).filter(Boolean) as SyncEntity[];
+  if (list.length) await upsertCloudPending(list);
 }
 
 export async function enqueueStorageItemChange(key: string, value: unknown): Promise<void> {

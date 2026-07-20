@@ -1037,6 +1037,11 @@ export async function logsAdd(entry: LogEntry): Promise<number> {
   const v = normalizeLog(entry);
   // @ts-ignore id will be auto generated
   const id = await db.add('logs', v as any);
+  const persisted = typeof id === 'number' ? { ...v, id } : v;
+  try {
+    const { scheduleEnqueue, enqueueLogChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueLogChange(persisted as unknown as Record<string, unknown>));
+  } catch { /* Cloud 可选 */ }
   try { await logsEnforceRetention(); } catch {}
   return id as number;
 }
@@ -1045,12 +1050,18 @@ export async function logsBulkAdd(entries: LogEntry[]): Promise<void> {
   if (!entries || entries.length === 0) return;
   const db = await initDB();
   const tx = db.transaction('logs', 'readwrite');
+  const written: PersistedLogEntry[] = [];
   try {
     for (const e of entries) {
       const v = normalizeLog(e);
-      await tx.store.add(v as any);
+      const id = await tx.store.add(v as any);
+      written.push(typeof id === 'number' ? { ...v, id } : v);
     }
     await tx.done;
+    try {
+      const { scheduleEnqueue, enqueueLogChanges } = await import('../../features/cloudSync/enqueueLocalChange');
+      scheduleEnqueue(() => enqueueLogChanges(written as unknown as Array<Record<string, unknown>>));
+    } catch { /* Cloud 可选 */ }
     try { await logsEnforceRetention(); } catch {}
   } catch (e) {
     try { await tx.done; } catch {}
@@ -1218,6 +1229,7 @@ export async function magnetPushLogsAdd(entry: any): Promise<number> {
     });
   } catch {}
   const id = await db.add('magnetPushLogs', v as any);
+  const persisted = typeof id === 'number' ? { ...v, id } : v;
   try {
     console.info('[115Trace] idb:magnet-log:add:done', {
       traceId: (v.data as any)?.traceId || (v.data as any)?.correlationId || '',
@@ -1228,6 +1240,10 @@ export async function magnetPushLogsAdd(entry: any): Promise<number> {
       videoId: v.videoId,
     });
   } catch {}
+  try {
+    const { scheduleEnqueue, enqueueMagnetPushLogChange } = await import('../../features/cloudSync/enqueueLocalChange');
+    scheduleEnqueue(() => enqueueMagnetPushLogChange(persisted as unknown as Record<string, unknown>));
+  } catch { /* Cloud 可选 */ }
   try { await magnetPushLogsEnforceRetention(); } catch {}
   return id as number;
 }
@@ -1237,12 +1253,18 @@ export async function magnetPushLogsBulkAdd(entries: any[]): Promise<void> {
   await ensureMagnetPushLogsStore();
   const db = await initDB();
   const tx = db.transaction('magnetPushLogs', 'readwrite');
+  const written: PersistedMagnetPushLogEntry[] = [];
   try {
     for (const e of entries) {
       const v = normalizeMagnetPushLog(e);
-      await tx.store.add(v as any);
+      const id = await tx.store.add(v as any);
+      written.push(typeof id === 'number' ? { ...v, id } : v);
     }
     await tx.done;
+    try {
+      const { scheduleEnqueue, enqueueMagnetPushLogChanges } = await import('../../features/cloudSync/enqueueLocalChange');
+      scheduleEnqueue(() => enqueueMagnetPushLogChanges(written as unknown as Array<Record<string, unknown>>));
+    } catch { /* Cloud 可选 */ }
     try { await magnetPushLogsEnforceRetention(); } catch {}
   } catch (e) {
     try { await tx.done; } catch {}
