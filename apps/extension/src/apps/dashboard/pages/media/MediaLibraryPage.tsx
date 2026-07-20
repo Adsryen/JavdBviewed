@@ -68,6 +68,21 @@ const WATCH_FILTERS: { id: MediaWatchFilter; label: string }[] = [
 const EMPTY_STATE: EmbyLibraryState = { entries: {}, updatedAt: 0 };
 
 /**
+ * 同步结果 toast（与设置页 embySettingsActions 同一套 dashboard showMessage）
+ */
+async function toast(
+  message: string,
+  type: 'success' | 'info' | 'error' | 'warning' = 'info',
+): Promise<void> {
+  try {
+    const { showMessage } = await import('../../../../dashboard/ui/toast');
+    showMessage(message, type);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * 媒体库主页面
  */
 export function MediaLibraryPage() {
@@ -422,22 +437,38 @@ export function MediaLibraryPage() {
           .map((r) => `${r.serverName || '服务器'}: ${r.error}`)
           .slice(0, 2)
           .join('；');
-        setSyncMessage(failDetail ? `${parts.join('，')}（${failDetail}）` : parts.join('，'));
+        const message = failDetail ? `${parts.join('，')}（${failDetail}）` : parts.join('，');
+        setSyncMessage(message);
+        // toast 类型：全成功 success；部分成功 warning；全失败 / 无可同步服务器 error|warning
+        if (failed === 0) {
+          if (synced === 0) {
+            await toast(message || '还没有可同步的媒体服务器', 'warning');
+          } else {
+            await toast(message, 'success');
+          }
+        } else if (synced > 0) {
+          await toast(message, 'warning');
+        } else {
+          await toast(message, 'error');
+        }
       } else {
         const failDetail = (response.serverResults || [])
           .filter((r) => !r.success && r.error)
           .map((r) => `${r.serverName || '服务器'}: ${r.error}`)
           .slice(0, 3)
           .join('；');
-        setSyncMessage(
+        const message =
           failDetail
           || response.error
-          || '同步失败，请到「设置 → Emby/Jellyfin」查看诊断（常见：服务器 502/超时/Key 错误）',
-        );
+          || '同步失败，请到「设置 → Emby/Jellyfin」查看诊断（常见：服务器 502/超时/Key 错误）';
+        setSyncMessage(message);
+        await toast(message, 'error');
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setSyncMessage(`同步失败：${message}`);
+      const full = `同步失败：${message}`;
+      setSyncMessage(full);
+      await toast(full, 'error');
     } finally {
       setSyncing(false);
     }
