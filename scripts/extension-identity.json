@@ -1,0 +1,7 @@
+{
+  "fixedExtensionId": "gnegjfjccmeafanpmbjboegcbchcghka",
+  "manifestKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxGPjuix4D6TOz3onQuGep3FGM/XgnGjHALxZzV61e5oKBZhwZ2oOJ4zZJS3tgsGKqnE9UeYeorQp/QAl3V1kCUlkhOFClo2g0CSRgl8BaG4FRjKtrdU5kiNsvrnjtHmCtQuPpfEY3ymUKk3MGCafWq6yih3nhRBIIHfoCVmosb1c+eLiMcEdRxcFf93ebBAI6Ts3smvGv4HdnF8T1lKe1sdSdScPUY3coFXFg5gMobJ5XKz3xwICpJxoJXdJ5tDNn8jc+jXyhXvb8anqEHWmjv1KSYp93n5qdSJ4+V3TMewa2oJjCT430DtkiGVJdUzAftW85p15VoIFf6Est/fpOwIDAQAB",
+  "source": "key.pem SPKI public key",
+  "sinceVersion": "2.0.0",
+  "notes": "2.0.0+ fixed Chromium extension ID. Private key.pem stays local/gitignored and must never be regenerated once 2.0.0 ships."
+}

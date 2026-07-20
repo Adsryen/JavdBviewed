@@ -440,18 +440,18 @@ Release notes：
   - [ ] 显示最近备份成功时间
   - [ ] 标明备份包含的数据类别
   - [ ] 提醒用户不要在确认备份可导入前卸载旧扩展
-- [ ] 定义 2.0.0 固定 ID
-  - [ ] 选择并锁定 2.0.0 key
-  - [ ] 用脚本计算实际扩展 ID
-  - [ ] 把固定 ID 写入任务文档和 release notes
-  - [ ] 私钥离线备份，不提交仓库
+- [x] 定义 2.0.0 固定 ID
+  - [x] 选择并锁定 2.0.0 key（`key.pem` → `gnegjfjccmeafanpmbjboegcbchcghka`）
+  - [x] 用脚本计算实际扩展 ID（`scripts/extensionIdentity.ts`）
+  - [x] 把固定 ID 写入 `scripts/extension-identity.json` 与任务文档
+  - [x] 私钥离线备份，不提交仓库（`key.pem` gitignore）
 
 ### P1：2.0.0 迁移主线
 
-- [ ] 2.0.0 引入固定 `manifest.key`
-  - [ ] 仅允许在 2.0.0 分支或明确开关中启用
-  - [ ] 构建后验证 manifest key 对应 ID
-  - [ ] 防止 key 回流到 1.x 发布链路
+- [x] 2.0.0 引入固定 `manifest.key`（构建链路）
+  - [x] 仅 major>=2 启用（`applyFixedExtensionIdentity`）
+  - [x] 构建后验证 manifest key 对应 ID（`assertManifestKeyGate`）
+  - [x] 防止 key 回流到 1.x 发布链路
 - [ ] 2.0.0 首次启动迁移向导
   - [ ] 检测新 ID 下无数据时提示导入 1.x 备份
   - [ ] 支持从 1.x WebDAV 备份或本地导出文件恢复

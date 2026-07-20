@@ -6,13 +6,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { formatManifestVersion } from '../../scripts/versioning';
+import { applyFixedExtensionIdentity } from '../../scripts/extensionIdentity';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
 
 // 动态同步 manifest.version 从 version.json（仅在构建时）
+// 2.0.0+ 注入固定 manifest.key；1.x 强制无 key
 function getUpdatedManifest() {
-  const manifestCopy = { ...manifest };
+  const manifestCopy: Record<string, unknown> = { ...manifest };
 
   try {
     const versionJsonPath = path.resolve(repoRoot, 'version.json');
@@ -29,7 +31,16 @@ function getUpdatedManifest() {
     console.warn('⚠️  Could not sync manifest version from version.json:', message);
   }
 
-  return manifestCopy;
+  const withIdentity = applyFixedExtensionIdentity(manifestCopy as { version?: string; key?: string }, {
+    identityPath: path.resolve(repoRoot, 'scripts/extension-identity.json'),
+    keyPemPath: path.resolve(repoRoot, 'key.pem'),
+  });
+
+  if (withIdentity.key) {
+    console.log('🔐 Fixed extension ID enabled via manifest.key (major >= 2)');
+  }
+
+  return withIdentity;
 }
 
 export default defineConfig({

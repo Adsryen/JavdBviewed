@@ -67,9 +67,25 @@ describe('release notes guard', () => {
 });
 
 describe('extension ID stability guard', () => {
-  it('does not inject a manifest key that changes the existing unpacked extension ID', () => {
+  it('keeps source manifest free of key; 1.x stays path-bound, 2.0.0+ injects locked key at build time', () => {
+    // Source of truth for 1.x / unpacked path-bound installs: no key in committed manifest.
     expect(manifest).not.toHaveProperty('key');
+    // Historical accidental injection path must stay banned.
     expect(buildScript).not.toContain('extract-public-key');
     expect(powershellBuildScript).not.toContain('extract-public-key');
+
+    // 2.0.0 fixed-ID path is explicit and version-gated via extensionIdentity.
+    const identity = JSON.parse(
+      readFileSync(resolve(rootDir, 'scripts/extension-identity.json'), 'utf8'),
+    ) as { fixedExtensionId: string; manifestKey: string; sinceVersion: string };
+    expect(identity.fixedExtensionId).toBe('gnegjfjccmeafanpmbjboegcbchcghka');
+    expect(identity.sinceVersion).toBe('2.0.0');
+    expect(typeof identity.manifestKey).toBe('string');
+    expect(identity.manifestKey.length).toBeGreaterThan(100);
+
+    const viteConfig = readFileSync(resolve(rootDir, 'apps/extension/vite.config.ts'), 'utf8');
+    const buildTs = readFileSync(resolve(rootDir, 'scripts/build.ts'), 'utf8');
+    expect(viteConfig).toContain('applyFixedExtensionIdentity');
+    expect(buildTs).toContain('assertManifestKeyGate');
   });
 });

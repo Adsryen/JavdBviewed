@@ -10,11 +10,13 @@ import fs from 'fs-extra';
 import archiver from 'archiver';
 import { execSync } from 'child_process';
 import { formatArtifactVersion } from './versioning';
+import { assertManifestKeyGate, loadFixedExtensionIdentity } from './extensionIdentity';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const distDir = resolve(root, 'dist');
 const distZipDir = resolve(root, 'dist-zip');
+const identityPath = resolve(root, 'scripts/extension-identity.json');
 
 /** 从 version.json 或 package.json 读取当前版本号 */
 async function getVersion() {
@@ -58,6 +60,21 @@ async function main() {
             configFile: resolve(root, 'apps/extension/vite.config.ts'),
         });
         console.log('Vite build finished successfully.');
+
+        // Gate: 1.x must not ship manifest.key; 2.0.0+ must ship the locked fixed ID key
+        const distManifestPath = resolve(distDir, 'manifest.json');
+        if (await fs.pathExists(distManifestPath)) {
+            const distManifest = await fs.readJson(distManifestPath);
+            const identity = loadFixedExtensionIdentity(identityPath);
+            assertManifestKeyGate(distManifest, { identity });
+            if (distManifest.key) {
+                console.log(`[build] Fixed extension ID gate passed: ${identity.fixedExtensionId}`);
+            } else {
+                console.log('[build] 1.x manifest key absence gate passed (no manifest.key)');
+            }
+        } else {
+            console.warn('[build] dist/manifest.json missing; skipped extension identity gate');
+        }
 
         // Keep runtime-loaded Font Awesome assets at stable extension URLs.
         const fontawesomeSrcDir = resolve(root, 'apps/extension/src/assets/fontawesome');
