@@ -27,8 +27,13 @@ import {
   ensureInitialPending,
   listCloudPending,
 } from './chromePendingStore';
+import {
+  CLOUD_SETTINGS_STORAGE_KEY,
+  type CloudConnectionSettings,
+} from './cloudSettingsStorage';
 import { markCloudStorageWrite } from './storageChangeGate';
 import { shouldSyncStorageItemKey, STORAGE_ITEM_TYPE } from './storageItemPolicy';
+import { resolveLogEntityId } from './toSyncEntity';
 
 function asRecord(payload: unknown): Record<string, unknown> {
   return payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
@@ -94,6 +99,46 @@ function removeChromeStorageKey(key: string): Promise<void> {
       resolve();
     }
   });
+}
+
+/**
+ * 合并远端 Cloud 连接配置：采用 baseUrl / deviceLabel，保留本机 deviceId。
+ */
+async function mergeCloudConnectionSettings(
+  remoteValue: unknown,
+): Promise<CloudConnectionSettings> {
+  const remote = asRecord(remoteValue);
+  let local: Partial<CloudConnectionSettings> = {};
+  try {
+    local = (await getValue<Partial<CloudConnectionSettings>>(CLOUD_SETTINGS_STORAGE_KEY, {})) || {};
+  } catch {
+    local = {};
+  }
+  const localDeviceId =
+    typeof local.deviceId === 'string' && local.deviceId.trim() ? local.deviceId.trim() : '';
+  const remoteDeviceId =
+    typeof remote.deviceId === 'string' && remote.deviceId.trim() ? remote.deviceId.trim() : '';
+  const baseUrl =
+    typeof remote.baseUrl === 'string' && remote.baseUrl.trim()
+      ? remote.baseUrl.trim()
+      : typeof local.baseUrl === 'string'
+        ? local.baseUrl
+        : '';
+  const deviceLabel =
+    typeof remote.deviceLabel === 'string' && remote.deviceLabel.trim()
+      ? remote.deviceLabel.trim()
+      : typeof local.deviceLabel === 'string'
+        ? local.deviceLabel
+        : '浏览器扩展';
+  return {
+    baseUrl,
+    deviceLabel,
+    deviceId: localDeviceId || remoteDeviceId,
+    updatedAt:
+      typeof remote.updatedAt === 'number' && Number.isFinite(remote.updatedAt)
+        ? remote.updatedAt
+        : Date.now(),
+  };
 }
 
 /**
@@ -184,6 +229,42 @@ export async function collectLocalSyncEntities(): Promise<SyncEntity[]> {
     }
   } catch {
     // 忽略：本地资产缺失不阻断全量同步
+  }
+
+  try {
+    const logs = (await db.getAll('logs')) as unknown as Array<Record<string, unknown>>;
+    for (const entry of logs) {
+      const id = resolveLogEntityId(entry || {});
+      if (!id) continue;
+      out.push(
+        toEntity(
+          'log',
+          id,
+          entry,
+          timestampFromPayload(entry, ['timestampMs', 'timestamp', 'updatedAt', 'createdAt']),
+        ),
+      );
+    }
+  } catch {
+    // 忽略：本地日志缺失不阻断全量同步
+  }
+
+  try {
+    const magnetLogs = (await db.getAll('magnetPushLogs')) as unknown as Array<Record<string, unknown>>;
+    for (const entry of magnetLogs) {
+      const id = resolveLogEntityId(entry || {});
+      if (!id) continue;
+      out.push(
+        toEntity(
+          'magnet_push_log',
+          id,
+          entry,
+          timestampFromPayload(entry, ['timestampMs', 'timestamp', 'updatedAt', 'createdAt']),
+        ),
+      );
+    }
+  } catch {
+    // 忽略：本地推送日志缺失不阻断全量同步
   }
 
   try {
@@ -292,6 +373,30 @@ async function applyOne(entity: SyncEntity): Promise<void> {
       await db.put('newWorksDailyStats', rec);
       return;
     }
+    case 'log': {
+      if (entity.deletedAt) return;
+      const db = await initDB();
+      const rec = asRecord(payload);
+      const idNum = Number(entity.id);
+      const withId =
+        Number.isFinite(idNum) && String(idNum) === entity.id
+          ? { ...rec, id: idNum }
+          : { ...rec, id: entity.id };
+      await db.put('logs', withId as any);
+      return;
+    }
+    case 'magnet_push_log': {
+      if (entity.deletedAt) return;
+      const db = await initDB();
+      const rec = asRecord(payload);
+      const idNum = Number(entity.id);
+      const withId =
+        Number.isFinite(idNum) && String(idNum) === entity.id
+          ? { ...rec, id: idNum }
+          : { ...rec, id: entity.id };
+      await db.put('magnetPushLogs', withId as any);
+      return;
+    }
     case 'new_work_subscription': {
       const subs = await getValue<Record<string, unknown>>(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {});
       if (entity.deletedAt) {
@@ -337,11 +442,19 @@ async function applyOne(entity: SyncEntity): Promise<void> {
       const key = stringField(body, 'key') || entity.id;
       if (!shouldSyncStorageItemKey(key)) return;
       if (entity.deletedAt) {
+        // Cloud 连接配置删除不抹掉本机 deviceId 身份
+        if (key === CLOUD_SETTINGS_STORAGE_KEY) return;
         markCloudStorageWrite(key);
         await removeChromeStorageKey(key);
         return;
       }
       const value = ownValue(body, 'value');
+      if (key === CLOUD_SETTINGS_STORAGE_KEY) {
+        const merged = await mergeCloudConnectionSettings(value);
+        markCloudStorageWrite(key, merged);
+        await setValue(key, merged);
+        return;
+      }
       markCloudStorageWrite(key, value);
       await setValue(key, value);
       return;

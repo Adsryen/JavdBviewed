@@ -71,7 +71,7 @@ describe('Cloud 全量资产同步', () => {
     vi.resetModules();
   });
 
-  it('采集所有非日志持久资产并排除本机同步状态', async () => {
+  it('采集所有可恢复持久资产（含日志与 Cloud 配置），排除设备运行态', async () => {
     idbMock.stores = {
       viewedRecords: [{ id: 'ABC-001', title: 'A', status: 'viewed', updatedAt: 100 }],
       actors: [{ id: 'actor-1', name: 'Actor', updatedAt: 110 }],
@@ -81,21 +81,43 @@ describe('Cloud 全量资产同步', () => {
       insightsViews: [{ date: '2026-07-18', total: 3 }],
       insightsReports: [{ month: '2026-07', html: '<p>report</p>', createdAt: 150 }],
       newWorksDailyStats: [{ date: '2026-07-18', total: 4, unread: 2 }],
-      logs: [{ id: 1, message: 'no cloud' }],
-      magnetPushLogs: [{ id: 2, message: 'no cloud' }],
+      logs: [{ id: 1, message: 'general log', timestampMs: 160, level: 'info' }],
+      magnetPushLogs: [{ id: 2, message: 'push log', timestampMs: 170, type: 'push_success', videoId: 'ABC-001' }],
     };
     setChromeStorage({
-      [STORAGE_KEYS.SETTINGS]: { theme: 'dark', display: { hideViewed: true } },
+      [STORAGE_KEYS.SETTINGS]: {
+        theme: 'dark',
+        display: { hideViewed: true },
+        emby: {
+          enabled: true,
+          mediaServers: [
+            {
+              id: 'srv-1',
+              type: 'emby',
+              name: 'Home',
+              url: 'http://emby.local:8096',
+              apiKey: 'emby-key',
+              accessToken: 'emby-token',
+              enabled: true,
+            },
+          ],
+        },
+      },
       [STORAGE_KEYS.USER_PROFILE]: { email: 'u@example.com' },
       [STORAGE_KEYS.ADV_SEARCH_PRESETS]: { presetA: { name: 'Preset A' } },
-      [STORAGE_KEYS.LOGS]: [{ message: 'no cloud' }],
-      drive115_logs: [{ message: 'no cloud' }],
-      magnetPushLogs_backup: [{ message: 'no cloud' }],
+      [STORAGE_KEYS.LOGS]: [{ message: 'legacy log' }],
+      drive115_logs: [{ message: 'drive log' }],
+      magnetPushLogs_backup: [{ message: 'backup log' }],
       cloud_sync_session_v1: { accessToken: 'secret' },
       cloud_sync_pending_v1: [{ id: 'pending' }],
       cloud_sync_cursors_v1: { video: 1 },
-      cloud_sync_settings_v1: { baseUrl: 'http://127.0.0.1:18080' },
-      cloud_auto_sync_settings_v1: { enabled: true },
+      cloud_sync_settings_v1: {
+        baseUrl: 'http://127.0.0.1:18080',
+        deviceLabel: '浏览器扩展',
+        deviceId: 'dev-local-1',
+        updatedAt: 180,
+      },
+      cloud_auto_sync_settings_v1: { enabled: true, intervalMinutes: 30 },
       [STORAGE_KEYS.IDB_MIGRATED]: true,
       [STORAGE_KEYS.IDB_LOGS_MIGRATED]: true,
       [STORAGE_KEYS.IDB_ACTORS_MIGRATED]: true,
@@ -125,21 +147,23 @@ describe('Cloud 全量资产同步', () => {
         'insights_view/2026-07-18',
         'insights_report/2026-07',
         'new_work_daily_stat/2026-07-18',
+        'log/1',
+        'magnet_push_log/2',
         `storage_item/${STORAGE_KEYS.SETTINGS}`,
+        `storage_item/${STORAGE_KEYS.LOGS}`,
+        'storage_item/drive115_logs',
+        'storage_item/magnetPushLogs_backup',
+        'storage_item/cloud_sync_settings_v1',
+        'storage_item/cloud_auto_sync_settings_v1',
         `storage_item/${STORAGE_KEYS.EMBY_LIBRARY_STATE}`,
         `storage_item/${STORAGE_KEYS.MEDIA_WATCH_EVIDENCE}`,
         `storage_item/${STORAGE_KEYS.DASHBOARD_LAST_PAGE}`,
         'storage_item/restore_backup_2026',
       ]),
     );
-    expect(keys.has(`storage_item/${STORAGE_KEYS.LOGS}`)).toBe(false);
-    expect(keys.has('storage_item/drive115_logs')).toBe(false);
-    expect(keys.has('storage_item/magnetPushLogs_backup')).toBe(false);
     expect(keys.has('storage_item/cloud_sync_session_v1')).toBe(false);
     expect(keys.has('storage_item/cloud_sync_pending_v1')).toBe(false);
     expect(keys.has('storage_item/cloud_sync_cursors_v1')).toBe(false);
-    expect(keys.has('storage_item/cloud_sync_settings_v1')).toBe(false);
-    expect(keys.has('storage_item/cloud_auto_sync_settings_v1')).toBe(false);
     expect(keys.has(`storage_item/${STORAGE_KEYS.IDB_MIGRATED}`)).toBe(false);
     expect(keys.has('storage_item/idb_magnet_push_logs_migrated')).toBe(false);
     expect(keys.has('storage_item/telemetry_client_state')).toBe(false);
@@ -147,6 +171,25 @@ describe('Cloud 全量资产同步', () => {
     expect(keys.has('preference/display')).toBe(false);
     expect(keys.has('preference/dataSync')).toBe(false);
     expect(keys.has('preference/actorLibrary')).toBe(false);
+
+    const settingsEntity = entities.find(
+      (e) => e.type === 'storage_item' && e.id === STORAGE_KEYS.SETTINGS,
+    );
+    expect(settingsEntity?.payload).toMatchObject({
+      key: STORAGE_KEYS.SETTINGS,
+      value: {
+        emby: {
+          enabled: true,
+          mediaServers: [
+            expect.objectContaining({
+              id: 'srv-1',
+              apiKey: 'emby-key',
+              accessToken: 'emby-token',
+            }),
+          ],
+        },
+      },
+    });
   });
 
   it('应用远端新增类型时恢复到 IndexedDB 和 Chrome Storage', async () => {
@@ -191,6 +234,25 @@ describe('Cloud 全量资产同步', () => {
         updatedAt: 240,
         payload: { key: STORAGE_KEYS.DASHBOARD_LAST_PAGE, value: '#/cloud' },
       },
+      {
+        id: '11',
+        type: 'log',
+        revision: 2,
+        updatedAt: 250,
+        payload: { message: 'from cloud', timestampMs: 250, level: 'info' },
+      },
+      {
+        id: '22',
+        type: 'magnet_push_log',
+        revision: 2,
+        updatedAt: 260,
+        payload: {
+          message: 'push from cloud',
+          timestampMs: 260,
+          type: 'push_success',
+          videoId: 'ABC-001',
+        },
+      },
     ]);
 
     expect(idbMock.putCalls).toEqual(
@@ -210,6 +272,14 @@ describe('Cloud 全量资产同步', () => {
         {
           store: 'newWorksDailyStats',
           value: expect.objectContaining({ date: '2026-07-18', total: 4, unread: 2 }),
+        },
+        {
+          store: 'logs',
+          value: expect.objectContaining({ id: 11, message: 'from cloud' }),
+        },
+        {
+          store: 'magnetPushLogs',
+          value: expect.objectContaining({ id: 22, message: 'push from cloud', videoId: 'ABC-001' }),
         },
       ]),
     );
@@ -234,7 +304,20 @@ describe('Cloud 全量资产同步', () => {
             display: { hideViewed: false },
             dataSync: { enabled: true },
             actorLibrary: { enabled: true },
-            emby: { enabled: true },
+            emby: {
+              enabled: true,
+              mediaServers: [
+                {
+                  id: 'srv-1',
+                  type: 'emby',
+                  name: 'Home',
+                  url: 'http://emby.local:8096',
+                  apiKey: 'emby-key',
+                  accessToken: 'emby-token',
+                  enabled: true,
+                },
+              ],
+            },
           },
         },
       },
@@ -251,7 +334,56 @@ describe('Cloud 全量资产同步', () => {
       display: { hideViewed: false },
       dataSync: { enabled: true },
       actorLibrary: { enabled: true },
-      emby: { enabled: true },
+      emby: {
+        enabled: true,
+        mediaServers: [
+          expect.objectContaining({
+            id: 'srv-1',
+            apiKey: 'emby-key',
+            accessToken: 'emby-token',
+          }),
+        ],
+      },
+    });
+  });
+
+  it('应用远端 Cloud 连接配置时保留本机 deviceId', async () => {
+    setChromeStorage({
+      cloud_sync_settings_v1: {
+        baseUrl: 'http://old.local:18080',
+        deviceLabel: '旧设备',
+        deviceId: 'local-device-keep',
+        updatedAt: 100,
+      },
+    });
+    const { createExtensionEntityStore } = await import(
+      '../../apps/extension/src/features/cloudSync/extensionEntityStore'
+    );
+    const store = createExtensionEntityStore();
+
+    await store.applyRemote([
+      {
+        id: 'cloud_sync_settings_v1',
+        type: 'storage_item',
+        revision: 5,
+        updatedAt: 300,
+        payload: {
+          key: 'cloud_sync_settings_v1',
+          value: {
+            baseUrl: 'http://cloud.example:18080',
+            deviceLabel: '远端标签',
+            deviceId: 'remote-device-should-not-win',
+            updatedAt: 300,
+          },
+        },
+      },
+    ]);
+
+    expect(getChromeStorageSnapshot().cloud_sync_settings_v1).toEqual({
+      baseUrl: 'http://cloud.example:18080',
+      deviceLabel: '远端标签',
+      deviceId: 'local-device-keep',
+      updatedAt: 300,
     });
   });
 });

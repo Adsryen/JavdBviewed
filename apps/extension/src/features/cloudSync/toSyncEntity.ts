@@ -101,5 +101,57 @@ export function storageItemToSyncEntity(key: string, value: unknown, updatedAt?:
   return toSyncEntity('storage_item', key, { key, value }, updatedAt);
 }
 
+export function logToSyncEntity(entry: Record<string, unknown>): SyncEntity | null {
+  const id = resolveLogEntityId(entry);
+  if (!id) return null;
+  const ts =
+    Number(entry.timestampMs) ||
+    Number(entry.timestamp) ||
+    Number(entry.updatedAt) ||
+    Number(entry.createdAt) ||
+    Date.now();
+  return toSyncEntity('log', id, entry, ts);
+}
+
+export function magnetPushLogToSyncEntity(entry: Record<string, unknown>): SyncEntity | null {
+  const id = resolveLogEntityId(entry);
+  if (!id) return null;
+  const ts =
+    Number(entry.timestampMs) ||
+    Number(entry.timestamp) ||
+    Number(entry.updatedAt) ||
+    Number(entry.createdAt) ||
+    Date.now();
+  return toSyncEntity('magnet_push_log', id, entry, ts);
+}
+
+/** 日志实体 id：优先自增 id；否则用时间戳 + 消息摘要兜底 */
+export function resolveLogEntityId(entry: Record<string, unknown>): string {
+  const rawId = entry.id;
+  if (typeof rawId === 'number' && Number.isFinite(rawId)) return String(rawId);
+  if (typeof rawId === 'string' && rawId.trim()) return rawId.trim();
+  const ts =
+    Number(entry.timestampMs) ||
+    Number(entry.timestamp) ||
+    Number(entry.updatedAt) ||
+    Number(entry.createdAt) ||
+    0;
+  const message = typeof entry.message === 'string' ? entry.message : '';
+  const type = typeof entry.type === 'string' ? entry.type : '';
+  const videoId = typeof entry.videoId === 'string' ? entry.videoId : '';
+  const level = typeof entry.level === 'string' ? entry.level : '';
+  const fingerprint = [ts, type, level, videoId, message].filter(Boolean).join('|');
+  if (!fingerprint) return '';
+  return `gen_${simpleHash(fingerprint)}`;
+}
+
+function simpleHash(input: string): string {
+  let h = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    h = (h * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(36);
+}
+
 /** 跨端偏好白名单（与 extensionEntityStore 采集一致） */
 export const CLOUD_PREFERENCE_KEYS = ['display', 'dataSync', 'actorLibrary'] as const;

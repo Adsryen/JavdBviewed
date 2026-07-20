@@ -48,6 +48,8 @@ export const SYNC_ENTITY_TYPES = [
   'insights_report',
   'new_work_daily_stat',
   'storage_item',
+  'log',
+  'magnet_push_log',
 ] as const;
 
 export type SyncEntityType = (typeof SYNC_ENTITY_TYPES)[number];

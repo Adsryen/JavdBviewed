@@ -20,6 +20,8 @@ export const SYNC_TYPE_LABELS: Record<string, string> = {
   insights_report: 'Insights 月报',
   new_work_daily_stat: '新作品每日统计',
   storage_item: '扩展存储',
+  log: '运行日志',
+  magnet_push_log: '115 推送日志',
 };
 
 export type TypeCountMap = Record<string, number>;
