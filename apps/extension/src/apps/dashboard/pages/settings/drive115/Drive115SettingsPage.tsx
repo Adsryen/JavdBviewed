@@ -1,23 +1,24 @@
 /**
  * @file Drive115SettingsPage.tsx
- * @description 115 网盘设置 React 全页
+ * @description 115 网盘设置 React 全页（legacy class + drive115.css 保真）
  * @module apps/dashboard/pages/settings/drive115
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import '../settingsSubpageShell.css';
+import '../../../../../dashboard/styles/05-pages/settings/settings.css';
+import '../../../../../dashboard/styles/05-pages/settings/drive115.css';
 import { Button } from '../../../../../ui/primitives/Button/Button';
 import { Input } from '../../../../../ui/primitives/Input/Input';
-import { SettingSection } from '../../../../../ui/patterns/SettingSection/SettingSection';
-import { SettingField } from '../../../../../ui/patterns/SettingField/SettingField';
-import { SettingSelect } from '../../../../../ui/patterns/SettingSelect/SettingSelect';
-import { SettingToggleRow } from '../../../../../ui/patterns/SettingToggleRow/SettingToggleRow';
-import { SettingsPageFrame } from '../shared/settingsPageFrame';
 import {
   getSettings,
   useDebouncedSettingsSave,
 } from '../shared/settingsPersist';
 import {
   chooseDownloadDir,
+  clearDrive115LogsPanel,
   copyOpenlistManualUrl,
+  exportDrive115LogsPanel,
+  loadDrive115LogsPanel,
   manualRefreshAccessToken,
   openOpenlistManualUrl,
   persistDrive115Form,
@@ -45,6 +46,123 @@ import {
 } from './drive115SettingsModel';
 
 const AUTO_SAVE_MS = 1000;
+
+type Drive115GroupProps = {
+  title: string;
+  id?: string;
+  children: ReactNode;
+  className?: string;
+};
+
+/**
+ * legacy 风格设置分组：吃 drive115.css 的 .settings-group / h4
+ */
+function Drive115Group({ title, id, children, className }: Drive115GroupProps) {
+  return (
+    <section className={['settings-card', 'settings-group', className].filter(Boolean).join(' ')} id={id}>
+      <h4>{title}</h4>
+      <div className="drive115-group-body">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * legacy 橙色滑块开关（#drive115-settings .drive115-toggle-*）
+ */
+function Drive115LegacyToggle(props: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  description?: string;
+  disabled?: boolean;
+}) {
+  const { id, label, checked, onChange, description, disabled } = props;
+  return (
+    <div className="drive115-toggle-wrapper form-group">
+      <div className="drive115-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span className="drive115-toggle-text">{label}</span>
+        <label className="drive115-toggle-label" style={{ margin: 0 }} htmlFor={id}>
+          <div className="drive115-toggle-switch">
+            <input
+              type="checkbox"
+              id={id}
+              className="drive115-toggle-input"
+              checked={checked}
+              disabled={disabled}
+              onChange={(e) => onChange(e.currentTarget.checked)}
+            />
+            <span className="drive115-toggle-slider" />
+          </div>
+        </label>
+      </div>
+      {description ? <p className="input-description">{description}</p> : null}
+    </div>
+  );
+}
+
+
+type Drive115FieldProps = {
+  id: string;
+  label: string;
+  description?: string;
+  children: ReactNode;
+};
+
+/** legacy form-group 字段 */
+function Drive115Field({ id, label, description, children }: Drive115FieldProps) {
+  return (
+    <div className="form-group">
+      <label htmlFor={id}>{label}</label>
+      {children}
+      {description ? <p className="input-description">{description}</p> : null}
+    </div>
+  );
+}
+
+type Drive115BtnProps = {
+  id?: string;
+  /** 语义变体：对齐 src/ui/primitives/Button（非页级私房色） */
+  variant?: 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost';
+  disabled?: boolean;
+  onClick?: () => void;
+  children: ReactNode;
+  className?: string;
+};
+
+/**
+ * 115 设置页按钮薄封装：统一走全局 Button 语义色 / disabled / 日夜 token。
+ * outline → secondary（全局无 outline 时的等价次要动作）
+ */
+function Drive115Btn({
+  id,
+  variant = 'secondary',
+  disabled,
+  onClick,
+  children,
+  className,
+}: Drive115BtnProps) {
+  const mapped =
+    variant === 'outline' || variant === 'ghost'
+      ? variant === 'ghost'
+        ? 'ghost'
+        : 'secondary'
+      : variant;
+  return (
+    <Button
+      id={id}
+      type="button"
+      size="sm"
+      variant={mapped}
+      disabled={disabled}
+      onClick={onClick}
+      className={className}
+    >
+      {children}
+    </Button>
+  );
+}
+
 
 function statusToneClass(tone: 'ok' | 'warn' | 'error' | 'muted'): string {
   if (tone === 'ok') return 'text-[var(--color-success,#27ae60)]';
@@ -79,6 +197,12 @@ export function Drive115SettingsPage() {
     kind: 'idle',
   });
   const [authQrUrl, setAuthQrUrl] = useState('');
+  const [indexingMediaLibrary, setIndexingMediaLibrary] = useState(false);
+  const [indexProgressText, setIndexProgressText] = useState('');
+  const [logLines, setLogLines] = useState<string[]>([]);
+  const [logStatsText, setLogStatsText] = useState('暂无日志');
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsBusy, setLogsBusy] = useState(false);
   const [authDeviceMeta, setAuthDeviceMeta] = useState('');
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
 
@@ -131,6 +255,47 @@ export function Drive115SettingsPage() {
     [clearAuthPolling],
   );
 
+  const refreshLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const panel = await loadDrive115LogsPanel(100);
+      setLogLines(panel.lines);
+      setLogStatsText(panel.statsText);
+    } catch (err) {
+      console.error('[Drive115Settings] load logs failed', err);
+      setLogLines([]);
+      setLogStatsText('日志加载失败');
+    } finally {
+      setLogsLoading(false);
+    }
+  }, []);
+
+  const onClearLogs = useCallback(async () => {
+    if (logsBusy) return;
+    setLogsBusy(true);
+    try {
+      await clearDrive115LogsPanel();
+      await toast('日志已清空', 'success');
+      await refreshLogs();
+    } catch (err) {
+      console.error('[Drive115Settings] clear logs failed', err);
+      await toast('清空日志失败', 'error');
+    } finally {
+      setLogsBusy(false);
+    }
+  }, [logsBusy, refreshLogs]);
+
+  const onExportLogs = useCallback(async () => {
+    if (logsBusy) return;
+    setLogsBusy(true);
+    try {
+      await exportDrive115LogsPanel();
+    } finally {
+      setLogsBusy(false);
+    }
+  }, [logsBusy]);
+
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -148,14 +313,17 @@ export function Drive115SettingsPage() {
       } catch (err) {
         console.error('[Drive115SettingsPage] load failed', err);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          void refreshLogs();
+        }
       }
     })();
     return () => {
       cancelled = true;
       clearAuthPolling();
     };
-  }, [clearAuthPolling]);
+  }, [clearAuthPolling, refreshLogs]);
 
   // access_token 到期倒计时
   useEffect(() => {
@@ -242,7 +410,7 @@ export function Drive115SettingsPage() {
     setForm(next);
     try {
       await persistDrive115Form(next);
-      await toast(`115 离线下载已${checked ? '启用' : '禁用'}`, 'success');
+      await toast(`115 网盘已${checked ? '启用' : '禁用'}`, 'success');
     } catch (err) {
       console.error('[Drive115SettingsPage] toggle enabled failed', err);
       setForm(previous);
@@ -370,6 +538,114 @@ export function Drive115SettingsPage() {
     await toast(`已选择目录：${selection.path}`, 'success');
   };
 
+  const onAddMediaLibraryRoot = async () => {
+    const selection = await chooseDownloadDir('');
+    if (!selection?.cid) return;
+    const cid = selection.cid.trim();
+    if (!cid) return;
+    const prev = formRef.current.mediaLibraryRoots || [];
+    const without = prev.filter((r) => r.cid !== cid);
+    const nextRoots = [
+      ...without,
+      {
+        cid,
+        name: selection.name || undefined,
+        path: selection.path || undefined,
+        enabled: true,
+      },
+    ];
+    const next = { ...formRef.current, mediaLibraryRoots: nextRoots };
+    setForm(next);
+    await flush(next);
+    await toast(`已添加片库目录：${selection.path || selection.name || cid}`, 'success');
+  };
+
+  const onRemoveMediaLibraryRoot = async (cid: string) => {
+    const nextRoots = (formRef.current.mediaLibraryRoots || []).filter((r) => r.cid !== cid);
+    const next = { ...formRef.current, mediaLibraryRoots: nextRoots };
+    setForm(next);
+    await flush(next);
+    await toast('已移除片库目录', 'success');
+  };
+
+  const onToggleMediaLibraryRoot = async (cid: string, enabled: boolean) => {
+    const nextRoots = (formRef.current.mediaLibraryRoots || []).map((r) =>
+      r.cid === cid ? { ...r, enabled } : r,
+    );
+    const next = { ...formRef.current, mediaLibraryRoots: nextRoots };
+    setForm(next);
+    await flush(next);
+  };
+
+  
+  const onIndexMediaLibrary = async () => {
+    if (indexingMediaLibrary) return;
+    const roots = (formRef.current.mediaLibraryRoots || []).filter((r) => r.enabled !== false);
+    if (!roots.length) {
+      await toast('请先添加并启用至少一个片库根目录', 'error');
+      return;
+    }
+    if (!formRef.current.enabled || !formRef.current.v2AccessToken) {
+      await toast('请先启用 115 并完成授权', 'error');
+      return;
+    }
+    // 先落盘当前表单，避免未保存的 roots
+    await flush(formRef.current);
+    setIndexingMediaLibrary(true);
+    setIndexProgressText('正在限频索引…');
+    try {
+      const resp: any = await new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage({ type: 'DRIVE115_MEDIA_LIBRARY_INDEX' }, (r) => {
+            if (chrome.runtime.lastError) {
+              resolve({ success: false, message: chrome.runtime.lastError.message });
+              return;
+            }
+            resolve(r);
+          });
+        } catch (e: any) {
+          resolve({ success: false, message: e?.message || String(e) });
+        }
+      });
+      // 刷新表单中的 lastIndex 元数据
+      try {
+        const settings = await getSettings();
+        setForm(mapSettingsToDrive115Form(settings));
+      } catch {
+        /* ignore */
+      }
+      if (resp?.success) {
+        const stats = resp.stats || resp.state?.stats;
+        const detail = stats
+          ? `入库 ${stats.indexed || 0}，跳过 ${stats.skipped || 0}，API ${stats.apiCalls || 0}`
+          : resp.message || '完成';
+        setIndexProgressText(detail);
+        await toast(`115 索引完成：${detail}`, 'success');
+      } else {
+        const msg = resp?.message || '索引失败';
+        setIndexProgressText(msg);
+        const kept = resp?.keptPrevious ? '（已保留上一份索引）' : '';
+        await toast(`${msg}${kept}`, 'error');
+      }
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      setIndexProgressText(msg);
+      await toast(msg, 'error');
+    } finally {
+      setIndexingMediaLibrary(false);
+    }
+  };
+  
+  const mediaLibraryLastIndexLabel = useMemo(() => {
+    const ts = form.mediaLibraryLastIndexAt;
+    if (!ts) return '尚未索引';
+    try {
+      return new Date(ts).toLocaleString();
+    } catch {
+      return String(ts);
+    }
+  }, [form.mediaLibraryLastIndexAt]);
+
   const refreshTokenLabel = useMemo(
     () => getRefreshTokenStatusLabel(form, nowSec),
     [form, nowSec],
@@ -396,45 +672,63 @@ export function Drive115SettingsPage() {
   const showOpenlistScanHint = form.v2AuthMode === 'openlist_scan';
 
   return (
-    <SettingsPageFrame
-      title="115 网盘离线下载"
-      description="配置 115 网盘离线下载、扫码授权与任务验证能力。"
-      rootDataAttrs={{ 'data-drive115-settings-react': '1' }}
+    <div
+      className="settings-page w-full min-w-0"
+      id="drive115-settings"
+      data-drive115-settings-react="1"
+      data-settings-stack="react-full"
     >
+      <div className="ssp-back-bar">
+        <button type="button" className="ssp-back settings-back-btn" data-action="back-to-settings">
+          ← 返回设置
+        </button>
+      </div>
+      <div className="settings-page-header">
+        <h2>115 网盘</h2>
+        <p className="settings-description">
+          授权、离线下载，以及媒体库片库目录。片库依赖你已整理的封面与 NFO；扩展只做限频索引，不在线深刮。
+        </p>
+      </div>
+      <div className="settings-page-body">
       {loading ? (
         <p className="m-0 text-[13px] text-[var(--color-fg-muted)]">加载中…</p>
       ) : (
-        <div className="flex flex-col gap-4" id="drive115-settings">
+        <div className="drive115-settings-container">
           {saveError ? (
             <p className="m-0 rounded-[var(--radius-2)] border border-[var(--color-danger,#c0392b)]/40 bg-[var(--color-surface-2)] px-3 py-2 text-[12.5px] text-[var(--color-danger,#c0392b)]">
               保存失败：{saveError}
             </p>
           ) : null}
 
-          <SettingSection title="模式与接口">
-            <SettingToggleRow
+          <Drive115Group title="模式与接口">
+            <Drive115LegacyToggle
               id="drive115Enabled"
-              label="启用 115 离线下载"
-              description="支持三种入口：借用 OpenList 手动获取、借用 OpenList 扫码、或使用自有 115 应用扫码授权。"
+              label="启用 115 网盘"
+              description="支持三种入口：借用 OpenList（开源项目）手动获取、借用 OpenList 扫码、或使用自有 115 应用扫码授权。"
               checked={form.enabled}
               onChange={(v) => void onEnabledChange(v)}
             />
 
-            <SettingField
+            <Drive115Field
               id="drive115V2AuthMode"
               label="获取方式"
               description="推荐没有 115 开放平台应用的用户先用 OpenList 方案；切换这里只影响上方授权区，不影响下方 token 手动填写。"
             >
-              <SettingSelect
+              <select
                 id="drive115V2AuthMode"
                 disabled={disabled}
                 value={form.v2AuthMode}
-                options={[...DRIVE115_AUTH_MODE_OPTIONS]}
-                onChange={(v) => void onAuthModeChange(v)}
-              />
-            </SettingField>
+                onChange={(e) => void onAuthModeChange(e.currentTarget.value as Drive115AuthMode)}
+              >
+                {DRIVE115_AUTH_MODE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </Drive115Field>
 
-            <SettingField
+            <Drive115Field
               id="drive115V2ApiBaseUrl"
               label="接口域名（v2）"
               description="可自定义 v2 接口基础域名，默认 https://proapi.115.com，无需以斜杠结尾。"
@@ -447,11 +741,11 @@ export function Drive115SettingsPage() {
                 value={form.v2ApiBaseUrl}
                 onChange={(e) => update('v2ApiBaseUrl', e.currentTarget.value)}
               />
-            </SettingField>
-          </SettingSection>
+            </Drive115Field>
+          </Drive115Group>
 
           {showOpenlistManual ? (
-            <SettingSection title="OpenList 手动获取" id="drive115V2OpenlistPanel">
+            <Drive115Group title="OpenList 手动获取" id="drive115V2OpenlistPanel">
               <div className="flex flex-col gap-3 px-2 py-2 text-[13px] text-[var(--color-fg)]">
                 <p className="m-0 text-[12.5px] text-[var(--color-fg-muted)]">
                   适合没有自有 115 开放平台应用的用户。先通过 OpenList 的相关工具拿到
@@ -470,22 +764,22 @@ export function Drive115SettingsPage() {
                     </code>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
+                    <Drive115Btn
                       id="drive115V2OpenlistManualOpen"
                       variant="secondary"
                       disabled={disabled}
                       onClick={() => openOpenlistManualUrl()}
                     >
                       前往获取
-                    </Button>
-                    <Button
+                    </Drive115Btn>
+                    <Drive115Btn
                       id="drive115V2OpenlistManualCopy"
                       variant="secondary"
                       disabled={disabled}
                       onClick={() => void copyOpenlistManualUrl()}
                     >
                       复制地址
-                    </Button>
+                    </Drive115Btn>
                   </div>
                 </div>
                 <ol className="m-0 list-decimal space-y-1 pl-5 text-[12.5px] text-[var(--color-fg-muted)]">
@@ -502,13 +796,13 @@ export function Drive115SettingsPage() {
                   <li>点击“验证有效性”，确认当前 token 可用。</li>
                 </ol>
               </div>
-            </SettingSection>
+            </Drive115Group>
           ) : null}
 
           {showScanPanel ? (
-            <SettingSection title="扫码授权（PKCE）" id="drive115V2SelfAppPanel">
+            <Drive115Group title="扫码授权（PKCE）" id="drive115V2SelfAppPanel">
               {showClientId ? (
-                <SettingField id="drive115V2ClientId" label="APP ID">
+                <Drive115Field id="drive115V2ClientId" label="APP ID">
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
                       id="drive115V2ClientId"
@@ -518,24 +812,24 @@ export function Drive115SettingsPage() {
                       value={form.v2ClientId}
                       onChange={(e) => update('v2ClientId', e.currentTarget.value)}
                     />
-                    <Button
+                    <Drive115Btn
                       id="drive115V2StartAuth"
                       variant="primary"
                       disabled={disabled || authBusy}
                       onClick={() => void onStartAuth()}
                     >
                       {authBusy ? '生成中…' : '生成二维码'}
-                    </Button>
-                    <Button
+                    </Drive115Btn>
+                    <Drive115Btn
                       id="drive115V2CancelAuth"
                       variant="secondary"
                       disabled={disabled}
                       onClick={onCancelAuth}
                     >
                       取消授权
-                    </Button>
+                    </Drive115Btn>
                   </div>
-                </SettingField>
+                </Drive115Field>
               ) : null}
 
               {showOpenlistScanHint ? (
@@ -547,22 +841,22 @@ export function Drive115SettingsPage() {
                     当前使用内置 OpenList APP ID 进行扫码授权，无需手动填写。
                   </p>
                   <div className="flex flex-wrap gap-2 px-2 py-2">
-                    <Button
+                    <Drive115Btn
                       id="drive115V2StartAuthShared"
                       variant="primary"
                       disabled={disabled || authBusy}
                       onClick={() => void onStartAuth()}
                     >
                       {authBusy ? '生成中…' : '生成二维码'}
-                    </Button>
-                    <Button
+                    </Drive115Btn>
+                    <Drive115Btn
                       id="drive115V2CancelAuthShared"
                       variant="secondary"
                       disabled={disabled}
                       onClick={onCancelAuth}
                     >
                       取消授权
-                    </Button>
+                    </Drive115Btn>
                   </div>
                 </>
               ) : null}
@@ -574,20 +868,20 @@ export function Drive115SettingsPage() {
               </p>
 
               <div
-                id="drive115V2AuthPanel"
+                id="drive115V2AuthPanel" className="drive115-auth-panel"
                 className="mx-2 mb-2 flex flex-wrap gap-4 rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
               >
                 <div className="flex h-[180px] w-[180px] items-center justify-center overflow-hidden rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-surface)]">
                   {authQrUrl ? (
                     <img
-                      id="drive115V2QrImage"
+                      id="drive115V2QrImage" className="drive115-auth-qr-img"
                       src={authQrUrl}
                       alt="115 扫码授权二维码"
                       className="h-full w-full object-contain"
                     />
                   ) : (
                     <div
-                      id="drive115V2QrPlaceholder"
+                      id="drive115V2QrPlaceholder" className="drive115-auth-placeholder"
                       className="px-3 text-center text-[12px] text-[var(--color-fg-muted)]"
                     >
                       点击“生成二维码”开始授权
@@ -596,7 +890,7 @@ export function Drive115SettingsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div
-                    id="drive115V2AuthStatus"
+                    id="drive115V2AuthStatus" className="drive115-auth-status"
                     className={`mb-2 inline-block rounded-[var(--radius-2)] px-2 py-1 text-[12.5px] ${authKindClass(authStatus.kind)}`}
                   >
                     {authStatus.message}
@@ -614,14 +908,11 @@ export function Drive115SettingsPage() {
                   </ul>
                 </div>
               </div>
-            </SettingSection>
+            </Drive115Group>
           ) : null}
 
-          <SettingSection
-            title="凭据与状态"
-            description="无论当前选择哪种获取方式，下面的 refresh_token 和 access_token 都可以手动输入或覆盖。"
-          >
-            <SettingField id="drive115V2RefreshToken" label="refresh_token">
+          <Drive115Group title="凭据与状态">
+            <Drive115Field id="drive115V2RefreshToken" label="refresh_token">
               <p
                 id="drive115V2RefreshTokenStatusRow"
                 className="m-0 mb-1 text-[12.5px] text-[var(--color-fg-muted)]"
@@ -654,9 +945,9 @@ export function Drive115SettingsPage() {
                   });
                 }}
               />
-            </SettingField>
+            </Drive115Field>
 
-            <SettingField id="drive115V2AccessToken" label="access_token">
+            <Drive115Field id="drive115V2AccessToken" label="access_token">
               <p className="m-0 mb-1 text-[12.5px] text-[var(--color-fg-muted)]">
                 状态：
                 <span
@@ -700,29 +991,29 @@ export function Drive115SettingsPage() {
                   }}
                 />
                 <div className="flex flex-col gap-2">
-                  <Button
+                  <Drive115Btn
                     id="drive115V2ValidateToken"
                     variant="primary"
                     disabled={disabled || validating}
                     onClick={() => void onValidateToken()}
                   >
                     {validating ? '验证中…' : '验证有效性'}
-                  </Button>
-                  <Button
+                  </Drive115Btn>
+                  <Drive115Btn
                     id="drive115V2ManualRefresh"
                     variant="secondary"
                     disabled={disabled || refreshing}
                     onClick={() => void onManualRefresh()}
                   >
                     {refreshing ? '刷新中…' : '手动刷新 access_token'}
-                  </Button>
+                  </Drive115Btn>
                 </div>
               </div>
               <p className="m-0 mt-1 text-[12px] text-[var(--color-fg-muted)]">
                 这里保留手动粘贴作为备用方案；正常情况下建议优先使用上方扫码授权。手动刷新会直接调用
                 115 官方 <code>refreshToken</code> 接口。
               </p>
-            </SettingField>
+            </Drive115Field>
 
             <div className="px-2 py-2">
               <div className="mb-1 text-[13.5px] font-semibold text-[var(--color-fg)]">
@@ -741,10 +1032,7 @@ export function Drive115SettingsPage() {
               >
                 {userInfoStatus.message}
               </p>
-              <div
-                id="drive115V2UserInfoBox"
-                className="rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
-              >
+              <div id="drive115V2UserInfoBox" className="drive115-user-info-box">
                 {userDisplay ? (
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
@@ -789,14 +1077,14 @@ export function Drive115SettingsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-[12.5px] text-[var(--color-fg-muted)]">
+                  <div className="drive115-user-info-empty">
                     授权成功后会在这里显示账号、VIP 和空间信息。
                   </div>
                 )}
               </div>
             </div>
 
-            <SettingToggleRow
+            <Drive115LegacyToggle
               id="drive115V2AutoRefresh"
               label="自动刷新 access_token"
               description="开启后，当 access_token 过期或即将在指定秒数内过期时，将自动使用 refresh_token 刷新并保存。"
@@ -805,7 +1093,7 @@ export function Drive115SettingsPage() {
               onChange={(v) => update('v2AutoRefresh', v)}
             />
 
-            <SettingField
+            <Drive115Field
               id="drive115V2AutoRefreshSkewSec"
               label="提前刷新(秒)"
               description="在 token 到期前提前多少秒触发自动刷新。"
@@ -822,9 +1110,9 @@ export function Drive115SettingsPage() {
                   update('v2AutoRefreshSkewSec', n);
                 }}
               />
-            </SettingField>
+            </Drive115Field>
 
-            <SettingField
+            <Drive115Field
               id="drive115V2MinRefreshIntervalMin"
               label="最小自动刷新间隔(分钟)"
               description="范围 60-120。2 小时自动刷新上限固定为 3 次。"
@@ -843,7 +1131,7 @@ export function Drive115SettingsPage() {
                   update('v2MinRefreshIntervalMin', n);
                 }}
               />
-            </SettingField>
+            </Drive115Field>
 
             <div
               id="drive115V2RefreshInfoBlock"
@@ -868,13 +1156,13 @@ export function Drive115SettingsPage() {
                 </span>
               </div>
             </div>
-          </SettingSection>
+          </Drive115Group>
 
-          <SettingSection title="下载设置">
-            <SettingField
+          <Drive115Group title="下载设置">
+            <Drive115Field
               id="drive115DownloadDir"
               label="下载目录 ID"
-              description="可手动填写目录 ID，也可通过文件夹选择器快速选择。"
+              description="离线下载保存目录。可与媒体库片库目录相同，但字段独立。"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <Input
@@ -891,14 +1179,14 @@ export function Drive115SettingsPage() {
                     });
                   }}
                 />
-                <Button
+                <Drive115Btn
                   id="drive115ChooseDownloadDir"
                   variant="secondary"
                   disabled={disabled}
                   onClick={() => void onChooseDir()}
                 >
                   选择文件夹
-                </Button>
+                </Drive115Btn>
               </div>
               {form.downloadDirName || form.downloadDirPath ? (
                 <div
@@ -914,10 +1202,10 @@ export function Drive115SettingsPage() {
                   ) : null}
                 </div>
               ) : null}
-            </SettingField>
+            </Drive115Field>
 
             <div className="grid gap-2 sm:grid-cols-2">
-              <SettingField
+              <Drive115Field
                 id="drive115VerifyCount"
                 label="验证次数"
                 description="下载后验证文件的重试次数，建议 3-5 次。"
@@ -934,9 +1222,9 @@ export function Drive115SettingsPage() {
                     update('verifyCount', n);
                   }}
                 />
-              </SettingField>
+              </Drive115Field>
 
-              <SettingField
+              <Drive115Field
                 id="drive115MaxFailures"
                 label="最大失败数"
                 description="批量下载时允许的最大失败次数，0 表示不限制。"
@@ -953,11 +1241,172 @@ export function Drive115SettingsPage() {
                     update('maxFailures', n);
                   }}
                 />
-              </SettingField>
+              </Drive115Field>
             </div>
-          </SettingSection>
+          </Drive115Group>
+
+          <Drive115Group title="媒体库">
+            <p className="m-0 px-2 text-[12.5px] leading-relaxed text-[var(--color-fg-muted)]">
+              配置你已自备刮削的片库根目录（典型：每部影片一个文件夹，内含视频 + 封面 + NFO）。
+              扩展只做浅层限频索引，不会在线深刮章节/相似/海报。片库目录与上方「下载目录」独立，可以相同。
+            </p>
+
+            <Drive115Field
+              id="drive115MediaLibraryRoots"
+              label="片库根目录"
+              description="支持多个根目录。误选整盘时索引会有上限保护，请尽量只选已整理的片库。"
+            >
+              <div className="flex flex-col gap-2">
+                {(form.mediaLibraryRoots || []).length === 0 ? (
+                  <div className="rounded-[var(--radius-2)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-3 text-[12.5px] text-[var(--color-fg-muted)]">
+                    尚未配置片库目录。请添加你已整理好的影片文件夹根目录。
+                  </div>
+                ) : (
+                  <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                    {form.mediaLibraryRoots.map((root) => (
+                      <li
+                        key={root.cid}
+                        className="flex flex-wrap items-center gap-2 rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2"
+                      >
+                        <label className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--color-fg)]">
+                          <input
+                            type="checkbox"
+                            checked={root.enabled !== false}
+                            disabled={disabled}
+                            onChange={(e) =>
+                              void onToggleMediaLibraryRoot(root.cid, e.currentTarget.checked)
+                            }
+                          />
+                          启用
+                        </label>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13px] font-medium text-[var(--color-fg)]">
+                            {root.name || root.path || root.cid}
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--color-fg-muted)]">
+                            {root.path && root.path !== root.name ? (
+                              <span className="truncate">{root.path}</span>
+                            ) : null}
+                            <code className="rounded bg-[var(--color-surface)] px-1.5 py-0.5">
+                              {root.cid}
+                            </code>
+                          </div>
+                        </div>
+                        <Drive115Btn
+                          variant="secondary"
+                          disabled={disabled}
+                          onClick={() => void onRemoveMediaLibraryRoot(root.cid)}
+                        >
+                          移除
+                        </Drive115Btn>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Drive115Btn
+                    id="drive115AddMediaLibraryRoot"
+                    variant="secondary"
+                    disabled={disabled}
+                    onClick={() => void onAddMediaLibraryRoot()}
+                  >
+                    添加片库目录
+                  </Drive115Btn>
+                </div>
+              </div>
+            </Drive115Field>
+
+            <div className="mx-2 mb-1 space-y-2 text-[12px] text-[var(--color-fg-muted)]">
+              <div className="flex flex-wrap items-center gap-2">
+                <Drive115Btn
+                  id="drive115IndexMediaLibrary"
+                  variant="primary"
+                  disabled={
+                    disabled ||
+                    indexingMediaLibrary ||
+                    (form.mediaLibraryRoots || []).filter((r) => r.enabled !== false).length === 0
+                  }
+                  onClick={() => void onIndexMediaLibrary()}
+                >
+                  {indexingMediaLibrary ? '索引中…' : '立即索引'}
+                </Drive115Btn>
+                <span className="text-[11.5px]">
+                  浅层限频：串行 list，单次最多 300 个影片文件夹；失败会保留上一份索引。
+                </span>
+              </div>
+              <div>
+                上次索引：
+                <span className="text-[var(--color-fg)]">{mediaLibraryLastIndexLabel}</span>
+              </div>
+              {form.mediaLibraryLastIndexError ? (
+                <div className="text-[var(--color-danger,#c0392b)]">
+                  上次错误：{form.mediaLibraryLastIndexError}
+                </div>
+              ) : null}
+              {indexProgressText ? (
+                <div className="text-[11.5px] text-[var(--color-fg)]">{indexProgressText}</div>
+              ) : null}
+            </div>
+          </Drive115Group>
+
+          <Drive115Group title="115 网盘日志">
+            <div className="action-buttons-top">
+              <Drive115Btn
+                id="refreshDrive115Logs"
+                variant="secondary"
+                disabled={logsLoading || logsBusy}
+                onClick={() => void refreshLogs()}
+              >
+                {logsLoading ? '刷新中…' : '刷新日志'}
+              </Drive115Btn>
+              <Drive115Btn
+                id="clearDrive115Logs"
+                variant="danger"
+                disabled={logsLoading || logsBusy}
+                onClick={() => void onClearLogs()}
+              >
+                清空日志
+              </Drive115Btn>
+              <Drive115Btn
+                id="exportDrive115Logs"
+                variant="secondary"
+                disabled={logsLoading || logsBusy || logLines.length === 0}
+                onClick={() => void onExportLogs()}
+              >
+                导出日志
+              </Drive115Btn>
+            </div>
+            <div id="drive115LogStats" className="log-stats">
+              {logStatsText}
+            </div>
+            <div
+              id="drive115LogsList"
+              className="logs-list mx-2 mb-2 max-h-64 overflow-auto rounded-[var(--radius-2)] border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-2"
+            >
+              {logsLoading ? (
+                <div className="px-1 py-2 text-[12.5px] text-[var(--color-fg-muted)]">加载日志中…</div>
+              ) : logLines.length === 0 ? (
+                <div className="px-1 py-2 text-[12.5px] text-[var(--color-fg-muted)]">暂无日志</div>
+              ) : (
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                  {logLines.map((line, idx) => (
+                    <li
+                      key={`${idx}-${line.slice(0, 24)}`}
+                      className="rounded-[var(--radius-1)] border border-[var(--color-border)]/70 bg-[var(--color-surface)] px-2 py-1.5 font-mono text-[11.5px] leading-snug text-[var(--color-fg)]"
+                    >
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Drive115Group>
+
         </div>
       )}
-    </SettingsPageFrame>
+      </div>
+    </div>
   );
 }
+
+

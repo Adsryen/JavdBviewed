@@ -13,11 +13,14 @@ import {
   extractUserInfoDisplay,
   formToDrive115Patch,
   formatDrive115DateTime,
+  formatDrive115LogEntryText,
+  formatDrive115LogStatsText,
   formatDrive115Remain,
   getAccessTokenExpiryLabel,
   getAccessTokenStatusLabel,
   getRefreshTokenStatusLabel,
   mapSettingsToDrive115Form,
+  takeRecentDrive115Logs,
   validateDrive115Form,
 } from './drive115SettingsModel';
 
@@ -58,6 +61,14 @@ describe('drive115SettingsModel', () => {
         maxFailures: 2,
         v2RefreshTokenStatus: 'valid',
         v2AccessTokenStatus: 'valid',
+        mediaLibraryRoots: [
+          { cid: 'lib-1', name: '已刮削库', path: '/Lib', enabled: true },
+          { cid: '  ', name: 'empty', enabled: true },
+          { cid: 'lib-1', name: '覆盖', path: '/Lib2', enabled: false },
+        ],
+        mediaLibraryLastIndexAt: 1_700_000_111,
+        mediaLibraryLastIndexError: 'rate limited',
+        mediaLibraryAutoIndexEnabled: true,
       },
     } as any);
     expect(form.enabled).toBe(true);
@@ -75,6 +86,33 @@ describe('drive115SettingsModel', () => {
     expect(form.maxFailures).toBe(2);
     expect(form.v2RefreshTokenStatus).toBe('valid');
     expect(form.v2AccessTokenStatus).toBe('valid');
+    expect(form.mediaLibraryRoots).toEqual([
+      { cid: 'lib-1', name: '覆盖', path: '/Lib2', enabled: false },
+    ]);
+    expect(form.mediaLibraryLastIndexAt).toBe(1_700_000_111);
+    expect(form.mediaLibraryLastIndexError).toBe('rate limited');
+    expect(form.mediaLibraryAutoIndexEnabled).toBe(true);
+  });
+
+  it('keeps mediaLibraryRoots independent from downloadDir on patch', () => {
+    const patch = formToDrive115Patch({
+      ...DEFAULT_DRIVE115_SETTINGS_FORM,
+      downloadDir: 'dl-cid',
+      downloadDirName: 'Downloads',
+      mediaLibraryRoots: [
+        { cid: 'lib-a', name: 'A', path: '/A', enabled: true },
+        { cid: 'lib-b', enabled: false },
+      ],
+      mediaLibraryLastIndexAt: 42,
+      mediaLibraryAutoIndexEnabled: false,
+    });
+    expect(patch.downloadDir).toBe('dl-cid');
+    expect(patch.mediaLibraryRoots).toEqual([
+      { cid: 'lib-a', name: 'A', path: '/A', enabled: true },
+      { cid: 'lib-b', name: undefined, path: undefined, enabled: false },
+    ]);
+    expect(patch.mediaLibraryLastIndexAt).toBe(42);
+    expect(patch.mediaLibraryAutoIndexEnabled).toBe(false);
   });
 
   it('maps bare drive115 object and legacy defaultWpPathId', () => {
@@ -255,5 +293,48 @@ describe('drive115SettingsModel', () => {
     const id = decodeOpenlistScanClientId();
     expect(id.length).toBeGreaterThan(0);
     expect(/^\d+$/.test(id)).toBe(true);
+  });
+});
+
+describe('drive115 logs view helpers', () => {
+  it('formats empty stats', () => {
+    expect(formatDrive115LogStatsText(null)).toBe('暂无日志');
+    expect(formatDrive115LogStatsText({ total: 0, recent24h: 0, byType: {} })).toBe('暂无日志');
+  });
+
+  it('formats stats with top types', () => {
+    const text = formatDrive115LogStatsText({
+      total: 3,
+      recent24h: 2,
+      byType: { push_success: 2, push_failed: 1, offline_start: 0 },
+    });
+    expect(text).toContain('共 3 条');
+    expect(text).toContain('近 24h 2 条');
+    expect(text).toContain('推送成功 2');
+  });
+
+  it('formats log entry with millisecond timestamps', () => {
+    const line = formatDrive115LogEntryText({
+      type: 'push_failed',
+      videoId: 'ABC-123',
+      message: 'timeout',
+      timestamp: 1_700_000_000_000,
+    });
+    expect(line).toContain('推送失败');
+    expect(line).toContain('[ABC-123]');
+    expect(line).toContain('timeout');
+    expect(line).not.toContain('1970');
+  });
+
+  it('takes recent logs sorted desc', () => {
+    const list = takeRecentDrive115Logs(
+      [
+        { type: 'a', message: 'old', timestamp: 100 },
+        { type: 'b', message: 'new', timestamp: 300 },
+        { type: 'c', message: 'mid', timestamp: 200 },
+      ],
+      2,
+    );
+    expect(list.map((x) => x.message)).toEqual(['new', 'mid']);
   });
 });

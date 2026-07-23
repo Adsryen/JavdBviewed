@@ -1,4 +1,4 @@
-// src/dashboard/tabs/mount.ts
+﻿// src/dashboard/tabs/mount.ts
 // 负责在需要时挂载 Tab 的 partial 与样式
 
 import { ensureMounted, loadPartial, injectPartial } from '../loaders/partialsLoader';
@@ -34,6 +34,19 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
               const { mountCloudSettingsPage } = await import('../../apps/dashboard/pages/settings/cloud/mountCloudSettingsPage');
               mountCloudSettingsPage('#tab-settings');
               console.debug('[mount] 设置子页：React 全页 cloud-settings');
+              return;
+            }
+            if (subSection === 'drive115-settings') {
+              // 先加载 115 页级 CSS（React 页也会自行 import，这里保证 partial 同源样式就绪）
+              try {
+                const subCfg = getTabPartial('tab-settings-drive115');
+                if (subCfg?.styles?.length) {
+                  await ensureStylesLoaded(subCfg.styles);
+                }
+              } catch {}
+              const { mountDrive115SettingsPage } = await import('../../apps/dashboard/pages/settings/drive115/mountDrive115SettingsPage');
+              mountDrive115SettingsPage('#tab-settings');
+              console.debug('[mount] 设置子页：React 全页 drive115-settings');
               return;
             }
           }
@@ -123,3 +136,5 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
     console.warn('[Dashboard] mountTabIfNeeded failed for', tabId, e);
   }
 }
+
+

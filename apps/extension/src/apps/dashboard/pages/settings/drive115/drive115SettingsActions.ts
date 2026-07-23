@@ -6,10 +6,16 @@
 import {
   applyDrive115FormToSettings,
   decodeOpenlistScanClientId,
+  formatDrive115LogEntryText,
+  formatDrive115LogStatsText,
   OPENLIST_MANUAL_URL,
+  takeRecentDrive115Logs,
   type Drive115AuthMode,
+  type Drive115LogStatsView,
+  type Drive115LogViewEntry,
   type Drive115SettingsFormState,
 } from './drive115SettingsModel';
+import { getDrive115AppLogger } from '../../../../../features/drive115';
 import {
   getSettings,
   saveSettings,
@@ -552,3 +558,71 @@ export async function chooseDownloadDir(
 }
 
 export { toast };
+
+export type Drive115LogsPanelData = {
+  entries: Drive115LogViewEntry[];
+  stats: Drive115LogStatsView;
+  statsText: string;
+  lines: string[];
+};
+
+/**
+ * 加载 115 网盘日志面板数据（专用 storage key，不入 settings 主文档）
+ */
+export async function loadDrive115LogsPanel(limit = 100): Promise<Drive115LogsPanelData> {
+  const logger = getDrive115AppLogger();
+  const [rawLogs, rawStats] = await Promise.all([logger.getLogs(), logger.getLogStats()]);
+  const entries = takeRecentDrive115Logs(
+    (Array.isArray(rawLogs) ? rawLogs : []).map((item) => ({
+      type: String((item as any)?.type || ''),
+      videoId: (item as any)?.videoId ? String((item as any).videoId) : undefined,
+      message: String((item as any)?.message || ''),
+      timestamp: Number((item as any)?.timestamp || 0),
+    })),
+    limit,
+  );
+  const stats: Drive115LogStatsView = {
+    total: Number((rawStats as any)?.total || 0),
+    recent24h: Number((rawStats as any)?.recent24h || 0),
+    byType: { ...((rawStats as any)?.byType || {}) },
+  };
+  return {
+    entries,
+    stats,
+    statsText: formatDrive115LogStatsText(stats),
+    lines: entries.map((e) => formatDrive115LogEntryText(e)),
+  };
+}
+
+/**
+ * 清空 115 网盘日志
+ */
+export async function clearDrive115LogsPanel(): Promise<void> {
+  await getDrive115AppLogger().clearLogs();
+}
+
+/**
+ * 导出 115 网盘日志为 JSON 下载
+ */
+export async function exportDrive115LogsPanel(): Promise<boolean> {
+  try {
+    const json = await getDrive115AppLogger().exportLogs();
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    a.href = url;
+    a.download = `drive115-logs-${stamp}.json`;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await toast('日志已导出', 'success');
+    return true;
+  } catch (err) {
+    console.error('[Drive115Settings] export logs failed', err);
+    await toast('导出日志失败', 'error');
+    return false;
+  }
+}

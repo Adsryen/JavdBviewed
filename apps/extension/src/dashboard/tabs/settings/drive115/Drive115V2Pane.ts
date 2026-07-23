@@ -387,7 +387,226 @@ export class Drive115V2Pane implements IDrive115Pane {
     }, 1500);
   }
 
+
+  private mediaLibraryBound = false;
+
+  private async loadMediaLibraryRoots(): Promise<Array<{ cid: string; name?: string; path?: string; enabled: boolean }>> {
+    try {
+      const settings: any = await getSettings();
+      const raw = settings?.drive115?.mediaLibraryRoots;
+      if (!Array.isArray(raw)) return [];
+      const byCid = new Map<string, { cid: string; name?: string; path?: string; enabled: boolean }>();
+      for (const item of raw) {
+        if (!item || typeof item !== 'object') continue;
+        const cid = String((item as any).cid || '').trim();
+        if (!cid) continue;
+        byCid.set(cid, {
+          cid,
+          name: typeof (item as any).name === 'string' ? (item as any).name : undefined,
+          path: typeof (item as any).path === 'string' ? (item as any).path : undefined,
+          enabled: (item as any).enabled !== false,
+        });
+      }
+      return Array.from(byCid.values());
+    } catch {
+      return [];
+    }
+  }
+
+  private async saveMediaLibraryRoots(
+    roots: Array<{ cid: string; name?: string; path?: string; enabled: boolean }>,
+  ): Promise<void> {
+    const settings: any = await getSettings();
+    const ns: any = { ...settings };
+    ns.drive115 = { ...(settings?.drive115 || {}), mediaLibraryRoots: roots };
+    await saveSettings(ns);
+  }
+
+  private async renderMediaLibraryMeta(): Promise<void> {
+    const lastEl = document.getElementById('drive115MediaLibraryLastIndex');
+    const errEl = document.getElementById('drive115MediaLibraryLastError') as HTMLElement | null;
+    try {
+      const settings: any = await getSettings();
+      const ts = Number(settings?.drive115?.mediaLibraryLastIndexAt || 0);
+      if (lastEl) {
+        lastEl.textContent = ts
+          ? `上次索引：${new Date(ts).toLocaleString()}`
+          : '上次索引：尚未索引';
+      }
+      const err = String(settings?.drive115?.mediaLibraryLastIndexError || '').trim();
+      if (errEl) {
+        if (err) {
+          errEl.style.display = '';
+          errEl.textContent = `上次错误：${err}`;
+        } else {
+          errEl.style.display = 'none';
+          errEl.textContent = '';
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private async renderMediaLibraryRoots(): Promise<void> {
+    const listEl = document.getElementById('drive115MediaLibraryRootsList');
+    const emptyEl = document.getElementById('drive115MediaLibraryRootsEmpty') as HTMLElement | null;
+    if (!listEl) return;
+    const roots = await this.loadMediaLibraryRoots();
+    listEl.innerHTML = '';
+    if (!roots.length) {
+      if (emptyEl) emptyEl.style.display = '';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    for (const root of roots) {
+      const li = document.createElement('li');
+      li.className = 'drive115-media-library-root-item';
+      li.dataset.cid = root.cid;
+      const title = root.name || root.path || root.cid;
+      const pathHtml =
+        root.path && root.path !== root.name
+          ? `<span class="root-path">${this.escapeHtml(root.path)}</span>`
+          : '';
+      li.innerHTML = `
+        <label class="drive115-toggle-label" style="margin:0; display:inline-flex; align-items:center; gap:6px;">
+          <input type="checkbox" class="drive115-ml-enabled" ${root.enabled !== false ? 'checked' : ''} />
+          <span class="drive115-toggle-text" style="font-size:12.5px;">启用</span>
+        </label>
+        <div class="root-main">
+          <div class="root-title">${this.escapeHtml(title)}</div>
+          <div class="root-meta">
+            ${pathHtml}
+            <code>${this.escapeHtml(root.cid)}</code>
+          </div>
+        </div>
+        <button type="button" class="button-like secondary drive115-ml-remove">移除</button>
+      `;
+      listEl.appendChild(li);
+    }
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = String(text || '');
+    return div.innerHTML;
+  }
+
+  private bindMediaLibrarySection(): void {
+    if (this.mediaLibraryBound) {
+      void this.renderMediaLibraryRoots();
+      void this.renderMediaLibraryMeta();
+      return;
+    }
+    this.mediaLibraryBound = true;
+
+    const addBtn = document.getElementById('drive115AddMediaLibraryRoot') as HTMLButtonElement | null;
+    addBtn?.addEventListener('click', () => {
+      openDrive115FolderPicker({
+        initialCid: '',
+        onSelect: async (selection) => {
+          const cid = String(selection.cid || '').trim();
+          if (!cid) return;
+          const roots = await this.loadMediaLibraryRoots();
+          const next = roots.filter((r) => r.cid !== cid);
+          next.push({
+            cid,
+            name: selection.name || undefined,
+            path: selection.path || undefined,
+            enabled: true,
+          });
+          await this.saveMediaLibraryRoots(next);
+          await this.renderMediaLibraryRoots();
+          showToast(`已添加片库目录：${selection.path || selection.name || cid}`, 'success');
+        },
+      });
+    });
+
+    const listEl = document.getElementById('drive115MediaLibraryRootsList');
+    listEl?.addEventListener('click', async (ev) => {
+      const target = ev.target as HTMLElement | null;
+      if (!target) return;
+      const item = target.closest('.drive115-media-library-root-item') as HTMLElement | null;
+      if (!item) return;
+      const cid = String(item.dataset.cid || '').trim();
+      if (!cid) return;
+      if (target.closest('.drive115-ml-remove')) {
+        const roots = (await this.loadMediaLibraryRoots()).filter((r) => r.cid !== cid);
+        await this.saveMediaLibraryRoots(roots);
+        await this.renderMediaLibraryRoots();
+        showToast('已移除片库目录', 'success');
+      }
+    });
+
+    listEl?.addEventListener('change', async (ev) => {
+      const target = ev.target as HTMLInputElement | null;
+      if (!target || !target.classList.contains('drive115-ml-enabled')) return;
+      const item = target.closest('.drive115-media-library-root-item') as HTMLElement | null;
+      if (!item) return;
+      const cid = String(item.dataset.cid || '').trim();
+      if (!cid) return;
+      const roots = await this.loadMediaLibraryRoots();
+      const next = roots.map((r) => (r.cid === cid ? { ...r, enabled: target.checked } : r));
+      await this.saveMediaLibraryRoots(next);
+    });
+
+    const indexBtn = document.getElementById('drive115IndexMediaLibrary') as HTMLButtonElement | null;
+    const progressEl = document.getElementById('drive115MediaLibraryProgress') as HTMLElement | null;
+    indexBtn?.addEventListener('click', async () => {
+      if (!indexBtn || indexBtn.disabled) return;
+      const roots = (await this.loadMediaLibraryRoots()).filter((r) => r.enabled !== false);
+      if (!roots.length) {
+        showToast('请先添加并启用至少一个片库根目录', 'error');
+        return;
+      }
+      indexBtn.disabled = true;
+      const original = indexBtn.innerHTML;
+      indexBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 索引中…';
+      if (progressEl) {
+        progressEl.style.display = '';
+        progressEl.textContent = '正在限频索引…';
+      }
+      try {
+        const resp: any = await new Promise((resolve) => {
+          try {
+            chrome.runtime.sendMessage({ type: 'DRIVE115_MEDIA_LIBRARY_INDEX' }, (r) => {
+              if (chrome.runtime.lastError) {
+                resolve({ success: false, message: chrome.runtime.lastError.message });
+                return;
+              }
+              resolve(r);
+            });
+          } catch (e: any) {
+            resolve({ success: false, message: e?.message || String(e) });
+          }
+        });
+        await this.renderMediaLibraryMeta();
+        if (resp?.success) {
+          const stats = resp.stats || resp.state?.stats;
+          const detail = stats
+            ? `入库 ${stats.indexed || 0}，跳过 ${stats.skipped || 0}，API ${stats.apiCalls || 0}`
+            : resp.message || '完成';
+          if (progressEl) progressEl.textContent = detail;
+          showToast(`115 索引完成：${detail}`, 'success');
+        } else {
+          const msg = resp?.message || '索引失败';
+          if (progressEl) progressEl.textContent = msg;
+          const kept = resp?.keptPrevious ? '（已保留上一份索引）' : '';
+          showToast(`${msg}${kept}`, 'error');
+        }
+      } finally {
+        indexBtn.disabled = false;
+        indexBtn.innerHTML = original;
+      }
+    });
+
+    void this.renderMediaLibraryRoots();
+    void this.renderMediaLibraryMeta();
+  }
+
+
   private bindEvents(): void {
+    this.bindMediaLibrarySection();
     // 工具：自适应高度（封装为类方法）
 
     // v2 接口域名输入
@@ -497,6 +716,7 @@ export class Drive115V2Pane implements IDrive115Pane {
       this.ctx?.save?.();
       // 更新“下次自动刷新时间”
       this.updateRefreshIntervalUIFromStorage();
+      this.bindMediaLibrarySection();
     };
     v2AutoRefreshSkewInput?.addEventListener('change', onSkewChange);
     v2AutoRefreshSkewInput?.addEventListener('input', onSkewChange);
@@ -1319,12 +1539,6 @@ export class Drive115V2Pane implements IDrive115Pane {
     let i = 0;
     while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
     return `${v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2)} ${units[i]}`;
-  }
-
-  private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text ?? '';
-    return div.innerHTML;
   }
 
   // 动态注入“最小自动刷新间隔(分钟)”与“最近自动刷新时间”UI

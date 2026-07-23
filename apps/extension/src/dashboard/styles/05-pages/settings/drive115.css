@@ -533,24 +533,46 @@
     background: var(--primary-hover);
 }
 
+/* secondary：表面色 + 边框，light/dark 都靠主题变量 */
 #drive115-settings .btn-secondary {
-    background: var(--text-secondary);
-    color: var(--text-inverse);
+    background: var(--bg-secondary, var(--color-surface-2, #f3f4f6));
+    color: var(--text-primary, var(--color-fg, #111827));
+    border: 1px solid var(--border-primary, var(--color-border, #d1d5db));
 }
 
 #drive115-settings .btn-secondary:hover:not(:disabled) {
-    background: var(--text-primary);
+    background: var(--bg-hover, var(--color-bg-hover, #e5e7eb));
+    border-color: var(--border-strong, var(--color-border-strong, #9ca3af));
 }
 
 #drive115-settings .btn-outline {
     background: transparent;
-    color: var(--text-primary);
-    border: 1px solid var(--border-primary);
+    color: var(--text-primary, var(--color-fg));
+    border: 1px solid var(--border-primary, var(--color-border));
 }
 
 #drive115-settings .btn-outline:hover:not(:disabled) {
-    background: var(--bg-hover);
+    background: var(--bg-hover, var(--color-bg-hover));
 }
+
+#drive115-settings .btn.danger,
+#drive115-settings .btn-danger {
+    background: var(--error, var(--color-danger, #c0392b));
+    color: var(--text-inverse, #fff);
+    border: 1px solid transparent;
+}
+
+#drive115-settings .btn.danger:hover:not(:disabled),
+#drive115-settings .btn-danger:hover:not(:disabled) {
+    opacity: 0.92;
+}
+
+#drive115-settings .btn-primary {
+    background: var(--primary, var(--color-primary));
+    color: var(--text-inverse, var(--color-fg-inverse, #fff));
+    border: 1px solid transparent;
+}
+
 
 /* ===== 115 面板内专属按钮配色（仅作用于本面板） ===== */
 /* 为没有 .btn 的 .button-like 提供基础外观（仅限 115 设置面板内） */
@@ -1583,4 +1605,185 @@
 [data-theme="dark"] #drive115-settings .input-description a:hover,
 [data-theme="dark"] #drive115-settings a#drive115V2HelpLink:hover {
     color: var(--link-hover-color, #90CAF9);
+}
+
+
+/* 媒体库片库根目录列表 */
+#drive115-settings .drive115-media-library-roots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#drive115-settings .drive115-media-library-root-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--drive115-settings-border, var(--border-color));
+  border-radius: 10px;
+  background: var(--bg-primary, #fff);
+  box-shadow: var(--drive115-settings-shadow, 0 1px 3px rgba(0,0,0,.08));
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+#drive115-settings .drive115-media-library-root-item:hover {
+  border-color: var(--drive115-settings-primary, #ff6b35);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.12);
+  transform: translateY(-1px);
+}
+#drive115-settings .drive115-media-library-root-item .root-main { min-width: 0; flex: 1; }
+#drive115-settings .drive115-media-library-root-item .root-title {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+#drive115-settings .drive115-media-library-root-item .root-meta {
+  margin-top: 4px; font-size: 12px; color: var(--text-secondary, #666);
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+#drive115-settings .drive115-media-library-root-item code {
+  font-size: 11.5px; padding: 2px 6px; border-radius: 4px;
+  background: var(--bg-secondary, #f5f5f5);
+}
+/* === React full-page: show 115 logs panel === */
+/* legacy partial 故意隐藏日志区；React 全页试点需要展示并对齐 id */
+#drive115-settings[data-drive115-settings-react='1'] .settings-group:has(#drive115LogsList),
+#drive115-settings[data-drive115-settings-react='1'] .action-buttons-top,
+#drive115-settings[data-drive115-settings-react='1'] #refreshDrive115Logs,
+#drive115-settings[data-drive115-settings-react='1'] #clearDrive115Logs,
+#drive115-settings[data-drive115-settings-react='1'] #exportDrive115Logs,
+#drive115-settings[data-drive115-settings-react='1'] #drive115LogStats,
+#drive115-settings[data-drive115-settings-react='1'] #drive115LogsList {
+    display: revert !important;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .action-buttons-top {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] #drive115LogStats {
+    display: block !important;
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--text-secondary, var(--color-fg-muted));
+}
+
+#drive115-settings[data-drive115-settings-react='1'] #drive115LogsList {
+    display: block !important;
+    max-height: 280px;
+    overflow: auto;
+    padding: 8px 10px;
+    border: 1px solid var(--border-primary, var(--color-border));
+    border-radius: 8px;
+    background: var(--bg-primary, var(--color-surface));
+}
+
+/* React 全页：标题用 h2 时也吃橙色主题标题色 */
+#drive115-settings[data-drive115-settings-react='1'] .settings-page-header h2 {
+    color: var(--drive115-settings-title-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .settings-page-header h2::before {
+    content: '☁️';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* 降低 Tailwind preflight 对 legacy 卡片的干扰（仅 React 标记根内） */
+#drive115-settings[data-drive115-settings-react='1'] .settings-group {
+    box-sizing: border-box;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .settings-group .btn,
+#drive115-settings[data-drive115-settings-react='1'] button.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* === React full-page L3 form polish === */
+#drive115-settings[data-drive115-settings-react='1'] .drive115-group-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .form-group {
+    margin-bottom: 12px;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .form-group > label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--text-primary, var(--color-fg));
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .form-group input[type='text'],
+#drive115-settings[data-drive115-settings-react='1'] .form-group input[type='number'],
+#drive115-settings[data-drive115-settings-react='1'] .form-group input[type='password'],
+#drive115-settings[data-drive115-settings-react='1'] .form-group select,
+#drive115-settings[data-drive115-settings-react='1'] .form-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--border-primary, var(--color-border));
+    border-radius: 6px;
+    background: var(--bg-primary, var(--color-surface));
+    color: var(--text-primary, var(--color-fg));
+    font-size: 14px;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .form-group .input-description {
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-muted, var(--color-fg-muted));
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .drive115-auth-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+    margin-top: 8px;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .settings-page-body {
+    /* 与 .settings-page 一致：不再二次收窄（旧 React 试点 920 会比现网短） */
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .ssp-back-bar {
+    padding: 8px 12px 0;
+}
+
+
+
+/* === React full-page width parity === */
+#drive115-settings[data-drive115-settings-react='1'].settings-page {
+    width: 100%;
+    max-width: 1200px; /* 对齐 settings.css .settings-page */
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+}
+
+#drive115-settings[data-drive115-settings-react='1'] .drive115-settings-container {
+    width: 100%;
+    max-width: none;
 }

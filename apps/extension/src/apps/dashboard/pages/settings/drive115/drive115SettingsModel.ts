@@ -9,6 +9,14 @@ export type Drive115AuthMode = 'openlist_manual' | 'openlist_scan' | 'self_app';
 
 export type Drive115TokenStatus = 'valid' | 'invalid' | 'expired' | 'rate_limited' | 'unknown';
 
+/** 媒体库片库根目录（与 downloadDir 字段独立，可相同） */
+export type Drive115MediaLibraryRoot = {
+  cid: string;
+  name?: string;
+  path?: string;
+  enabled: boolean;
+};
+
 export type Drive115SettingsFormState = {
   enabled: boolean;
   v2AuthMode: Drive115AuthMode;
@@ -34,6 +42,13 @@ export type Drive115SettingsFormState = {
   downloadDirPath: string;
   verifyCount: number;
   maxFailures: number;
+  /** 媒体库片库根目录列表（多根） */
+  mediaLibraryRoots: Drive115MediaLibraryRoot[];
+  /** 上次手动索引时间（ms） */
+  mediaLibraryLastIndexAt: number | null;
+  mediaLibraryLastIndexError?: string;
+  /** 预留：自动索引，MVP 默认关且无调度 */
+  mediaLibraryAutoIndexEnabled: boolean;
   /** 缓存的用户信息（只读展示） */
   v2UserInfo: Record<string, unknown> | null;
   v2UserInfoExpired: boolean;
@@ -64,6 +79,10 @@ export const DEFAULT_DRIVE115_SETTINGS_FORM: Drive115SettingsFormState = {
   downloadDirPath: '',
   verifyCount: 5,
   maxFailures: 5,
+  mediaLibraryRoots: [],
+  mediaLibraryLastIndexAt: null,
+  mediaLibraryLastIndexError: undefined,
+  mediaLibraryAutoIndexEnabled: false,
   v2UserInfo: null,
   v2UserInfoExpired: false,
 };
@@ -92,6 +111,27 @@ function normalizeTokenStatus(raw: unknown): Drive115TokenStatus {
     return raw;
   }
   return 'unknown';
+}
+
+/**
+ * 规范化媒体库根目录列表：去空 cid、按 cid 去重（后写覆盖前写）
+ */
+export function normalizeMediaLibraryRoots(raw: unknown): Drive115MediaLibraryRoot[] {
+  if (!Array.isArray(raw)) return [];
+  const byCid = new Map<string, Drive115MediaLibraryRoot>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const cid = String(row.cid ?? '').trim();
+    if (!cid) continue;
+    byCid.set(cid, {
+      cid,
+      name: typeof row.name === 'string' ? row.name : undefined,
+      path: typeof row.path === 'string' ? row.path : undefined,
+      enabled: row.enabled !== false,
+    });
+  }
+  return Array.from(byCid.values());
 }
 
 /**
@@ -178,6 +218,16 @@ export function mapSettingsToDrive115Form(
       0,
       parseIntSafe(raw.maxFailures, DEFAULT_DRIVE115_SETTINGS_FORM.maxFailures),
     ),
+    mediaLibraryRoots: normalizeMediaLibraryRoots(raw.mediaLibraryRoots),
+    mediaLibraryLastIndexAt: (() => {
+      const n = Number(raw.mediaLibraryLastIndexAt);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    })(),
+    mediaLibraryLastIndexError:
+      typeof raw.mediaLibraryLastIndexError === 'string' && raw.mediaLibraryLastIndexError.trim()
+        ? raw.mediaLibraryLastIndexError
+        : undefined,
+    mediaLibraryAutoIndexEnabled: raw.mediaLibraryAutoIndexEnabled === true,
     v2UserInfo:
       raw.v2UserInfo && typeof raw.v2UserInfo === 'object'
         ? (raw.v2UserInfo as Record<string, unknown>)
@@ -220,6 +270,10 @@ export function formToDrive115Patch(
     downloadDirPath: form.downloadDirPath,
     verifyCount: Math.max(1, Math.floor(form.verifyCount) || 1),
     maxFailures: Math.max(0, Math.floor(form.maxFailures) || 0),
+    mediaLibraryRoots: normalizeMediaLibraryRoots(form.mediaLibraryRoots),
+    mediaLibraryLastIndexAt: form.mediaLibraryLastIndexAt,
+    mediaLibraryLastIndexError: form.mediaLibraryLastIndexError,
+    mediaLibraryAutoIndexEnabled: form.mediaLibraryAutoIndexEnabled === true,
     // 清除旧字段
     defaultWpPathId: undefined,
   };
@@ -583,4 +637,79 @@ export function decodeOpenlistScanClientId(): string {
       return String.fromCharCode((value ^ key) ^ maskAt(index));
     })
     .join('');
+}
+
+/** 设置页日志列表展示条目（与 Drive115AppLogger 字段对齐的最小视图） */
+export type Drive115LogViewEntry = {
+  type: string;
+  videoId?: string;
+  message: string;
+  timestamp: number;
+};
+
+export type Drive115LogStatsView = {
+  total: number;
+  recent24h: number;
+  byType: Record<string, number>;
+};
+
+/** 日志类型中文标签 */
+export const DRIVE115_LOG_TYPE_LABELS: Record<string, string> = {
+  push_start: '推送开始',
+  push_success: '推送成功',
+  push_failed: '推送失败',
+  offline_start: '离线开始',
+  offline_success: '离线成功',
+  offline_failed: '离线失败',
+  verify_start: '校验开始',
+  verify_success: '校验成功',
+  verify_failed: '校验失败',
+  batch_start: '批量开始',
+  batch_complete: '批量完成',
+};
+
+/**
+ * 格式化日志统计摘要（legacy #drive115LogStats 文案）
+ */
+export function formatDrive115LogStatsText(stats: Drive115LogStatsView | null | undefined): string {
+  if (!stats) return '暂无日志';
+  const total = Number(stats.total || 0);
+  const recent = Number(stats.recent24h || 0);
+  if (total <= 0) return '暂无日志';
+  const byType = stats.byType || {};
+  const top = Object.entries(byType)
+    .filter(([, n]) => Number(n) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .slice(0, 4)
+    .map(([k, n]) => `${DRIVE115_LOG_TYPE_LABELS[k] || k} ${n}`)
+    .join(' · ');
+  const head = `共 ${total} 条，近 24h ${recent} 条`;
+  return top ? `${head}（${top}）` : head;
+}
+
+/**
+ * 单条日志展示行
+ */
+export function formatDrive115LogEntryText(entry: Drive115LogViewEntry): string {
+  // logger 使用 Date.now() 毫秒；formatDrive115DateTime 入参为秒
+  const tsMs = typeof entry.timestamp === 'number' ? entry.timestamp : 0;
+  const tsSec = tsMs > 1e12 ? Math.floor(tsMs / 1000) : tsMs > 0 ? tsMs : null;
+  const ts = formatDrive115DateTime(tsSec);
+  const typeLabel = DRIVE115_LOG_TYPE_LABELS[entry.type] || entry.type || '日志';
+  const vid = entry.videoId ? ` [${entry.videoId}]` : '';
+  const msg = String(entry.message || '').trim() || '(无消息)';
+  return `${ts} · ${typeLabel}${vid} · ${msg}`;
+}
+
+/**
+ * 取最近 N 条（按时间倒序）
+ */
+export function takeRecentDrive115Logs(
+  entries: Drive115LogViewEntry[] | null | undefined,
+  limit = 100,
+): Drive115LogViewEntry[] {
+  const list = Array.isArray(entries) ? [...entries] : [];
+  list.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  const n = Math.max(1, Math.min(500, Number(limit) || 100));
+  return list.slice(0, n);
 }

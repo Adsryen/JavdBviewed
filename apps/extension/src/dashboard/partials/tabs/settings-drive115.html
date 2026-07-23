@@ -3,8 +3,8 @@
         <button class="settings-back-btn" data-action="back-to-settings">
             <i class="fas fa-arrow-left"></i> 返回设置
         </button>
-        <h2>115 网盘离线下载</h2>
-        <p class="settings-description">配置 115 网盘离线下载、扫码授权与任务验证能力。</p>
+        <h2>115 网盘</h2>
+        <p class="settings-description">授权、离线下载，以及媒体库片库目录。片库依赖你已整理的封面与 NFO；扩展只做限频索引，不在线深刮。</p>
     </div>
     <div class="settings-page-body">
         <div class="drive115-settings-container">
@@ -13,7 +13,7 @@
                     <h4>模式与接口</h4>
                     <div class="form-group">
                         <div class="drive115-toggle-wrapper" style="display:flex; align-items:center; gap:10px;">
-                            <span class="drive115-toggle-text">启用 115 离线下载</span>
+                            <span class="drive115-toggle-text">启用 115 网盘</span>
                             <label class="drive115-toggle-label" style="margin:0;">
                                 <div class="drive115-toggle-switch">
                                     <input type="checkbox" id="drive115Enabled" class="drive115-toggle-input">
@@ -188,6 +188,39 @@
                             <input type="number" id="drive115MaxFailures" class="number-input" min="0" max="50" value="5">
                             <p class="input-description">批量下载时允许的最大失败次数，0 表示不限制。</p>
                         </div>
+                    </div>
+                </div>
+
+
+                <div class="settings-card settings-group" id="drive115MediaLibraryCard">
+                    <h4>媒体库</h4>
+                    <p class="input-description">
+                        配置你已自备刮削的片库根目录（典型：每部影片一个文件夹，内含视频 + 封面 + NFO）。
+                        扩展只做浅层限频索引，不会在线深刮章节/相似/海报。片库目录与上方「下载目录」独立，可以相同。
+                    </p>
+                    <div class="form-group">
+                        <label>片库根目录</label>
+                        <p class="input-description">支持多个根目录。误选整盘时索引会有上限保护，请尽量只选已整理的片库。</p>
+                        <div id="drive115MediaLibraryRootsEmpty" class="drive115-auth-tips-box" style="display:none;">
+                            尚未配置片库目录。请添加你已整理好的影片文件夹根目录。
+                        </div>
+                        <ul id="drive115MediaLibraryRootsList" class="drive115-media-library-roots"></ul>
+                        <div class="action-buttons-top" style="margin-top:10px;">
+                            <button type="button" id="drive115AddMediaLibraryRoot" class="button-like secondary">
+                                <i class="fas fa-folder-plus"></i>
+                                添加片库目录
+                            </button>
+                            <button type="button" id="drive115IndexMediaLibrary" class="button-like">
+                                <i class="fas fa-sync"></i>
+                                立即索引
+                            </button>
+                        </div>
+                        <p class="input-description" style="margin-top:8px;">
+                            浅层限频：串行 list，单次最多 300 个影片文件夹；失败会保留上一份索引。
+                        </p>
+                        <p id="drive115MediaLibraryLastIndex" class="input-description">上次索引：尚未索引</p>
+                        <p id="drive115MediaLibraryLastError" class="input-error" style="display:none;"></p>
+                        <p id="drive115MediaLibraryProgress" class="input-description" style="display:none;"></p>
                     </div>
                 </div>
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file settingsNavModel.ts
  * @description 设置中心导航目录（纯数据，供 React 入口页与搜索索引对齐）
  * @module apps/dashboard/pages/settings
@@ -70,7 +70,7 @@ export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
   },  {
     id: 'drive115-settings',
     title: '115网盘',
-    description: '离线下载管理',
+    description: '授权、离线下载与媒体库片库',
     icon: 'fa-cloud-download-alt',
   },
   {
@@ -170,3 +170,4 @@ export function resolveSettingsSubpageMeta(subSection: string): SettingsSubpageM
     panelRootId: subSection,
   };
 }
+
