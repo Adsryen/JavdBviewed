@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mediaLibraryIndexAdapter.test.ts
  * @description 媒体库索引适配器测试
  * @module apps/dashboard/pages/media
@@ -12,6 +12,9 @@ import {
   hueFromCode,
   mapLibraryStateToBrowseItems,
   mergeLocalWatchEvidence,
+  mapDrive115LibraryStateToBrowseItems,
+  mergeBrowseCatalogs,
+  hasDrive115LibraryIndex,
 } from './mediaLibraryIndexAdapter';
 
 describe('mediaLibraryIndexAdapter', () => {
@@ -126,4 +129,82 @@ describe('mediaLibraryIndexAdapter', () => {
     expect(merged[0].watchState).toBe('watched');
     expect(merged[0].userData?.percent).toBe(95);
   });
+
+
+  it('maps drive115 library state to browse items', () => {
+    const items = mapDrive115LibraryStateToBrowseItems({
+      entries: [
+        {
+          key: 'f1:v1',
+          code: 'SSIS-001',
+          title: 'SSIS-001',
+          videoFileId: 'v1',
+          pickCode: 'pick1',
+          fileName: 'SSIS-001.mp4',
+          folderName: 'SSIS-001',
+        },
+        {
+          // invalid without pickCode
+          videoFileId: 'v2',
+          pickCode: '',
+        },
+      ],
+    });
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe('115');
+    expect(items[0].pickCode).toBe('pick1');
+    expect(items[0].itemId).toBe('v1');
+    expect(hasDrive115LibraryIndex({ entries: items as any })).toBe(true);
+  });
+
+  it('merges emby and 115 catalogs without dropping 115-only', () => {
+    const emby = mapLibraryStateToBrowseItems({
+      updatedAt: 1,
+      entries: {
+        'ABC-123': [
+          {
+            serverType: 'emby',
+            serverName: 'Home',
+            serverUrl: 'http://emby.local',
+            itemId: '1',
+            itemName: 'Sample',
+            userData: {
+              played: false,
+              positionTicks: 0,
+              runtimeTicks: 0,
+              percent: 0,
+              lastPlayedAt: 0,
+            },
+            updatedAt: 1,
+          },
+        ],
+      },
+    } as EmbyLibraryState);
+    const d115 = mapDrive115LibraryStateToBrowseItems({
+      entries: [
+        {
+          code: 'ABC-123',
+          title: 'ABC-123',
+          videoFileId: 'v1',
+          pickCode: 'p1',
+          fileName: 'ABC-123.mp4',
+          folderName: 'ABC-123',
+        },
+        {
+          code: 'ONLY-115',
+          title: 'ONLY-115',
+          videoFileId: 'v2',
+          pickCode: 'p2',
+          fileName: 'ONLY-115.mp4',
+          folderName: 'ONLY-115',
+        },
+      ],
+    });
+    const merged = mergeBrowseCatalogs(emby, d115);
+    expect(merged.some((i) => i.code === 'ONLY-115' && i.source === '115')).toBe(true);
+    const shared = merged.find((i) => i.code === 'ABC-123');
+    expect(shared?.source).toBe('emby');
+    expect(shared?.pickCode).toBe('p1');
+  });
 });
+

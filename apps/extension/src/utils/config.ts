@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file config.ts
  * @description 扩展全局配置中心 —— 存储键、默认设置、业务常量
  * @module utils（旧路径保留，当前实际实现在 platform/storage/settings）
@@ -62,6 +62,9 @@ export const STORAGE_KEYS = {
 
     // Emby/Jellyfin 媒体库入库索引
     EMBY_LIBRARY_STATE: 'emby_library_state',
+
+    // 115 片库浅层索引（与 settings.drive115 分离）
+    DRIVE115_LIBRARY_STATE: 'drive115_library_state',
 
     // 媒体库：真实已看 → 115 待清理清单
     MEDIA_115_CLEANUP_LIST: 'media_115_cleanup_list',

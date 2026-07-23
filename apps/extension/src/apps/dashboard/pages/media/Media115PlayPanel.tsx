@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file Media115PlayPanel.tsx
  * @description 媒体库内 115 播放面板：搜索候选 + 扩展内 video 取流 + 进度写回本地证据
  * @module apps/dashboard/pages/media
@@ -15,6 +15,8 @@ import type { Drive115PlayCandidate } from '../../../../features/drive115/v2/dri
 
 export type Media115PlayPanelProps = {
   initialQuery?: string;
+  /** 索引已有 pick_code 时优先直通取流，避免全站搜索 */
+  initialPickCode?: string;
   onClose?: () => void;
 };
 
@@ -31,7 +33,11 @@ function reportEvidence(payload: Record<string, unknown>): void {
 /**
  * 115 播放：优先扩展内 <video>；取流失败回退 115 网页；播放进度写入本地真实观看证据
  */
-export function Media115PlayPanel({ initialQuery = '', onClose }: Media115PlayPanelProps) {
+export function Media115PlayPanel({
+  initialQuery = '',
+  initialPickCode = '',
+  onClose,
+}: Media115PlayPanelProps) {
   const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -40,10 +46,50 @@ export function Media115PlayPanel({ initialQuery = '', onClose }: Media115PlayPa
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [active, setActive] = useState<Drive115PlayCandidate | null>(null);
   const lastReportAt = useRef(0);
+  const autoPickRef = useRef('');
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
+
+  const playByPickCode = async (pickCode: string, label?: string) => {
+    const code = String(pickCode || '').trim();
+    if (!code) return;
+    const candidate: Drive115PlayCandidate = {
+      fileId: '',
+      fileName: label || query.trim() || code,
+      fileSize: 0,
+      pickCode: code,
+      parentId: '',
+      sha1: '',
+    };
+    setActive(candidate);
+    setCandidates([candidate]);
+    setWebUrl(buildDrive115WebPlayUrl(candidate));
+    setLoading(true);
+    setMessage('索引命中 pick_code，正在取流…');
+    try {
+      const stream = await tryResolveDrive115StreamUrl(code);
+      if (stream.success && stream.streamUrl) {
+        setStreamUrl(stream.streamUrl);
+        setMessage('已通过索引 pick_code 获取播放地址');
+      } else {
+        setStreamUrl(null);
+        setMessage(stream.message || '取流失败，可改用搜索或网页播放');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 有 pickCode 时自动直通取流（每个 pickCode 只自动一次）
+  useEffect(() => {
+    const pick = String(initialPickCode || '').trim();
+    if (!pick || autoPickRef.current === pick) return;
+    autoPickRef.current = pick;
+    void playByPickCode(pick, initialQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPickCode, initialQuery]);
 
   const runSearch = async () => {
     setLoading(true);
@@ -142,7 +188,7 @@ export function Media115PlayPanel({ initialQuery = '', onClose }: Media115PlayPa
         ) : null}
       </div>
       <p className="ml-115-hint">
-        优先 OpenAPI 取流并在扩展内播放，进度会写入本地「真实观看」证据（≠ 原站已看）。取流失败可网页播放。
+        优先使用片库索引的 pick_code 直通取流；无索引时再搜索。进度写入本地「真实观看」证据（≠ 原站已看）。
       </p>
       <div className="ml-115-row">
         <Input

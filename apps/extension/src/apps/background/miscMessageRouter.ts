@@ -40,6 +40,10 @@ import {
   handleEmbyUserLogin,
 } from '../../features/embyLibrary/background/handlers';
 import {
+  handleDrive115MediaLibraryGetState,
+  handleDrive115MediaLibraryIndex,
+} from '../../features/drive115/mediaLibrary/handlers';
+import {
   handleExternalDataFetch,
   handleFetchExternalCover,
   handleFetchJavbusAjaxViaTab,
@@ -176,6 +180,12 @@ export function registerMiscRouter(): void {
         case 'UPDATE_WATCHED_STATUS': {
           handleUpdateWatchedStatus(message, sendResponse);
           return true;
+        }
+        case 'DRIVE115_MEDIA_LIBRARY_INDEX': {
+          return handleDrive115MediaLibraryIndex(message, sendResponse);
+        }
+        case 'DRIVE115_MEDIA_LIBRARY_GET_STATE': {
+          return handleDrive115MediaLibraryGetState(message, sendResponse);
         }
         case 'EMBY_LIBRARY_SYNC': {
           handleEmbyLibrarySync(message, sendResponse);

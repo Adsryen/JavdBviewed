@@ -143,3 +143,87 @@ export function mergeLocalWatchEvidence(
     return { ...item, userData: mergedUd, watchState };
   });
 }
+
+
+/**
+ * 115 本地索引 → 浏览列表
+ */
+export function mapDrive115LibraryStateToBrowseItems(
+  state: { entries?: Array<{
+    key?: string;
+    code?: string;
+    title?: string;
+    videoFileId?: string;
+    pickCode?: string;
+    fileName?: string;
+    folderName?: string;
+    folderCid?: string;
+    rootCid?: string;
+    nfoSummary?: { year?: string; title?: string };
+    updatedAt?: number;
+  }> } | null | undefined,
+): MediaBrowseItem[] {
+  if (!state?.entries?.length) return [];
+  const items: MediaBrowseItem[] = [];
+  for (const entry of state.entries) {
+    if (!entry?.pickCode || !entry?.videoFileId) continue;
+    const code =
+      String(entry.code || '').trim() ||
+      String(entry.folderName || '').trim() ||
+      String(entry.fileName || '').trim() ||
+      String(entry.videoFileId);
+    const title =
+      String(entry.nfoSummary?.title || entry.title || code).trim() || code;
+    items.push({
+      code,
+      title,
+      source: '115',
+      year: String(entry.nfoSummary?.year || '').trim(),
+      hue: hueFromCode(code),
+      itemId: entry.videoFileId,
+      pickCode: entry.pickCode,
+      fileName: entry.fileName,
+      folderPath: entry.folderName,
+      serverName: '115 片库',
+      watchState: 'in_library',
+    });
+  }
+  items.sort((a, b) => a.code.localeCompare(b.code));
+  return items;
+}
+
+/**
+ * 合并 Emby 与 115 目录；同番号优先保留 Emby/JF，再追加仅 115 有的
+ */
+export function mergeBrowseCatalogs(
+  embyItems: MediaBrowseItem[],
+  drive115Items: MediaBrowseItem[],
+): MediaBrowseItem[] {
+  const byCode = new Map<string, MediaBrowseItem>();
+  for (const item of embyItems) {
+    const key = String(item.code || '').toUpperCase();
+    if (!key) continue;
+    byCode.set(key, item);
+  }
+  for (const item of drive115Items) {
+    const key = String(item.code || '').toUpperCase();
+    // 无番号用 itemId 保证不丢
+    const mapKey = key || `115:${item.itemId || item.pickCode || Math.random()}`;
+    if (key && byCode.has(key)) {
+      // Emby 已有同番号：附加 pickCode 便于 115 快捷播（不改 source）
+      const existing = byCode.get(key)!;
+      if (!existing.pickCode && item.pickCode) {
+        byCode.set(key, { ...existing, pickCode: item.pickCode, fileName: item.fileName || existing.fileName });
+      }
+      continue;
+    }
+    byCode.set(mapKey, item);
+  }
+  return Array.from(byCode.values()).sort((a, b) => a.code.localeCompare(b.code));
+}
+
+export function hasDrive115LibraryIndex(
+  state: { entries?: unknown[] } | null | undefined,
+): boolean {
+  return Array.isArray(state?.entries) && state!.entries!.length > 0;
+}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file MediaItemDetailPanel.tsx
  * @description 扩展内媒体详情（Emby 风格完整布局：章节 / 合集 / 相似 / 媒体流）
  * @module apps/dashboard/pages/media
@@ -236,6 +236,16 @@ export function MediaItemDetailPanel({
               {sourceLabel(item.source)}
               {item.serverName ? ` · ${item.serverName}` : ''}
             </span>
+            {item.source === '115' ? (
+              <span className="ml-detail-pill" title="115 轻量索引不提供章节与相似推荐">
+                片库浅层索引 · 无章节/相似
+              </span>
+            ) : null}
+            {item.source === '115' && item.folderPath ? (
+              <span className="ml-detail-pill" title={item.fileName || item.folderPath}>
+                目录 {item.folderPath}
+              </span>
+            ) : null}
             <span className="ml-detail-pill">
               {watchLabel}
               {pct ? ` · ${pct}` : ''}
@@ -449,3 +459,4 @@ export function MediaItemDetailPanel({
     </div>
   );
 }
+

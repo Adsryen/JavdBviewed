@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mediaBrowseModel.ts
  * @description 媒体库浏览页的目录模型、筛选与轮播位置计算
  * @module apps/dashboard/pages/media
@@ -39,6 +39,12 @@ export type MediaBrowseItem = {
   serverId?: string;
   userData?: EmbyWatchUserData;
   watchState?: MediaWatchState;
+  /** 115 索引：pick_code，点播优先用 */
+  pickCode?: string;
+  /** 115 索引：文件名 */
+  fileName?: string;
+  /** 115 索引：文件夹路径/名 */
+  folderPath?: string;
 };
 
 export const MEDIA_PREVIEW_ITEMS: MediaBrowseItem[] = [
@@ -283,3 +289,4 @@ export function writeCoverViewMode(mode: MediaCoverViewMode): void {
     localStorage.setItem(COVER_VIEW_STORAGE_KEY, mode);
   } catch { /* ignore */ }
 }
+

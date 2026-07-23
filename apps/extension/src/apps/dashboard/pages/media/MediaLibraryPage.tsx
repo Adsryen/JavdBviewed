@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file MediaLibraryPage.tsx
  * @description 媒体库浏览页：筛选 + 堆叠轮播 + 网格；优先展示本地 Emby/Jellyfin 索引
  * @module apps/dashboard/pages/media
@@ -39,7 +39,10 @@ import {
 import {
   formatWatchPercent,
   hasLibraryIndex,
+  hasDrive115LibraryIndex,
   mapLibraryStateToBrowseItems,
+  mapDrive115LibraryStateToBrowseItems,
+  mergeBrowseCatalogs,
   mergeLocalWatchEvidence,
   resolveWatchProgressPercent,
   watchStateLabel,
@@ -99,6 +102,7 @@ export function MediaLibraryPage() {
   const [syncMessage, setSyncMessage] = useState('');
   const [show115Panel, setShow115Panel] = useState(false);
   const [play115Query, setPlay115Query] = useState('');
+  const [play115PickCode, setPlay115PickCode] = useState('');
   const [showCleanupPanel, setShowCleanupPanel] = useState(false);
   const [cleanupRefreshKey, setCleanupRefreshKey] = useState(0);
   /** Emby/JF 扩展内播放：用设置里 token 取流，不依赖浏览器网页登录 */
@@ -142,15 +146,25 @@ export function MediaLibraryPage() {
   const reloadCatalogFromStorage = async () => {
     setLoadingIndex(true);
     try {
-      const [state, evidence] = await Promise.all([
+      const [state, drive115State, evidence] = await Promise.all([
         getValue<EmbyLibraryState>(STORAGE_KEYS.EMBY_LIBRARY_STATE, EMPTY_STATE),
+        getValue<{ entries?: unknown[]; updatedAt?: number }>(
+          STORAGE_KEYS.DRIVE115_LIBRARY_STATE,
+          { entries: [], updatedAt: 0 },
+        ),
         loadWatchEvidenceMap().catch(() => ({})),
       ]);
-      if (hasLibraryIndex(state)) {
-        const mapped = mapLibraryStateToBrowseItems(state);
-        setCatalog(mergeLocalWatchEvidence(mapped, evidence));
+      const embyItems = hasLibraryIndex(state) ? mapLibraryStateToBrowseItems(state) : [];
+      const drive115Items = hasDrive115LibraryIndex(drive115State)
+        ? mapDrive115LibraryStateToBrowseItems(drive115State as any)
+        : [];
+      const merged = mergeBrowseCatalogs(embyItems, drive115Items);
+      if (merged.length > 0) {
+        setCatalog(mergeLocalWatchEvidence(merged, evidence));
         setUsingPreview(false);
-        setIndexUpdatedAt(state.updatedAt || 0);
+        setIndexUpdatedAt(
+          Math.max(Number(state.updatedAt) || 0, Number(drive115State?.updatedAt) || 0),
+        );
       } else {
         setCatalog(MEDIA_PREVIEW_ITEMS);
         setUsingPreview(true);
@@ -173,8 +187,9 @@ export function MediaLibraryPage() {
   // 卡片/工具栏打开 115 播放面板
   useEffect(() => {
     const onOpen = (ev: Event) => {
-      const detail = (ev as CustomEvent<{ query?: string }>).detail;
+      const detail = (ev as CustomEvent<{ query?: string; pickCode?: string }>).detail;
       setPlay115Query(String(detail?.query || query || '').trim());
+      setPlay115PickCode(String(detail?.pickCode || '').trim());
       setShow115Panel(true);
     };
     window.addEventListener('media-open-115-play', onOpen as EventListener);
@@ -528,7 +543,7 @@ export function MediaLibraryPage() {
               const canPlay115 = item.source === '115' || usingPreview;
               return (
                 <div
-                  key={item.code}
+                  key={`${item.source}:${item.itemId || item.code}`}
                   className="ml-hero-card"
                   data-pos={posAttr}
                   data-cover-mode={coverView}
@@ -596,9 +611,7 @@ export function MediaLibraryPage() {
                             e.preventDefault();
                             e.stopPropagation();
                             window.dispatchEvent(
-                              new CustomEvent('media-open-115-play', {
-                                detail: { query: item.code },
-                              }),
+                              new CustomEvent('media-open-115-play', { detail: { query: item.code, pickCode: item.pickCode }, }),
                             );
                           }}
                         >
@@ -633,7 +646,7 @@ export function MediaLibraryPage() {
           <div className="ml-hero-dots">
             {heroes.map((item, i) => (
               <button
-                key={item.code}
+                key={`${item.source}:${item.itemId || item.code}`}
                 type="button"
                 className={`ml-hero-dot${i === heroIndex ? ' is-active' : ''}`}
                 aria-label={`第 ${i + 1} 张`}
@@ -867,6 +880,7 @@ export function MediaLibraryPage() {
       {show115Panel ? (
         <Media115PlayPanel
           initialQuery={play115Query}
+          initialPickCode={play115PickCode}
           onClose={() => setShow115Panel(false)}
         />
       ) : null}
@@ -932,6 +946,14 @@ export function MediaLibraryPage() {
             item={detailItem}
             onPlay={(opts) => {
               const it = detailItem;
+              if (!it) return;
+              if (it.source === '115') {
+                setDetailItem(null);
+                setPlay115Query(it.code || it.title || '');
+                setPlay115PickCode(it.pickCode || '');
+                setShow115Panel(true);
+                return;
+              }
               const highlights = (opts as any)?.highlights as Array<{ time: number; text: string }> | undefined;
               setDetailItem(null);
               void playEmbyItem(it, {
@@ -968,17 +990,22 @@ export function MediaLibraryPage() {
             title="这里还没有可展示的条目"
             description={
               usingPreview
-                ? '可先到设置中配置 Emby / Jellyfin 并完成媒体库同步。'
-                : '当前筛选下无结果，可切换来源或清空搜索。'
+                ? '可先到设置中配置 Emby / Jellyfin 并完成媒体库同步，或在 115 设置配置片库目录并索引。'
+                : filter === '115'
+                  ? '115 筛选下无条目。请到 115 设置配置片库根目录并点击「立即索引」。'
+                  : '当前筛选下无结果，可切换来源或清空搜索。'
             }
             action={
               <Button
                 size="sm"
                 onClick={() => {
-                  window.location.hash = '#tab-settings/emby-settings';
+                  window.location.hash =
+                    filter === '115'
+                      ? '#tab-settings/drive115-settings'
+                      : '#tab-settings/emby-settings';
                 }}
               >
-                前往 Emby / Jellyfin 设置
+                {filter === '115' ? '前往 115 设置' : '前往 Emby / Jellyfin 设置'}
               </Button>
             }
           />
@@ -986,7 +1013,7 @@ export function MediaLibraryPage() {
           <div className="ml-grid" id="mediaLibraryGrid" data-layout-check="media-grid">
             {list.map((item) => (
               <MediaCard
-                key={item.code}
+                key={`${item.source}:${item.itemId || item.code}`}
                 item={item}
                 usingPreview={usingPreview}
                 coverView={coverView}
@@ -1157,7 +1184,7 @@ function MediaCard({
               e.preventDefault();
               e.stopPropagation();
               window.dispatchEvent(
-                new CustomEvent('media-open-115-play', { detail: { query: item.code } }),
+                new CustomEvent('media-open-115-play', { detail: { query: item.code, pickCode: item.pickCode } }),
               );
             }}
           >
@@ -1238,7 +1265,7 @@ function MediaCard({
             className="ml-watch-btn"
             onClick={() => {
               window.dispatchEvent(
-                new CustomEvent('media-open-115-play', { detail: { query: item.code } }),
+                new CustomEvent('media-open-115-play', { detail: { query: item.code, pickCode: item.pickCode } }),
               );
             }}
             title="在 115 搜索并播放"
@@ -1253,7 +1280,7 @@ function MediaCard({
             className="ml-watch-btn"
             onClick={() => {
               window.dispatchEvent(
-                new CustomEvent('media-open-115-play', { detail: { query: item.code } }),
+                new CustomEvent('media-open-115-play', { detail: { query: item.code, pickCode: item.pickCode } }),
               );
             }}
             title="在 115 搜索并播放"
@@ -1265,3 +1292,5 @@ function MediaCard({
     </article>
   );
 }
+
+
